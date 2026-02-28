@@ -137,13 +137,18 @@ export default function SnowflakeImport({
                 <div className="space-y-4 sm:space-y-6">
                     {/* Connected Status */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                             <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                             <span className="text-sm sm:text-base font-medium text-blue-900">Connected</span>
                             {s.connectionStatus.account_identifier && (
                                 <span className="text-xs sm:text-sm text-blue-700 truncate max-w-[120px] sm:max-w-none">
                                     ({s.connectionStatus.account_identifier})
                                 </span>
+                            )}
+                            {s.connectionStatus.sf_provisioned && s.connectionStatus.sf_user_schema && (
+                                <Badge variant="secondary" className="text-xs">
+                                    {s.connectionStatus.sf_user_database}.{s.connectionStatus.sf_user_schema}
+                                </Badge>
                             )}
                         </div>
                         <Button

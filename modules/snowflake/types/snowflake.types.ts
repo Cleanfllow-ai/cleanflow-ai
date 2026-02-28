@@ -13,6 +13,9 @@ export interface SnowflakeConnectionStatus {
   database?: string
   schema?: string
   linked_at?: string
+  sf_user_schema?: string
+  sf_user_database?: string
+  sf_provisioned?: boolean
 }
 
 // ─── Metadata browsing ────────────────────────────────────────────────────────

@@ -60,10 +60,10 @@ export function useSnowflakeImport({
     const [tables, setTables] = useState<SnowflakeMetadataItem[]>([])
     const [metadataLoading, setMetadataLoading] = useState(false)
 
-    // Import — selection state
-    const [selectedWarehouse, setSelectedWarehouse] = useState("COMPUTE_WH")
-    const [selectedDatabase, setSelectedDatabase] = useState("TEST_DB")
-    const [selectedSchema, setSelectedSchema] = useState("CLEANFLOW")
+    // Import — selection state (populated from provisioned defaults on connect)
+    const [selectedWarehouse, setSelectedWarehouse] = useState("")
+    const [selectedDatabase, setSelectedDatabase] = useState("")
+    const [selectedSchema, setSelectedSchema] = useState("")
     const [selectedTable, setSelectedTable] = useState("")
     const [importLimit, setImportLimit] = useState(10000)
 
@@ -100,6 +100,11 @@ export function useSnowflakeImport({
         try {
             const status = await snowflakeAPI.getConnectionStatus()
             setConnectionStatus(status)
+            // Seed selectors from provisioned user namespace
+            if (status.connected && status.sf_provisioned) {
+                if (status.sf_user_database) setSelectedDatabase((prev) => prev || status.sf_user_database!)
+                if (status.sf_user_schema) setSelectedSchema((prev) => prev || status.sf_user_schema!)
+            }
             return status.connected
         } catch {
             setConnectionStatus({ connected: false })
@@ -159,19 +164,21 @@ export function useSnowflakeImport({
     const loadMetadata = useCallback(async () => {
         setMetadataLoading(true)
         try {
-            // Load warehouses, databases, and tables in parallel using defaults
-            const db = selectedDatabase || "TEST_DB"
-            const sc = selectedSchema || "CLEANFLOW"
-            const [wh, dbs, tbl] = await Promise.all([
+            // Load warehouses and databases in parallel; tables load via cascading effects
+            const [wh, dbs] = await Promise.all([
                 snowflakeAPI.listWarehouses(),
                 snowflakeAPI.listDatabases(),
-                snowflakeAPI.listTables(db, sc).catch(() => [] as SnowflakeMetadataItem[]),
             ])
             setWarehouses(wh)
             setDatabases(dbs)
-            setTables(tbl)
             if (wh.length > 0 && !selectedWarehouse) {
                 setSelectedWarehouse(wh[0].name)
+            }
+            // If we already have a selected database + schema, load tables
+            if (selectedDatabase && selectedSchema) {
+                const tbl = await snowflakeAPI.listTables(selectedDatabase, selectedSchema)
+                    .catch(() => [] as SnowflakeMetadataItem[])
+                setTables(tbl)
             }
         } catch (error) {
             console.error("Failed to load metadata:", error)
@@ -407,7 +414,7 @@ export function useSnowflakeImport({
                 target_table: targetTable,
                 warehouse: selectedWarehouse || undefined,
                 database: selectedDatabase || undefined,
-                schema: selectedSchema || "CLEANFLOW",
+                schema: selectedSchema || undefined,
                 write_mode: exportWriteMode,
                 column_mapping: selectedEntity !== "general" ? columnMapping : undefined,
             })
