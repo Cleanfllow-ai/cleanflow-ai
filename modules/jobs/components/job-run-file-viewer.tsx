@@ -1,7 +1,7 @@
 "use client"
 
 import {
-    Loader2, Eye, Download, Trash2, FileText, AlertCircle, CloudUpload
+    Loader2, Eye, Download, Trash2, FileText, AlertCircle, CloudUpload, Pencil
 } from "lucide-react"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -28,6 +28,7 @@ import {
 import { cn } from "@/shared/lib/utils"
 import type { JobRun } from "@/modules/jobs/types/jobs.types"
 import { FileDetailsDialog } from "@/modules/files/components/file-details-dialog"
+import { QuarantineEditorDialog } from "@/modules/files/components/quarantine-editor"
 import { ColumnExportContent } from "@/modules/files/components/column-export-dialog"
 import { useJobRunFiles } from "./use-job-run-files"
 
@@ -196,6 +197,17 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                                                             </TooltipTrigger>
                                                             <TooltipContent>Delete</TooltipContent>
                                                         </Tooltip>
+                                                        {(file.rows_quarantined ?? 0) > 0 && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:text-violet-700"
+                                                                        onClick={() => state.handleOpenQuarantineEditor(file)}>
+                                                                        <Pencil className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>AI Edit Quarantined Data</TooltipContent>
+                                                            </Tooltip>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -208,12 +220,22 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                 </DialogContent>
             </Dialog>
 
-            {/* File Details (Preview / DQ Report only) */}
+            {/* File Details (Preview / DQ Report / Versions) */}
             <FileDetailsDialog
                 file={state.detailFile}
                 open={state.detailOpen}
                 onOpenChange={state.setDetailOpen}
-                hideTabs={["details", "versions"]}
+                onRemediate={(f) => state.handleOpenQuarantineEditor(f)}
+                hideTabs={["details"]}
+            />
+
+            {/* Quarantine Editor Dialog */}
+            <QuarantineEditorDialog
+                file={state.quarantineFile}
+                open={state.quarantineEditorOpen}
+                onOpenChange={(open) => {
+                    if (!open) state.handleQuarantineEditorClose()
+                }}
             />
 
             {/* Download Data (Column Export + ERP Transform) */}

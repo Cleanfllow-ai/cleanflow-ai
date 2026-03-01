@@ -39,6 +39,10 @@ export interface JobRunFilesState {
     setErpMode: (mode: "original" | "transform") => void
     erpTarget: string
     setErpTarget: (target: string) => void
+    quarantineFile: FileStatusResponse | null
+    quarantineEditorOpen: boolean
+    handleOpenQuarantineEditor: (file: FileStatusResponse) => void
+    handleQuarantineEditorClose: () => void
 }
 
 export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesState {
@@ -54,6 +58,8 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
     const [columnExportLoading, setColumnExportLoading] = useState(false)
     const [erpMode, setErpMode] = useState<"original" | "transform">("original")
     const [erpTarget, setErpTarget] = useState("")
+    const [quarantineFile, setQuarantineFile] = useState<FileStatusResponse | null>(null)
+    const [quarantineEditorOpen, setQuarantineEditorOpen] = useState(false)
 
     useEffect(() => {
         if (!open || !run || !idToken) {
@@ -187,6 +193,30 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
         }
     }, [idToken])
 
+    const handleOpenQuarantineEditor = useCallback((file: FileStatusResponse) => {
+        setQuarantineFile(file)
+        setQuarantineEditorOpen(true)
+    }, [])
+
+    const handleQuarantineEditorClose = useCallback(async () => {
+        const closingFile = quarantineFile
+        setQuarantineEditorOpen(false)
+        setQuarantineFile(null)
+        // Refresh the file entry to reflect any reprocessing changes
+        if (closingFile && idToken) {
+            try {
+                const updated = await fileManagementAPI.getFileStatus(closingFile.upload_id, idToken)
+                setEntries(prev => prev.map(e =>
+                    e.uploadId === closingFile.upload_id
+                        ? { ...e, file: updated }
+                        : e
+                ))
+            } catch {
+                // Ignore — file may have been replaced by a new version
+            }
+        }
+    }, [quarantineFile, idToken])
+
     return {
         entries,
         loading,
@@ -207,5 +237,9 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
         setErpMode,
         erpTarget,
         setErpTarget,
+        quarantineFile,
+        quarantineEditorOpen,
+        handleOpenQuarantineEditor,
+        handleQuarantineEditorClose,
     }
 }
