@@ -420,7 +420,7 @@ export function useSnowflakeImport({
             })
             setExportResult(result)
             onNotification?.(
-                result.message || `Exported ${result.records_written ?? 0} records to Snowflake table ${targetTable}`,
+                result.message || `Exported ${result.records_written ?? 0} records to Snowflake`,
                 "success"
             )
         } catch (error) {
