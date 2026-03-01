@@ -99,7 +99,7 @@ export function useFileManager() {
       // Different roots with the same filename = separate files, both shown.
       const byRoot = new Map<string, FileItem>()
       for (const file of apiFiles) {
-        const key = file.root_upload_id || file.upload_id
+        const key = file.root_upload_id || file.upload_id || file.id
         const existing = byRoot.get(key)
         if (!existing || new Date(file.uploaded_at || 0) > new Date(existing.uploaded_at || 0)) {
           byRoot.set(key, file)

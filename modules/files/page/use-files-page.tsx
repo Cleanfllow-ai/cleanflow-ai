@@ -366,7 +366,7 @@ export function useFilesPage() {
         while (true) {
             const candidate = `${cleanBase} (${counter})${ext}`;
             const taken = existingFiles.some(
-                (f) => normalizeFilename(f.original_filename || f.name) === normalizeFilename(candidate)
+                (f) => normalizeFilename(f.original_filename || f.filename || "") === normalizeFilename(candidate)
             );
             if (!taken) return candidate;
             counter++;
@@ -430,7 +430,7 @@ export function useFilesPage() {
         }
         // Check for filename collision (normalised to catch "file .csv" == "file.csv")
         const collision = files.find(
-            (f) => normalizeFilename(f.original_filename || f.name) === normalizeFilename(file.name)
+            (f) => normalizeFilename(f.original_filename || f.filename || "") === normalizeFilename(file.name)
         );
         if (collision) {
             setPendingUploadFile(file);
@@ -458,7 +458,7 @@ export function useFilesPage() {
         const newName = baseName + origExt;
         // Collision check
         const collision = files.find(
-            (f) => normalizeFilename(f.original_filename || f.name) === normalizeFilename(newName)
+            (f) => normalizeFilename(f.original_filename || f.filename || "") === normalizeFilename(newName)
         );
         if (collision) {
             setRenameError(`"${newName}" already exists. Please choose a different name.`);
@@ -1189,7 +1189,7 @@ export function useFilesPage() {
         // Details / wizard
         detailsOpen, setDetailsOpen, selectedFile, setSelectedFile,
         handleViewDetails, handleStartProcessing,
-        wizardOpen, setWizardOpen, wizardFile, handleWizardOpenChange, handleWizardComplete,
+        wizardOpen, setWizardOpen, wizardFile, setWizardFile, handleWizardOpenChange, handleWizardComplete,
         // Quarantine editor
         quarantineEditorOpen, setQuarantineEditorOpen,
         quarantineEditorFile, setQuarantineEditorFile,

@@ -74,6 +74,7 @@ export interface FileItem {
   thumbnail?: string
   // DQ processing fields
   upload_id?: string
+  root_upload_id?: string
   original_filename?: string
   uploaded_at?: string
   dq_score?: number

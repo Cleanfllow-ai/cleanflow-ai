@@ -394,19 +394,6 @@ export async function getFileVersions(
 }
 
 /**
- * Get a presigned URL for downloading quarantined rows as CSV
- * @param uploadId - File upload ID
- * @param authToken - JWT authentication token
- * @returns { url, filename, row_count }
- */
-export async function getQuarantinedExportUrl(
-    uploadId: string,
-    authToken: string
-): Promise<{ url: string | null; filename: string | null; row_count: number }> {
-    return makeRequest(ENDPOINTS.QUARANTINED_EXPORT(uploadId), authToken, { method: 'GET' })
-}
-
-/**
  * Download quarantined file (legacy compatibility)
  * @param uploadId - File upload ID
  * @param fileType - File format (csv, excel, json)

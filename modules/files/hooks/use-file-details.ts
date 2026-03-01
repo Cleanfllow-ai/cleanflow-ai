@@ -9,7 +9,7 @@ interface VersionInfo {
   totalVersions: number
 }
 
-export function useFileDetails(file: FileStatusResponse | null, open: boolean) {
+export function useFileDetails(file: FileStatusResponse | null, open: boolean, defaultTab: FileDetailsTab = "details") {
   const ISSUES_PAGE_SIZE = 50
   const [activeTab, setActiveTab] = useState<FileDetailsTab>(defaultTab)
   const [previewData, setPreviewData] = useState<FilePreviewData | null>(null)
@@ -93,9 +93,8 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean) {
           versions.reduce((a, b) => ((a.version_number || 0) >= (b.version_number || 0) ? a : b))
         // Merge latest version stats onto the root file record
         if (latest.dq_score != null) freshFile.dq_score = latest.dq_score
-        if (latest.status) freshFile.status = latest.status
+        if (latest.status) freshFile.status = latest.status as FileStatusResponse["status"]
         if (latest.rows_in != null) freshFile.rows_in = latest.rows_in
-        if (latest.rows_out != null) freshFile.rows_out = latest.rows_out
         if (latest.rows_clean != null) freshFile.rows_clean = latest.rows_clean
         if (latest.rows_fixed != null) freshFile.rows_fixed = latest.rows_fixed
         if (latest.rows_quarantined != null) freshFile.rows_quarantined = latest.rows_quarantined
