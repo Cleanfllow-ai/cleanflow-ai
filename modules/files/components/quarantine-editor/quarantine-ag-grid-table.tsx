@@ -288,6 +288,9 @@ export function QuarantineAgGridTable({
         enterNavigatesVerticallyAfterEdit={true}
         // Suppress the default context menu (prevent browser conflict)
         suppressContextMenu={true}
+        // Treat field names literally — prevents AG Grid from splitting "Account.Name"
+        // into nested path access (row.Account.Name) for columns with dots in their names
+        suppressFieldDotNotation={true}
       />
     </div>
   )
