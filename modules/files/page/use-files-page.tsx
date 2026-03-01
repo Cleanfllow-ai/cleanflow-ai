@@ -57,6 +57,10 @@ export function useFilesPage() {
     const [downloading, setDownloading] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
     const [useAI, setUseAI] = useState(true);
+    const [pendingUploadFile, setPendingUploadFile] = useState<File | null>(null);
+    const [showRenameDialog, setShowRenameDialog] = useState(false);
+    const [renameValue, setRenameValue] = useState("");
+    const [renameError, setRenameError] = useState<string | null>(null);
     const [deleting, setDeleting] = useState<string | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [fileToDelete, setFileToDelete] = useState<FileStatusResponse | null>(null);
@@ -343,16 +347,35 @@ export function useFilesPage() {
     };
 
     // ─── File upload ──────────────────────────────────────────────────
-    const handleFileUpload = async (file: File) => {
-        if (!ensureFilesPermission()) return;
+    // Normalise a filename for collision comparison: lowercase, collapse spaces,
+    // strip spaces adjacent to dots, collapse consecutive dots
+    const normalizeFilename = (name: string) =>
+        name.toLowerCase()
+            .replace(/\s+/g, " ")      // collapse whitespace runs to single space
+            .replace(/\s*\.\s*/g, ".") // remove spaces around every dot
+            .replace(/\.{2,}/g, ".")   // "file..csv" → "file.csv"
+            .trim();
+
+    const suggestFilename = (name: string, existingFiles: typeof files): string => {
+        const dotIndex = name.lastIndexOf(".");
+        const base = dotIndex !== -1 ? name.slice(0, dotIndex) : name;
+        const ext = dotIndex !== -1 ? name.slice(dotIndex) : "";
+        // Strip any existing " (n)" suffix from base
+        const cleanBase = base.replace(/ \(\d+\)$/, "");
+        let counter = 2;
+        while (true) {
+            const candidate = `${cleanBase} (${counter})${ext}`;
+            const taken = existingFiles.some(
+                (f) => normalizeFilename(f.original_filename || f.name) === normalizeFilename(candidate)
+            );
+            if (!taken) return candidate;
+            counter++;
+        }
+    };
+
+    const doUpload = async (file: File) => {
         if (!idToken) {
             toast({ title: "Error", description: "Not authenticated", variant: "destructive" });
-            return;
-        }
-        const extension = `.${file.name.split(".").pop()?.toLowerCase() || ""}`;
-        const validExtensions = [".csv", ".xlsx", ".xls", ".json"];
-        if (!validExtensions.includes(extension)) {
-            toast({ title: "Invalid file", description: "Please upload a CSV, Excel, or JSON file", variant: "destructive" });
             return;
         }
         setUploading(true);
@@ -392,6 +415,62 @@ export function useFilesPage() {
             updateUploadProgress(0);
         }
     };
+
+    const handleFileUpload = async (file: File) => {
+        if (!ensureFilesPermission()) return;
+        if (!idToken) {
+            toast({ title: "Error", description: "Not authenticated", variant: "destructive" });
+            return;
+        }
+        const extension = `.${file.name.split(".").pop()?.toLowerCase() || ""}`;
+        const validExtensions = [".csv", ".xlsx", ".xls", ".json"];
+        if (!validExtensions.includes(extension)) {
+            toast({ title: "Invalid file", description: "Please upload a CSV, Excel, or JSON file", variant: "destructive" });
+            return;
+        }
+        // Check for filename collision (normalised to catch "file .csv" == "file.csv")
+        const collision = files.find(
+            (f) => normalizeFilename(f.original_filename || f.name) === normalizeFilename(file.name)
+        );
+        if (collision) {
+            setPendingUploadFile(file);
+            const suggested = suggestFilename(file.name, files);
+            // Store only the base name (no extension) — ext shown as static label in dialog
+            const suggestedBase = suggested.lastIndexOf(".") !== -1
+                ? suggested.slice(0, suggested.lastIndexOf("."))
+                : suggested;
+            setRenameValue(suggestedBase);
+            setShowRenameDialog(true);
+            return;
+        }
+        await doUpload(file);
+    };
+
+    const handleRenameConfirm = async () => {
+        if (!pendingUploadFile) return;
+        // Base name only — strip ALL dots (user cannot change extension)
+        const baseName = renameValue.trim().replace(/\s+/g, " ").replace(/\./g, "");
+        if (!baseName) return;
+        // Re-attach the original extension
+        const origExt = pendingUploadFile.name.lastIndexOf(".") !== -1
+            ? pendingUploadFile.name.slice(pendingUploadFile.name.lastIndexOf("."))
+            : "";
+        const newName = baseName + origExt;
+        // Collision check
+        const collision = files.find(
+            (f) => normalizeFilename(f.original_filename || f.name) === normalizeFilename(newName)
+        );
+        if (collision) {
+            setRenameError(`"${newName}" already exists. Please choose a different name.`);
+            return;
+        }
+        setRenameError(null);
+        const renamed = new File([pendingUploadFile], newName, { type: pendingUploadFile.type });
+        setShowRenameDialog(false);
+        setPendingUploadFile(null);
+        await doUpload(renamed);
+    };
+
 
     const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -828,9 +907,28 @@ export function useFilesPage() {
     const openActionsDialog = (file: FileStatusResponse) => {
         if (!ensureFilesPermission()) return;
         setActionsDialogFile(file);
-        setColumnExportFile(file);
         setActionsDialogOpen(true);
-        void handleColumnExportClick(file);
+        void (async () => {
+            // Resolve latest version upload_id so export downloads the correct version
+            let exportFile = file;
+            if (idToken) {
+                try {
+                    const versionsResp = await fileManagementAPI.getFileVersions(file.upload_id, idToken);
+                    const versions = versionsResp.versions || [];
+                    if (versions.length > 0) {
+                        const latest = versions.find((v: any) => v.is_latest) ||
+                            versions.reduce((a: any, b: any) => ((a.version_number || 0) >= (b.version_number || 0) ? a : b));
+                        if (latest?.upload_id) {
+                            exportFile = { ...file, upload_id: latest.upload_id };
+                        }
+                    }
+                } catch {
+                    // fall back to root upload_id
+                }
+            }
+            setColumnExportFile(exportFile);
+            void handleColumnExportClick(exportFile);
+        })();
     };
 
     const handleColumnExportClick = async (file: FileStatusResponse) => {
@@ -1067,6 +1165,11 @@ export function useFilesPage() {
         // Upload
         uploading, uploadProgress, dragActive, useAI, setUseAI,
         handleFileInput, handleDrag, handleDrop,
+        // Rename-on-duplicate dialog
+        showRenameDialog, setShowRenameDialog,
+        pendingUploadFile, renameValue, setRenameValue,
+        renameError, setRenameError,
+        handleRenameConfirm,
         // Post-upload prompt
         recentlyUploaded, setRecentlyUploaded,
         // Manual refresh

@@ -110,8 +110,22 @@ export function useQuickBooksImport({
                 rows_clean: f.rows_clean,
                 updated_at: f.updated_at,
                 status_timestamp: f.status_timestamp,
+                root_upload_id: (f as any).root_upload_id || f.upload_id,
             }))
-            setFiles(mappedFiles)
+
+            // Deduplicate by version chain (root_upload_id): same root = same file lineage, keep latest.
+            // Different roots with the same filename = separate files, both shown.
+            const byRoot = new Map<string, typeof mappedFiles[0]>()
+            for (const f of mappedFiles) {
+                const key = f.root_upload_id
+                const existing = byRoot.get(key)
+                const fDate = new Date(f.updated_at || f.status_timestamp || 0).getTime()
+                const exDate = new Date(existing?.updated_at || existing?.status_timestamp || 0).getTime()
+                if (!existing || fDate > exDate) {
+                    byRoot.set(key, f)
+                }
+            }
+            setFiles(Array.from(byRoot.values()))
         } catch (err: any) {
             const message = (err?.message || '').toLowerCase()
             if (message.includes('permission denied') || message.includes('forbidden')) {

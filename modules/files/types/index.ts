@@ -74,4 +74,11 @@ export type {
     CompatibilityReprocessPayload,
     QuarantineEditorErrorType,
     QuarantineEditorError,
+    ColumnRuleApplyRow,
+    ColumnRuleApplyRequest,
+    ColumnRuleFix,
+    CrossRuleFix,
+    ColumnRuleApplyResponse,
+    ColumnRuleApplyAllRequest,
+    ColumnRuleApplyAllResponse,
 } from './quarantine.types'

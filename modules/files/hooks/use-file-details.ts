@@ -4,7 +4,12 @@ import { useToast } from "@/shared/hooks/use-toast"
 import { DqReportResponse, FileStatusResponse, fileManagementAPI } from "@/modules/files/api/file-management-api"
 import type { FileDetailsTab, FileIssue, FilePreviewData, MatrixTotals } from "@/modules/files/types"
 
-export function useFileDetails(file: FileStatusResponse | null, open: boolean, defaultTab: FileDetailsTab = "details") {
+interface VersionInfo {
+  versionNumber: number
+  totalVersions: number
+}
+
+export function useFileDetails(file: FileStatusResponse | null, open: boolean) {
   const ISSUES_PAGE_SIZE = 50
   const [activeTab, setActiveTab] = useState<FileDetailsTab>(defaultTab)
   const [previewData, setPreviewData] = useState<FilePreviewData | null>(null)
@@ -28,16 +33,20 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
   const [availableViolations, setAvailableViolations] = useState<Record<string, number>>({})
   const [selectedViolations, setSelectedViolations] = useState<Set<string>>(new Set())
   const [latestFile, setLatestFile] = useState<FileStatusResponse | null>(file)
+  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null)
+  const [latestVersionUploadId, setLatestVersionUploadId] = useState<string | null | undefined>(undefined)
   const { toast } = useToast()
 
   useEffect(() => {
+    // latestVersionUploadId === undefined means "not yet resolved" — wait for it
+    if (latestVersionUploadId === undefined) return
     if (open && file && activeTab === "preview" && !previewData) {
       void loadPreview()
     }
     if (open && file && activeTab === "dq-report" && !dqReport) {
       void loadDqReport()
     }
-  }, [open, file, activeTab])
+  }, [open, file, activeTab, latestVersionUploadId])
 
   useEffect(() => {
     if (!open) {
@@ -51,6 +60,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       setIssuesNextOffset(null)
       setAvailableViolations({})
       setSelectedViolations(new Set())
+      setLatestVersionUploadId(undefined)
     }
   }, [open])
 
@@ -71,10 +81,36 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       const token = authTokens.idToken
       if (!token) return
 
-      const freshFile = await fileManagementAPI.getFileStatus(file.upload_id, token)
+      const [freshFile, versionsResp] = await Promise.all([
+        fileManagementAPI.getFileStatus(file.upload_id, token),
+        fileManagementAPI.getFileVersions(file.upload_id, token).catch(() => ({ versions: [], count: 0 })),
+      ])
+
+      const versions = versionsResp.versions || []
+      if (versions.length > 0) {
+        // Find latest version by is_latest flag or highest version_number
+        const latest = versions.find((v) => v.is_latest) ||
+          versions.reduce((a, b) => ((a.version_number || 0) >= (b.version_number || 0) ? a : b))
+        // Merge latest version stats onto the root file record
+        if (latest.dq_score != null) freshFile.dq_score = latest.dq_score
+        if (latest.status) freshFile.status = latest.status
+        if (latest.rows_in != null) freshFile.rows_in = latest.rows_in
+        if (latest.rows_out != null) freshFile.rows_out = latest.rows_out
+        if (latest.rows_clean != null) freshFile.rows_clean = latest.rows_clean
+        if (latest.rows_fixed != null) freshFile.rows_fixed = latest.rows_fixed
+        if (latest.rows_quarantined != null) freshFile.rows_quarantined = latest.rows_quarantined
+        if (latest.processing_time_seconds != null) freshFile.processing_time_seconds = latest.processing_time_seconds
+        setLatestVersionUploadId(latest.upload_id)
+        setVersionInfo({ versionNumber: latest.version_number || 1, totalVersions: versions.length })
+      } else {
+        setLatestVersionUploadId(null)
+        setVersionInfo(null)
+      }
+
       setLatestFile(freshFile)
     } catch (error) {
       console.error("Failed to refresh file details", error)
+      setLatestVersionUploadId(null)
     }
   }
 
@@ -88,7 +124,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
       const token = authTokens.idToken
       if (!token) throw new Error("Not authenticated")
-      const data = await fileManagementAPI.getFilePreview(targetFile.upload_id, token)
+      const data = await fileManagementAPI.getFilePreview(latestVersionUploadId || targetFile.upload_id, token)
       setPreviewData(data)
     } catch (err: any) {
       setPreviewError(err.message || "Failed to load preview")
@@ -107,7 +143,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
       const token = authTokens.idToken
       if (!token) throw new Error("Not authenticated")
-      const report = await fileManagementAPI.downloadDqReport(targetFile.upload_id, token)
+      const report = await fileManagementAPI.downloadDqReport(latestVersionUploadId || targetFile.upload_id, token)
       setDqReport(report)
 
       const sampleIssues = report?.hybrid_summary?.outstanding_issues || []
@@ -135,7 +171,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
       const token = authTokens.idToken
       if (!token) throw new Error("Not authenticated")
-      const resp = await fileManagementAPI.getFileIssues(file.upload_id, token, {
+      const resp = await fileManagementAPI.getFileIssues(latestVersionUploadId || file.upload_id, token, {
         offset: reset ? 0 : issuesNextOffset || 0,
         violations: Array.from(selectedViolations),
       })
@@ -165,7 +201,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
       const token = authTokens.idToken
       if (!token) throw new Error("Not authenticated")
-      const report = await fileManagementAPI.downloadDqReport(file.upload_id, token)
+      const report = await fileManagementAPI.downloadDqReport(latestVersionUploadId || file.upload_id, token)
 
       const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" })
       const url = URL.createObjectURL(blob)
@@ -284,6 +320,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
     selectedViolations,
     setSelectedViolations,
     latestFile,
+    versionInfo,
     fetchIssues,
     handleDownloadDqReport,
     openMatrixDialog,

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -9,11 +9,37 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ArrowLeft, Play, ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Loader2, Code, ArrowRight } from "lucide-react"
-import { useProcessingWizard, type RuleWithState } from "../WizardContext"
+import { useProcessingWizard, type RuleWithState, type CrossFieldRuleWithState } from "../WizardContext"
 import { fileManagementAPI, type CustomRuleDefinition } from "@/modules/files"
 import { cn } from "@/shared/lib/utils"
 import { getRuleLabel } from "@/shared/lib/dq-rules"
 import { deriveRulesV2, CORE_TYPES, TYPE_ALIASES } from "@/shared/lib/type-catalog"
+
+// ── @ mention helpers ──────────────────────────────────────────────────────────
+
+function parseDescriptionTokens(text: string): Array<{ type: 'text' | 'mention'; value: string }> {
+  const tokens: Array<{ type: 'text' | 'mention'; value: string }> = []
+  const regex = /@\w*/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) tokens.push({ type: 'text', value: text.slice(lastIndex, match.index) })
+    tokens.push({ type: 'mention', value: match[0] })
+    lastIndex = match.index + match[0].length
+  }
+  if (lastIndex < text.length) tokens.push({ type: 'text', value: text.slice(lastIndex) })
+  return tokens
+}
+
+const CROSS_TEXTAREA_STYLE: React.CSSProperties = {
+  fontFamily: 'inherit',
+  fontSize: '0.875rem',
+  lineHeight: '1.5rem',
+  padding: '0.5rem 0.75rem',
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+  overflowWrap: 'break-word',
+}
 
 export function RulesStep() {
   const {
@@ -49,6 +75,73 @@ export function RulesStep() {
   const [pendingSuggestion, setPendingSuggestion] = useState<CustomRuleDefinition | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [rawResponse, setRawResponse] = useState<string | null>(null)
+
+  // AI cross-column rule suggestion state
+  const [showCrossRuleForm, setShowCrossRuleForm] = useState(false)
+  const [crossRulePrompt, setCrossRulePrompt] = useState("")
+  const [isGeneratingCross, setIsGeneratingCross] = useState(false)
+  const [pendingCrossRules, setPendingCrossRules] = useState<CrossFieldRuleWithState[] | null>(null)
+  const [crossRuleError, setCrossRuleError] = useState<string | null>(null)
+
+  // @ mention state for cross-rule textarea
+  const crossTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const [mentionStart, setMentionStart] = useState(-1)
+  const [mentionQuery, setMentionQuery] = useState("")
+  const [showMention, setShowMention] = useState(false)
+  const [mentionIndex, setMentionIndex] = useState(0)
+
+  const filteredMentionCols = useMemo(() => {
+    const showAll = !mentionQuery || "all".startsWith(mentionQuery.toLowerCase())
+    const base = mentionQuery
+      ? selectedColumns.filter((c) => c.toLowerCase().includes(mentionQuery.toLowerCase()))
+      : selectedColumns
+    const cols = base.slice(0, showAll ? 7 : 8)
+    return showAll ? ["all", ...cols] : cols
+  }, [selectedColumns, mentionQuery])
+
+  const closeMention = () => { setShowMention(false); setMentionStart(-1); setMentionQuery("") }
+
+  const insertColumn = (colName: string) => {
+    if (mentionStart < 0) return
+    const before = crossRulePrompt.slice(0, mentionStart)
+    const after = crossRulePrompt.slice(mentionStart + 1 + mentionQuery.length)
+    const newText = before + "@" + colName + after
+    setCrossRulePrompt(newText)
+    closeMention()
+    setTimeout(() => {
+      if (crossTextareaRef.current) {
+        const pos = mentionStart + 1 + colName.length
+        crossTextareaRef.current.setSelectionRange(pos, pos)
+        crossTextareaRef.current.focus()
+      }
+    }, 0)
+  }
+
+  const handleCrossPromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    const cursor = e.target.selectionStart ?? val.length
+    setCrossRulePrompt(val)
+    const textBefore = val.slice(0, cursor)
+    const atMatch = textBefore.match(/@(\w*)$/)
+    if (atMatch) {
+      setMentionStart(cursor - atMatch[0].length)
+      setMentionQuery(atMatch[1])
+      setShowMention(true)
+      setMentionIndex(0)
+    } else {
+      closeMention()
+    }
+  }
+
+  const handleCrossPromptKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showMention && filteredMentionCols.length > 0) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setMentionIndex((i) => Math.min(i + 1, filteredMentionCols.length - 1)); return }
+      if (e.key === "ArrowUp") { e.preventDefault(); setMentionIndex((i) => Math.max(i - 1, 0)); return }
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); insertColumn(filteredMentionCols[mentionIndex]); return }
+      if (e.key === "Escape") { e.preventDefault(); closeMention(); return }
+    }
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void handleGenerateCrossRule()
+  }
 
   useEffect(() => {
     // Seed rules from derived types (catalog) if not already set
@@ -163,6 +256,53 @@ export function RulesStep() {
     setCustomRulePrompt("")
   }
 
+  const handleGenerateCrossRule = async () => {
+    if (!crossRulePrompt.trim() || !authToken) return
+    setIsGeneratingCross(true)
+    setCrossRuleError(null)
+    setPendingCrossRules(null)
+    try {
+      const response = await fileManagementAPI.suggestCrossColumnRule(uploadId, authToken, {
+        prompt: crossRulePrompt.trim(),
+        columns: /@all\b/i.test(crossRulePrompt)
+          ? []
+          : Array.from(new Set((crossRulePrompt.match(/@(\S+)/g) ?? []).map((m) => m.slice(1)).filter((c) => selectedColumns.includes(c)))),
+      })
+      const rules: CrossFieldRuleWithState[] = (response?.rules ?? []).map((r) => ({
+        rule_id: r.rule_id,
+        cols: r.cols,
+        relationship: r.relationship,
+        condition: r.condition,
+        predicate: r.predicate,
+        tolerance: r.tolerance,
+        confidence: r.confidence,
+        reasoning: r.reasoning,
+        enabled: true,
+      }))
+      if (rules.length === 0) {
+        setCrossRuleError("CleanAI could not find a matching cross-column rule. Try a more specific description.")
+      } else {
+        setPendingCrossRules(rules)
+      }
+    } catch (err: unknown) {
+      setCrossRuleError(err instanceof Error ? err.message : "Failed to generate cross-column rule")
+    } finally {
+      setIsGeneratingCross(false)
+    }
+  }
+
+  const handleApproveCrossRules = () => {
+    if (!pendingCrossRules) return
+    // Merge: skip any rule that is already in crossFieldRules (same rule_id + cols)
+    const existing = new Set(crossFieldRules.map((r) => `${r.rule_id}:${r.cols.join(",")}`))
+    const toAdd = pendingCrossRules.filter((r) => !existing.has(`${r.rule_id}:${r.cols.join(",")}`))
+    setCrossFieldRules([...crossFieldRules, ...toAdd])
+    setPendingCrossRules(null)
+    setCrossRulePrompt("")
+    closeMention()
+    setShowCrossRuleForm(false)
+  }
+
   const canProceed = true // rules optional
 
   // Calculate rule statistics
@@ -204,13 +344,28 @@ export function RulesStep() {
       <div className="border border-muted rounded-lg overflow-hidden flex-1 min-h-0 mt-6">
         <div className="h-full overflow-y-auto p-4">
           <div className="space-y-3">
-            {crossFieldRules.length > 0 && (
-              <div className="border border-muted rounded-md p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-sm">Cross-column Rules</h3>
-                  <Badge variant="outline" className="text-xs">{totalSelectedCrossRules}/{totalCrossRules} enabled</Badge>
+            <div className="border border-muted rounded-md p-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-sm">Cross-column Rules</h3>
+                <div className="flex items-center gap-2">
+                  {totalCrossRules > 0 && (
+                    <Badge variant="outline" className="text-xs">{totalSelectedCrossRules}/{totalCrossRules} enabled</Badge>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => { setShowCrossRuleForm(true); setPendingCrossRules(null); setCrossRuleError(null); closeMention() }}
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Add AI Rule
+                  </Button>
                 </div>
-                <div className="space-y-2">
+              </div>
+
+              {/* Existing rules */}
+              {crossFieldRules.length > 0 && (
+                <div className="space-y-2 mb-3">
                   {crossFieldRules.map((rule) => (
                     <div
                       key={rule.rule_id + rule.cols.join(".")}
@@ -246,12 +401,153 @@ export function RulesStep() {
                             ))}
                           </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          onClick={() => setCrossFieldRules(crossFieldRules.filter((r) => !(r.rule_id === rule.rule_id && r.cols.join(".") === rule.cols.join("."))))}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+
+              {crossFieldRules.length === 0 && !showCrossRuleForm && (
+                <p className="text-xs text-muted-foreground">No cross-column rules detected. Click &quot;Add AI Rule&quot; to describe one.</p>
+              )}
+
+              {/* AI cross-rule suggestion form */}
+              {showCrossRuleForm && (
+                <div className="border border-dashed border-muted rounded-md p-3 space-y-3 mt-1">
+                  <p className="text-xs text-muted-foreground font-medium">Describe the cross-column rule in plain language:</p>
+
+                  {/* Textarea with @ mention highlight overlay */}
+                  <div className="relative rounded-lg border border-violet-200 bg-violet-50/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white">
+                    {/* Mirror div — highlight backgrounds only */}
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none"
+                      style={CROSS_TEXTAREA_STYLE}
+                    >
+                      {parseDescriptionTokens(crossRulePrompt).map((token, i) =>
+                        token.type === "mention" ? (
+                          <mark key={i} style={{ background: "rgb(221 214 254 / 0.8)", color: "transparent", borderRadius: "4px", padding: "1px 3px" }}>
+                            {token.value}
+                          </mark>
+                        ) : (
+                          <span key={i} style={{ color: "transparent" }}>{token.value}</span>
+                        )
+                      )}
+                      <span style={{ color: "transparent" }}>{"\u200b"}</span>
+                    </div>
+
+                    {/* Real textarea */}
+                    <textarea
+                      ref={crossTextareaRef}
+                      value={crossRulePrompt}
+                      onChange={handleCrossPromptChange}
+                      onKeyDown={handleCrossPromptKeyDown}
+                      onBlur={() => setTimeout(closeMention, 150)}
+                      placeholder={`e.g. CREATED_TS must be before UPDATED_TS — type @ to insert a column`}
+                      rows={2}
+                      className="relative w-full bg-transparent focus:outline-none resize-none placeholder:text-muted-foreground/50"
+                      style={{ ...CROSS_TEXTAREA_STYLE, caretColor: "currentColor" }}
+                    />
+
+                    {/* @ mention dropdown */}
+                    {showMention && filteredMentionCols.length > 0 && (
+                      <div className="absolute left-0 z-50 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b bg-muted/50">
+                          <span className="text-[11px] font-semibold text-violet-600 bg-violet-100 rounded px-1 leading-5">@</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {mentionQuery ? `Columns matching "${mentionQuery}"` : "Insert column name"}
+                          </span>
+                          <span className="ml-auto text-[10px] text-muted-foreground/60">↑↓ · ↵ insert</span>
+                        </div>
+                        <div className="max-h-[140px] overflow-y-auto py-0.5">
+                          {filteredMentionCols.map((col, idx) => (
+                            <button
+                              key={col}
+                              type="button"
+                              onMouseDown={(e) => { e.preventDefault(); insertColumn(col) }}
+                              className={`w-full text-left px-3 py-1.5 text-xs font-mono flex items-center gap-2 transition-colors ${
+                                idx === mentionIndex
+                                  ? "bg-violet-50 text-violet-700"
+                                  : "hover:bg-muted/60"
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${idx === mentionIndex ? "bg-violet-500" : "bg-muted-foreground/30"}`} />
+                              {col === "all" ? <span className="text-violet-600 font-semibold not-italic">all <span className="font-normal text-muted-foreground">— all columns</span></span> : col}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Type <kbd className="px-1 py-0.5 rounded bg-muted border text-[10px] font-mono">@</kbd> to insert a column name · Cmd/Ctrl+Enter to generate
+                  </p>
+
+                  {/* Pending suggestions */}
+                  {pendingCrossRules && pendingCrossRules.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Suggested rules — approve to add:</p>
+                      {pendingCrossRules.map((rule, i) => (
+                        <div key={i} className="p-2 rounded border border-primary/30 bg-primary/5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{rule.rule_id}</span>
+                            {rule.relationship && <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>}
+                            {rule.confidence !== undefined && (
+                              <Badge variant="outline" className="text-[10px]">{Math.round((rule.confidence || 0) * 100)}%</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{rule.condition || rule.predicate}</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {rule.cols.map((c) => (
+                              <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
+                            ))}
+                          </div>
+                          {rule.reasoning && (
+                            <p className="text-[10px] text-muted-foreground mt-1 italic">{rule.reasoning}</p>
+                          )}
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleApproveCrossRules}>
+                          Add {pendingCrossRules.length === 1 ? "Rule" : `${pendingCrossRules.length} Rules`}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setPendingCrossRules(null)}>
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {crossRuleError && <p className="text-sm text-destructive">{crossRuleError}</p>}
+
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => void handleGenerateCrossRule()}
+                      disabled={isGeneratingCross || !crossRulePrompt.trim()}
+                    >
+                      {isGeneratingCross ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                      Generate
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { setShowCrossRuleForm(false); setPendingCrossRules(null); setCrossRuleError(null); setCrossRulePrompt(""); closeMention() }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <h3 className="font-medium">Column Rules</h3>
             {selectedColumns.length === 0 && (

@@ -10,7 +10,16 @@ interface FilePreviewTabProps {
   previewData: FilePreviewData | null
 }
 
+// DQ metadata columns are used internally for cell coloring but should not
+// appear as visible columns in the preview table.
+const DQ_HIDDEN_COLUMNS = new Set([
+  "dq_status", "dq_violations", "dq_cell_status", "fixes_applied",
+  "dq_score", "dq_row_id",
+])
+
 export function FilePreviewTab({ previewLoading, previewError, previewData }: FilePreviewTabProps) {
+  const visibleHeaders = previewData?.headers?.filter((h) => !DQ_HIDDEN_COLUMNS.has(h)) ?? []
+
   return (
     <div className="h-full flex flex-col">
       {previewLoading && (
@@ -38,7 +47,7 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-20 bg-muted shadow-sm ">
                 <tr>
-                  {previewData.headers?.map((header) => (
+                  {visibleHeaders.map((header) => (
                     <th
                       key={header}
                       className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap border-b border-r last:border-r-0 bg-muted select-none"
@@ -55,7 +64,7 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                     className="border-b transition-colors hover:bg-muted/30"
                     title={row?.dq_violations || row?.dq_status || ""}
                   >
-                    {previewData.headers?.map((header) => {
+                    {visibleHeaders.map((header) => {
                       const value = row && typeof row === "object" ? row[header] : ""
                       const status = String(row?.dq_status || "").toLowerCase()
                       const cellStatus = row?.cell_status ? row.cell_status[header] : undefined

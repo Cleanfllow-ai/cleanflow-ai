@@ -28,6 +28,10 @@ import type {
     QuarantineReadModelBackfillResponse,
     FileVersionsResponse,
     CompatibilityReprocessPayload,
+    ColumnRuleApplyRequest,
+    ColumnRuleApplyResponse,
+    ColumnRuleApplyAllRequest,
+    ColumnRuleApplyAllResponse,
 } from '@/modules/files/types'
 
 // AWS Configuration
@@ -45,6 +49,23 @@ const ENDPOINTS = {
     VERSIONS: (id: string) => `/files/${id}/versions`,
     DOWNLOAD: (id: string) => `/files/${id}/download`,
     QUARANTINED_EXPORT: (id: string) => `/files/${id}/quarantined`,
+}
+
+// ========== Quarantine Export ==========
+
+/**
+ * Get a presigned download URL for the quarantined rows of a file version.
+ * Calls GET /files/{id}/quarantined → { url, filename, row_count }
+ */
+export async function getQuarantinedExportUrl(
+    uploadId: string,
+    authToken: string
+): Promise<{ url: string | null; filename: string | null; row_count: number }> {
+    return makeRequest(
+        `/files/${uploadId}/quarantined`,
+        authToken,
+        { method: 'GET' }
+    )
 }
 
 // ========== Session & Manifest Operations ==========
@@ -236,6 +257,101 @@ export async function submitCompatibilityReprocessViaUpload(
         execution_arn: processResult.dispatch_id,
         status: processResult.status || 'QUEUED',
     }
+}
+
+// ========== AI Suggest Fix ==========
+
+export interface AiSuggestFixParams {
+    column: string
+    value: string
+    rule_id?: string
+    column_type?: string
+    issue_message?: string
+    /** For cross-column rules: values of the other columns in the relationship */
+    related_columns?: Record<string, string>
+    /** For cross-column rules: the condition that must hold, e.g. "CREATED_TS <= UPDATED_TS" */
+    cross_condition?: string
+}
+
+export interface AiSuggestFixResponse {
+    suggestion: string
+    confidence: 'high' | 'medium' | 'low'
+    reasoning: string
+    _cache_hit?: boolean
+}
+
+/**
+ * Request an AI-generated fix suggestion for a quarantined cell value.
+ * Calls GET /files/{id}/quarantined/suggest-fix with cell context.
+ * Returns a suggested corrected value with confidence and reasoning.
+ */
+export async function suggestQuarantineFix(
+    uploadId: string,
+    authToken: string,
+    params: AiSuggestFixParams
+): Promise<AiSuggestFixResponse> {
+    const queryObj: Record<string, string> = {
+        column: params.column,
+        value: String(params.value ?? ''),
+        rule_id: params.rule_id ?? 'unknown',
+        column_type: params.column_type ?? 'text',
+        issue_message: params.issue_message ?? '',
+    }
+    if (params.related_columns && Object.keys(params.related_columns).length > 0) {
+        queryObj.related_columns = JSON.stringify(params.related_columns)
+    }
+    if (params.cross_condition) {
+        queryObj.cross_condition = params.cross_condition
+    }
+    return makeRequest(
+        `/files/${uploadId}/quarantined/suggest-fix?${new URLSearchParams(queryObj).toString()}`,
+        authToken,
+        { method: 'GET' }
+    )
+}
+
+// ========== AI Column Rule ==========
+
+/**
+ * Generate an AI Python transform rule from a natural-language description
+ * and apply it to all provided quarantined row values for a column.
+ *
+ * The backend generates a `fix_value(value: str) -> str` Python function,
+ * executes it safely in a sandbox, and returns the proposed fixes.
+ */
+export async function applyColumnRule(
+    uploadId: string,
+    authToken: string,
+    payload: ColumnRuleApplyRequest
+): Promise<ColumnRuleApplyResponse> {
+    return makeRequest(
+        `/files/${uploadId}/quarantined/column-rule/apply`,
+        authToken,
+        {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }
+    )
+}
+
+/**
+ * Apply an AI column rule to ALL quarantined rows for a column server-side.
+ * The backend paginates the full read model, applies the cached/generated rule,
+ * saves edits in etag-chained batches, and returns the total rows affected.
+ */
+export async function applyColumnRuleAll(
+    uploadId: string,
+    authToken: string,
+    payload: ColumnRuleApplyAllRequest
+): Promise<ColumnRuleApplyAllResponse> {
+    return makeRequest(
+        `/files/${uploadId}/quarantined/column-rule/apply-all`,
+        authToken,
+        {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }
+    )
 }
 
 // ========== Maintenance Operations ==========

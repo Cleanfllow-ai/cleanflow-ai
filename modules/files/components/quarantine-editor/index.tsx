@@ -7,19 +7,21 @@
 
 'use client'
 
+import { useState } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { useAuth } from '@/modules/auth'
 import { useQuarantineEditor } from '@/modules/files/hooks'
 import { QuarantineEditorHeader } from './quarantine-editor-header'
 import { QuarantineEditorToolbar } from './quarantine-editor-toolbar'
-import { QuarantineEditorTable } from './quarantine-editor-table'
+import { QuarantineAgGridTable } from './quarantine-ag-grid-table'
+import { QuarantineCustomRuleDialog } from './quarantine-custom-rule-dialog'
 import type { QuarantineEditorDialogProps } from '@/modules/files/types'
 
 /**
  * Quarantine Editor Dialog
  *
  * Focused editor for quarantined rows with:
- * - Virtual scrolling for performance
+ * - AG Grid for virtualized rendering and native resize/keyboard nav
  * - Inline cell editing
  * - Autosave
  * - Session management
@@ -37,6 +39,9 @@ export function QuarantineEditorDialog({ file, open, onOpenChange }: QuarantineE
     open,
   })
 
+  // Custom rule dialog state
+  const [customRuleOpen, setCustomRuleOpen] = useState(false)
+
   // Close handler
   const handleClose = () => {
     onOpenChange(false)
@@ -53,66 +58,73 @@ export function QuarantineEditorDialog({ file, open, onOpenChange }: QuarantineE
     }
   }
 
-  // Refresh handler
-  const handleRefresh = () => {
-    void editor.refreshSession()
-  }
-
-  // Scroll handlers
-  const handleScrollLeft = () => {
-    editor.virtualScroll.scrollHorizontally(-420)
-  }
-
-  const handleScrollRight = () => {
-    editor.virtualScroll.scrollHorizontally(420)
+  // After server-side apply-all: refresh session so rows + etag are up-to-date
+  const handleRuleApplied = (_newEtag: string, _rowsAffected: number) => {
+    editor.refreshSession()
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[98vw] max-w-[1700px] h-[90vh] p-0 gap-0 overflow-hidden bg-gradient-to-b from-background to-muted/5">
-        {/* Header */}
-        <QuarantineEditorHeader
-          manifest={editor.manifest}
-          pendingCount={editor.pendingCount}
-          compatibilityMode={editor.compatibilityMode}
-        />
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        {/*
+         * flex column: inline style overrides shadcn's default grid class so
+         * flex-1 on the table wrapper reliably fills all remaining height.
+         */}
+        <DialogContent
+          className="w-[98vw] max-w-[1700px] h-[90vh] p-0 gap-0 overflow-hidden"
+          style={{ display: 'flex', flexDirection: 'column' }}
+        >
+          {/* Row 1 — header */}
+          <QuarantineEditorHeader
+            manifest={editor.manifest}
+            pendingCount={editor.pendingCount}
+            compatibilityMode={editor.compatibilityMode}
+          />
 
-        {/* Toolbar */}
-        <QuarantineEditorToolbar
-          session={editor.sessionInfo}
-          pendingCount={editor.pendingCount}
-          saving={editor.saving}
-          submitting={editor.submitting}
-          onSave={editor.saveEdits}
-          onReprocess={handleReprocess}
-          onRefresh={handleRefresh}
-          onScrollLeft={handleScrollLeft}
-          onScrollRight={handleScrollRight}
-          lastSaveSummary={editor.lastSaveSummary}
-        />
+          {/* Row 2 — toolbar */}
+          <QuarantineEditorToolbar
+            session={editor.sessionInfo}
+            saving={editor.saving}
+            submitting={editor.submitting}
+            savedAt={editor.lastSavedAt}
+            onReprocess={handleReprocess}
+            onOpenCustomRule={() => setCustomRuleOpen(true)}
+          />
 
-        {/* Table */}
-        <QuarantineEditorTable
-          columns={editor.columns}
-          virtualRows={editor.virtualScroll.virtualRows}
-          visibleStart={editor.virtualScroll.visibleStart}
-          editableColumns={editor.manifest?.editable_columns || []}
-          activeCell={editor.activeCell}
-          getCellValue={editor.getCellValue}
-          isCellEdited={editor.isCellEdited}
-          isRowEdited={editor.isRowEdited}
-          onCellEdit={editor.handleCellEdit}
-          onActivateCell={(rowId, col) => editor.setActiveCell({ rowId, col })}
-          onDeactivateCell={() => editor.setActiveCell(null)}
-          parentRef={editor.virtualScroll.parentRef}
-          totalHeight={editor.virtualScroll.totalHeight}
-          rowHeight={32}
-          headerHeight={36}
-          onScroll={editor.virtualScroll.handleScroll}
-          loading={editor.loading}
-        />
+        {/* Table section — flex: 1 consumes remaining height, position: relative
+            establishes a containing block so the absolute inner div gets a
+            definite pixel height regardless of flex/percentage quirks. */}
+        <div className="relative overflow-hidden min-h-0" style={{ flex: 1 }}>
+          <div className="absolute inset-0">
+            <QuarantineAgGridTable
+              rows={editor.rows}
+              columns={editor.columns}
+              editableColumns={editor.manifest?.editable_columns || []}
+              isCellEdited={editor.isCellEdited}
+              isCellSaved={editor.isCellSaved}
+              onCellEdit={editor.handleCellEdit}
+              loading={editor.loading || editor.rowsLoading}
+              onBodyScrollEnd={editor.handleBodyScrollEnd}
+              uploadId={file?.upload_id ?? ''}
+              authToken={idToken}
+            />
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
+
+    {/* AI Custom Rule Dialog — rendered outside the main dialog to avoid
+        Radix DismissableLayer conflicts between two nested dialogs */}
+    <QuarantineCustomRuleDialog
+      open={customRuleOpen}
+      onOpenChange={setCustomRuleOpen}
+      rows={editor.rows}
+      uploadId={file?.upload_id ?? ''}
+      authToken={idToken}
+      session={editor.sessionInfo}
+      onApplied={handleRuleApplied}
+    />
+    </>
   )
 }
 

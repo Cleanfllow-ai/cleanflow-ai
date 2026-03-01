@@ -59,6 +59,7 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
     selectedViolations,
     setSelectedViolations,
     latestFile,
+    versionInfo,
     fetchIssues,
     handleDownloadDqReport,
     openMatrixDialog,
@@ -107,17 +108,6 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                     {currentFile.status}
                   </Badge>
                 </div>
-                {onRemediate && (currentFile.rows_quarantined ?? 0) > 0 && (currentFile.status === "DQ_FIXED" || currentFile.status === "COMPLETED") && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 gap-1.5"
-                    onClick={() => onRemediate(currentFile)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Remediate
-                  </Button>
-                )}
               </div>
             </DialogHeader>
 
@@ -181,7 +171,7 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
             </div>
 
             <div className="flex-1 overflow-hidden relative">
-              {activeTab === "details" && <FileOverviewTab file={currentFile} />}
+              {activeTab === "details" && <FileOverviewTab file={currentFile} versionInfo={versionInfo} />}
               {activeTab === "preview" && (
                 <FilePreviewTab
                   previewLoading={previewLoading}

@@ -86,6 +86,7 @@ export function useFileManager() {
         upload_id: item.upload_id,
         original_filename: item.original_filename,
         uploaded_at: item.uploaded_at,
+        root_upload_id: item.root_upload_id || item.upload_id,
         dq_score: item.dq_score,
         rows_in: item.rows_in,
         rows_out: item.rows_out,
@@ -94,8 +95,20 @@ export function useFileManager() {
         last_error: item.last_error,
       }))
 
-      setFiles(apiFiles)
-      updateStats(apiFiles)
+      // Deduplicate by version chain (root_upload_id): same root = same file lineage, keep latest version.
+      // Different roots with the same filename = separate files, both shown.
+      const byRoot = new Map<string, FileItem>()
+      for (const file of apiFiles) {
+        const key = file.root_upload_id || file.upload_id
+        const existing = byRoot.get(key)
+        if (!existing || new Date(file.uploaded_at || 0) > new Date(existing.uploaded_at || 0)) {
+          byRoot.set(key, file)
+        }
+      }
+      const dedupedFiles = Array.from(byRoot.values())
+
+      setFiles(dedupedFiles)
+      updateStats(dedupedFiles)
 
       toast({
         title: "Files loaded",

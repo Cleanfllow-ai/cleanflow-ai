@@ -63,6 +63,7 @@ export {
   pollFileStatusSmart,
   startProcessing,
   suggestCustomRule,
+  suggestCrossColumnRule,
   uploadFileComplete,
 } from './file-upload-api'
 
@@ -118,6 +119,7 @@ export type {
 } from './file-ingestion-api'
 
 export {
+  getQuarantinedExportUrl,
   getQuarantineManifest,
   startQuarantineSession,
   queryQuarantinedRows,
@@ -157,6 +159,7 @@ export const fileManagementAPI = {
   pollFileStatusSmart: uploadApi.pollFileStatusSmart,
   startProcessing: uploadApi.startProcessing,
   suggestCustomRule: uploadApi.suggestCustomRule,
+  suggestCrossColumnRule: uploadApi.suggestCrossColumnRule,
   uploadFileComplete: uploadApi.uploadFileComplete,
 
   // DQ reports & issues
@@ -193,6 +196,7 @@ export const fileManagementAPI = {
   testHttpEndpoint: ingestionApi.testHttpEndpoint,
 
   // Quarantine editor
+  getQuarantinedExportUrl: quarantineApi.getQuarantinedExportUrl,
   getQuarantineManifest: quarantineApi.getQuarantineManifest,
   startQuarantineSession: quarantineApi.startQuarantineSession,
   queryQuarantinedRows: quarantineApi.queryQuarantinedRows,

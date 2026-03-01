@@ -53,17 +53,18 @@ export interface FileVersionSummary {
   parent_upload_id?: string | null
   is_latest?: boolean
   created_at?: string
-  patch_notes?: string | null
-  reprocess_count?: number
-  rows_quarantined?: number
-  status?: string
-  dq_score?: number | null
-  original_filename?: string
   uploaded_at?: string
   updated_at?: string
-  rows_in?: number
-  rows_clean?: number
-  rows_fixed?: number
+  patch_notes?: string | null
+  reprocess_count?: number
+  original_filename?: string
+  status?: string
+  dq_score?: number | null
+  rows_in?: number | null
+  rows_clean?: number | null
+  rows_fixed?: number | null
+  rows_quarantined?: number | null
+  processing_time_seconds?: number | null
 }
 
 // ========== API Request Types ==========
@@ -262,6 +263,70 @@ export interface CompatibilityReprocessPayload {
   rows: Record<string, any>[]
   originalFilename?: string
   processingOptions?: any
+}
+
+// ========== AI Column Rule Types ==========
+
+/** A single row value to be transformed by the AI column rule */
+export interface ColumnRuleApplyRow {
+  row_id: string
+  value: string
+  /** Full row context for cross-column rules — keyed by column name, values as strings */
+  row?: Record<string, string>
+}
+
+/** Request payload for AI column rule generation and application */
+export interface ColumnRuleApplyRequest {
+  column: string
+  description: string
+  rows: ColumnRuleApplyRow[]
+}
+
+/** A single cell fix produced by the AI column rule (single-column mode) */
+export interface ColumnRuleFix {
+  row_id: string
+  original: string
+  fixed: string
+}
+
+/** A single cell fix produced by the cross-column AI fix (multi-column mode) */
+export interface CrossRuleFix {
+  row_id: string
+  column: string
+  original: string
+  fixed: string
+}
+
+/** Response from the AI column rule apply endpoint */
+export interface ColumnRuleApplyResponse {
+  fixes: ColumnRuleFix[]
+  rule_code: string
+  rows_affected: number
+  /** Populated for cross-column mode (column="") — per-cell changes across columns */
+  cross_fixes?: CrossRuleFix[]
+}
+
+/** Request payload for apply-all (one chunk; chain with cursor for large datasets) */
+export interface ColumnRuleApplyAllRequest {
+  /** Leave empty ("") for cross-column mode — fixes multiple columns per row */
+  column: string
+  description: string
+  session_id: string
+  /** Cursor from the previous chunk response; omit on the first call */
+  cursor?: string | null
+  /** Etag returned by the previous chunk; omit on the first call */
+  if_match_etag?: string
+}
+
+/** Response from one apply-all chunk */
+export interface ColumnRuleApplyAllResponse {
+  /** Rows fixed in this chunk */
+  rows_affected: number
+  /** Pass as if_match_etag in the next call */
+  new_etag: string
+  rule_code: string
+  /** Null when all rows have been processed */
+  next_cursor: string | null
 }
 
 // ========== Error Types ==========

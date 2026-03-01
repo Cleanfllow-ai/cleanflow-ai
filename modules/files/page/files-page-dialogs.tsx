@@ -125,6 +125,11 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         quarantineEditorOpen, setQuarantineEditorOpen,
         quarantineEditorFile, setQuarantineEditorFile,
         handleOpenQuarantineEditor, handleQuarantineEditorComplete,
+        // Rename on duplicate
+        showRenameDialog, setShowRenameDialog,
+        pendingUploadFile, renameValue, setRenameValue,
+        renameError, setRenameError,
+        handleRenameConfirm,
     } = state;
 
     const renderRuleOption = (
@@ -703,6 +708,49 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                     }
                 }}
             />
+
+            {/* Rename on duplicate filename dialog */}
+            <Dialog
+                open={showRenameDialog}
+                onOpenChange={(open) => { if (!open) { setShowRenameDialog(false); setRenameError(null); } }}
+            >
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>File already exists</DialogTitle>
+                        <DialogDescription>
+                            A file named <strong>{pendingUploadFile?.name}</strong> already exists.
+                            You must rename it before uploading.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-2 space-y-1">
+                        <Label htmlFor="rename-upload-input">New filename</Label>
+                        <div className="flex items-center gap-1">
+                            <Input
+                                id="rename-upload-input"
+                                value={renameValue}
+                                onChange={(e) => { setRenameValue(e.target.value); setRenameError(null); }}
+                                onKeyDown={(e) => { if (e.key === "Enter" && renameValue.trim()) void handleRenameConfirm(); }}
+                                className={renameError ? "border-destructive focus-visible:ring-destructive" : ""}
+                                placeholder="Enter a new name"
+                            />
+                            <span className="text-sm text-muted-foreground font-mono shrink-0 px-1">
+                                {pendingUploadFile?.name.includes(".")
+                                    ? pendingUploadFile.name.slice(pendingUploadFile.name.lastIndexOf("."))
+                                    : ""}
+                            </span>
+                        </div>
+                        {renameError && (
+                            <p className="text-xs text-destructive">{renameError}</p>
+                        )}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                        <Button variant="outline" onClick={() => { setShowRenameDialog(false); setRenameError(null); }}>Cancel</Button>
+                        <Button onClick={() => void handleRenameConfirm()} disabled={!renameValue.trim()}>
+                            Rename &amp; Upload
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

@@ -6,61 +6,43 @@
 
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Loader2, Save, Play, RefreshCw } from 'lucide-react'
-import type { QuarantineSession, SaveSummary } from '@/modules/files/types'
+import { Loader2, Play, CloudUpload, Wand2 } from 'lucide-react'
+import type { QuarantineSession } from '@/modules/files/types'
 
 interface QuarantineEditorToolbarProps {
   session: QuarantineSession | null
-  pendingCount: number
   saving: boolean
   submitting: boolean
-  onSave: () => void
+  savedAt?: Date | null
   onReprocess: () => void
-  onRefresh: () => void
-  onScrollLeft: () => void
-  onScrollRight: () => void
-  lastSaveSummary: SaveSummary | null
+  onOpenCustomRule: () => void
 }
 
 export function QuarantineEditorToolbar({
   session,
-  pendingCount,
   saving,
   submitting,
-  onSave,
+  savedAt,
   onReprocess,
-  onRefresh,
-  onScrollLeft,
-  onScrollRight,
-  lastSaveSummary,
+  onOpenCustomRule,
 }: QuarantineEditorToolbarProps) {
+  const [showSaved, setShowSaved] = useState(false)
+
+  useEffect(() => {
+    if (!savedAt) return
+    setShowSaved(true)
+    const timer = setTimeout(() => setShowSaved(false), 3000)
+    return () => clearTimeout(timer)
+  }, [savedAt])
+
   return (
     <div className="px-6 py-3 border-b bg-muted/5 backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* Left: Action buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh} className="h-9 shadow-sm hover:shadow transition-shadow">
-            <RefreshCw className="w-4 h-4 mr-1.5" /> Reload
-          </Button>
-          <div className="h-5 w-px bg-border" />
-          <Button
-            size="sm"
-            variant={pendingCount > 0 ? "default" : "outline"}
-            disabled={saving || pendingCount === 0}
-            onClick={onSave}
-            className="h-9 shadow-sm hover:shadow transition-all"
-          >
-            {saving ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />}
-            Save {pendingCount > 0 && `(${pendingCount})`}
-          </Button>
-          <Button
-            size="sm"
-            disabled={submitting || !session}
-            onClick={onReprocess}
-            className="h-9 shadow-sm hover:shadow transition-all"
-          >
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button size="sm" disabled={submitting || !session} onClick={onReprocess}>
             {submitting ? (
               <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
             ) : (
@@ -68,40 +50,32 @@ export function QuarantineEditorToolbar({
             )}
             Reprocess
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!session}
+            onClick={onOpenCustomRule}
+            className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300"
+          >
+            <Wand2 className="w-4 h-4 mr-1" />
+            AI Fix
+          </Button>
         </div>
 
-        {/* Right: Status badges and navigation */}
-        <div className="flex flex-wrap items-center gap-2">
-          {session && (
-            <Badge variant="outline" className="px-2.5 py-1 text-xs font-mono shadow-sm">
-              Session {session.session_id.slice(0, 8)}
-            </Badge>
-          )}
-          {lastSaveSummary && (
-            <Badge variant="secondary" className="px-2.5 py-1 text-xs shadow-sm">
-              ✓ Saved {lastSaveSummary.accepted}
-              {lastSaveSummary.rejected ? ` / ✗ ${lastSaveSummary.rejected}` : ''}
-            </Badge>
-          )}
-          <div className="h-5 w-px bg-border ml-1" />
-          <div className="flex items-center gap-1 bg-muted/50 rounded-md p-0.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-8 px-0 hover:bg-background"
-              onClick={onScrollLeft}
-            >
-              ←
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-8 px-0 hover:bg-background"
-              onClick={onScrollRight}
-            >
-              →
-            </Button>
-          </div>
+        {/* Right: Autosave status + session */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {saving ? (
+            <span className="flex items-center gap-1">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Saving…
+            </span>
+          ) : showSaved ? (
+            <span className="flex items-center gap-1 text-green-600 transition-opacity duration-500">
+              <CloudUpload className="w-3.5 h-3.5" />
+              Saved
+            </span>
+          ) : null}
+          {session && <span className="text-xs opacity-50">Session {session.session_id.slice(0, 8)}</span>}
         </div>
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1.5">

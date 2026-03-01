@@ -146,15 +146,28 @@ export function useZohoImport({
                 status: f.status,
                 rows_clean: f.rows_clean,
                 created_at: f.created_at,
+                root_upload_id: (f as any).root_upload_id || f.upload_id,
             }))
 
-            mappedFiles.sort((a, b) => {
+            // Deduplicate by version chain (root_upload_id): same root = same file lineage, keep latest.
+            // Different roots with the same filename = separate files, both shown.
+            const byRoot = new Map<string, typeof mappedFiles[0]>()
+            for (const f of mappedFiles) {
+                const key = f.root_upload_id
+                const existing = byRoot.get(key)
+                if (!existing || new Date(f.created_at || 0) > new Date(existing.created_at || 0)) {
+                    byRoot.set(key, f)
+                }
+            }
+            const dedupedFiles = Array.from(byRoot.values())
+
+            dedupedFiles.sort((a, b) => {
                 const dateA = new Date(a.created_at || 0).getTime()
                 const dateB = new Date(b.created_at || 0).getTime()
                 return dateB - dateA
             })
 
-            setFiles(mappedFiles)
+            setFiles(dedupedFiles)
         } catch (err: any) {
             const message = (err?.message || '').toLowerCase()
             if (message.includes('permission denied') || message.includes('forbidden')) {

@@ -5,7 +5,7 @@
  * Composes all sub-hooks and provides unified interface
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
 import {
   saveQuarantineEditsBatch,
@@ -18,7 +18,6 @@ import { useQuarantineSession } from './use-quarantine-session'
 import { useQuarantineRows } from './use-quarantine-rows'
 import { useQuarantineEdits } from './use-quarantine-edits'
 import { useQuarantineAutosave } from './use-quarantine-autosave'
-import { useQuarantineVirtualScroll } from './use-quarantine-virtual-scroll'
 import type { SaveSummary, FileStatusResponse } from '@/modules/files/types'
 
 interface UseQuarantineEditorParams {
@@ -47,10 +46,8 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [lastSaveSummary, setLastSaveSummary] = useState<SaveSummary | null>(null)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [showLineage, setShowLineage] = useState(false)
-
-  // Virtual scrolling
-  const virtualScroll = useQuarantineVirtualScroll(rows.rows, config)
 
   // Derived state
   const columns = useMemo(() => {
@@ -72,16 +69,26 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
     return lineage.find((v) => v.is_latest) || lineage[lineage.length - 1]
   }, [lineage])
 
+  // Full reset when file changes — clears savedEditsMap so green indicators
+  // from a previous file don't bleed into a different file's editor.
+  const prevUploadIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (file?.upload_id && file.upload_id !== prevUploadIdRef.current) {
+      edits.reset()
+      prevUploadIdRef.current = file.upload_id
+    }
+  }, [file?.upload_id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Initialize on open
   useEffect(() => {
     if (!open || !file || !authToken) return
 
     const init = async () => {
-      // Reset all state
+      // Reset session/rows fully; only clear pending edits so the savedEditsMap
+      // (green "saved" indicators) survives a close-and-reopen of the same file.
       session.reset()
       rows.reset()
-      edits.reset()
-      virtualScroll.resetScroll()
+      edits.clearPending()
       setLastSaveSummary(null)
       setShowLineage(false)
 
@@ -152,19 +159,12 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
       // Update etag
       session.updateEtag(nextEtag)
 
-      // Clear edits
-      edits.clearEdits()
+      // Mark pending edits as saved (clears pending map, populates savedEditsMap)
+      edits.markAsSaved()
 
-      // Update summary
+      // Update summary + timestamp
       setLastSaveSummary({ accepted: acceptedTotal, rejected: rejectedTotal })
-
-      toast({
-        title: 'Edits saved',
-        description:
-          rejectedTotal > 0
-            ? `Accepted ${acceptedTotal} (${rejectedTotal} rejected)`
-            : `Accepted ${acceptedTotal} updates`,
-      })
+      setLastSavedAt(new Date())
     } catch (error: any) {
       toast({
         title: 'Save failed',
@@ -265,40 +265,51 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
     [file, authToken, session, edits, rows, saveEdits, toast]
   )
 
-  // Fetch more rows on scroll
-  useEffect(() => {
-    if (!open || rows.loading || !rows.hasMore || session.compatibilityMode) return
-    if (!virtualScroll.shouldFetchMore()) return
-
-    const fetchMore = async () => {
-      if (!file || !authToken || !session.session || !session.manifest) return
-
-      await rows.fetchNext(
-        file.upload_id,
-        authToken,
-        session.session.session_id,
-        session.manifest.upload_id
-      )
+  // Refresh session + rows after a server-side operation (e.g. AI Fix Apply to All)
+  const refreshSession = useCallback(async () => {
+    if (!file || !authToken) return
+    rows.reset()
+    edits.clearPending()
+    try {
+      const sessionResult = await session.initialize(file.upload_id, authToken)
+      if ('compatibilityMode' in sessionResult && sessionResult.compatibilityMode && 'rows' in sessionResult) {
+        rows.setRows(sessionResult.rows as any)
+      } else if ('session' in sessionResult && sessionResult.session) {
+        await rows.initialize(
+          file.upload_id,
+          authToken,
+          sessionResult.session.session_id,
+          (sessionResult as any).manifest?.upload_id || file.upload_id
+        )
+      }
+    } catch (error) {
+      console.error('Failed to refresh quarantine session:', error)
     }
+  }, [file, authToken, session, rows, edits]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    void fetchMore()
-  }, [
-    open,
-    virtualScroll.scrollTop,
-    rows.loading,
-    rows.hasMore,
-    session.compatibilityMode,
-    file,
-    authToken,
-    session.session,
-    session.manifest,
-  ])
+  // AG Grid scroll-end callback — fires when user scrolls near the bottom
+  const handleBodyScrollEnd = useCallback(() => {
+    if (!open || rows.loading || !rows.hasMore || session.compatibilityMode) return
+    if (!file || !authToken || !session.session || !session.manifest) return
+
+    void rows.fetchNext(
+      file.upload_id,
+      authToken,
+      session.session.session_id,
+      session.manifest.upload_id
+    )
+  }, [open, rows, session, file, authToken])
 
   // Cell edit handler
   const handleCellEdit = useCallback(
     (rowId: string, column: string, value: string) => {
       edits.editCell(rowId, column, value)
-      rows.updateRow(rowId, { [column]: value })
+      // Track the dq_status flip so the patch persists the 'edited' state to S3.
+      // On reload, query_quarantine_rows merges this into the row via patch_map,
+      // so {col}_dq_status comes back as 'edited' instead of 'quarantined',
+      // enabling the persistent ag-cell-saved (green) indicator without in-memory state.
+      edits.editCell(rowId, `${column}_dq_status`, 'edited')
+      rows.updateRow(rowId, { [column]: value, [`${column}_dq_status`]: 'edited' })
     },
     [edits, rows]
   )
@@ -323,6 +334,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
     pendingCount: edits.pendingCount,
     getCellValue: edits.getCellValue,
     isCellEdited: edits.isCellEdited,
+    isCellSaved: edits.isCellSaved,
     isRowEdited: edits.isRowEdited,
 
     // Actions
@@ -330,18 +342,19 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
     setActiveCell: edits.setActiveCell,
     saveEdits,
     submitReprocess,
-    refreshSession: () => session.initialize(file?.upload_id || '', authToken || ''),
+    refreshSession,
 
     // UI state
     saving,
     submitting,
     lastSaveSummary,
+    lastSavedAt,
     showLineage,
     setShowLineage,
     lineage,
     latestVersion,
 
-    // Virtual scroll
-    virtualScroll,
+    // AG Grid infinite scroll callback
+    handleBodyScrollEnd,
   }
 }

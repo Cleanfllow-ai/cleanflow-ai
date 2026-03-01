@@ -21,9 +21,10 @@ import type { FileStatusResponse } from "@/modules/files"
 
 interface FileOverviewTabProps {
   file: FileStatusResponse
+  versionInfo?: { versionNumber: number; totalVersions: number } | null
 }
 
-export function FileOverviewTab({ file }: FileOverviewTabProps) {
+export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6">
@@ -38,7 +39,7 @@ export function FileOverviewTab({ file }: FileOverviewTabProps) {
           <div className="bg-muted/50 p-4 rounded-lg">
             <div className="flex items-center gap-2 text-green-600 mb-2">
               <CheckCircle2 className="w-4 h-4" />
-              <span className="text-sm font-medium">Validated</span>
+              <span className="text-sm font-medium">No Issues</span>
             </div>
             <div className="text-2xl font-bold">{file.rows_clean || 0}</div>
           </div>
@@ -154,6 +155,15 @@ export function FileOverviewTab({ file }: FileOverviewTabProps) {
               <span className="text-xs text-muted-foreground block mb-1">Engine</span>
               <span className="text-sm font-medium">CleanAI 1.0</span>
             </div>
+            {versionInfo && (
+              <div className="bg-muted/30 p-3 rounded border">
+                <span className="text-xs text-muted-foreground block mb-1">Version</span>
+                <span className="text-sm font-medium">
+                  v{versionInfo.versionNumber}
+                  <span className="text-muted-foreground text-xs ml-1">of {versionInfo.totalVersions}</span>
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

@@ -395,6 +395,13 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                     {visibleColumns.has("actions") && (
                                         <TableCell className="text-left" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex justify-start gap-0.5 sm:gap-1">
+                                                {(() => {
+                                                    const isProcessing =
+                                                        file.status === "DQ_RUNNING" ||
+                                                        file.status === "DQ_DISPATCHED" ||
+                                                        file.status === "UPLOADING";
+                                                    return (
+                                                        <>
                                                 {(file.status === "UPLOADED" ||
                                                     file.status === "DQ_FAILED" ||
                                                     file.status === "FAILED" ||
@@ -413,19 +420,21 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                             <TooltipContent>Start Processing</TooltipContent>
                                                         </Tooltip>
                                                     )}
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 sm:h-8 sm:w-8"
-                                                            onClick={() => handleViewDetails(file)}
-                                                        >
-                                                            <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>Details</TooltipContent>
-                                                </Tooltip>
+                                                {!isProcessing && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-7 w-7 sm:h-8 sm:w-8"
+                                                                onClick={() => handleViewDetails(file)}
+                                                            >
+                                                                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Details</TooltipContent>
+                                                    </Tooltip>
+                                                )}
                                                 {(file.rows_quarantined ?? 0) > 0 && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -446,24 +455,26 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 sm:h-8 sm:w-8"
-                                                            onClick={() => openActionsDialog(file)}
-                                                            disabled={downloading === file.upload_id}
-                                                        >
-                                                            {downloading === file.upload_id ? (
-                                                                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                                                            ) : (
-                                                                <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                            )}
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>Download</TooltipContent>
-                                                </Tooltip>
+                                                {!isProcessing && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-7 w-7 sm:h-8 sm:w-8"
+                                                                onClick={() => openActionsDialog(file)}
+                                                                disabled={downloading === file.upload_id}
+                                                            >
+                                                                {downloading === file.upload_id ? (
+                                                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                                                ) : (
+                                                                    <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                )}
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Download</TooltipContent>
+                                                    </Tooltip>
+                                                )}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
@@ -482,6 +493,9 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                     </TooltipTrigger>
                                                     <TooltipContent>Delete</TooltipContent>
                                                 </Tooltip>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
                                         </TableCell>
                                     )}
