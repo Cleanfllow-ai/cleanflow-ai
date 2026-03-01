@@ -45,6 +45,35 @@ export interface JobRunFilesState {
     handleQuarantineEditorClose: () => void
 }
 
+/**
+ * Fetch a file's status and resolve to the latest version's data.
+ * Merges latest version stats (dq_score, status, rows, etc.) onto the file record.
+ */
+async function fetchFileWithLatestVersion(
+    uploadId: string,
+    token: string,
+): Promise<FileStatusResponse> {
+    const [file, versionsResp] = await Promise.all([
+        fileManagementAPI.getFileStatus(uploadId, token),
+        fileManagementAPI.getFileVersions(uploadId, token).catch(() => ({ versions: [] as any[], count: 0 })),
+    ])
+
+    const versions = versionsResp.versions || []
+    if (versions.length > 0) {
+        const latest = versions.find((v: any) => v.is_latest) ||
+            versions.reduce((a: any, b: any) => ((a.version_number || 0) >= (b.version_number || 0) ? a : b))
+        if (latest.dq_score != null) file.dq_score = latest.dq_score
+        if (latest.status) file.status = latest.status as FileStatusResponse["status"]
+        if (latest.rows_in != null) file.rows_in = latest.rows_in
+        if (latest.rows_clean != null) file.rows_clean = latest.rows_clean
+        if (latest.rows_fixed != null) file.rows_fixed = latest.rows_fixed
+        if (latest.rows_quarantined != null) file.rows_quarantined = latest.rows_quarantined
+        if (latest.rows_out != null) file.rows_out = latest.rows_out
+        if (latest.processing_time_seconds != null) file.processing_time_seconds = latest.processing_time_seconds
+    }
+    return file
+}
+
 export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesState {
     const { idToken } = useAuth()
     const [entries, setEntries] = useState<RunFileEntry[]>([])
@@ -91,7 +120,7 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
             const updated = await Promise.all(
                 entityEntries.map(async (entry) => {
                     try {
-                        const file = await fileManagementAPI.getFileStatus(entry.uploadId, idToken)
+                        const file = await fetchFileWithLatestVersion(entry.uploadId, idToken)
                         return { ...entry, file, loading: false }
                     } catch {
                         return { ...entry, file: null, loading: false, error: "File not found" }
@@ -202,10 +231,10 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
         const closingFile = quarantineFile
         setQuarantineEditorOpen(false)
         setQuarantineFile(null)
-        // Refresh the file entry to reflect any reprocessing changes
+        // Refresh the file entry with latest version data to reflect reprocessing changes
         if (closingFile && idToken) {
             try {
-                const updated = await fileManagementAPI.getFileStatus(closingFile.upload_id, idToken)
+                const updated = await fetchFileWithLatestVersion(closingFile.upload_id, idToken)
                 setEntries(prev => prev.map(e =>
                     e.uploadId === closingFile.upload_id
                         ? { ...e, file: updated }

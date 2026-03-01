@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { Loader2, RotateCcw, PlayCircle } from "lucide-react"
+import { Loader2, RotateCcw, PlayCircle, Clock, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -97,23 +97,60 @@ function WizardInitializer({
 
     if (showResume) {
         return (
-            <div className="flex flex-col items-center justify-center h-64 gap-4 px-8 text-center">
-                <RotateCcw className="w-10 h-10 text-primary/60" />
-                <div>
-                    <h3 className="text-base font-medium mb-1">Resume where you left off?</h3>
-                    <p className="text-sm text-muted-foreground">
-                        You have unsaved progress for this file from a previous session.
-                    </p>
-                </div>
-                <div className="flex gap-3 mt-2">
-                    <Button onClick={handleResume}>
-                        <RotateCcw className="h-4 w-4 mr-1.5" />
-                        Resume
-                    </Button>
-                    <Button variant="outline" onClick={handleStartFresh}>
-                        <PlayCircle className="h-4 w-4 mr-1.5" />
-                        Start Fresh
-                    </Button>
+            <div className="flex items-center justify-center h-full px-6 relative overflow-hidden">
+                {/* Decorative background circles */}
+                <div className="absolute top-1/4 -left-20 w-64 h-64 rounded-full bg-primary/[0.03] blur-3xl" />
+                <div className="absolute bottom-1/4 -right-20 w-64 h-64 rounded-full bg-violet-500/[0.03] blur-3xl" />
+
+                <div className="w-full max-w-lg relative">
+                    {/* Main card */}
+                    <div className="rounded-2xl border border-border/60 bg-card shadow-lg overflow-hidden">
+                        {/* Top accent bar */}
+                        <div className="h-1 bg-gradient-to-r from-primary via-violet-500 to-primary" />
+
+                        <div className="p-8 space-y-7">
+                            {/* Icon + heading */}
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="relative">
+                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/15 to-violet-500/10 flex items-center justify-center shadow-sm border border-primary/10">
+                                        <RotateCcw className="w-7 h-7 text-primary" />
+                                    </div>
+                                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shadow-sm">
+                                        <Clock className="w-3 h-3 text-white" />
+                                    </div>
+                                </div>
+                                <div className="text-center space-y-1.5">
+                                    <h3 className="text-xl font-semibold tracking-tight">Resume where you left off?</h3>
+                                    <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
+                                        You have unsaved progress for this file from a previous session.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* File info chip */}
+                            <div className="flex items-center gap-3 rounded-xl bg-muted/50 border border-border/50 px-4 py-3">
+                                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                    <FileText className="w-4 h-4 text-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium truncate">{file.original_filename || "Unknown file"}</p>
+                                    <p className="text-xs text-muted-foreground">Processing configuration saved</p>
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-3">
+                                <Button onClick={handleResume} size="lg" className="flex-1 h-12 gap-2 shadow-sm shadow-primary/20">
+                                    <RotateCcw className="h-4 w-4" />
+                                    Resume
+                                </Button>
+                                <Button variant="outline" size="lg" onClick={handleStartFresh} className="flex-1 h-12 gap-2">
+                                    <PlayCircle className="h-4 w-4" />
+                                    Start Fresh
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         )

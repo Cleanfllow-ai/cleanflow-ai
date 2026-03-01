@@ -115,15 +115,23 @@ export function JobsList() {
 
     // ─── Filtering ──────────────────────────────────────────────────────────
 
-    const filteredJobs = jobs.filter(job => {
-        if (!searchQuery) return true
-        const q = searchQuery.toLowerCase()
-        return (
-            job.name.toLowerCase().includes(q) ||
-            (ERP_LABELS[job.source] || job.source).toLowerCase().includes(q) ||
-            (ERP_LABELS[job.destination] || job.destination).toLowerCase().includes(q)
-        )
-    })
+    const filteredJobs = jobs
+        .filter(job => {
+            if (!searchQuery) return true
+            const q = searchQuery.toLowerCase()
+            return (
+                job.name.toLowerCase().includes(q) ||
+                (ERP_LABELS[job.source] || job.source).toLowerCase().includes(q) ||
+                (ERP_LABELS[job.destination] || job.destination).toLowerCase().includes(q)
+            )
+        })
+        .sort((a, b) => {
+            const tA = a.created_at ? new Date(a.created_at).getTime() : 0
+            const tB = b.created_at ? new Date(b.created_at).getTime() : 0
+            const dA = Number.isFinite(tA) ? tA : 0
+            const dB = Number.isFinite(tB) ? tB : 0
+            return dB - dA
+        })
 
     // ─── Actions ────────────────────────────────────────────────────────────
 

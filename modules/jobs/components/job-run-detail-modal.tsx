@@ -3,17 +3,14 @@
 import { format } from "date-fns"
 import {
     CheckCircle2, XCircle, Clock, AlertTriangle, ArrowRight,
-    Download, Upload, Activity, Timer, Zap, BarChart3
+    Download, Upload, Timer, Zap, BarChart3
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle
 } from "@/components/ui/dialog"
-import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow
-} from "@/components/ui/table"
 import { cn } from "@/shared/lib/utils"
-import type { JobRun, EntityResult } from "@/modules/jobs/types/jobs.types"
+import type { JobRun } from "@/modules/jobs/types/jobs.types"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -184,10 +181,10 @@ export function JobRunDetailModal({ run, open, onOpenChange }: JobRunDetailModal
                 {(() => {
                     // Aggregate DQ stats across all entities
                     const dqStats = entityEntries.reduce((acc, [, result]) => ({
-                        rows_in: acc.rows_in + (result.rows_in || 0),
-                        rows_clean: acc.rows_clean + (result.rows_clean || 0),
-                        rows_fixed: acc.rows_fixed + (result.rows_fixed || 0),
-                        rows_quarantined: acc.rows_quarantined + (result.rows_quarantined || 0),
+                        rows_in: acc.rows_in + Number(result.rows_in || 0),
+                        rows_clean: acc.rows_clean + Number(result.rows_clean || 0),
+                        rows_fixed: acc.rows_fixed + Number(result.rows_fixed || 0),
+                        rows_quarantined: acc.rows_quarantined + Number(result.rows_quarantined || 0),
                     }), { rows_in: 0, rows_clean: 0, rows_fixed: 0, rows_quarantined: 0 })
 
                     if (dqStats.rows_in === 0) return null
@@ -219,92 +216,6 @@ export function JobRunDetailModal({ run, open, onOpenChange }: JobRunDetailModal
                         </div>
                     )
                 })()}
-
-                {/* ── Entity Results Table ─────────────────────────────── */}
-                {entityEntries.length > 0 && (
-                    <div className="space-y-2">
-                        <p className="text-sm font-semibold">Entity Breakdown</p>
-                        <div className="rounded-lg border overflow-hidden">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-muted/30 hover:bg-muted/30">
-                                        <TableHead className="text-xs font-semibold">Entity</TableHead>
-                                        <TableHead className="text-xs font-semibold">Status</TableHead>
-                                        <TableHead className="text-xs font-semibold text-right">In</TableHead>
-                                        <TableHead className="text-xs font-semibold text-right">Out</TableHead>
-                                        <TableHead className="text-xs font-semibold text-right">DQ Score</TableHead>
-                                        <TableHead className="text-xs font-semibold text-right">Duration</TableHead>
-                                        <TableHead className="text-xs font-semibold">Sync Window</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {entityEntries.map(([entity, result]: [string, EntityResult]) => (
-                                        <TableRow key={entity} className="hover:bg-muted/50">
-                                            <TableCell className="text-sm font-medium">
-                                                {formatEntityName(entity)}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className={cn("text-[10px]", getStatusColor(result.status))}>
-                                                    {result.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-sm tabular-nums text-right">
-                                                {result.records_imported ?? 0}
-                                                {result.new_records_count != null && result.skipped_duplicates_count ? (
-                                                    <span className="text-[10px] text-muted-foreground block">
-                                                        {result.new_records_count} new, {result.skipped_duplicates_count} dup
-                                                    </span>
-                                                ) : null}
-                                            </TableCell>
-                                            <TableCell className="text-sm tabular-nums text-right">
-                                                {result.records_exported ?? 0}
-                                                {/* DQ breakdown tooltip */}
-                                                {result.rows_in != null && result.rows_in > 0 && (
-                                                    <span className="text-[10px] text-muted-foreground block">
-                                                        <span className="text-emerald-600">{result.rows_clean || 0}</span>
-                                                        {" "}clean{" "}
-                                                        <span className="text-amber-600">{result.rows_fixed || 0}</span>
-                                                        {" "}fixed{" "}
-                                                        {result.rows_quarantined ? (
-                                                            <><span className="text-red-600">{result.rows_quarantined}</span> quar</>
-                                                        ) : null}
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {result.dq_score != null ? (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={cn(
-                                                            "text-[10px] tabular-nums",
-                                                            getScoreColor(Number(result.dq_score))
-                                                        )}
-                                                    >
-                                                        {Number(result.dq_score).toFixed(1)}%
-                                                    </Badge>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">—</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-xs tabular-nums text-right text-muted-foreground">
-                                                {formatDuration(result.duration_seconds)}
-                                            </TableCell>
-                                            <TableCell className="text-[10px] text-muted-foreground">
-                                                {result.sync_from === "FULL_SYNC" ? (
-                                                    <Badge variant="outline" className="text-[10px]">Full Sync</Badge>
-                                                ) : result.sync_from ? (
-                                                    <span className="font-mono">
-                                                        {result.sync_from.slice(0, 16)}
-                                                    </span>
-                                                ) : "—"}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </div>
-                )}
 
                 {/* ── Errors ───────────────────────────────────────────── */}
                 {(run.error || entityEntries.some(([, r]) => r.error)) && (
