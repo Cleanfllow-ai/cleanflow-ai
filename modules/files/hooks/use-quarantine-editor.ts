@@ -52,7 +52,12 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
   // Derived state
   const columns = useMemo(() => {
     if (!session.manifest) return []
-    const declared = [...(session.manifest.columns || [])]
+    const META_EXACT = new Set(['dq_status', 'dq_violations', 'fixes_applied', 'dq_cell_status', '_user_id', '_upload_id', '_normalized_at'])
+    const isMetaCol = (c: string) =>
+      META_EXACT.has(c) ||
+      c.startsWith('_') ||
+      c.endsWith('_dq_status') || c.endsWith('_dq_fixed') || c.endsWith('_dq_quarantined')
+    const declared = (session.manifest.columns || []).filter((c) => !isMetaCol(c))
     if (!declared.length) {
       return ['row_id', ...(session.manifest.editable_columns || []).filter((c) => c !== 'row_id')]
     }
