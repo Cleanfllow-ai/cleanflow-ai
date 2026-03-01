@@ -19,6 +19,7 @@ const ENDPOINTS = {
     FILES_STATUS: (id: string) => `/files/${id}/status`,
     FILES_COLUMNS: (id: string) => `/files/${id}/columns`,
     FILES_CUSTOM_RULE_SUGGEST: (id: string) => `/files/${id}/custom-rule-suggest`,
+    FILES_CROSS_RULE_SUGGEST: (id: string) => `/files/${id}/cross-rule-suggest`,
 }
 
 // ─── Shared HTTP helper ───
@@ -387,6 +388,17 @@ export async function suggestCustomRule(
     payload: { column: string; prompt: string }
 ): Promise<CustomRuleSuggestionResponse> {
     return makeRequest(ENDPOINTS.FILES_CUSTOM_RULE_SUGGEST(uploadId), authToken, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    })
+}
+
+export async function suggestCrossColumnRule(
+    uploadId: string,
+    authToken: string,
+    payload: { prompt: string; columns?: string[] }
+): Promise<{ rules: CrossFieldRule[] }> {
+    return makeRequest(ENDPOINTS.FILES_CROSS_RULE_SUGGEST(uploadId), authToken, {
         method: "POST",
         body: JSON.stringify(payload),
     })

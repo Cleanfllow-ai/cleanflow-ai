@@ -123,10 +123,12 @@ export function QuarantineCustomRuleDialog({
   }, [rows])
 
   const filteredColumns = useMemo(() => {
+    const showAll = !mentionQuery || "all".startsWith(mentionQuery.toLowerCase())
     const base = mentionQuery
       ? columnNames.filter((c) => c.toLowerCase().includes(mentionQuery.toLowerCase()))
       : columnNames
-    return base.slice(0, 8)
+    const cols = base.slice(0, showAll ? 7 : 8)
+    return showAll ? ["all", ...cols] : cols
   }, [columnNames, mentionQuery])
 
   // ── Mention helpers ────────────────────────────────────────────────
@@ -420,7 +422,7 @@ export function QuarantineCustomRuleDialog({
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                           idx === mentionIndex ? 'bg-violet-500' : 'bg-muted-foreground/30'
                         }`} />
-                        {col}
+                        {col === 'all' ? <span className="text-violet-600 font-semibold">all <span className="font-normal text-muted-foreground">— all columns</span></span> : col}
                       </button>
                     ))}
                   </div>

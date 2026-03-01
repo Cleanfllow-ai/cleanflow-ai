@@ -63,6 +63,7 @@ export {
   pollFileStatusSmart,
   startProcessing,
   suggestCustomRule,
+  suggestCrossColumnRule,
   uploadFileComplete,
 } from './file-upload-api'
 
@@ -157,6 +158,7 @@ export const fileManagementAPI = {
   pollFileStatusSmart: uploadApi.pollFileStatusSmart,
   startProcessing: uploadApi.startProcessing,
   suggestCustomRule: uploadApi.suggestCustomRule,
+  suggestCrossColumnRule: uploadApi.suggestCrossColumnRule,
   uploadFileComplete: uploadApi.uploadFileComplete,
 
   // DQ reports & issues
