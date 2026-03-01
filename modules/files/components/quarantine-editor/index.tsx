@@ -29,7 +29,7 @@ import type { QuarantineEditorDialogProps } from '@/modules/files/types'
  *
  * @param props - File, open state, and callbacks
  */
-export function QuarantineEditorDialog({ file, open, onOpenChange }: QuarantineEditorDialogProps) {
+export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSubmitted }: QuarantineEditorDialogProps) {
   const { idToken } = useAuth()
 
   // Main editor hook
@@ -50,7 +50,10 @@ export function QuarantineEditorDialog({ file, open, onOpenChange }: QuarantineE
   // Reprocess handler
   const handleReprocess = async () => {
     try {
-      await editor.submitReprocess()
+      const result = await editor.submitReprocess()
+      if (result?.new_upload_id && onReprocessSubmitted) {
+        onReprocessSubmitted(result.new_upload_id)
+      }
       handleClose()
     } catch (error) {
       // Error already toasted in hook

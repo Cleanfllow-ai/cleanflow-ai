@@ -228,6 +228,8 @@ export interface QuarantineEditorDialogProps {
   } | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Called after reprocess is successfully submitted, with the new version's upload_id */
+  onReprocessSubmitted?: (newUploadId: string) => void
 }
 
 /**

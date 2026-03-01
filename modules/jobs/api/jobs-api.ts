@@ -150,6 +150,32 @@ class JobsAPI {
         return this.makeRequest(ENDPOINTS.JOB_TRIGGER(jobId), token, { method: "POST" })
     }
 
+    // ─── Re-export (after quarantine remediation) ───────────────────────────
+
+    async reExportFile(jobId: string, uploadId: string, entity: string): Promise<{
+        status: string
+        message?: string
+    }> {
+        const token = this.getAuth()
+        return this.makeRequest(`/jobs/${jobId}/re-export`, token, {
+            method: "POST",
+            body: JSON.stringify({ upload_id: uploadId, entity }),
+        })
+    }
+
+    async checkReExportStatus(jobId: string, uploadId: string): Promise<{
+        status: string
+        records_exported?: number
+        destination?: string
+        error?: string
+    }> {
+        const token = this.getAuth()
+        return this.makeRequest(`/jobs/${jobId}/re-export`, token, {
+            method: "POST",
+            body: JSON.stringify({ upload_id: uploadId, check_status: true }),
+        })
+    }
+
     // ─── Job Runs ────────────────────────────────────────────────────────────
 
     async getJobRuns(jobId: string, limit: number = 10): Promise<{ runs: JobRun[] }> {

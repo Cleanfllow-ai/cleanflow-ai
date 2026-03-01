@@ -201,7 +201,7 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:text-violet-700"
-                                                                        onClick={() => state.handleOpenQuarantineEditor(file)}>
+                                                                        onClick={() => state.handleOpenQuarantineEditor(file, entry.entity)}>
                                                                         <Pencil className="h-3.5 w-3.5" />
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -215,6 +215,14 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                                     })}
                                 </TableBody>
                             </Table>
+                        </div>
+                    )}
+
+                    {/* Export progress banner */}
+                    {state.exporting && (
+                        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            <span className="text-primary font-medium">Exporting cleaned rows to {run?.destination_erp || "destination"}...</span>
                         </div>
                     )}
                 </DialogContent>
@@ -236,6 +244,7 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                 onOpenChange={(open) => {
                     if (!open) state.handleQuarantineEditorClose()
                 }}
+                onReprocessSubmitted={state.handleReprocessSubmitted}
             />
 
             {/* Download Data (Column Export + ERP Transform) */}
