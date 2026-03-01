@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, Clock, Download, FileText, Upload, XCircle, AlertCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { FileStatusResponse } from "@/modules/files"
@@ -11,6 +12,8 @@ interface ActivityFeedProps {
 }
 
 export function ActivityFeed({ files }: ActivityFeedProps) {
+  const router = useRouter()
+
   const getActivityIcon = (status: string) => {
     switch (status) {
       case "DQ_FIXED":
@@ -132,7 +135,8 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
                 return (
                   <div
                     key={file.upload_id}
-                    className="flex items-center gap-2.5 py-2 px-2.5 rounded-md hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-2.5 py-2 px-2.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/files?tab=explorer&file=${file.upload_id}`)}
                   >
                     <div className={`rounded-md p-1.5 ${getStatusBg(file.status)}`}>
                       <ActivityIcon className={`h-3.5 w-3.5 ${getStatusColor(file.status)}`} />

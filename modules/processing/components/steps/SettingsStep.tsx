@@ -198,6 +198,21 @@ export function SettingsStep() {
   const presetFileInputRef = useRef<HTMLInputElement>(null)
 
 
+  // Extract repeated config → local state hydration
+  const hydrateFromConfig = (rawConfig: any) => {
+    const config = parsePresetConfig(rawConfig)
+    setCurrencyValues((config.currency_values || []).join(", "))
+    setUomValues((config.uom_values || []).join(", "))
+    setDateFormats((config.date_formats || []).join(", "))
+    setStrictness(config.policies?.strictness || "balanced")
+    setAllowAutofix(config.policies?.allow_autofix ?? true)
+    setUnknownBehavior(config.policies?.unknown_column_behavior || "safe_cleanup_only")
+    setPlaceholders((config.required_fields?.placeholders_treated_as_missing || []).join(", "))
+    setStatusEnums((config.enum_sets?.status || []).join(", "))
+    setMaxTextLen(config.thresholds?.text?.max_len_default ?? 255)
+    if (config.required_columns) setRequiredColumns(config.required_columns)
+  }
+
   useEffect(() => {
     fetchPresets()
   }, [authToken])
@@ -217,15 +232,28 @@ export function SettingsStep() {
             ? serverPresets
             : [...serverPresets, DEFAULT_PRESET]
       setPresets(finalPresets)
-      const defaultPreset = finalPresets.find((p: SettingsPreset) => (p as any).is_default)
-      if (defaultPreset && !selectedPreset) {
-        handleSelectPreset(defaultPreset.preset_id, finalPresets)
+      if (!selectedPreset) {
+        const defaultPreset = finalPresets.find((p: SettingsPreset) => (p as any).is_default)
+        if (defaultPreset) {
+          handleSelectPreset(defaultPreset.preset_id, finalPresets)
+        }
+      } else {
+        // Returning to this step (back navigation / resume) — re-hydrate local state
+        const source = Object.keys(presetOverrides).length > 0
+          ? presetOverrides
+          : (selectedPreset as any).config || {}
+        hydrateFromConfig(source)
       }
     } catch (err: any) {
       const finalPresets = [DEFAULT_PRESET]
       setPresets(finalPresets)
       if (!selectedPreset) {
         handleSelectPreset(DEFAULT_PRESET.preset_id, finalPresets)
+      } else {
+        const source = Object.keys(presetOverrides).length > 0
+          ? presetOverrides
+          : (selectedPreset as any).config || {}
+        hydrateFromConfig(source)
       }
       if (err.message?.includes("Unauthorized")) {
         setError("Authentication error. Please refresh and try again.")
@@ -254,17 +282,7 @@ export function SettingsStep() {
           setUploadedConfig(parsed)
 
           // Also parse for UI display
-          const config = parsePresetConfig(parsed)
-          setCurrencyValues((config.currency_values || []).join(", "))
-          setUomValues((config.uom_values || []).join(", "))
-          setDateFormats((config.date_formats || []).join(", "))
-          setStrictness(config.policies?.strictness || "balanced")
-          setAllowAutofix(config.policies?.allow_autofix ?? true)
-          setUnknownBehavior(config.policies?.unknown_column_behavior || "safe_cleanup_only")
-          setPlaceholders((config.required_fields?.placeholders_treated_as_missing || []).join(", "))
-          setStatusEnums((config.enum_sets?.status || []).join(", "))
-          setMaxTextLen(config.thresholds?.text?.max_len_default ?? 255)
-          if (config.required_columns) setRequiredColumns(config.required_columns)
+          hydrateFromConfig(parsed)
 
           // Config loaded - user can now enter preset name and click Create Preset
         } else if (fileName.endsWith('.csv')) {
@@ -357,17 +375,7 @@ export function SettingsStep() {
 
     if (localPreset && presetId === DEFAULT_PRESET.preset_id) {
       setSelectedPreset(localPreset)
-      const config = parsePresetConfig(localPreset.config || {})
-      setCurrencyValues((config.currency_values || []).join(", "))
-      setUomValues((config.uom_values || []).join(", "))
-      setDateFormats((config.date_formats || []).join(", "))
-      setStrictness(config.policies?.strictness || "balanced")
-      setAllowAutofix(config.policies?.allow_autofix ?? true)
-      setUnknownBehavior(config.policies?.unknown_column_behavior || "safe_cleanup_only")
-      setPlaceholders((config.required_fields?.placeholders_treated_as_missing || []).join(", "))
-      setStatusEnums((config.enum_sets?.status || []).join(", "))
-      setMaxTextLen(config.thresholds?.text?.max_len_default ?? 255)
-      if (config.required_columns) setRequiredColumns(config.required_columns)
+      hydrateFromConfig(localPreset.config || {})
       return
     }
 
@@ -375,17 +383,7 @@ export function SettingsStep() {
     try {
       const response = await fileManagementAPI.getSettingsPreset(presetId, authToken)
       setSelectedPreset(response)
-      const config = parsePresetConfig(response.config || {})
-      setCurrencyValues((config.currency_values || []).join(", "))
-      setUomValues((config.uom_values || []).join(", "))
-      setDateFormats((config.date_formats || []).join(", "))
-      setStrictness(config.policies?.strictness || "balanced")
-      setAllowAutofix(config.policies?.allow_autofix ?? true)
-      setUnknownBehavior(config.policies?.unknown_column_behavior || "safe_cleanup_only")
-      setPlaceholders((config.required_fields?.placeholders_treated_as_missing || []).join(", "))
-      setStatusEnums((config.enum_sets?.status || []).join(", "))
-      setMaxTextLen(config.thresholds?.text?.max_len_default ?? 255)
-      if (config.required_columns) setRequiredColumns(config.required_columns)
+      hydrateFromConfig(response.config || {})
     } catch (err) {
       console.error("Failed to load preset:", err)
     }

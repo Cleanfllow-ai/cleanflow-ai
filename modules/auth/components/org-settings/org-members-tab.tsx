@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { Loader2, MoreHorizontal, UserCog, UserMinus, UserPlus, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +73,23 @@ export function OrgMembersTab({
   updateMemberRole,
   removeMember,
 }: OrgMembersTabProps) {
+  const [pendingRoleChange, setPendingRoleChange] = useState<{
+    memberId: string
+    memberName: string
+    currentRole: string
+    newRole: AppRole
+  } | null>(null)
+
+  const handleRoleChangeRequest = (memberId: string, memberName: string, currentRole: string, newRole: AppRole) => {
+    setPendingRoleChange({ memberId, memberName, currentRole, newRole })
+  }
+
+  const handleRoleChangeConfirm = async () => {
+    if (!pendingRoleChange) return
+    await updateMemberRole(pendingRoleChange.memberId, pendingRoleChange.newRole)
+    setPendingRoleChange(null)
+  }
+
   return (
     <PermissionWrapper
       permission={canViewMembersPermission}
@@ -248,7 +270,7 @@ export function OrgMembersTab({
                                                 <DropdownMenuItem
                                                   key={role}
                                                   className="cursor-pointer"
-                                                  onClick={() => updateMemberRole(person.displayId, role as AppRole)}
+                                                  onClick={() => handleRoleChangeRequest(person.displayId, person.displayName, person.displayRole, role as AppRole)}
                                                 >
                                                   {role}
                                                 </DropdownMenuItem>
@@ -291,6 +313,34 @@ export function OrgMembersTab({
           </CardContent>
         </Card>
       </PermissionWrapper>
+
+      {/* Role change confirmation */}
+      <AlertDialog
+        open={!!pendingRoleChange}
+        onOpenChange={(open) => !open && setPendingRoleChange(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Change <strong>{pendingRoleChange?.memberName}</strong> from{" "}
+              <strong>{pendingRoleChange?.currentRole}</strong> to{" "}
+              <strong>{pendingRoleChange?.newRole}</strong>?
+              {pendingRoleChange?.newRole === "Data Steward" && (
+                <span className="block mt-2 text-amber-600">
+                  They will lose access to member management and organization settings.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRoleChangeConfirm}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PermissionWrapper>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    CheckCircle,
     FileText,
     Loader2,
     Trash2,
@@ -15,6 +16,7 @@ import {
     ArrowDown,
     Menu,
     RefreshCw,
+    X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +70,8 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         openActionsDialog, handleDeleteClick,
         downloading, deleting,
         handleOpenQuarantineEditor,
+        recentlyUploaded, setRecentlyUploaded,
+        setWizardFile, setWizardOpen,
     } = state;
 
     const SortIcon = ({
@@ -86,6 +90,39 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
 
     return (
         <div className="space-y-4">
+            {/* Post-upload prompt */}
+            {recentlyUploaded && (
+                <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5">
+                    <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-4 w-4 text-primary" />
+                        <span>
+                            <strong>{recentlyUploaded.original_filename || recentlyUploaded.filename}</strong> uploaded successfully
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            onClick={() => {
+                                setWizardFile(recentlyUploaded);
+                                setWizardOpen(true);
+                                setRecentlyUploaded(null);
+                            }}
+                        >
+                            <Play className="h-3.5 w-3.5 mr-1.5" />
+                            Start Processing
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => setRecentlyUploaded(null)}
+                        >
+                            <X className="h-3.5 w-3.5" />
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             {/* Search and Filter Bar */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -248,7 +285,11 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                 </TableRow>
                             )}
                             {filteredFiles.map((file) => (
-                                <TableRow key={file.upload_id} className="hover:bg-muted/50">
+                                <TableRow
+                                    key={file.upload_id}
+                                    className="hover:bg-muted/50 cursor-pointer transition-colors"
+                                    onClick={() => handleViewDetails(file)}
+                                >
                                     {visibleColumns.has("file") && (
                                         <TableCell className="text-left">
                                             <div>
@@ -352,7 +393,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                         </TableCell>
                                     )}
                                     {visibleColumns.has("actions") && (
-                                        <TableCell className="text-left">
+                                        <TableCell className="text-left" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex justify-start gap-0.5 sm:gap-1">
                                                 {(file.status === "UPLOADED" ||
                                                     file.status === "DQ_FAILED" ||

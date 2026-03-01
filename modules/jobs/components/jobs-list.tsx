@@ -225,6 +225,25 @@ export function JobsList() {
                 </div>
             </div>
 
+            {/* Failed jobs alert */}
+            {(() => {
+                const failedJobs = jobs.filter(
+                    (j) => j.status === "FAILED" || j.status === "AUTO_PAUSED"
+                )
+                if (failedJobs.length === 0 || loading) return null
+
+                return (
+                    <div className="mx-6 mt-3 flex items-center gap-3 p-3 rounded-lg border border-red-500/20 bg-red-500/5">
+                        <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                        <p className="text-sm flex-1">
+                            <strong>{failedJobs.length}</strong> job{failedJobs.length > 1 ? "s" : ""} need{failedJobs.length === 1 ? "s" : ""} attention:{" "}
+                            {failedJobs.slice(0, 3).map((j) => j.name).join(", ")}
+                            {failedJobs.length > 3 && ` and ${failedJobs.length - 3} more`}
+                        </p>
+                    </div>
+                )
+            })()}
+
             {/* Content */}
             <div className="flex-1 overflow-auto px-6 py-4">
                 {loading && jobs.length === 0 ? (

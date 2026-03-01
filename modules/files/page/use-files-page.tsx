@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/shared/store/store";
 import {
     fetchFiles,
@@ -30,6 +31,9 @@ export function useFilesPage() {
     const dispatch = useAppDispatch();
     const files = useAppSelector(selectFiles);
     const filesStatus = useAppSelector(selectFilesStatus);
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
 
     useEffect(() => {
         console.log("API Response / Table Source Data:", files);
@@ -37,6 +41,12 @@ export function useFilesPage() {
 
     const [loading, setLoading] = useState(false);
     const [isManualRefresh, setIsManualRefresh] = useState(false);
+
+    // Post-upload prompt state
+    const [recentlyUploaded, setRecentlyUploaded] = useState<FileStatusResponse | null>(null);
+
+    // Track previous file statuses for processing completion toast
+    const prevStatusesRef = useRef<Map<string, string>>(new Map());
 
     useEffect(() => {
         setLoading(filesStatus === "loading");
@@ -206,6 +216,61 @@ export function useFilesPage() {
         loadFiles(false);
     }, [loadFiles]);
 
+    // Handle query params from Dashboard → Catalog navigation
+    const consumedFileParamRef = useRef(false);
+    useEffect(() => {
+        const tab = searchParams.get("tab");
+        const status = searchParams.get("status");
+        const fileId = searchParams.get("file");
+
+        if (!tab && !status && !fileId) return;
+
+        if (tab === "explorer") setActiveSection("explorer");
+        if (status) setStatusFilter(status);
+
+        // Auto-open file details when linked from Dashboard/Jobs
+        if (fileId && files.length > 0) {
+            const target = files.find((f) => f.upload_id === fileId);
+            if (target) {
+                setActiveSection("explorer");
+                setSelectedFile(target);
+                setDetailsOpen(true);
+            }
+            // Only clear the `file` param so reload doesn't re-open the panel
+            // Keep `tab` and `status` so the page stays on the correct sub-tab
+            if (!consumedFileParamRef.current) {
+                consumedFileParamRef.current = true;
+                const kept = new URLSearchParams();
+                if (tab) kept.set("tab", tab);
+                if (status) kept.set("status", status);
+                const qs = kept.toString();
+                router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+            }
+        }
+    }, [searchParams, files, router, pathname]);
+
+    // Processing completion toast — detect status transitions
+    useEffect(() => {
+        for (const file of files) {
+            const prev = prevStatusesRef.current.get(file.upload_id);
+            if (prev && prev !== file.status) {
+                if (file.status === "DQ_FIXED") {
+                    toast({
+                        title: "Processing Complete",
+                        description: `${file.original_filename || file.filename} — DQ Score: ${file.dq_score?.toFixed(1) ?? "N/A"}%`,
+                    });
+                } else if (file.status === "DQ_FAILED") {
+                    toast({
+                        title: "Processing Failed",
+                        description: `${file.original_filename || file.filename} encountered errors`,
+                        variant: "destructive",
+                    });
+                }
+            }
+            prevStatusesRef.current.set(file.upload_id, file.status);
+        }
+    }, [files, toast]);
+
     const handleManualRefresh = useCallback(async () => {
         setIsManualRefresh(true);
         const startedAt = Date.now();
@@ -299,8 +364,19 @@ export function useFilesPage() {
                 (status) => { dispatch(updateFile(status)); },
                 false,
             );
-            toast({ title: "Upload Complete", description: "File uploaded successfully. Click the play button to start processing." });
+            toast({ title: "Upload Complete", description: "File uploaded successfully." });
             await loadFiles();
+            // Find the newly uploaded file and show post-upload prompt
+            const refreshedFiles = dispatch(fetchFiles(idToken));
+            setActiveSection("explorer");
+            // Set recently uploaded for the prompt banner (auto-dismiss after 15s)
+            const latestFile = files.find((f) =>
+                (f.original_filename || f.filename || "").toLowerCase() === file.name.toLowerCase()
+            );
+            if (latestFile) {
+                setRecentlyUploaded(latestFile);
+                setTimeout(() => setRecentlyUploaded(null), 15000);
+            }
         } catch (error) {
             console.error("Upload failed:", error);
             const message = error instanceof Error ? error.message.toLowerCase() : "";
@@ -991,6 +1067,8 @@ export function useFilesPage() {
         // Upload
         uploading, uploadProgress, dragActive, useAI, setUseAI,
         handleFileInput, handleDrag, handleDrop,
+        // Post-upload prompt
+        recentlyUploaded, setRecentlyUploaded,
         // Manual refresh
         isManualRefresh, handleManualRefresh,
         // Search / filter / sort

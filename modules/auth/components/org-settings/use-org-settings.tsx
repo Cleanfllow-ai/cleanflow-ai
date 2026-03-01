@@ -904,7 +904,7 @@ export function useOrgSettings() {
             const inviteFrontendBaseUrl = getInviteFrontendBaseUrl();
             await orgAPI.createInvite(email, inviteRole, inviteFrontendBaseUrl);
             await loadInvites();
-            toast({ title: "Invite created", description: `${email} invited as ${inviteRole}.` });
+            toast({ title: "Invitation Sent", description: `An invitation has been sent to ${email} as ${inviteRole}.` });
             setIsInviteDialogOpen(false);
         } catch (err: any) {
             toast({ title: "Failed to invite", description: err?.message || "Could not create invite." });

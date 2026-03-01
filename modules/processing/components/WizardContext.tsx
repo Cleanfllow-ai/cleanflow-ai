@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, ReactNode } from "react"
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import type { CustomRuleDefinition, ColumnProfile } from "@/modules/files"
 import { deriveRulesV2 } from "@/shared/lib/type-catalog"
 
@@ -104,6 +104,49 @@ export interface WizardState {
     processingError: string | null
 }
 
+// Session storage persistence
+const STORAGE_PREFIX = "cleanflow_wizard_"
+const EXPIRY_MS = 30 * 60 * 1000 // 30 minutes
+
+interface SavedWizardState {
+    state: Omit<WizardState, "authToken" | "isProcessing" | "processingError">
+    savedAt: number
+}
+
+function getStorageKey(uploadId: string) {
+    return `${STORAGE_PREFIX}${uploadId}`
+}
+
+function saveWizardState(state: WizardState) {
+    if (!state.uploadId || state.step === "columns") return
+    try {
+        const { authToken, isProcessing, processingError, ...persistable } = state
+        const saved: SavedWizardState = { state: persistable, savedAt: Date.now() }
+        sessionStorage.setItem(getStorageKey(state.uploadId), JSON.stringify(saved))
+    } catch { /* sessionStorage full or unavailable */ }
+}
+
+function loadSavedWizardState(uploadId: string): SavedWizardState | null {
+    try {
+        const raw = sessionStorage.getItem(getStorageKey(uploadId))
+        if (!raw) return null
+        const saved: SavedWizardState = JSON.parse(raw)
+        if (Date.now() - saved.savedAt > EXPIRY_MS) {
+            sessionStorage.removeItem(getStorageKey(uploadId))
+            return null
+        }
+        return saved
+    } catch {
+        return null
+    }
+}
+
+function clearSavedWizardState(uploadId: string) {
+    try {
+        sessionStorage.removeItem(getStorageKey(uploadId))
+    } catch { /* ignore */ }
+}
+
 // Wizard actions
 interface WizardActions {
     setStep: (step: WizardStep) => void
@@ -144,6 +187,11 @@ interface WizardActions {
     // Reset
     reset: () => void
     initializeWithFile: (uploadId: string, fileName: string, columns: string[], authToken: string) => void
+
+    // Persistence
+    hasSavedState: (uploadId: string) => boolean
+    restoreSavedState: (uploadId: string, authToken: string) => boolean
+    clearSavedState: () => void
 }
 
 type WizardContextType = WizardState & WizardActions
@@ -303,7 +351,10 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
 
         setProcessingError: (error) => setState((s) => ({ ...s, isProcessing: false, processingError: error })),
 
-        reset: () => setState(initialState),
+        reset: () => {
+            clearSavedWizardState(state.uploadId)
+            setState(initialState)
+        },
 
         initializeWithFile: (uploadId, fileName, columns, authToken) => {
             setState({
@@ -320,7 +371,26 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
                 crossFieldRules: [],
             })
         },
+
+        // Persistence
+        hasSavedState: (uploadId) => loadSavedWizardState(uploadId) !== null,
+
+        restoreSavedState: (uploadId, authToken) => {
+            const saved = loadSavedWizardState(uploadId)
+            if (!saved) return false
+            setState({ ...saved.state, authToken, isProcessing: false, processingError: null })
+            return true
+        },
+
+        clearSavedState: () => clearSavedWizardState(state.uploadId),
     }
+
+    // Auto-save wizard state on step changes (after first step)
+    useEffect(() => {
+        if (state.uploadId && state.step !== "columns") {
+            saveWizardState(state)
+        }
+    }, [state.step, state.uploadId])
 
     return (
         <WizardContext.Provider value={{ ...state, ...actions }}>
