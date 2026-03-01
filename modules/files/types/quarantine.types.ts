@@ -271,6 +271,8 @@ export interface CompatibilityReprocessPayload {
 export interface ColumnRuleApplyRow {
   row_id: string
   value: string
+  /** Full row context for cross-column rules — keyed by column name, values as strings */
+  row?: Record<string, string>
 }
 
 /** Request payload for AI column rule generation and application */
@@ -280,9 +282,17 @@ export interface ColumnRuleApplyRequest {
   rows: ColumnRuleApplyRow[]
 }
 
-/** A single cell fix produced by the AI column rule */
+/** A single cell fix produced by the AI column rule (single-column mode) */
 export interface ColumnRuleFix {
   row_id: string
+  original: string
+  fixed: string
+}
+
+/** A single cell fix produced by the cross-column AI fix (multi-column mode) */
+export interface CrossRuleFix {
+  row_id: string
+  column: string
   original: string
   fixed: string
 }
@@ -292,10 +302,13 @@ export interface ColumnRuleApplyResponse {
   fixes: ColumnRuleFix[]
   rule_code: string
   rows_affected: number
+  /** Populated for cross-column mode (column="") — per-cell changes across columns */
+  cross_fixes?: CrossRuleFix[]
 }
 
 /** Request payload for apply-all (one chunk; chain with cursor for large datasets) */
 export interface ColumnRuleApplyAllRequest {
+  /** Leave empty ("") for cross-column mode — fixes multiple columns per row */
   column: string
   description: string
   session_id: string

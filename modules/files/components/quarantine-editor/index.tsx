@@ -118,7 +118,6 @@ export function QuarantineEditorDialog({ file, open, onOpenChange }: QuarantineE
     <QuarantineCustomRuleDialog
       open={customRuleOpen}
       onOpenChange={setCustomRuleOpen}
-      editableColumns={editor.manifest?.editable_columns || []}
       rows={editor.rows}
       uploadId={file?.upload_id ?? ''}
       authToken={idToken}

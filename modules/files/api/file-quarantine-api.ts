@@ -266,6 +266,10 @@ export interface AiSuggestFixParams {
     rule_id?: string
     column_type?: string
     issue_message?: string
+    /** For cross-column rules: values of the other columns in the relationship */
+    related_columns?: Record<string, string>
+    /** For cross-column rules: the condition that must hold, e.g. "CREATED_TS <= UPDATED_TS" */
+    cross_condition?: string
 }
 
 export interface AiSuggestFixResponse {
@@ -285,15 +289,21 @@ export async function suggestQuarantineFix(
     authToken: string,
     params: AiSuggestFixParams
 ): Promise<AiSuggestFixResponse> {
-    const query = new URLSearchParams({
+    const queryObj: Record<string, string> = {
         column: params.column,
         value: String(params.value ?? ''),
         rule_id: params.rule_id ?? 'unknown',
         column_type: params.column_type ?? 'text',
         issue_message: params.issue_message ?? '',
-    })
+    }
+    if (params.related_columns && Object.keys(params.related_columns).length > 0) {
+        queryObj.related_columns = JSON.stringify(params.related_columns)
+    }
+    if (params.cross_condition) {
+        queryObj.cross_condition = params.cross_condition
+    }
     return makeRequest(
-        `/files/${uploadId}/quarantined/suggest-fix?${query.toString()}`,
+        `/files/${uploadId}/quarantined/suggest-fix?${new URLSearchParams(queryObj).toString()}`,
         authToken,
         { method: 'GET' }
     )

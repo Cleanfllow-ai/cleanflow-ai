@@ -110,7 +110,10 @@ export function AiSuggestCellRenderer({
       // Try to extract per-column violation info for richer AI context
       let ruleId = 'unknown'
       let issueMessage = ''
+      let relatedColumns: Record<string, string> | undefined
+      let crossCondition: string | undefined
       const rawViolations = data?.dq_violations
+      let parsedViolations: any[] = []
       if (rawViolations) {
         try {
           const parsed =
@@ -118,6 +121,7 @@ export function AiSuggestCellRenderer({
               ? JSON.parse(rawViolations)
               : rawViolations
           if (Array.isArray(parsed) && parsed.length > 0) {
+            parsedViolations = parsed
             // Prefer a violation entry that mentions this specific column
             const match =
               parsed.find((v: any) => v.column === col) ?? parsed[0]
@@ -129,12 +133,38 @@ export function AiSuggestCellRenderer({
         }
       }
 
+      // For cross-column violations, collect sibling column values so the LLM
+      // can suggest a fix that satisfies the required relationship.
+      // Cross rule_ids have the format "CROSS:<rule>|<condition>", e.g.
+      // "CROSS:date_order|CREATED_TS <= UPDATED_TS".
+      if (ruleId.startsWith('CROSS:')) {
+        const pipeIdx = ruleId.indexOf('|')
+        if (pipeIdx !== -1) {
+          crossCondition = ruleId.slice(pipeIdx + 1)
+        }
+        // Find all other columns that share the exact same cross violation
+        const relCols: Record<string, string> = {}
+        parsedViolations.forEach((v: any) => {
+          if (String(v?.rule_id ?? '') === ruleId && v.column !== col) {
+            const relCol = String(v.column ?? '')
+            if (relCol && relCol in data) {
+              relCols[relCol] = String(data[relCol] ?? '')
+            }
+          }
+        })
+        if (Object.keys(relCols).length > 0) {
+          relatedColumns = relCols
+        }
+      }
+
       const result = await suggestQuarantineFix(uploadId, authToken, {
         column: col,
         value: String(value ?? ''),
         rule_id: ruleId,
         column_type: 'text',
         issue_message: issueMessage,
+        related_columns: relatedColumns,
+        cross_condition: crossCondition,
       })
       setSuggestion(result)
     } catch (err: any) {

@@ -77,6 +77,7 @@ export type {
     ColumnRuleApplyRow,
     ColumnRuleApplyRequest,
     ColumnRuleFix,
+    CrossRuleFix,
     ColumnRuleApplyResponse,
     ColumnRuleApplyAllRequest,
     ColumnRuleApplyAllResponse,
