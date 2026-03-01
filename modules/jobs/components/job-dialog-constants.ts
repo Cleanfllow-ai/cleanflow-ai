@@ -10,6 +10,7 @@ export const ENTITY_OPTIONS = [
 export const ERP_OPTIONS = [
     { label: "QUICKBOOKS ONLINE", value: "quickbooks" },
     { label: "ZOHO BOOKS", value: "zoho-books" },
+    { label: "SNOWFLAKE", value: "snowflake" },
     { label: "ORACLE FUSION", value: "oracle" },
     { label: "SAP", value: "sap" },
     { label: "MICROSOFT DYNAMICS", value: "dynamics" },

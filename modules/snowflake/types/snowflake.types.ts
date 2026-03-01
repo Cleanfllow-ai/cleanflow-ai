@@ -55,6 +55,7 @@ export interface SnowflakeExportRequest {
   database?: string
   schema?: string
   write_mode: SnowflakeWriteMode
+  merge_key?: string
   column_mapping?: Record<string, string>
 }
 

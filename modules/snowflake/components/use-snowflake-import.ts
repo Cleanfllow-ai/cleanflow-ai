@@ -86,8 +86,8 @@ export function useSnowflakeImport({
     const [mappingOpen, setMappingOpen] = useState(false)
     const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
 
-    // Export — config
-    const [exportWriteMode, setExportWriteMode] = useState<SnowflakeWriteMode>("insert")
+    // Export — config (always merge to prevent duplicates)
+    const exportWriteMode: SnowflakeWriteMode = "merge"
     const [isExporting, setIsExporting] = useState(false)
     const [exportResult, setExportResult] =
         useState<SnowflakeExportResponse | null>(null)
@@ -438,7 +438,6 @@ export function useSnowflakeImport({
         availableColumns,
         selectedWarehouse,
         databases,
-        exportWriteMode,
         onNotification,
     ])
 
@@ -499,8 +498,6 @@ export function useSnowflakeImport({
         setColumnMapping,
 
         // Export — config & execution
-        exportWriteMode,
-        setExportWriteMode,
         isExporting,
         exportResult,
         error,

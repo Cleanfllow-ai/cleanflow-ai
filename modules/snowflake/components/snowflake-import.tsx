@@ -50,7 +50,6 @@ import {
     validateMapping,
     type SnowflakeEntity,
 } from "./snowflake-mapping-utils"
-import type { SnowflakeWriteMode } from "@/modules/snowflake/types/snowflake.types"
 
 interface SnowflakeImportProps {
     mode?: "source" | "destination"
@@ -302,24 +301,6 @@ export default function SnowflakeImport({
                                                 {option.label}
                                             </SelectItem>
                                         ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {/* Write Mode */}
-                            <div>
-                                <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Write Mode</Label>
-                                <Select
-                                    value={s.exportWriteMode}
-                                    onValueChange={(v) => s.setExportWriteMode(v as SnowflakeWriteMode)}
-                                >
-                                    <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="insert">Insert (append)</SelectItem>
-                                        <SelectItem value="truncate_insert">Truncate & Insert</SelectItem>
-                                        <SelectItem value="merge">Merge (upsert)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

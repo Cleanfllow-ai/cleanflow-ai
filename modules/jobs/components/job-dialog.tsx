@@ -125,9 +125,9 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                         />
                     )}
 
-                    {/* Responsible User */}
+                    {/* Assigned To */}
                     <div className="space-y-2">
-                        <Label className="text-sm font-medium">Responsible User</Label>
+                        <Label className="text-sm font-medium">Assigned To</Label>
                         <p className="text-xs text-muted-foreground">
                             Receives notifications for quarantined data, failures, and auto-pause events.
                         </p>
