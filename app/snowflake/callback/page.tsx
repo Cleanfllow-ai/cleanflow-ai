@@ -15,66 +15,69 @@ function SnowflakeCallbackContent() {
     const [message, setMessage] = useState('Connecting to Snowflake...')
 
     useEffect(() => {
-        handleCallback()
-    }, [])
+        const handleCallback = async () => {
+            try {
+                const error = searchParams.get('error')
+                const success = searchParams.get('success')
 
-    const handleCallback = async () => {
-        try {
-            const error = searchParams.get('error')
-            const success = searchParams.get('success')
+                console.log('[Snowflake Callback] Parameters:', { error, success })
 
-            if (error) {
-                throw new Error(error)
-            }
+                if (error) {
+                    throw new Error(error)
+                }
 
-            if (success === 'true') {
-                setStatus('success')
-                setMessage('Successfully connected to Snowflake!')
+                if (success === 'true') {
+                    setStatus('success')
+                    setMessage('Successfully connected to Snowflake!')
+
+                    if (window.opener) {
+                        // Use the callback page's origin (same as the app's origin)
+                        const targetOrigin = window.location.origin
+                        console.log('[Snowflake Callback] Sending postMessage to:', targetOrigin)
+                        window.opener.postMessage(
+                            { type: 'snowflake-auth-success' },
+                            targetOrigin
+                        )
+                        setTimeout(() => {
+                            window.close()
+                        }, 1500)
+                    } else {
+                        console.log('[Snowflake Callback] No opener, redirecting...')
+                        setTimeout(() => {
+                            router.push('/files?snowflake=connected')
+                        }, 2000)
+                    }
+                } else {
+                    throw new Error('OAuth flow incomplete - missing success parameter')
+                }
+            } catch (err) {
+                console.error('[Snowflake Callback] Error:', err)
+                setStatus('error')
+                setMessage((err as Error).message || 'Failed to connect to Snowflake')
 
                 if (window.opener) {
-                    const targetOrigin = document.referrer
-                        ? new URL(document.referrer).origin
-                        : '*'
+                    // Use the callback page's origin (same as the app's origin)
+                    const targetOrigin = window.location.origin
                     window.opener.postMessage(
-                        { type: 'snowflake-auth-success' },
+                        {
+                            type: 'snowflake-auth-error',
+                            error: (err as Error).message || 'Connection failed',
+                        },
                         targetOrigin
                     )
                     setTimeout(() => {
                         window.close()
-                    }, 1500)
+                    }, 5000)
                 } else {
                     setTimeout(() => {
-                        router.push('/files?snowflake=connected')
-                    }, 2000)
+                        router.push('/files?snowflake=error')
+                    }, 3000)
                 }
-            } else {
-                throw new Error('OAuth flow incomplete - missing success parameter')
-            }
-        } catch (err) {
-            setStatus('error')
-            setMessage((err as Error).message || 'Failed to connect to Snowflake')
-
-            if (window.opener) {
-                const targetOrigin = document.referrer
-                    ? new URL(document.referrer).origin
-                    : '*'
-                window.opener.postMessage(
-                    {
-                        type: 'snowflake-auth-error',
-                        error: (err as Error).message || 'Connection failed',
-                    },
-                    targetOrigin
-                )
-                setTimeout(() => {
-                    window.close()
-                }, 5000)
-            } else {
-                setTimeout(() => {
-                    router.push('/files?snowflake=error')
-                }, 3000)
             }
         }
-    }
+
+        handleCallback()
+    }, [searchParams, router])
 
     return (
         <div className="min-h-screen bg-background flex items-center justify-center p-4 font-sans">

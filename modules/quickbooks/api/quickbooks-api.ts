@@ -259,8 +259,8 @@ class QuickBooksService {
           if (authWindow?.closed) {
             clearInterval(checkWindow)
             window.removeEventListener('message', messageHandler)
-            // Return success with unknown status (will recheck connection)
-            resolve({ success: true })
+            // User closed window without completing OAuth
+            resolve({ success: false, error: 'Auth window closed' })
           }
         }, 500)
       } catch (error) {

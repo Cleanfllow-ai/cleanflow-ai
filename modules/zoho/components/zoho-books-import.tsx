@@ -98,12 +98,12 @@ export default function ZohoBooksImport(props: UseZohoImportProps) {
               </span>
             )}
             <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground">Use Org ID</Label>
+              <Label className="text-xs text-muted-foreground">Org ID</Label>
               <Input
-                className="h-8 w-48 text-xs"
-                placeholder="Organization ID"
+                className="h-8 w-48 text-xs bg-muted/50 cursor-default"
                 value={z.orgIdInput}
-                onChange={(e) => z.handleOrgIdChange(e.target.value)}
+                readOnly
+                disabled
               />
             </div>
           </div>

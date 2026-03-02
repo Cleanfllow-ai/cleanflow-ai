@@ -32,9 +32,8 @@ function ZohoBooksCallbackContent() {
         setMessage('Successfully connected to Zoho Books!')
 
         if (window.opener) {
-          const targetOrigin = document.referrer
-            ? new URL(document.referrer).origin
-            : '*'
+          // Use the callback page's origin (same as the app's origin)
+          const targetOrigin = window.location.origin
           window.opener.postMessage(
             { type: 'zoho-books-auth-success' },
             targetOrigin
@@ -55,9 +54,8 @@ function ZohoBooksCallbackContent() {
       setMessage((err as Error).message || 'Failed to connect to Zoho Books')
 
       if (window.opener) {
-        const targetOrigin = document.referrer
-          ? new URL(document.referrer).origin
-          : '*'
+        // Use the callback page's origin (same as the app's origin)
+        const targetOrigin = window.location.origin
         window.opener.postMessage(
           {
             type: 'zoho-books-auth-error',
