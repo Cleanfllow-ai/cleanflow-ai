@@ -83,6 +83,13 @@ export function RulesStep() {
   const [pendingCrossRules, setPendingCrossRules] = useState<CrossFieldRuleWithState[] | null>(null)
   const [crossRuleError, setCrossRuleError] = useState<string | null>(null)
 
+  // AI cross-row rule suggestion state
+  const [showCrossRowForm, setShowCrossRowForm] = useState(false)
+  const [crossRowPrompt, setCrossRowPrompt] = useState("")
+  const [isGeneratingCrossRow, setIsGeneratingCrossRow] = useState(false)
+  const [pendingCrossRowRules, setPendingCrossRowRules] = useState<CrossFieldRuleWithState[] | null>(null)
+  const [crossRowError, setCrossRowError] = useState<string | null>(null)
+
   // @ mention state for cross-rule textarea
   const crossTextareaRef = useRef<HTMLTextAreaElement>(null)
   const [mentionStart, setMentionStart] = useState(-1)
@@ -302,6 +309,57 @@ export function RulesStep() {
     closeMention()
     setShowCrossRuleForm(false)
   }
+
+  // Cross-row rule handlers
+  const handleGenerateCrossRowRule = async () => {
+    if (!crossRowPrompt.trim() || !authToken) return
+    setIsGeneratingCrossRow(true)
+    setCrossRowError(null)
+    setPendingCrossRowRules(null)
+    try {
+      const response = await fileManagementAPI.suggestCrossColumnRule(uploadId, authToken, {
+        prompt: crossRowPrompt.trim(),
+        columns: /@all\b/i.test(crossRowPrompt)
+          ? []
+          : Array.from(new Set((crossRowPrompt.match(/@(\S+)/g) ?? []).map((m) => m.slice(1)).filter((c) => selectedColumns.includes(c)))),
+        rule_scope: "cross_row",
+      })
+      const rules: CrossFieldRuleWithState[] = (response?.rules ?? []).map((r) => ({
+        rule_id: r.rule_id,
+        cols: r.cols,
+        relationship: r.relationship,
+        condition: r.condition,
+        predicate: r.predicate,
+        tolerance: r.tolerance,
+        confidence: r.confidence,
+        reasoning: r.reasoning,
+        enabled: true,
+      }))
+      if (rules.length === 0) {
+        setCrossRowError("CleanAI could not find a matching cross-row rule. Try a more specific description.")
+      } else {
+        setPendingCrossRowRules(rules)
+      }
+    } catch (err: unknown) {
+      setCrossRowError(err instanceof Error ? err.message : "Failed to generate cross-row rule")
+    } finally {
+      setIsGeneratingCrossRow(false)
+    }
+  }
+
+  const handleApproveCrossRowRules = () => {
+    if (!pendingCrossRowRules) return
+    const existing = new Set(crossFieldRules.map((r) => `${r.rule_id}:${r.cols.join(",")}`))
+    const toAdd = pendingCrossRowRules.filter((r) => !existing.has(`${r.rule_id}:${r.cols.join(",")}`))
+    setCrossFieldRules([...crossFieldRules, ...toAdd])
+    setPendingCrossRowRules(null)
+    setCrossRowPrompt("")
+    setShowCrossRowForm(false)
+  }
+
+  // Cross-row rules extracted from crossFieldRules
+  const crossRowRules = crossFieldRules.filter((r) => r.rule_id === "row_group_equals" || r.rule_id === "row_parent_equals")
+  const crossColOnlyRules = crossFieldRules.filter((r) => r.rule_id !== "row_group_equals" && r.rule_id !== "row_parent_equals")
 
   const canProceed = true // rules optional
 
@@ -541,6 +599,143 @@ export function RulesStep() {
                       size="sm"
                       variant="ghost"
                       onClick={() => { setShowCrossRuleForm(false); setPendingCrossRules(null); setCrossRuleError(null); setCrossRulePrompt(""); closeMention() }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cross-row Rules section */}
+            <div className="border border-muted rounded-md p-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-sm">Cross-row Rules</h3>
+                <div className="flex items-center gap-2">
+                  {crossRowRules.length > 0 && (
+                    <Badge variant="outline" className="text-xs">{crossRowRules.filter(r => r.enabled).length}/{crossRowRules.length} enabled</Badge>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => { setShowCrossRowForm(true); setPendingCrossRowRules(null); setCrossRowError(null) }}
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Add AI Rule
+                  </Button>
+                </div>
+              </div>
+
+              {/* Existing cross-row rules */}
+              {crossRowRules.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {crossRowRules.map((rule) => (
+                    <div
+                      key={rule.rule_id + rule.cols.join(".")}
+                      className="p-2 rounded border border-muted/60 bg-muted/20"
+                    >
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          checked={rule.enabled}
+                          onCheckedChange={() =>
+                            setCrossFieldRules(
+                              crossFieldRules.map((item) =>
+                                item.rule_id === rule.rule_id && item.cols.join(".") === rule.cols.join(".")
+                                  ? { ...item, enabled: !item.enabled }
+                                  : item
+                              )
+                            )
+                          }
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{rule.rule_id}</span>
+                            {rule.relationship && <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>}
+                            {rule.confidence !== undefined && (
+                              <Badge variant="outline" className="text-[10px]">{Math.round((rule.confidence || 0) * 100)}%</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {rule.condition || rule.predicate || "No condition provided"}
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {rule.cols.map((c) => (
+                              <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          onClick={() => setCrossFieldRules(crossFieldRules.filter((r) => !(r.rule_id === rule.rule_id && r.cols.join(".") === rule.cols.join("."))))}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {crossRowRules.length === 0 && !showCrossRowForm && (
+                <p className="text-xs text-muted-foreground">No cross-row rules detected. Click &quot;Add AI Rule&quot; to describe one (e.g. &quot;@Legal_Entity must match for all rows sharing the same @Order_Financial_ID&quot;).</p>
+              )}
+
+              {/* AI cross-row rule suggestion form */}
+              {showCrossRowForm && (
+                <div className="border border-dashed border-muted rounded-md p-3 space-y-3 mt-1">
+                  <p className="text-xs text-muted-foreground font-medium">Describe the cross-row rule in plain language:</p>
+                  <textarea
+                    className="w-full min-h-[60px] rounded-lg border border-violet-200 bg-violet-50/40 px-3 py-2 text-sm focus:ring-2 focus:ring-violet-400 focus:border-violet-400 focus:bg-white outline-none resize-none"
+                    placeholder="e.g. Legal Entity must be the same for all rows sharing the same Order Financial ID"
+                    value={crossRowPrompt}
+                    onChange={(e) => setCrossRowPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault()
+                        handleGenerateCrossRowRule()
+                      }
+                    }}
+                  />
+
+                  {/* Pending cross-row suggestions */}
+                  {pendingCrossRowRules && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-green-700">CleanAI suggested {pendingCrossRowRules.length} cross-row rule(s):</p>
+                      {pendingCrossRowRules.map((r, i) => (
+                        <div key={i} className="p-2 rounded border border-green-200 bg-green-50/50">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{r.rule_id}</span>
+                            {r.relationship && <Badge variant="secondary" className="text-[10px]">{r.relationship}</Badge>}
+                            {r.confidence !== undefined && <Badge variant="outline" className="text-[10px]">{Math.round((r.confidence || 0) * 100)}%</Badge>}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">{r.condition || r.predicate}</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {r.cols.map((c) => <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>)}
+                          </div>
+                          {r.reasoning && <p className="text-[10px] text-muted-foreground mt-1 italic">{r.reasoning}</p>}
+                        </div>
+                      ))}
+                      <Button size="sm" onClick={handleApproveCrossRowRules}>Accept Rules</Button>
+                    </div>
+                  )}
+
+                  {crossRowError && <p className="text-xs text-red-500">{crossRowError}</p>}
+
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleGenerateCrossRowRule}
+                      disabled={isGeneratingCrossRow || !crossRowPrompt.trim()}
+                    >
+                      {isGeneratingCrossRow ? "Generating..." : "Generate"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { setShowCrossRowForm(false); setPendingCrossRowRules(null); setCrossRowError(null); setCrossRowPrompt("") }}
                     >
                       Cancel
                     </Button>

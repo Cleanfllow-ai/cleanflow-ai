@@ -156,6 +156,14 @@ const DEFAULT_PRESET: SettingsPreset & { config: Record<string, any> } = {
       text: {
         max_len_default: 255,
       }
+    },
+    reference_data: {
+      accounting_periods: [],
+      fx_rates: {},
+      gl_accounts: [],
+      legal_entities: [],
+      revenue_policies: [],
+      ssp_policies: [],
     }
   },
 }
@@ -197,6 +205,18 @@ export function SettingsStep() {
   const [uploadedConfig, setUploadedConfig] = useState<any>(null)
   const presetFileInputRef = useRef<HTMLInputElement>(null)
 
+  // Reference data state
+  const [glAccounts, setGlAccounts] = useState("")
+  const [glAccountInput, setGlAccountInput] = useState("")
+  const [legalEntities, setLegalEntities] = useState("")
+  const [legalEntityInput, setLegalEntityInput] = useState("")
+  const [revenuePolicies, setRevenuePolicies] = useState("")
+  const [revenuePolicyInput, setRevenuePolicyInput] = useState("")
+  const [sspPolicies, setSspPolicies] = useState("")
+  const [sspPolicyInput, setSspPolicyInput] = useState("")
+  const [fxRatesText, setFxRatesText] = useState("")
+  const [accountingPeriodsText, setAccountingPeriodsText] = useState("")
+
 
   // Extract repeated config → local state hydration
   const hydrateFromConfig = (rawConfig: any) => {
@@ -211,6 +231,14 @@ export function SettingsStep() {
     setStatusEnums((config.enum_sets?.status || []).join(", "))
     setMaxTextLen(config.thresholds?.text?.max_len_default ?? 255)
     if (config.required_columns) setRequiredColumns(config.required_columns)
+    // Reference data
+    const ref = config.reference_data || {}
+    setGlAccounts((ref.gl_accounts || []).join(", "))
+    setLegalEntities((ref.legal_entities || []).join(", "))
+    setRevenuePolicies((ref.revenue_policies || []).join(", "))
+    setSspPolicies((ref.ssp_policies || []).join(", "))
+    setFxRatesText(ref.fx_rates ? Object.entries(ref.fx_rates).map(([k, v]) => `${k}:${v}`).join(", ") : "")
+    setAccountingPeriodsText(ref.accounting_periods ? ref.accounting_periods.map((p: any) => `${p.name || ""}|${p.start}|${p.end}`).join("\n") : "")
   }
 
   useEffect(() => {
@@ -410,6 +438,21 @@ export function SettingsStep() {
       },
     },
     required_columns: requiredColumns,
+    reference_data: {
+      gl_accounts: glAccounts.split(",").map((s) => s.trim()).filter(Boolean),
+      legal_entities: legalEntities.split(",").map((s) => s.trim()).filter(Boolean),
+      revenue_policies: revenuePolicies.split(",").map((s) => s.trim()).filter(Boolean),
+      ssp_policies: sspPolicies.split(",").map((s) => s.trim()).filter(Boolean),
+      fx_rates: fxRatesText.split(",").map((s) => s.trim()).filter(Boolean).reduce((acc: Record<string, number>, pair) => {
+        const [key, val] = pair.split(":")
+        if (key && val) acc[key.trim()] = parseFloat(val.trim()) || 0
+        return acc
+      }, {}),
+      accounting_periods: accountingPeriodsText.split("\n").map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [name, start, end] = line.split("|").map((s) => s.trim())
+        return { name: name || "", start: start || "", end: end || "" }
+      }).filter((p) => p.start && p.end),
+    },
   })
 
   const handleSaveOverrides = () => {
@@ -577,11 +620,12 @@ export function SettingsStep() {
             {editMode ? (
               <div className="space-y-5">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid grid-cols-4 w-full mb-4">
+                  <TabsList className="grid grid-cols-5 w-full mb-4">
                     <TabsTrigger value="policies">Policies</TabsTrigger>
                     <TabsTrigger value="lookups">Lookups</TabsTrigger>
                     <TabsTrigger value="thresholds">Thresholds</TabsTrigger>
                     <TabsTrigger value="required">Required</TabsTrigger>
+                    <TabsTrigger value="reference">Reference</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="policies" className="space-y-4">
@@ -689,6 +733,62 @@ export function SettingsStep() {
                         </div>
                       </div>
                     )}
+                  </TabsContent>
+
+                  <TabsContent value="reference" className="space-y-3">
+                    <p className="text-sm text-muted-foreground">Configure reference data for ERP validation lookups.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <ChipInput
+                        label="GL Accounts"
+                        value={glAccounts}
+                        setValue={setGlAccounts}
+                        inputValue={glAccountInput}
+                        setInputValue={setGlAccountInput}
+                        placeholder="Type 1000, 1100, 2000, etc."
+                      />
+                      <ChipInput
+                        label="Legal Entities"
+                        value={legalEntities}
+                        setValue={setLegalEntities}
+                        inputValue={legalEntityInput}
+                        setInputValue={setLegalEntityInput}
+                        placeholder="Type US_ENTITY, IN_ENTITY, etc."
+                      />
+                      <ChipInput
+                        label="Revenue Policies"
+                        value={revenuePolicies}
+                        setValue={setRevenuePolicies}
+                        inputValue={revenuePolicyInput}
+                        setInputValue={setRevenuePolicyInput}
+                        placeholder="Type ASC606, IFRS15, etc."
+                      />
+                      <ChipInput
+                        label="SSP Policies"
+                        value={sspPolicies}
+                        setValue={setSspPolicies}
+                        inputValue={sspPolicyInput}
+                        setInputValue={setSspPolicyInput}
+                        placeholder="Type MARKET, COST_PLUS, etc."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">FX Rates (currency_pair:rate, comma-separated)</Label>
+                      <Input
+                        value={fxRatesText}
+                        onChange={(e) => setFxRatesText(e.target.value)}
+                        placeholder="USD_EUR:0.92, USD_INR:83.5, GBP_USD:1.27"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Accounting Periods (one per line: name|start|end)</Label>
+                      <textarea
+                        className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-[80px]"
+                        value={accountingPeriodsText}
+                        onChange={(e) => setAccountingPeriodsText(e.target.value)}
+                        placeholder={"Q1 2025|2025-01-01|2025-03-31\nQ2 2025|2025-04-01|2025-06-30"}
+                        rows={3}
+                      />
+                    </div>
                   </TabsContent>
                 </Tabs>
 

@@ -326,6 +326,14 @@ export async function startProcessing(
         preset_overrides?: Record<string, any>
         column_type_overrides?: Record<string, ColumnTypeOverride>
         cross_field_rules?: CrossFieldRule[]
+        reference_data?: {
+            accounting_periods?: { name: string; start: string; end: string }[]
+            fx_rates?: Record<string, number>
+            gl_accounts?: string[]
+            legal_entities?: string[]
+            revenue_policies?: string[]
+            ssp_policies?: string[]
+        }
     }
 ): Promise<any> {
     console.log('Starting processing:', uploadId, options?.custom_rules?.length ? '(with custom rules)' : '')
@@ -376,6 +384,10 @@ export async function startProcessing(
         payload.cross_field_rules = options.cross_field_rules
     }
 
+    if (options?.reference_data) {
+        payload.reference_data = options.reference_data
+    }
+
     return makeRequest(ENDPOINTS.FILES_PROCESS(uploadId), authToken, {
         method: "POST",
         body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined
@@ -396,7 +408,7 @@ export async function suggestCustomRule(
 export async function suggestCrossColumnRule(
     uploadId: string,
     authToken: string,
-    payload: { prompt: string; columns?: string[] }
+    payload: { prompt: string; columns?: string[]; rule_scope?: string }
 ): Promise<{ rules: CrossFieldRule[] }> {
     return makeRequest(ENDPOINTS.FILES_CROSS_RULE_SUGGEST(uploadId), authToken, {
         method: "POST",

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Loader2, ArrowLeft, ArrowRight, Check, X, RefreshCw } from "lucide-react"
 import { useProcessingWizard, STEP_ORDER } from "./WizardContext"
 import { fileManagementAPI } from "@/modules/files"
+import { getColumnProfilingPreviewWithPolling } from "@/modules/files/api/file-profiling-api"
 
 export function ProfilingStep() {
     const {
@@ -33,25 +34,40 @@ export function ProfilingStep() {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [activeColumn, setActiveColumn] = useState<string | null>(null)
+    const [elapsedSec, setElapsedSec] = useState(0)
+    const abortRef = useRef<AbortController | null>(null)
 
     // Fetch profiling on mount
     useEffect(() => {
         if (selectedColumns.length > 0 && Object.keys(columnProfiles).length === 0 && authToken) {
             fetchProfiling()
         }
+        return () => { abortRef.current?.abort() }
     }, [selectedColumns, authToken])
 
     const fetchProfiling = async () => {
         if (!authToken) return
 
+        // Cancel any in-flight polling
+        abortRef.current?.abort()
+        const controller = new AbortController()
+        abortRef.current = controller
+
         setIsLoading(true)
         setError(null)
+        setElapsedSec(0)
         try {
-            const response = await fileManagementAPI.getColumnProfilingPreview(
+            const response = await getColumnProfilingPreviewWithPolling(
                 uploadId,
                 authToken,
                 selectedColumns,
-                500
+                500,
+                {
+                    intervalMs: 3000,
+                    timeoutMs: 600_000,
+                    signal: controller.signal,
+                    onProgress: (elapsed) => setElapsedSec(Math.round(elapsed / 1000)),
+                }
             )
             if (response.profiles && Object.keys(response.profiles).length > 0) {
                 setColumnProfiles(response.profiles)
@@ -72,22 +88,25 @@ export function ProfilingStep() {
                 setError("No profiling data returned. Refresh or adjust column selection.")
             }
         } catch (err: any) {
+            if (err.name === 'AbortError') return
             setError(err.message || "Failed to fetch profiling data")
         } finally {
             setIsLoading(false)
+            setElapsedSec(0)
         }
     }
 
-    // Profile a single column on demand
+    // Profile a single column on demand (sync for ≤15 cols, auto-polls otherwise)
     const profileColumn = async (column: string) => {
         if (columnProfiles[column] || !authToken) return // Already profiled or no auth
 
         try {
-            const response = await fileManagementAPI.getColumnProfilingPreview(
+            const response = await getColumnProfilingPreviewWithPolling(
                 uploadId,
                 authToken,
                 [column],
-                500
+                500,
+                { intervalMs: 2000, timeoutMs: 60_000 }
             )
             if (response.profiles?.[column]) {
                 setColumnProfiles({
@@ -193,7 +212,14 @@ export function ProfilingStep() {
                             <div className="flex items-center justify-center h-full">
                                 <div className="text-center">
                                     <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                                    <p className="text-sm text-muted-foreground mt-2">Profiling columns...</p>
+                                    <p className="text-sm text-muted-foreground mt-2">
+                                        Profiling {selectedColumns.length} columns...
+                                    </p>
+                                    {elapsedSec > 0 && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            {elapsedSec}s elapsed — wide datasets take longer on first run
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         ) : error ? (

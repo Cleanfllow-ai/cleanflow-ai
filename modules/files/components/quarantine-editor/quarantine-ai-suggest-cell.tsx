@@ -137,6 +137,7 @@ export function AiSuggestCellRenderer({
       // can suggest a fix that satisfies the required relationship.
       // Cross rule_ids have the format "CROSS:<rule>|<condition>", e.g.
       // "CROSS:date_order|CREATED_TS <= UPDATED_TS".
+      let relatedRows: Record<string, string>[] | undefined
       if (ruleId.startsWith('CROSS:')) {
         const pipeIdx = ruleId.indexOf('|')
         if (pipeIdx !== -1) {
@@ -157,6 +158,37 @@ export function AiSuggestCellRenderer({
         }
       }
 
+      // For cross-row (intra-file) violations, extract the key column and related
+      // row values. INTRA rule_ids have the format "INTRA:<rule>|<condition>".
+      if (ruleId.startsWith('INTRA:')) {
+        const pipeIdx = ruleId.indexOf('|')
+        if (pipeIdx !== -1) {
+          crossCondition = ruleId.slice(pipeIdx + 1)
+        }
+        // Extract the key column from the violation's cols — typically the first
+        // col is the group key. Collect sibling column values from the current row
+        // so the LLM knows the full row context.
+        const relCols: Record<string, string> = {}
+        parsedViolations.forEach((v: any) => {
+          if (String(v?.rule_id ?? '') === ruleId && v.column !== col) {
+            const relCol = String(v.column ?? '')
+            if (relCol && relCol in data) {
+              relCols[relCol] = String(data[relCol] ?? '')
+            }
+          }
+        })
+        if (Object.keys(relCols).length > 0) {
+          relatedColumns = relCols
+        }
+        // Note: related_rows are fetched server-side based on the key column
+        // The frontend sends the current row data as context
+        relatedRows = [Object.fromEntries(
+          Object.entries(data)
+            .filter(([k]) => !k.endsWith('_dq_status') && !k.endsWith('_dq_fixed') && !k.endsWith('_dq_quarantined') && k !== 'dq_violations' && k !== 'dq_cell_status')
+            .map(([k, v]) => [k, String(v ?? '')])
+        )]
+      }
+
       const result = await suggestQuarantineFix(uploadId, authToken, {
         column: col,
         value: String(value ?? ''),
@@ -165,6 +197,7 @@ export function AiSuggestCellRenderer({
         issue_message: issueMessage,
         related_columns: relatedColumns,
         cross_condition: crossCondition,
+        related_rows: relatedRows,
       })
       setSuggestion(result)
     } catch (err: any) {

@@ -387,7 +387,7 @@ export function QuarantineCustomRuleDialog({
                 onBlur={() => {
                   setTimeout(closeMention, 150)
                 }}
-                placeholder={`e.g. "If @CREATED_TS is after @UPDATED_TS, set @CREATED_TS to one day before" — type @ to insert a column`}
+                placeholder={`e.g. "If @CREATED_TS is after @UPDATED_TS, set @CREATED_TS to one day before" or "Set @Legal_Entity to match parent order row" — type @ to insert a column`}
                 className="relative w-full min-h-[90px] bg-transparent focus:outline-none resize-none placeholder:text-muted-foreground/50"
                 style={{ ...TEXTAREA_STYLE, caretColor: 'currentColor' }}
               />

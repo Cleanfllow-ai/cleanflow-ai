@@ -84,6 +84,7 @@ export {
 export {
   getColumnProfiling,
   getColumnProfilingPreview,
+  getColumnProfilingPreviewWithPolling,
 } from './file-profiling-api'
 
 export {
@@ -176,6 +177,7 @@ export const fileManagementAPI = {
   // Profiling
   getColumnProfiling: profilingApi.getColumnProfiling,
   getColumnProfilingPreview: profilingApi.getColumnProfilingPreview,
+  getColumnProfilingPreviewWithPolling: profilingApi.getColumnProfilingPreviewWithPolling,
 
   // Settings
   getSettingsPresets: settingsApi.getSettingsPresets,

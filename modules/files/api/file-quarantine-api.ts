@@ -271,6 +271,8 @@ export interface AiSuggestFixParams {
     related_columns?: Record<string, string>
     /** For cross-column rules: the condition that must hold, e.g. "CREATED_TS <= UPDATED_TS" */
     cross_condition?: string
+    /** For cross-row (intra-file) rules: related rows sharing the same group key */
+    related_rows?: Record<string, string>[]
 }
 
 export interface AiSuggestFixResponse {
@@ -302,6 +304,9 @@ export async function suggestQuarantineFix(
     }
     if (params.cross_condition) {
         queryObj.cross_condition = params.cross_condition
+    }
+    if (params.related_rows && params.related_rows.length > 0) {
+        queryObj.related_rows = JSON.stringify(params.related_rows)
     }
     return makeRequest(
         `/files/${uploadId}/quarantined/suggest-fix?${new URLSearchParams(queryObj).toString()}`,

@@ -126,6 +126,9 @@ export function ProcessStep({
           enabled: true,
         }))
 
+      // Extract reference_data from preset overrides to pass as top-level field
+      const referenceData = presetOverrides?.reference_data || (selectedPreset as any)?.config?.reference_data || undefined
+
       await fileManagementAPI.startProcessing(uploadId, authToken, {
         selected_columns: selectedColumns,
         required_columns: requiredColumns,
@@ -136,6 +139,7 @@ export function ProcessStep({
         preset_overrides: presetOverrides,
         column_type_overrides: columnTypeOverrides,
         cross_field_rules: compactCrossRules,
+        reference_data: referenceData,
       })
       setStatusMessage("Processing started, monitoring progress...")
       if (onStarted) onStarted()
