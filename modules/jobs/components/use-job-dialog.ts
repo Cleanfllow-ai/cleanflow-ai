@@ -186,8 +186,9 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const [profilingLoading, setProfilingLoading] = useState(false)
     const [columnProfiles, setColumnProfiles] = useState<Record<string, ColumnProfile>>({})
 
-    // Responsible user
-    const [responsibleUserId, setResponsibleUserId] = useState("")
+    // Notification recipients (multi-select)
+    const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([])
     const [orgMembers, setOrgMembers] = useState<OrgMembership[]>([])
     const [membersLoading, setMembersLoading] = useState(false)
 
@@ -234,7 +235,17 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 : DEFAULT_GLOBAL_RULES.map(r => ({ ...r }))
             )
             setAdvancedOpen(job.dq_config?.mode === "custom")
-            setResponsibleUserId(job.responsible_user_id || "")
+            // Populate notification recipients (backward compat with responsible_user_id)
+            if (job.notification_recipients) {
+                setSelectedUserIds(job.notification_recipients.user_ids || [])
+                setSelectedRoles(job.notification_recipients.roles || [])
+            } else if (job.responsible_user_id) {
+                setSelectedUserIds([job.responsible_user_id])
+                setSelectedRoles([])
+            } else {
+                setSelectedUserIds([])
+                setSelectedRoles([])
+            }
         } else {
             setName("")
             setSource("quickbooks")
@@ -260,7 +271,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             setCrossFieldRules([])
             setExpandedRuleColumns([])
             setColumnRulesSeeded(false)
-            setResponsibleUserId("")
+            setSelectedUserIds([])
+            setSelectedRoles([])
         }
     }, [job, open])
 
@@ -857,7 +869,9 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 entities: [entity],
                 ...freqBackend,
                 dq_config,
-                ...(responsibleUserId && { responsible_user_id: responsibleUserId }),
+                ...((selectedUserIds.length > 0 || selectedRoles.length > 0) && {
+                    notification_recipients: { user_ids: selectedUserIds, roles: selectedRoles },
+                }),
             }
 
             if (isEdit && job) {
@@ -963,8 +977,9 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         profilingLoading,
         columnProfiles,
         handleFetchProfiling,
-        // Responsible user
-        responsibleUserId, setResponsibleUserId,
+        // Notification recipients
+        selectedUserIds, setSelectedUserIds,
+        selectedRoles, setSelectedRoles,
         orgMembers, membersLoading,
         // Submit / UI
         saving,

@@ -14,6 +14,11 @@ export interface DQConfig {
     primary_key_field?: string | null
 }
 
+export interface NotificationRecipients {
+    user_ids: string[]
+    roles: string[]
+}
+
 export interface Job {
     job_id: string
     name: string
@@ -36,6 +41,7 @@ export interface Job {
     total_runs?: number
     consecutive_failures?: number
     responsible_user_id?: string
+    notification_recipients?: NotificationRecipients
 }
 
 export interface EntityResult {
@@ -99,6 +105,7 @@ export interface CreateJobPayload {
     dq_config?: Partial<DQConfig>
     max_records?: number
     responsible_user_id?: string
+    notification_recipients?: NotificationRecipients
 }
 
 export interface UpdateJobPayload {
@@ -111,6 +118,7 @@ export interface UpdateJobPayload {
     dq_config?: Partial<DQConfig>
     max_records?: number
     responsible_user_id?: string
+    notification_recipients?: NotificationRecipients
 }
 
 // ─── Advanced Options types ──────────────────────────────────────────────────

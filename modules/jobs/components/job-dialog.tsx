@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, ChevronDown, ChevronRight, Sparkles, Star, Plus, Upload, Settings, Edit, Download, Shield, ToggleLeft, ToggleRight, Trash2, X } from "lucide-react"
+import { Loader2, ChevronDown, ChevronRight, Sparkles, Star, Plus, Upload, Settings, Edit, Download, Shield, ToggleLeft, ToggleRight, Trash2, X, ChevronsUpDown, Check, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,11 +15,18 @@ import {
 import {
     Collapsible, CollapsibleContent, CollapsibleTrigger
 } from "@/components/ui/collapsible"
+import {
+    Popover, PopoverContent, PopoverTrigger
+} from "@/components/ui/popover"
+import {
+    Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator
+} from "@/components/ui/command"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/shared/lib/utils"
 import { getRuleLabel } from "@/shared/lib/dq-rules"
 import type { Job, JobFrequency, CustomFrequencyUnit } from "@/modules/jobs/api/jobs-api"
+import type { OrgRole } from "@/modules/auth/api/org-api"
 
 import { useJobDialog } from "./use-job-dialog"
 import { ENTITY_OPTIONS, ERP_OPTIONS, SOURCE_ERP_OPTIONS } from "./job-dialog-constants"
@@ -162,30 +169,136 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                         </div>
                     )}
 
-                    {/* Assigned To */}
+                    {/* Assigned To — Multi-select users + roles */}
                     <div className="space-y-2">
                         <Label className="text-sm font-medium">Assigned To</Label>
                         <p className="text-xs text-muted-foreground">
                             Receives notifications for quarantined data, failures, and auto-pause events.
                         </p>
-                        <Select value={d.responsibleUserId || "none"} onValueChange={(v) => d.setResponsibleUserId(v === "none" ? "" : v)} {...d.selectProps("assignedTo")}>
-                            <SelectTrigger className="h-10">
-                                <SelectValue placeholder="Select a team member..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none">
-                                    <span className="text-muted-foreground">None (no notifications)</span>
-                                </SelectItem>
-                                {d.orgMembers.map((m) => (
-                                    <SelectItem key={m.user_id} value={m.user_id}>
-                                        <div className="flex items-center gap-2">
-                                            <span>{m.email}</span>
-                                            <Badge variant="outline" className="text-[10px]">{m.role}</Badge>
-                                        </div>
-                                    </SelectItem>
+
+                        {/* Selected chips */}
+                        {(d.selectedRoles.length > 0 || d.selectedUserIds.length > 0) && (
+                            <div className="flex flex-wrap gap-1.5">
+                                {d.selectedRoles.map((role) => (
+                                    <Badge key={`role-${role}`} variant="secondary" className="text-xs gap-1 pr-1">
+                                        <Users className="w-3 h-3" />
+                                        {role}
+                                        <button
+                                            type="button"
+                                            className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                                            onClick={() => d.setSelectedRoles(d.selectedRoles.filter(r => r !== role))}
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </Badge>
                                 ))}
-                            </SelectContent>
-                        </Select>
+                                {d.selectedUserIds.map((uid) => {
+                                    const member = d.orgMembers.find(m => m.user_id === uid)
+                                    return (
+                                        <Badge key={`user-${uid}`} variant="outline" className="text-xs gap-1 pr-1">
+                                            {member?.email || uid}
+                                            <button
+                                                type="button"
+                                                className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                                                onClick={() => d.setSelectedUserIds(d.selectedUserIds.filter(id => id !== uid))}
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </Badge>
+                                    )
+                                })}
+                            </div>
+                        )}
+
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" role="combobox" className="w-full justify-between h-10 font-normal">
+                                    {d.selectedUserIds.length === 0 && d.selectedRoles.length === 0
+                                        ? <span className="text-muted-foreground">Select users or roles...</span>
+                                        : <span className="text-muted-foreground">{d.selectedUserIds.length + d.selectedRoles.length} selected</span>
+                                    }
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                <Command filter={(value, search) => {
+                                    if (!search) return 1
+                                    const lower = search.toLowerCase()
+                                    if (value.toLowerCase().includes(lower)) return 1
+                                    return 0
+                                }}>
+                                    <CommandInput placeholder="Search by email or role..." />
+                                    <CommandList>
+                                        <CommandEmpty>No results found.</CommandEmpty>
+
+                                        {/* Roles group */}
+                                        <CommandGroup heading="Roles">
+                                            {(["Super Admin", "Admin", "Data Steward"] as OrgRole[]).map((role) => {
+                                                const isSelected = d.selectedRoles.includes(role)
+                                                return (
+                                                    <CommandItem
+                                                        key={`role-${role}`}
+                                                        value={`role: ${role}`}
+                                                        onSelect={() => {
+                                                            d.setSelectedRoles(isSelected
+                                                                ? d.selectedRoles.filter(r => r !== role)
+                                                                : [...d.selectedRoles, role]
+                                                            )
+                                                        }}
+                                                    >
+                                                        <div className={cn(
+                                                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                            isSelected ? "bg-primary text-primary-foreground" : "opacity-50"
+                                                        )}>
+                                                            {isSelected && <Check className="h-3 w-3" />}
+                                                        </div>
+                                                        <Users className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                                                        <span>{role}</span>
+                                                        <span className="ml-auto text-xs text-muted-foreground">
+                                                            {d.orgMembers.filter(m => m.role === role).length} members
+                                                        </span>
+                                                    </CommandItem>
+                                                )
+                                            })}
+                                        </CommandGroup>
+
+                                        <CommandSeparator />
+
+                                        {/* Members group */}
+                                        <CommandGroup heading="Members">
+                                            {d.membersLoading ? (
+                                                <div className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading...
+                                                </div>
+                                            ) : d.orgMembers.map((member) => {
+                                                const isSelected = d.selectedUserIds.includes(member.user_id)
+                                                return (
+                                                    <CommandItem
+                                                        key={member.user_id}
+                                                        value={`${member.email} ${member.role}`}
+                                                        onSelect={() => {
+                                                            d.setSelectedUserIds(isSelected
+                                                                ? d.selectedUserIds.filter(id => id !== member.user_id)
+                                                                : [...d.selectedUserIds, member.user_id]
+                                                            )
+                                                        }}
+                                                    >
+                                                        <div className={cn(
+                                                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                            isSelected ? "bg-primary text-primary-foreground" : "opacity-50"
+                                                        )}>
+                                                            {isSelected && <Check className="h-3 w-3" />}
+                                                        </div>
+                                                        <span className="flex-1 truncate">{member.email}</span>
+                                                        <Badge variant="outline" className="text-[10px] ml-2">{member.role}</Badge>
+                                                    </CommandItem>
+                                                )
+                                            })}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
 
                     {/* ─── Advanced (Optional) ─────────────────────────────── */}
