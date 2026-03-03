@@ -1,5 +1,6 @@
 "use client"
 
+import { memo, useCallback } from "react"
 import {
     Loader2,
     Snowflake,
@@ -46,6 +47,39 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { useSnowflakeImport } from "./use-snowflake-import"
 
+// ─── Memoized mapping row using native <select> for performance (50+ rows) ──
+const MappingRow = memo(function MappingRow({
+    col,
+    value,
+    fileColumns,
+    onChange,
+}: {
+    col: string
+    value: string
+    fileColumns: string[]
+    onChange: (col: string, value: string) => void
+}) {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] gap-3 items-center">
+            <div className="text-sm font-medium truncate" title={col}>
+                {col}
+            </div>
+            <select
+                value={value || ""}
+                onChange={(e) => onChange(col, e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+                <option value="__unmapped__">— Skip —</option>
+                {fileColumns.map((fc) => (
+                    <option key={fc} value={fc}>
+                        {fc}
+                    </option>
+                ))}
+            </select>
+        </div>
+    )
+})
+
 interface SnowflakeImportProps {
     mode?: "source" | "destination"
     uploadId?: string
@@ -65,6 +99,12 @@ export default function SnowflakeImport({
         onImportComplete,
         onNotification,
     })
+
+    const handleMappingChange = useCallback(
+        (col: string, value: string) =>
+            s.setColumnMapping((prev: Record<string, string>) => ({ ...prev, [col]: value })),
+        [s.setColumnMapping]
+    )
 
     // ─── Loading state ────────────────────────────────────────────────────
     if (s.isCheckingStatus) {
@@ -451,7 +491,7 @@ export default function SnowflakeImport({
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-2">
+                    <div className="flex-1 min-h-0 space-y-4 overflow-y-auto py-4 px-1 pr-3">
                         {s.tableColumnsLoading ? (
                             <div className="flex items-center space-x-2 text-muted-foreground py-4">
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -459,31 +499,13 @@ export default function SnowflakeImport({
                             </div>
                         ) : s.tableColumns.length > 0 ? (
                             s.tableColumns.map((col) => (
-                                <div key={col} className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] gap-3 items-center">
-                                    <div className="text-sm font-medium truncate" title={col}>
-                                        {col}
-                                    </div>
-                                    <Select
-                                        value={s.columnMapping[col] || ""}
-                                        onValueChange={(value) =>
-                                            s.setColumnMapping((prev) => ({ ...prev, [col]: value }))
-                                        }
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select file column" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="__unmapped__">
-                                                <span className="text-muted-foreground">— Skip —</span>
-                                            </SelectItem>
-                                            {s.availableColumns.map((fc) => (
-                                                <SelectItem key={`${col}-${fc}`} value={fc}>
-                                                    {fc}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <MappingRow
+                                    key={col}
+                                    col={col}
+                                    value={s.columnMapping[col] || ""}
+                                    fileColumns={s.availableColumns}
+                                    onChange={handleMappingChange}
+                                />
                             ))
                         ) : (
                             <p className="text-sm text-muted-foreground py-4">
