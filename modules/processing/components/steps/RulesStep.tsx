@@ -381,10 +381,7 @@ export function RulesStep() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">
-            Auto: {totalAutoRules}
-          </Badge>
-          <Badge variant="outline" className="text-xs">
-            Human: {totalHumanRules}
+            AI: {totalAutoRules}
           </Badge>
           <Badge variant="outline" className="text-xs">
             Custom: {totalCustomRules}
