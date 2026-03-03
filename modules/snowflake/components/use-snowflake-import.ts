@@ -345,9 +345,9 @@ export function useSnowflakeImport({
             if (availableColumns.length > 0 && colNames.length > 0) {
                 const mapping: Record<string, string> = {}
                 for (const tc of colNames) {
-                    const tcNorm = tc.toLowerCase().replace(/[_\s-]+/g, "")
+                    const tcNorm = tc.toLowerCase().replace(/[_\s.\-]+/g, "")
                     const match = availableColumns.find(
-                        fc => fc.toLowerCase().replace(/[_\s-]+/g, "") === tcNorm
+                        fc => fc.toLowerCase().replace(/[_\s.\-]+/g, "") === tcNorm
                     )
                     if (match) mapping[tc] = match
                 }
