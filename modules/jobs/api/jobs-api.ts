@@ -3,14 +3,14 @@
 import { AWS_CONFIG } from "@/shared/config/aws-config"
 
 import type {
-    JobStatus, JobFrequency, ERPType, DQMode,
+    JobStatus, JobFrequency, CustomFrequencyUnit, ERPType, DQMode,
     DQConfig, Job, JobRun, CreateJobPayload, UpdateJobPayload,
     EntityResult, ProcessingMetadata, ImportPreviewResult,
     ProfilingResult, Preset, DQRule, ColumnProfile,
 } from "@/modules/jobs/types/jobs.types"
 
 export type {
-    JobStatus, JobFrequency, ERPType, DQMode,
+    JobStatus, JobFrequency, CustomFrequencyUnit, ERPType, DQMode,
     DQConfig, Job, JobRun, CreateJobPayload, UpdateJobPayload,
     EntityResult, ProcessingMetadata, ImportPreviewResult,
     ProfilingResult, Preset, DQRule, ColumnProfile,
@@ -18,25 +18,54 @@ export type {
 
 const API_BASE_URL = AWS_CONFIG.API_BASE_URL || ""
 
-export function frequencyToBackend(freq: JobFrequency, cronExpr?: string): { frequency_type: string; frequency_value: string } {
+export function frequencyToBackend(
+    freq: JobFrequency,
+    opts?: { customUnit?: CustomFrequencyUnit; customValue?: string }
+): { frequency_type: string; frequency_value: string } {
     switch (freq) {
         case "15min": return { frequency_type: "rate", frequency_value: "15 minutes" }
         case "1hr": return { frequency_type: "rate", frequency_value: "1 hour" }
         case "daily": return { frequency_type: "rate", frequency_value: "1 day" }
-        case "cron": return { frequency_type: "cron", frequency_value: cronExpr || "0 * * * ? *" }
+        case "custom": {
+            const unit = opts?.customUnit || "minutes"
+            const value = opts?.customValue || "30"
+            return { frequency_type: "rate", frequency_value: `${value} ${unit}` }
+        }
         default: return { frequency_type: "rate", frequency_value: "1 hour" }
     }
 }
 
-export function frequencyFromBackend(freqType?: string, freqValue?: string): { frequency: JobFrequency; cronExpression: string } {
-    if (freqType === "cron") {
-        return { frequency: "cron", cronExpression: freqValue || "" }
-    }
+export function frequencyFromBackend(freqType?: string, freqValue?: string): {
+    frequency: JobFrequency
+    customUnit: CustomFrequencyUnit
+    customValue: string
+} {
     const val = (freqValue || "").toLowerCase().trim()
-    if (val.includes("minute")) return { frequency: "15min", cronExpression: "" }
-    if (val.includes("hour")) return { frequency: "1hr", cronExpression: "" }
-    if (val.includes("day")) return { frequency: "daily", cronExpression: "" }
-    return { frequency: "1hr", cronExpression: "" }
+    const match = val.match(/^(\d+)\s*(minute|hour|day)s?$/)
+
+    if (match) {
+        const num = match[1]
+        const unit = match[2]
+        if (unit === "minute") {
+            if (num === "15") return { frequency: "15min", customUnit: "minutes", customValue: "" }
+            return { frequency: "custom", customUnit: "minutes", customValue: num }
+        }
+        if (unit === "hour") {
+            if (num === "1") return { frequency: "1hr", customUnit: "hours", customValue: "" }
+            return { frequency: "custom", customUnit: "hours", customValue: num }
+        }
+        if (unit === "day") {
+            if (num === "1") return { frequency: "daily", customUnit: "days", customValue: "" }
+            return { frequency: "custom", customUnit: "days", customValue: num }
+        }
+    }
+
+    // Legacy cron jobs → map to custom hours
+    if (freqType === "cron") {
+        return { frequency: "custom", customUnit: "hours", customValue: "2" }
+    }
+
+    return { frequency: "1hr", customUnit: "hours", customValue: "" }
 }
 
 const ENDPOINTS = {

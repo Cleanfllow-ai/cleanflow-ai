@@ -13,8 +13,6 @@ import type {
 } from "@/modules/snowflake/types/snowflake.types"
 import {
     autoMapColumns,
-    validateMapping,
-    getSnowflakeTableName,
     type SnowflakeEntity,
 } from "./snowflake-mapping-utils"
 
@@ -85,6 +83,12 @@ export function useSnowflakeImport({
     const [columnModalOpen, setColumnModalOpen] = useState(false)
     const [mappingOpen, setMappingOpen] = useState(false)
     const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
+
+    // Export — destination table selection
+    const [selectedExportTable, setSelectedExportTable] = useState("")
+    const [newTableName, setNewTableName] = useState("")
+    const [tableColumns, setTableColumns] = useState<string[]>([])
+    const [tableColumnsLoading, setTableColumnsLoading] = useState(false)
 
     // Export — config (always merge to prevent duplicates)
     const exportWriteMode: SnowflakeWriteMode = "merge"
@@ -323,6 +327,50 @@ export function useSnowflakeImport({
         }
     }, [mode, idToken, loadFiles])
 
+    // ─── Export table column loading ─────────────────────────────────────
+
+    const loadTableColumns = useCallback(async (tableName: string) => {
+        if (!tableName || tableName === "__create_new__") {
+            setTableColumns([])
+            return
+        }
+        setTableColumnsLoading(true)
+        try {
+            const cols = await snowflakeAPI.listColumns(
+                selectedDatabase, selectedSchema, tableName
+            )
+            const colNames = cols.map(c => c.name)
+            setTableColumns(colNames)
+            // Auto-build mapping: table columns as keys, try to match file columns
+            if (availableColumns.length > 0 && colNames.length > 0) {
+                const mapping: Record<string, string> = {}
+                for (const tc of colNames) {
+                    const tcNorm = tc.toLowerCase().replace(/[_\s-]+/g, "")
+                    const match = availableColumns.find(
+                        fc => fc.toLowerCase().replace(/[_\s-]+/g, "") === tcNorm
+                    )
+                    if (match) mapping[tc] = match
+                }
+                setColumnMapping(mapping)
+            }
+        } catch (err) {
+            console.error("Failed to load table columns:", err)
+            setTableColumns([])
+        } finally {
+            setTableColumnsLoading(false)
+        }
+    }, [selectedDatabase, selectedSchema, availableColumns])
+
+    // When export table selection changes, load its columns
+    useEffect(() => {
+        if (selectedExportTable && selectedExportTable !== "__create_new__") {
+            loadTableColumns(selectedExportTable)
+        } else {
+            setTableColumns([])
+            setColumnMapping({})
+        }
+    }, [selectedExportTable, loadTableColumns])
+
     // ─── Import ───────────────────────────────────────────────────────────
 
     const runImport = useCallback(async () => {
@@ -375,29 +423,31 @@ export function useSnowflakeImport({
             return
         }
 
-        // For "general" entity, use the filename as table name
-        const targetTable = selectedEntity === "general"
-            ? (selectedFile?.original_filename || selectedFile?.filename || "EXPORT_DATA")
-                .replace(/\.[^/.]+$/, "")          // strip extension
-                .replace(/[^a-zA-Z0-9_]/g, "_")    // sanitize
-                .toUpperCase()
-            : getSnowflakeTableName(selectedEntity)
+        // Determine target table from selection
+        let targetTable: string
+        const isNewTable = selectedExportTable === "__create_new__"
 
-        if (!targetTable) {
-            onNotification?.("Could not determine target table.", "error")
+        if (isNewTable) {
+            const name = newTableName.trim()
+                .replace(/[^a-zA-Z0-9_]/g, "_")
+                .toUpperCase()
+            if (!name) {
+                onNotification?.("Please enter a table name", "error")
+                return
+            }
+            targetTable = name
+        } else if (selectedExportTable) {
+            targetTable = selectedExportTable
+        } else {
+            onNotification?.("Please select a destination table", "error")
             return
         }
 
-        // Validate mapping for entity-based exports
-        if (selectedEntity !== "general") {
-            const validation = validateMapping(selectedEntity, columnMapping, availableColumns)
-            if (!validation.valid) {
-                setError(validation.message)
-                onNotification?.(validation.message || "Please complete column mapping", "error")
-                setMappingOpen(true)
-                return
-            }
-        }
+        // For existing tables with mapping, pass column_mapping (filter out skipped columns)
+        const filteredMapping = Object.fromEntries(
+            Object.entries(columnMapping).filter(([, v]) => v && v !== "__unmapped__")
+        )
+        const hasMapping = !isNewTable && tableColumns.length > 0 && Object.keys(filteredMapping).length > 0
 
         const fileId = selectedFile?.upload_id || uploadId
         if (!fileId) {
@@ -416,7 +466,7 @@ export function useSnowflakeImport({
                 database: selectedDatabase || undefined,
                 schema: selectedSchema || undefined,
                 write_mode: exportWriteMode,
-                column_mapping: selectedEntity !== "general" ? columnMapping : undefined,
+                column_mapping: hasMapping ? filteredMapping : undefined,
             })
             setExportResult(result)
             onNotification?.(
@@ -433,11 +483,13 @@ export function useSnowflakeImport({
     }, [
         selectedFile,
         uploadId,
-        selectedEntity,
+        selectedExportTable,
+        newTableName,
+        tableColumns,
         columnMapping,
-        availableColumns,
         selectedWarehouse,
-        databases,
+        selectedDatabase,
+        selectedSchema,
         onNotification,
     ])
 
@@ -490,6 +542,12 @@ export function useSnowflakeImport({
         setColumnModalOpen,
         handleToggleColumn,
         handleToggleAllColumns,
+
+        // Export — destination table
+        selectedExportTable, setSelectedExportTable,
+        newTableName, setNewTableName,
+        tableColumns,
+        tableColumnsLoading,
 
         // Export — mapping
         mappingOpen,

@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
 import { fileManagementAPI } from '@/modules/files'
 import {
-    jobsAPI, type Job, type JobFrequency, type CreateJobPayload, type UpdateJobPayload,
+    jobsAPI, type Job, type JobFrequency, type CustomFrequencyUnit,
+    type CreateJobPayload, type UpdateJobPayload,
     frequencyToBackend, frequencyFromBackend
 } from '@/modules/jobs/api/jobs-api'
 import {
@@ -147,7 +148,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const [source, setSource] = useState<string>("quickbooks")
     const [destination, setDestination] = useState<string>("quickbooks")
     const [frequency, setFrequency] = useState<JobFrequency>("1hr")
-    const [cronExpression, setCronExpression] = useState("")
+    const [customFrequencyUnit, setCustomFrequencyUnit] = useState<CustomFrequencyUnit>("minutes")
+    const [customFrequencyValue, setCustomFrequencyValue] = useState("")
     const [entity, setEntity] = useState("invoices")
 
     // Advanced — Columns
@@ -192,6 +194,12 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     // UI state
     const [saving, setSaving] = useState(false)
     const [advancedOpen, setAdvancedOpen] = useState(false)
+    const [activeSelect, setActiveSelect] = useState<string | null>(null)
+
+    const selectProps = (id: string) => ({
+        open: activeSelect === id,
+        onOpenChange: (isOpen: boolean) => setActiveSelect(isOpen ? id : null),
+    })
 
     // Helper: current step index
     const currentStepIndex = ADVANCED_STEPS.indexOf(currentAdvancedStep)
@@ -216,7 +224,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             setDestination(normalizeErpForUi(job.destination))
             const freq = frequencyFromBackend(job.frequency_type, job.frequency_value)
             setFrequency(freq.frequency)
-            setCronExpression(freq.cronExpression || job.cron_expression || "")
+            setCustomFrequencyUnit(freq.customUnit || "minutes")
+            setCustomFrequencyValue(freq.customValue || "")
             setEntity(job.entities?.[0] || "invoices")
             setSelectedColumns(job.dq_config?.columns || [])
             setSelectedPresetId(job.dq_config?.preset_id || null)
@@ -231,7 +240,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             setSource("quickbooks")
             setDestination("quickbooks")
             setFrequency("1hr")
-            setCronExpression("")
+            setCustomFrequencyUnit("minutes")
+            setCustomFrequencyValue("")
             setEntity("invoices")
             setSelectedColumns([])
             setAllColumns([])
@@ -812,8 +822,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             toast({ title: "Name required", description: "Please enter a job name", variant: "destructive" })
             return
         }
-        if (frequency === "cron" && !cronExpression.trim()) {
-            toast({ title: "Cron expression required", variant: "destructive" })
+        if (frequency === "custom" && !customFrequencyValue.trim()) {
+            toast({ title: "Frequency value required", description: "Please enter a number for the custom frequency", variant: "destructive" })
             return
         }
 
@@ -834,7 +844,10 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 }
                 : { mode: "default" as const }
 
-            const freqBackend = frequencyToBackend(frequency, cronExpression.trim())
+            const freqBackend = frequencyToBackend(frequency, {
+                customUnit: customFrequencyUnit,
+                customValue: customFrequencyValue.trim(),
+            })
 
             const normalizedSource = normalizeErpForApi(source)
             const base = {
@@ -882,7 +895,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         source, setSource,
         destination, setDestination,
         frequency, setFrequency,
-        cronExpression, setCronExpression,
+        customFrequencyUnit, setCustomFrequencyUnit,
+        customFrequencyValue, setCustomFrequencyValue,
         entity, setEntity,
         // Columns
         fetchingCols,
@@ -955,5 +969,6 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         // Submit / UI
         saving,
         handleSubmit,
+        selectProps,
     }
 }

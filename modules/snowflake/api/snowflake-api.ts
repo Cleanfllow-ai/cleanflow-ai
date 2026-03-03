@@ -165,6 +165,15 @@ class SnowflakeService {
         return resp.items || []
     }
 
+    /** List columns in a table. */
+    async listColumns(database: string, schema: string, table: string): Promise<SnowflakeMetadataItem[]> {
+        const resp = await this.makeRequest<SnowflakeMetadataResponse>(
+            `/snowflake/columns?database=${encodeURIComponent(database)}&schema=${encodeURIComponent(schema)}&table=${encodeURIComponent(table)}`,
+            { method: "GET" }
+        )
+        return resp.items || []
+    }
+
     // ─── Import / Export ──────────────────────────────────────────────────────
 
     /** Import a table from Snowflake as a CleanFlow file. */

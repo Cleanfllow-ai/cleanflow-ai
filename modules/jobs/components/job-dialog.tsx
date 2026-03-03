@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/shared/lib/utils"
 import { getRuleLabel } from "@/shared/lib/dq-rules"
-import type { Job, JobFrequency } from "@/modules/jobs/api/jobs-api"
+import type { Job, JobFrequency, CustomFrequencyUnit } from "@/modules/jobs/api/jobs-api"
 
 import { useJobDialog } from "./use-job-dialog"
 import { ENTITY_OPTIONS, ERP_OPTIONS, SOURCE_ERP_OPTIONS } from "./job-dialog-constants"
@@ -67,7 +67,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-sm font-medium">Source ERP</Label>
-                            <Select value={d.source} onValueChange={d.setSource}>
+                            <Select value={d.source} onValueChange={d.setSource} {...d.selectProps("source")}>
                                 <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {SOURCE_ERP_OPTIONS.map((erp) => (
@@ -78,7 +78,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                         </div>
                         <div className="space-y-2">
                             <Label className="text-sm font-medium">Destination ERP</Label>
-                            <Select value={d.destination} onValueChange={d.setDestination}>
+                            <Select value={d.destination} onValueChange={d.setDestination} {...d.selectProps("destination")}>
                                 <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {ERP_OPTIONS.map((erp) => (
@@ -93,7 +93,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-sm font-medium">Entity</Label>
-                            <Select value={d.entity} onValueChange={d.setEntity}>
+                            <Select value={d.entity} onValueChange={d.setEntity} {...d.selectProps("entity")}>
                                 <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {ENTITY_OPTIONS.map(e => (
@@ -104,25 +104,62 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                         </div>
                         <div className="space-y-2">
                             <Label className="text-sm font-medium">Frequency</Label>
-                            <Select value={d.frequency} onValueChange={(v) => d.setFrequency(v as JobFrequency)}>
+                            <Select value={d.frequency} onValueChange={(v) => d.setFrequency(v as JobFrequency)} {...d.selectProps("frequency")}>
                                 <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="15min">Every 15 min</SelectItem>
                                     <SelectItem value="1hr">Every hour</SelectItem>
                                     <SelectItem value="daily">Daily</SelectItem>
-                                    <SelectItem value="cron">Custom (Cron)</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
 
-                    {d.frequency === "cron" && (
-                        <Input
-                            placeholder="e.g. 0 */2 * * *"
-                            value={d.cronExpression}
-                            onChange={(e) => d.setCronExpression(e.target.value)}
-                            className="h-9 font-mono text-sm"
-                        />
+                    {d.frequency === "custom" && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Unit</Label>
+                                <Select value={d.customFrequencyUnit} onValueChange={(v) => d.setCustomFrequencyUnit(v as CustomFrequencyUnit)} {...d.selectProps("customUnit")}>
+                                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="minutes">Minutes</SelectItem>
+                                        <SelectItem value="hours">Hours</SelectItem>
+                                        <SelectItem value="days">Days</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Every</Label>
+                                {d.customFrequencyUnit === "minutes" ? (
+                                    <Select value={d.customFrequencyValue || "30"} onValueChange={d.setCustomFrequencyValue} {...d.selectProps("customValue")}>
+                                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {[15, 20, 25, 30, 35, 40, 45, 50, 55, 60].map(n => (
+                                                <SelectItem key={n} value={String(n)}>{n} min</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : d.customFrequencyUnit === "hours" ? (
+                                    <Select value={d.customFrequencyValue || "2"} onValueChange={d.setCustomFrequencyValue} {...d.selectProps("customValue")}>
+                                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {Array.from({ length: 24 }, (_, i) => i + 1).map(n => (
+                                                <SelectItem key={n} value={String(n)}>{n} hr{n > 1 ? "s" : ""}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <Input
+                                        type="text"
+                                        placeholder="7"
+                                        value={d.customFrequencyValue}
+                                        onChange={(e) => d.setCustomFrequencyValue(e.target.value)}
+                                        className="h-9 text-sm"
+                                    />
+                                )}
+                            </div>
+                        </div>
                     )}
 
                     {/* Assigned To */}
@@ -131,7 +168,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                         <p className="text-xs text-muted-foreground">
                             Receives notifications for quarantined data, failures, and auto-pause events.
                         </p>
-                        <Select value={d.responsibleUserId || "none"} onValueChange={(v) => d.setResponsibleUserId(v === "none" ? "" : v)}>
+                        <Select value={d.responsibleUserId || "none"} onValueChange={(v) => d.setResponsibleUserId(v === "none" ? "" : v)} {...d.selectProps("assignedTo")}>
                             <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Select a team member..." />
                             </SelectTrigger>

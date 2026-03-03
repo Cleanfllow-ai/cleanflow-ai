@@ -1,7 +1,8 @@
 // ─── Jobs types ───────────────────────────────────────────────────────────────
 
 export type JobStatus = 'ACTIVE' | 'PAUSED' | 'FAILED' | 'AUTO_PAUSED'
-export type JobFrequency = '15min' | '1hr' | 'daily' | 'cron'
+export type JobFrequency = '15min' | '1hr' | 'daily' | 'custom'
+export type CustomFrequencyUnit = 'minutes' | 'hours' | 'days'
 export type ERPType = 'quickbooks' | 'zoho_books' | 'snowflake'
 export type DQMode = 'default' | 'custom'
 
