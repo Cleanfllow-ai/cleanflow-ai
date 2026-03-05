@@ -1,6 +1,27 @@
 // ─── DQ Report types ──────────────────────────────────────────────────────────
 // Extracted from lib/api/file-management-api.ts
 
+export interface SchemaIntelligenceReport {
+    file_structure?: {
+        pattern: string
+        discriminator_col?: string | null
+        object_prefixes?: string[]
+        child_indicator?: string | null
+        confidence: number
+        is_complex: boolean
+    }
+    schema_match?: {
+        schema_id: string
+        schema_name: string
+        domain: string
+        confidence: number
+    } | null
+    row_types?: Record<string, number>
+    hierarchy_violations?: number
+    invariant_violations?: number
+    si_cross_violations?: number
+}
+
 export interface DqReportResponse {
     rules_version?: string
     script_version?: string
@@ -25,6 +46,7 @@ export interface DqReportResponse {
     violation_counts?: Record<string, number>
     top_violations?: TopIssue[]
     processing_time?: string | number
+    schema_intelligence?: SchemaIntelligenceReport
 }
 
 export interface HybridSummary {

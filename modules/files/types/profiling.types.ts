@@ -74,6 +74,56 @@ export interface ColumnTypeOverride {
     nullable: boolean
 }
 
+// --- Schema Intelligence Layer V2 types ---
+
+export interface FileStructureInfo {
+    pattern: 'flat' | 'hierarchical' | 'grouped' | 'multi_section' | 'key_value'
+    discriminator_col?: string | null
+    discriminator_values?: Record<string, number>
+    group_flag_cols?: string[]
+    object_prefixes?: string[]
+    child_indicator?: string | null
+    confidence: number
+    is_complex: boolean
+}
+
+export interface SchemaMatchInfo {
+    schema_id: string
+    schema_name: string
+    domain: string
+    confidence: number
+    matched_signals?: string[]
+}
+
+export interface ObjectFieldInfo {
+    name: string
+    column: string
+    business_role?: string
+}
+
+export interface ObjectInfo {
+    prefix?: string
+    field_count: number
+    role?: string
+    fields: ObjectFieldInfo[]
+}
+
+export interface ObjectRelationshipInfo {
+    parent: string
+    child: string
+    type: string
+}
+
+export interface ObjectModelInfo {
+    objects: Record<string, ObjectInfo>
+    relationships?: ObjectRelationshipInfo[]
+}
+
+export interface RowTypeInfo {
+    row_types: Record<string, number>
+    total_types: number
+}
+
 export interface ProfilingResponse {
     summary: {
         total_columns: number
@@ -84,4 +134,8 @@ export interface ProfilingResponse {
     }
     profiles: Record<string, ColumnProfile>
     cross_field_rules?: CrossFieldRule[]
+    file_structure?: FileStructureInfo
+    schema_match?: SchemaMatchInfo
+    object_model?: ObjectModelInfo
+    row_types?: RowTypeInfo
 }

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, ArrowLeft, ArrowRight, RefreshCw, Check, X } from "lucide-react"
+import { Loader2, ArrowLeft, ArrowRight, RefreshCw, Check, X, Layers, Database } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { useProcessingWizard } from "../WizardContext"
 import { fileManagementAPI } from "@/modules/files"
@@ -27,6 +27,14 @@ export function ProfilingStep() {
     setColumnKeyType,
     setColumnNullable,
     setBackendVersion,
+    fileStructure,
+    setFileStructure,
+    schemaMatch,
+    setSchemaMatch,
+    objectModel,
+    setObjectModel,
+    rowTypes,
+    setRowTypes,
   } = useProcessingWizard()
 
   const [loading, setLoading] = useState(false)
@@ -67,6 +75,13 @@ export function ProfilingStep() {
         if (p.key_type) setColumnKeyType(col, p.key_type)
         if (p.nullable_suggested !== undefined) setColumnNullable(col, p.nullable_suggested)
       })
+
+      // Store Schema Intelligence V2 data
+      const resp = response as any
+      if (resp?.file_structure) setFileStructure(resp.file_structure)
+      if (resp?.schema_match) setSchemaMatch(resp.schema_match)
+      if (resp?.object_model) setObjectModel(resp.object_model)
+      if (resp?.row_types) setRowTypes(resp.row_types)
     } catch (err: any) {
       setError(err.message || "Failed to fetch profiling data")
     } finally {
@@ -239,6 +254,91 @@ export function ProfilingStep() {
                       </div>
                     )
                   })}
+              </div>
+            )}
+
+            {/* Schema Intelligence Panel (V2) */}
+            {hasProfiles && (fileStructure || schemaMatch) && (
+              <div className="mt-4 border border-muted rounded-lg p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Layers className="w-4 h-4 text-primary" />
+                  <h3 className="font-medium text-sm">File Structure Analysis</h3>
+                </div>
+
+                {fileStructure && (
+                  <div className="flex flex-wrap gap-3 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Pattern:</span>
+                      <Badge variant={fileStructure.is_complex ? "default" : "secondary"}>
+                        {fileStructure.pattern}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Confidence:</span>
+                      <span>{Math.round(fileStructure.confidence * 100)}%</span>
+                    </div>
+                    {fileStructure.object_prefixes && fileStructure.object_prefixes.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">Objects:</span>
+                        <div className="flex gap-1">
+                          {fileStructure.object_prefixes.map((p) => (
+                            <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {fileStructure.discriminator_col && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">Discriminator:</span>
+                        <Badge variant="outline" className="text-[10px]">{fileStructure.discriminator_col}</Badge>
+                      </div>
+                    )}
+                    {fileStructure.child_indicator && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">Child Rows:</span>
+                        <Badge variant="outline" className="text-[10px]">{fileStructure.child_indicator}</Badge>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {schemaMatch && (
+                  <div className="flex items-center gap-3 text-sm p-2 rounded bg-primary/5 border border-primary/20">
+                    <Database className="w-4 h-4 text-primary shrink-0" />
+                    <span className="text-muted-foreground">Matched Schema:</span>
+                    <span className="font-medium">{schemaMatch.schema_name}</span>
+                    <Badge variant="secondary" className="text-[10px]">{schemaMatch.domain}</Badge>
+                    <Badge variant="outline" className="text-[10px] ml-auto">
+                      {Math.round(schemaMatch.confidence * 100)}%
+                    </Badge>
+                  </div>
+                )}
+
+                {rowTypes && rowTypes.total_types > 1 && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Row Types: </span>
+                    <span className="flex gap-2 mt-1 flex-wrap">
+                      {Object.entries(rowTypes.row_types).map(([type, count]) => (
+                        <Badge key={type} variant="outline" className="text-[10px]">
+                          {type}: {count} rows
+                        </Badge>
+                      ))}
+                    </span>
+                  </div>
+                )}
+
+                {objectModel && Object.keys(objectModel.objects).length > 0 && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Business Objects: </span>
+                    <div className="flex gap-2 mt-1 flex-wrap">
+                      {Object.entries(objectModel.objects).map(([name, obj]) => (
+                        <Badge key={name} variant="outline" className="text-[10px]">
+                          {name} ({obj.field_count} fields)
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

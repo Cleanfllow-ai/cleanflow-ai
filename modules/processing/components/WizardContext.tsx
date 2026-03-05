@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react"
-import type { CustomRuleDefinition, ColumnProfile } from "@/modules/files"
+import type { CustomRuleDefinition, ColumnProfile, FileStructureInfo, SchemaMatchInfo, ObjectModelInfo, RowTypeInfo } from "@/modules/files"
 import { deriveRulesV2 } from "@/shared/lib/type-catalog"
 
 // Wizard step type
@@ -89,6 +89,12 @@ export interface WizardState {
     backendVersion?: string
     crossFieldRules: CrossFieldRuleWithState[]
 
+    // Schema Intelligence V2
+    fileStructure?: FileStructureInfo
+    schemaMatch?: SchemaMatchInfo
+    objectModel?: ObjectModelInfo
+    rowTypes?: RowTypeInfo
+
     // Step 3: Settings
     selectedPreset: SettingsPreset | null
     presetOverrides: Record<string, any>
@@ -168,6 +174,12 @@ interface WizardActions {
     setCrossFieldRules: (rules: CrossFieldRuleWithState[]) => void
     toggleCrossFieldRule: (ruleId: string) => void
 
+    // Schema Intelligence V2
+    setFileStructure: (info: FileStructureInfo | undefined) => void
+    setSchemaMatch: (info: SchemaMatchInfo | undefined) => void
+    setObjectModel: (info: ObjectModelInfo | undefined) => void
+    setRowTypes: (info: RowTypeInfo | undefined) => void
+
     // Settings
     setSelectedPreset: (preset: SettingsPreset | null) => void
     setPresetOverrides: (overrides: Record<string, any>) => void
@@ -213,6 +225,10 @@ const initialState: WizardState = {
     columnNullable: {},
     backendVersion: undefined,
     crossFieldRules: [],
+    fileStructure: undefined,
+    schemaMatch: undefined,
+    objectModel: undefined,
+    rowTypes: undefined,
     selectedPreset: null,
     presetOverrides: {},
     globalRules: [],
@@ -295,6 +311,11 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
         setBackendVersion: (version) => setState((s) => ({ ...s, backendVersion: version })),
 
         setCrossFieldRules: (rules) => setState((s) => ({ ...s, crossFieldRules: rules })),
+
+        setFileStructure: (info) => setState((s) => ({ ...s, fileStructure: info })),
+        setSchemaMatch: (info) => setState((s) => ({ ...s, schemaMatch: info })),
+        setObjectModel: (info) => setState((s) => ({ ...s, objectModel: info })),
+        setRowTypes: (info) => setState((s) => ({ ...s, rowTypes: info })),
 
         toggleCrossFieldRule: (ruleId) => setState((s) => ({
             ...s,

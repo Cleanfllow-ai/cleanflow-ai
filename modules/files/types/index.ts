@@ -16,6 +16,7 @@ export type {
     TopIssue,
     MonthlyDqStats,
     OverallDqReportResponse,
+    SchemaIntelligenceReport,
 } from './dq-report.types'
 
 export type {
@@ -26,6 +27,13 @@ export type {
     CrossFieldRule,
     ColumnTypeOverride,
     ProfilingResponse,
+    FileStructureInfo,
+    SchemaMatchInfo,
+    ObjectModelInfo,
+    ObjectInfo,
+    ObjectFieldInfo,
+    ObjectRelationshipInfo,
+    RowTypeInfo,
 } from './profiling.types'
 
 export type {
