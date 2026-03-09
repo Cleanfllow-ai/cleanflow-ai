@@ -52,3 +52,12 @@ export interface ZohoBooksImportFilters {
     all?: boolean
     max_pages?: number
 }
+
+export interface EntityInfo {
+    entity: string
+    label: string
+    record_count: number
+    has_data: boolean
+    available: boolean
+    reason?: string
+}

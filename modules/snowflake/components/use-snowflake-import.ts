@@ -11,12 +11,8 @@ import type {
     SnowflakeWriteMode,
     SnowflakeMetadataItem,
 } from "@/modules/snowflake/types/snowflake.types"
-import {
-    autoMapColumns,
-    validateMapping,
-    getSnowflakeTableName,
-    type SnowflakeEntity,
-} from "./snowflake-mapping-utils"
+import { autoMapColumns } from "./snowflake-mapping-utils"
+import { filterDQColumns } from "@/modules/files/utils/dq-columns"
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -29,6 +25,9 @@ export interface SnowflakeFile {
     updated_at?: string
     status_timestamp?: string
 }
+
+/** Destination mode: "" = not yet selected, "new" = create new table, "existing" = existing table */
+export type DestinationMode = "" | "new" | "existing"
 
 interface UseSnowflakeImportProps {
     mode?: "source" | "destination"
@@ -76,8 +75,12 @@ export function useSnowflakeImport({
     const [files, setFiles] = useState<SnowflakeFile[]>([])
     const [selectedFile, setSelectedFile] = useState<SnowflakeFile | null>(null)
 
-    // Export — entity & mapping
-    const [selectedEntity, setSelectedEntity] = useState<SnowflakeEntity>("customers")
+    // Export — destination: new table vs existing table
+    const [destinationMode, setDestinationMode] = useState<DestinationMode>("")
+    const [newTableName, setNewTableName] = useState("")
+    const [selectedExistingTable, setSelectedExistingTable] = useState("")
+
+    // Export — columns & mapping
     const [availableColumns, setAvailableColumns] = useState<string[]>([])
     const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set())
     const [columnsLoading, setColumnsLoading] = useState(false)
@@ -85,6 +88,10 @@ export function useSnowflakeImport({
     const [columnModalOpen, setColumnModalOpen] = useState(false)
     const [mappingOpen, setMappingOpen] = useState(false)
     const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
+
+    // Export — target table columns (fetched from Snowflake for existing tables)
+    const [targetTableColumns, setTargetTableColumns] = useState<string[]>([])
+    const [targetColumnsLoading, setTargetColumnsLoading] = useState(false)
 
     // Export — config (always merge to prevent duplicates)
     const exportWriteMode: SnowflakeWriteMode = "merge"
@@ -238,6 +245,38 @@ export function useSnowflakeImport({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
+    // ─── Fetch existing table columns when an existing table is selected ──
+
+    useEffect(() => {
+        if (destinationMode !== "existing" || !selectedExistingTable || !selectedDatabase || !selectedSchema) {
+            setTargetTableColumns([])
+            setColumnMapping({})
+            return
+        }
+        let cancelled = false
+        setTargetColumnsLoading(true)
+        snowflakeAPI
+            .getTableColumns(selectedDatabase, selectedSchema, selectedExistingTable)
+            .then((cols) => {
+                if (cancelled) return
+                const names = cols.map((c) => c.name)
+                setTargetTableColumns(names)
+                // Auto-map file columns to target table columns
+                if (availableColumns.length > 0) {
+                    setColumnMapping(autoMapColumns(names, availableColumns))
+                }
+            })
+            .catch((err) => {
+                if (cancelled) return
+                console.error("Failed to fetch table columns:", err)
+                setTargetTableColumns([])
+            })
+            .finally(() => {
+                if (!cancelled) setTargetColumnsLoading(false)
+            })
+        return () => { cancelled = true }
+    }, [destinationMode, selectedExistingTable, selectedDatabase, selectedSchema, availableColumns])
+
     // ─── File management (export) ──────────────────────────────────────────
 
     const loadFiles = useCallback(async () => {
@@ -274,10 +313,9 @@ export function useSnowflakeImport({
 
             try {
                 const resp = await fileManagementAPI.getFileColumns(fileUploadId, idToken)
-                const cols = resp.columns || []
+                const cols = filterDQColumns(resp.columns || [])
                 setAvailableColumns(cols)
                 setSelectedColumns(new Set(cols))
-                setColumnMapping(autoMapColumns(selectedEntity, cols))
 
                 if (cols.length === 0) {
                     setColumnsError("No columns detected for this file. You can still proceed.")
@@ -291,7 +329,7 @@ export function useSnowflakeImport({
                 setColumnsLoading(false)
             }
         }
-    }, [files, mode, idToken, selectedEntity])
+    }, [files, mode, idToken])
 
     const handleToggleColumn = (col: string, checked: boolean) => {
         setSelectedColumns((prev) => {
@@ -308,13 +346,6 @@ export function useSnowflakeImport({
     const handleToggleAllColumns = (checked: boolean) => {
         setSelectedColumns(checked ? new Set(availableColumns) : new Set())
     }
-
-    // Re-map columns when entity changes
-    useEffect(() => {
-        if (availableColumns.length > 0) {
-            setColumnMapping(autoMapColumns(selectedEntity, availableColumns))
-        }
-    }, [selectedEntity, availableColumns])
 
     // Load files when in destination mode
     useEffect(() => {
@@ -375,28 +406,23 @@ export function useSnowflakeImport({
             return
         }
 
-        // For "general" entity, use the filename as table name
-        const targetTable = selectedEntity === "general"
-            ? (selectedFile?.original_filename || selectedFile?.filename || "EXPORT_DATA")
-                .replace(/\.[^/.]+$/, "")          // strip extension
-                .replace(/[^a-zA-Z0-9_]/g, "_")    // sanitize
-                .toUpperCase()
-            : getSnowflakeTableName(selectedEntity)
-
-        if (!targetTable) {
-            onNotification?.("Could not determine target table.", "error")
-            return
+        // Determine target table name
+        let targetTable: string
+        if (destinationMode === "existing") {
+            targetTable = selectedExistingTable
+        } else {
+            // New table: use user-entered name, or fall back to sanitized filename
+            targetTable = newTableName.trim()
+                ? newTableName.trim().replace(/[^a-zA-Z0-9_]/g, "_").toUpperCase()
+                : (selectedFile?.original_filename || selectedFile?.filename || "EXPORT_DATA")
+                    .replace(/\.[^/.]+$/, "")
+                    .replace(/[^a-zA-Z0-9_]/g, "_")
+                    .toUpperCase()
         }
 
-        // Validate mapping for entity-based exports
-        if (selectedEntity !== "general") {
-            const validation = validateMapping(selectedEntity, columnMapping, availableColumns)
-            if (!validation.valid) {
-                setError(validation.message)
-                onNotification?.(validation.message || "Please complete column mapping", "error")
-                setMappingOpen(true)
-                return
-            }
+        if (!targetTable) {
+            onNotification?.("Please enter a table name or select an existing table.", "error")
+            return
         }
 
         const fileId = selectedFile?.upload_id || uploadId
@@ -409,6 +435,7 @@ export function useSnowflakeImport({
         setExportResult(null)
         setError(null)
         try {
+            // For existing tables, send column_mapping. For new tables, no mapping needed.
             const result = await snowflakeAPI.exportToSnowflake({
                 upload_id: fileId,
                 target_table: targetTable,
@@ -416,7 +443,9 @@ export function useSnowflakeImport({
                 database: selectedDatabase || undefined,
                 schema: selectedSchema || undefined,
                 write_mode: exportWriteMode,
-                column_mapping: selectedEntity !== "general" ? columnMapping : undefined,
+                column_mapping: destinationMode === "existing" && Object.keys(columnMapping).length > 0
+                    ? columnMapping
+                    : undefined,
             })
             setExportResult(result)
             onNotification?.(
@@ -433,11 +462,13 @@ export function useSnowflakeImport({
     }, [
         selectedFile,
         uploadId,
-        selectedEntity,
+        destinationMode,
+        selectedExistingTable,
+        newTableName,
         columnMapping,
-        availableColumns,
         selectedWarehouse,
-        databases,
+        selectedDatabase,
+        selectedSchema,
         onNotification,
     ])
 
@@ -479,9 +510,15 @@ export function useSnowflakeImport({
         selectedFile,
         handleFileSelect,
 
-        // Export — entity & columns
-        selectedEntity,
-        setSelectedEntity,
+        // Export — destination
+        destinationMode,
+        setDestinationMode,
+        newTableName,
+        setNewTableName,
+        selectedExistingTable,
+        setSelectedExistingTable,
+
+        // Export — columns
         availableColumns,
         selectedColumns,
         columnsLoading,
@@ -491,11 +528,13 @@ export function useSnowflakeImport({
         handleToggleColumn,
         handleToggleAllColumns,
 
-        // Export — mapping
+        // Export — mapping (existing table only)
         mappingOpen,
         setMappingOpen,
         columnMapping,
         setColumnMapping,
+        targetTableColumns,
+        targetColumnsLoading,
 
         // Export — config & execution
         isExporting,

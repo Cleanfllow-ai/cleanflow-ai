@@ -10,6 +10,7 @@ import type {
   ZohoBooksExportResponse,
   ZohoBooksExportStatusResponse,
   ZohoBooksImportFilters,
+  EntityInfo,
 } from "@/modules/zoho/types/zoho.types"
 
 export type {
@@ -19,6 +20,7 @@ export type {
   ZohoBooksExportResponse,
   ZohoBooksExportStatusResponse,
   ZohoBooksImportFilters,
+  EntityInfo,
 } from "@/modules/zoho/types/zoho.types"
 
 class ZohoBooksService {
@@ -105,6 +107,30 @@ class ZohoBooksService {
     }
   }
 
+  async discoverEntities(orgId?: string): Promise<{ entities: EntityInfo[] }> {
+    const params = new URLSearchParams()
+    if (orgId) params.set('org_id', orgId)
+    const qs = params.toString()
+    return await this.makeRequest<{ entities: EntityInfo[] }>(
+      `/zoho-books/discover-entities${qs ? `?${qs}` : ''}`,
+      { method: 'GET' }
+    )
+  }
+
+  async getEntityFields(entity: string): Promise<{ entity: string; fields: Array<{ key: string; label: string; description?: string; required?: boolean; data_type?: string }>; count: number }> {
+    const params = new URLSearchParams({ entity })
+    return await this.makeRequest(`/zoho-books/entity-fields?${params.toString()}`, {
+      method: 'GET',
+    })
+  }
+
+  async aiAutoMap(fileColumns: string[], entity: string, uploadId?: string): Promise<{ mapping: Record<string, string>; columns_mapped: number; method?: string }> {
+    return await this.makeRequest('/zoho-books/ai-automap', {
+      method: 'POST',
+      body: JSON.stringify({ file_columns: fileColumns, entity, upload_id: uploadId }),
+    })
+  }
+
   async disconnect(): Promise<void> {
     await this.makeRequest('/zoho-books/disconnect', {
       method: 'DELETE',
@@ -112,15 +138,7 @@ class ZohoBooksService {
   }
 
   async importData(
-    entity:
-      | 'contacts'
-      | 'items'
-      | 'invoices'
-      | 'customers'
-      | 'vendors'
-      | 'sales_orders'
-      | 'purchase_orders'
-      | 'inventory_items',
+    entity: string,
     filters: ZohoBooksImportFilters = {},
     orgId?: string
   ): Promise<ZohoBooksImportResponse> {

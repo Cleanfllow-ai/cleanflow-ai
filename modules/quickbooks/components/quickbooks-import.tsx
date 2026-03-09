@@ -127,18 +127,31 @@ export default function QuickBooksImport(props: UseQuickBooksImportProps) {
                   <Select
                     value={q.config.entity}
                     onValueChange={(value) =>
-                      q.setConfig((prev) => ({ ...prev, entity: value as QuickBooksEntity }))
+                      q.setConfig((prev) => ({ ...prev, entity: value }))
                     }
                   >
                     <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
-                      <SelectValue />
+                      <SelectValue placeholder={q.entitiesLoading ? 'Loading entities...' : 'Select entity'} />
                     </SelectTrigger>
                     <SelectContent>
-                      {ENTITY_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                      {q.entitiesLoading ? (
+                        <SelectItem value="__loading" disabled>
+                          Loading entities...
                         </SelectItem>
-                      ))}
+                      ) : q.discoveredEntities.length > 0 ? (
+                        q.discoveredEntities.map((e) => (
+                          <SelectItem key={e.entity} value={e.entity} disabled={!e.available}>
+                            {e.label}
+                            {e.has_data ? ` (${e.record_count.toLocaleString()})` : e.available ? ' (empty)' : ' — not available'}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        ENTITY_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -249,18 +262,31 @@ export default function QuickBooksImport(props: UseQuickBooksImportProps) {
                 <Select
                   value={q.config.entity}
                   onValueChange={(value) =>
-                    q.setConfig((prev) => ({ ...prev, entity: value as QuickBooksEntity }))
+                    q.setConfig((prev) => ({ ...prev, entity: value }))
                   }
                 >
                   <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
-                    <SelectValue />
+                    <SelectValue placeholder={q.entitiesLoading ? 'Loading entities...' : 'Select entity'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {ENTITY_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                    {q.entitiesLoading ? (
+                      <SelectItem value="__loading" disabled>
+                        Loading entities...
                       </SelectItem>
-                    ))}
+                    ) : q.discoveredEntities.length > 0 ? (
+                      q.discoveredEntities.map((e) => (
+                        <SelectItem key={e.entity} value={e.entity} disabled={!e.available}>
+                          {e.label}
+                          {e.has_data ? ` (${e.record_count.toLocaleString()})` : e.available ? ' (empty)' : ' — not available'}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      ENTITY_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -378,7 +404,7 @@ export default function QuickBooksImport(props: UseQuickBooksImportProps) {
           </DialogHeader>
 
           <div className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-2">
-            {getMappingFields(q.config.entity).map((field) => (
+            {(q.entityFields.length > 0 ? q.entityFields : getMappingFields(q.config.entity)).map((field) => (
               <div key={field.key} className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] gap-3 items-start">
                 <div>
                   <div className="text-sm font-medium">
@@ -411,15 +437,14 @@ export default function QuickBooksImport(props: UseQuickBooksImportProps) {
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
-              onClick={() => {
-                q.setColumnMapping(autoMapColumns(q.config.entity, q.availableColumns))
-              }}
+              onClick={() => q.aiAutoMap()}
+              disabled={q.autoMapLoading}
             >
-              Auto map
+              {q.autoMapLoading ? 'Mapping...' : 'Auto map'}
             </Button>
             <Button
               onClick={() => {
-                const validation = validateMapping(q.config.entity, q.columnMapping, q.availableColumns)
+                const validation = validateMapping(q.config.entity, q.columnMapping, q.availableColumns, q.entityFields)
                 if (!validation.valid) {
                   q.setError(validation.message)
                   return

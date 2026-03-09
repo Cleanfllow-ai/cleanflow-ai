@@ -165,6 +165,33 @@ class SnowflakeService {
         return resp.items || []
     }
 
+    /** Describe columns of an existing Snowflake table. */
+    async getTableColumns(
+        database: string,
+        schema: string,
+        table: string
+    ): Promise<{ name: string; type?: string }[]> {
+        const params = new URLSearchParams({ database, schema, table })
+        const resp = await this.makeRequest<{ columns: { name: string; type?: string }[] }>(
+            `/snowflake/table-columns?${params.toString()}`,
+            { method: "GET" }
+        )
+        return resp.columns || []
+    }
+
+    // ─── AI Mapping ───────────────────────────────────────────────────────────
+
+    /** Use AI to suggest column mapping for Snowflake export. */
+    async aiAutoMap(
+        fileColumns: string[],
+        targetColumns: string[]
+    ): Promise<{ mapping: Record<string, string>; columns_mapped: number; method?: string }> {
+        return this.makeRequest("/snowflake/ai-automap", {
+            method: "POST",
+            body: JSON.stringify({ file_columns: fileColumns, target_columns: targetColumns }),
+        })
+    }
+
     // ─── Import / Export ──────────────────────────────────────────────────────
 
     /** Import a table from Snowflake as a CleanFlow file. */

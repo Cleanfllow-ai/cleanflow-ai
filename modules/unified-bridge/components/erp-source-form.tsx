@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { Network } from 'lucide-react'
+import { Network, FileSpreadsheet } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -11,9 +11,11 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { QuickBooksImport } from '@/modules/quickbooks'
 import { ZohoBooksImport } from '@/modules/zoho'
 import { SnowflakeImport } from '@/modules/snowflake'
+import SchemaDropForm from './schema-drop-form'
 
 interface ErpSourceFormProps {
   mode?: "source" | "destination"
@@ -42,6 +44,16 @@ const ERP_OPTIONS = [
   { label: "SAGE INTACCT", value: "sage" },
 ]
 
+/** Map ERP selector values to provider keys used by the backend API */
+const PROVIDER_MAP: Record<string, string> = {
+  "quickbooks": "quickbooks",
+  "zoho-books": "zohobooks",
+  "snowflake": "snowflake",
+  "netsuite": "netsuite",
+  "dynamics": "dynamics",
+  "sap": "sap",
+}
+
 export default function ErpSourceForm({
   mode = "source",
   uploadId,
@@ -52,6 +64,70 @@ export default function ErpSourceForm({
   disabled,
 }: ErpSourceFormProps) {
   const [selectedErp, setSelectedErp] = useState("quickbooks")
+  const [importMode, setImportMode] = useState<"entity" | "schema">("entity")
+
+  const handleNotification = (message: string, type: "success" | "error") => {
+    if (type === 'error') {
+      onError(message)
+    } else {
+      onIngestionComplete({ success: true, message })
+    }
+  }
+
+  const handleImportComplete = (uploadId: string) => {
+    onIngestionComplete({
+      success: true,
+      message: `Successfully imported data from ${ERP_OPTIONS.find((e) => e.value === selectedErp)?.label}`,
+      uploadId,
+    })
+  }
+
+  const renderErpContent = () => {
+    if (selectedErp === "quickbooks") {
+      return (
+        <QuickBooksImport
+          mode={mode}
+          uploadId={uploadId}
+          onImportComplete={handleImportComplete}
+          onNotification={handleNotification}
+        />
+      )
+    }
+    if (selectedErp === "zoho-books") {
+      return (
+        <ZohoBooksImport
+          mode={mode}
+          uploadId={uploadId}
+          onImportComplete={handleImportComplete}
+          onNotification={handleNotification}
+        />
+      )
+    }
+    if (selectedErp === "snowflake") {
+      return (
+        <SnowflakeImport
+          mode={mode}
+          uploadId={uploadId}
+          onImportComplete={handleImportComplete}
+          onNotification={handleNotification}
+        />
+      )
+    }
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[250px] p-8 border-2 border-dashed rounded-lg bg-muted/5">
+        <div className="rounded-full bg-muted p-6 mb-4">
+          <Network className="h-10 w-10 text-muted-foreground" />
+        </div>
+        <h3 className="text-lg font-medium mb-2 text-center">
+          {ERP_OPTIONS.find((e) => e.value === selectedErp)?.label}
+        </h3>
+        <p className="text-sm text-muted-foreground mb-6 max-w-md text-center">
+          Connect your {ERP_OPTIONS.find((e) => e.value === selectedErp)?.label} account to {mode === "source" ? "import" : "export"} data directly.
+        </p>
+        <Button disabled size="lg">Connect</Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -72,87 +148,37 @@ export default function ErpSourceForm({
         </Select>
       </div>
 
-      {/* ERP-specific content */}
-      {selectedErp === "quickbooks" ? (
-        <QuickBooksImport
-          mode={mode}
-          uploadId={uploadId}
-          onImportComplete={(uploadId) => {
-            onIngestionComplete({
-              success: true,
-              message: mode === "source" ? 'Successfully imported data from QuickBooks' : 'Successfully exported data to QuickBooks',
-              uploadId,
-            })
-          }}
-          onNotification={(message, type) => {
-            if (type === 'error') {
-              onError(message)
-            } else {
-              onIngestionComplete({
-                success: true,
-                message,
-              })
-            }
-          }}
-        />
-      ) : selectedErp === "zoho-books" ? (
-        <ZohoBooksImport
-          mode={mode}
-          uploadId={uploadId}
-          onImportComplete={(uploadId) => {
-            onIngestionComplete({
-              success: true,
-              message: mode === "source" ? 'Successfully imported data from Zoho Books' : 'Successfully exported data to Zoho Books',
-              uploadId,
-            })
-          }}
-          onNotification={(message, type) => {
-            if (type === 'error') {
-              onError(message)
-            } else {
-              onIngestionComplete({
-                success: true,
-                message,
-              })
-            }
-          }}
-        />
-      ) : selectedErp === "snowflake" ? (
-        <SnowflakeImport
-          mode={mode}
-          uploadId={uploadId}
-          onImportComplete={(uploadId) => {
-            onIngestionComplete({
-              success: true,
-              message: mode === "source" ? 'Successfully imported data from Snowflake' : 'Successfully exported data to Snowflake',
-              uploadId,
-            })
-          }}
-          onNotification={(message, type) => {
-            if (type === 'error') {
-              onError(message)
-            } else {
-              onIngestionComplete({
-                success: true,
-                message,
-              })
-            }
-          }}
-        />
-      ) : (
-        <div className="flex flex-col items-center justify-center min-h-[250px] p-8 border-2 border-dashed rounded-lg bg-muted/5">
-          <div className="rounded-full bg-muted p-6 mb-4">
-            <Network className="h-10 w-10 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium mb-2 text-center">
-            {ERP_OPTIONS.find((e) => e.value === selectedErp)?.label}
-          </h3>
-          <p className="text-sm text-muted-foreground mb-6 max-w-md text-center">
-            Connect your {ERP_OPTIONS.find((e) => e.value === selectedErp)?.label} account to {mode === "source" ? "import" : "export"} data directly.
-          </p>
-          <Button disabled size="lg">Connect</Button>
-        </div>
+      {/* Import Mode: Entity vs Schema Drop (source mode only) */}
+      {mode === "source" && (
+        <Tabs value={importMode} onValueChange={(v) => setImportMode(v as "entity" | "schema")} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="entity" className="text-xs sm:text-sm">
+              <Network className="h-3.5 w-3.5 mr-1.5" />
+              By Entity
+            </TabsTrigger>
+            <TabsTrigger value="schema" className="text-xs sm:text-sm">
+              <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+              Schema Drop
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="entity" className="mt-3">
+            {renderErpContent()}
+          </TabsContent>
+
+          <TabsContent value="schema" className="mt-3">
+            <SchemaDropForm
+              provider={PROVIDER_MAP[selectedErp] || selectedErp}
+              token={token}
+              onImportComplete={handleImportComplete}
+              onNotification={handleNotification}
+            />
+          </TabsContent>
+        </Tabs>
       )}
+
+      {/* Destination mode: no schema drop, just entity-based export */}
+      {mode === "destination" && renderErpContent()}
     </div>
   )
 }

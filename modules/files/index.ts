@@ -23,3 +23,4 @@ export { QuarantineEditorDialog } from "./components/quarantine-editor"
 
 export type * from "./types"
 export { useFileManager } from "./hooks/use-file-manager"
+export { isDQColumn, filterDQColumns } from "./utils/dq-columns"

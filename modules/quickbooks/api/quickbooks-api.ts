@@ -150,6 +150,34 @@ class QuickBooksService {
     }
   }
 
+  async discoverEntities(): Promise<{ entities: Array<{ entity: string; label: string; record_count: number; has_data: boolean; available: boolean; reason?: string }> }> {
+    try {
+      return await this.makeRequest<{ entities: Array<{ entity: string; label: string; record_count: number; has_data: boolean; available: boolean; reason?: string }> }>('/quickbooks/discover-entities', {
+        method: 'GET',
+      })
+    } catch (error) {
+      console.error('QuickBooks discover entities error:', error)
+      return { entities: [] }
+    }
+  }
+
+  /**
+   * Get entity field definitions from backend
+   */
+  async getEntityFields(entity: string): Promise<{ entity: string; fields: Array<{ key: string; label: string; description?: string; required?: boolean; data_type?: string }>; count: number }> {
+    const params = new URLSearchParams({ entity, provider: 'quickbooks' })
+    return await this.makeRequest(`/erp/entity-fields?${params.toString()}`, {
+      method: 'GET',
+    })
+  }
+
+  async aiAutoMap(fileColumns: string[], entity: string, uploadId?: string): Promise<{ mapping: Record<string, string>; columns_mapped: number; method?: string }> {
+    return await this.makeRequest('/erp/ai-automap', {
+      method: 'POST',
+      body: JSON.stringify({ file_columns: fileColumns, entity, provider: 'quickbooks', upload_id: uploadId }),
+    })
+  }
+
   /**
    * Disconnect from QuickBooks
    */
@@ -170,7 +198,7 @@ class QuickBooksService {
    * @param filters - Optional filters (limit, date_from, date_to)
    */
   async importData(
-    entity: 'customers' | 'invoices' | 'vendors' | 'items',
+    entity: string,
     filters: QuickBooksImportFilters = {}
   ): Promise<QuickBooksImportResponse> {
     try {

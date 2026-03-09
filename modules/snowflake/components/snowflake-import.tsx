@@ -10,6 +10,7 @@ import {
     CheckCircle2,
     AlertCircle,
     Table,
+    Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -42,14 +43,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { useState } from "react"
 import { useSnowflakeImport } from "./use-snowflake-import"
-import {
-    SNOWFLAKE_ENTITY_OPTIONS,
-    getMappingFields,
-    autoMapColumns,
-    validateMapping,
-    type SnowflakeEntity,
-} from "./snowflake-mapping-utils"
+import { autoMapColumns } from "./snowflake-mapping-utils"
+import { snowflakeAPI } from "@/modules/snowflake/api/snowflake-api"
 
 interface SnowflakeImportProps {
     mode?: "source" | "destination"
@@ -70,6 +67,34 @@ export default function SnowflakeImport({
         onImportComplete,
         onNotification,
     })
+    const [aiMappingLoading, setAiMappingLoading] = useState(false)
+
+    const handleAutoMap = async () => {
+        // Pass 1: local smart matching (exact + synonyms + substring)
+        const localMapping = autoMapColumns(s.targetTableColumns, s.availableColumns)
+        s.setColumnMapping(localMapping)
+
+        // Find unmapped target columns
+        const unmappedTargets = s.targetTableColumns.filter((t) => !localMapping[t])
+        if (unmappedTargets.length === 0) return
+
+        // Pass 2: AI fallback for remaining unmapped columns
+        setAiMappingLoading(true)
+        try {
+            const usedSources = new Set(Object.values(localMapping))
+            const unusedSources = s.availableColumns.filter((c) => !usedSources.has(c))
+            if (unusedSources.length === 0) return
+
+            const result = await snowflakeAPI.aiAutoMap(unusedSources, unmappedTargets)
+            if (result.mapping && Object.keys(result.mapping).length > 0) {
+                s.setColumnMapping((prev: Record<string, string>) => ({ ...prev, ...result.mapping }))
+            }
+        } catch (err) {
+            console.warn("AI auto-map failed, using local mapping only:", err)
+        } finally {
+            setAiMappingLoading(false)
+        }
+    }
 
     // ─── Loading state ────────────────────────────────────────────────────
     if (s.isCheckingStatus) {
@@ -285,39 +310,99 @@ export default function SnowflakeImport({
                                 </Alert>
                             )}
 
-                            {/* Destination Entity */}
+                            {/* Destination Table */}
                             <div>
-                                <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Destination Entity</Label>
+                                <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Destination Table</Label>
                                 <Select
-                                    value={s.selectedEntity}
-                                    onValueChange={(value) => s.setSelectedEntity(value as SnowflakeEntity)}
+                                    value={s.destinationMode === "existing" ? s.selectedExistingTable : s.destinationMode === "new" ? "__new__" : ""}
+                                    onValueChange={(value) => {
+                                        if (value === "__new__") {
+                                            s.setDestinationMode("new")
+                                            s.setSelectedExistingTable("")
+                                        } else {
+                                            s.setDestinationMode("existing")
+                                            s.setSelectedExistingTable(value)
+                                        }
+                                    }}
                                 >
                                     <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
-                                        <SelectValue />
+                                        <SelectValue placeholder="Select destination table" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {SNOWFLAKE_ENTITY_OPTIONS.map((option) => (
-                                            <SelectItem key={option.value} value={option.value}>
-                                                {option.label}
+                                        <SelectItem value="__new__">
+                                            <span className="flex items-center gap-1.5">
+                                                <Plus className="h-3.5 w-3.5" />
+                                                Create new table
+                                            </span>
+                                        </SelectItem>
+                                        {s.tables.length > 0 && s.tables.map((tbl) => (
+                                            <SelectItem key={tbl.name} value={tbl.name}>
+                                                <span className="flex items-center gap-2">
+                                                    {tbl.name}
+                                                    {tbl.rows !== undefined && (
+                                                        <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                                            {tbl.rows.toLocaleString()} rows
+                                                        </Badge>
+                                                    )}
+                                                </span>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
 
+                            {/* New Table Name Input */}
+                            {s.destinationMode === "new" && (
+                                <div>
+                                    <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Table Name</Label>
+                                    <Input
+                                        placeholder="e.g. MY_CUSTOMERS"
+                                        value={s.newTableName}
+                                        onChange={(e) => s.setNewTableName(e.target.value)}
+                                        className="h-9 sm:h-10 text-sm sm:text-base"
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        All selected columns will be created as columns in this new table.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Existing table: loading columns indicator */}
+                            {s.destinationMode === "existing" && s.targetColumnsLoading && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading table columns...
+                                </div>
+                            )}
+
+                            {/* Existing table: show column count */}
+                            {s.destinationMode === "existing" && s.targetTableColumns.length > 0 && !s.targetColumnsLoading && (
+                                <p className="text-xs text-muted-foreground">
+                                    Table has {s.targetTableColumns.length} columns. Use Mapping to align file columns.
+                                </p>
+                            )}
+
                             {/* Mapping + Export Buttons */}
                             <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => s.setMappingOpen(true)}
-                                    disabled={!s.selectedFile || s.selectedEntity === "general"}
-                                    className="h-10 sm:h-12 text-sm sm:text-base"
-                                >
-                                    Mapping
-                                </Button>
+                                {s.destinationMode === "existing" && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => s.setMappingOpen(true)}
+                                        disabled={!s.selectedFile || s.targetTableColumns.length === 0 || s.targetColumnsLoading}
+                                        className="h-10 sm:h-12 text-sm sm:text-base"
+                                    >
+                                        Mapping
+                                    </Button>
+                                )}
                                 <Button
                                     onClick={s.runExport}
-                                    disabled={s.isExporting || !s.selectedFile}
+                                    disabled={
+                                        s.isExporting ||
+                                        !s.selectedFile ||
+                                        !s.destinationMode ||
+                                        (s.destinationMode === "existing" && !s.selectedExistingTable) ||
+                                        (s.destinationMode === "new" && !s.newTableName.trim())
+                                    }
                                     className="flex-1 bg-blue-600 hover:bg-blue-700 h-10 sm:h-12 text-sm sm:text-base"
                                 >
                                     {s.isExporting ? (
@@ -408,38 +493,43 @@ export default function SnowflakeImport({
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Column Mapping Dialog */}
+            {/* Column Mapping Dialog — only for existing tables */}
             <Dialog open={s.mappingOpen} onOpenChange={s.setMappingOpen}>
                 <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
                     <DialogHeader>
-                        <DialogTitle>Map columns for Snowflake</DialogTitle>
+                        <DialogTitle>Map columns to {s.selectedExistingTable}</DialogTitle>
                         <DialogDescription>
-                            Map your file columns to Snowflake {SNOWFLAKE_ENTITY_OPTIONS.find(o => o.value === s.selectedEntity)?.label} fields before export.
+                            Map your file columns to the existing Snowflake table columns.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-2">
-                        {getMappingFields(s.selectedEntity).map((field) => (
-                            <div key={field.key} className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] gap-3 items-start">
-                                <div>
-                                    <div className="text-sm font-medium">
-                                        {field.label}
-                                        {field.required && <span className="text-red-500 ml-1">*</span>}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground mt-1">{field.help}</div>
+                        {s.targetTableColumns.map((targetCol) => (
+                            <div key={targetCol} className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] gap-3 items-center">
+                                <div className="text-sm font-medium truncate" title={targetCol}>
+                                    {targetCol}
                                 </div>
                                 <Select
-                                    value={s.columnMapping[field.key] || ""}
+                                    value={s.columnMapping[targetCol] || "__none__"}
                                     onValueChange={(value) =>
-                                        s.setColumnMapping((prev) => ({ ...prev, [field.key]: value }))
+                                        s.setColumnMapping((prev: Record<string, string>) => {
+                                            const next = { ...prev }
+                                            if (value === "__none__") {
+                                                delete next[targetCol]
+                                            } else {
+                                                next[targetCol] = value
+                                            }
+                                            return next
+                                        })
                                     }
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select column" />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        <SelectItem value="__none__">-- None --</SelectItem>
                                         {s.availableColumns.map((col) => (
-                                            <SelectItem key={`${field.key}-${col}`} value={col}>
+                                            <SelectItem key={`${targetCol}-${col}`} value={col}>
                                                 {col}
                                             </SelectItem>
                                         ))}
@@ -447,27 +537,30 @@ export default function SnowflakeImport({
                                 </Select>
                             </div>
                         ))}
+
+                        {s.targetTableColumns.length === 0 && (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                                No columns found for this table. Select an existing table first.
+                            </p>
+                        )}
                     </div>
 
                     <DialogFooter className="gap-2">
                         <Button
                             variant="outline"
-                            onClick={() => {
-                                s.setColumnMapping(autoMapColumns(s.selectedEntity, s.availableColumns))
-                            }}
+                            onClick={handleAutoMap}
+                            disabled={s.targetTableColumns.length === 0 || aiMappingLoading}
                         >
-                            Auto map
+                            {aiMappingLoading ? (
+                                <>
+                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                    Mapping...
+                                </>
+                            ) : (
+                                "Auto map"
+                            )}
                         </Button>
-                        <Button
-                            onClick={() => {
-                                const validation = validateMapping(s.selectedEntity, s.columnMapping, s.availableColumns)
-                                if (!validation.valid) {
-                                    s.setError(validation.message)
-                                    return
-                                }
-                                s.setMappingOpen(false)
-                            }}
-                        >
+                        <Button onClick={() => s.setMappingOpen(false)}>
                             Save mapping
                         </Button>
                     </DialogFooter>

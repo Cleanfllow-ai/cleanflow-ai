@@ -65,56 +65,35 @@ export function normalizeKey(value: string) {
     return value.toLowerCase().replace(/[\s_-]+/g, '')
 }
 
-export function autoMapColumns(entity: string, columns: string[]) {
-    const fields = getMappingFields(entity)
+export function autoMapColumns(entity: string, columns: string[], dynamicFields?: MappingField[]) {
+    const fields = dynamicFields && dynamicFields.length > 0 ? dynamicFields : getMappingFields(entity)
     const mapping: Record<string, string> = {}
     const normalized = new Map(columns.map((c) => [normalizeKey(c), c]))
 
     for (const field of fields) {
-        const match = normalized.get(normalizeKey(field.key))
-        if (match) {
-            mapping[field.key] = match
-            continue
-        }
+        if (mapping[field.key]) continue
 
-        if (field.key === 'customer_name') {
-            const alts = ['customername', 'displayname', 'name', 'customer', 'clientname']
-            for (const a of alts) {
-                const found = normalized.get(a)
-                if (found) { mapping[field.key] = found; break }
-            }
+        // 1. Match by normalized key
+        const keyMatch = normalized.get(normalizeKey(field.key))
+        if (keyMatch) { mapping[field.key] = keyMatch; continue }
+
+        // 2. Match by normalized label
+        const labelMatch = normalized.get(normalizeKey(field.label))
+        if (labelMatch) { mapping[field.key] = labelMatch; continue }
+
+        // 3. Hardcoded alternatives for common fields
+        const alts: Record<string, string[]> = {
+            customer_name: ['customername', 'displayname', 'name', 'customer', 'clientname'],
+            vendor_name: ['vendorname', 'displayname', 'name', 'vendor', 'suppliername'],
+            item_name: ['itemname', 'productname', 'name', 'item', 'product'],
+            invoice_number: ['invoicenumber', 'invoiceno', 'docnumber', 'invno', 'invoiceid'],
+            email: ['email', 'emailaddress', 'primaryemail'],
+            phone: ['phone', 'phonenumber', 'primaryphone', 'telephone'],
+            'DisplayName': ['customername', 'displayname', 'name', 'customer', 'vendorname'],
         }
-        if (field.key === 'vendor_name') {
-            const alts = ['vendorname', 'displayname', 'name', 'vendor', 'suppliername']
-            for (const a of alts) {
-                const found = normalized.get(a)
-                if (found) { mapping[field.key] = found; break }
-            }
-        }
-        if (field.key === 'item_name') {
-            const alts = ['itemname', 'productname', 'name', 'item', 'product']
-            for (const a of alts) {
-                const found = normalized.get(a)
-                if (found) { mapping[field.key] = found; break }
-            }
-        }
-        if (field.key === 'invoice_number') {
-            const alts = ['invoicenumber', 'invoiceno', 'docnumber', 'invno', 'invoiceid']
-            for (const a of alts) {
-                const found = normalized.get(a)
-                if (found) { mapping[field.key] = found; break }
-            }
-        }
-        if (field.key === 'email') {
-            const alts = ['email', 'emailaddress', 'primaryemail']
-            for (const a of alts) {
-                const found = normalized.get(a)
-                if (found) { mapping[field.key] = found; break }
-            }
-        }
-        if (field.key === 'phone') {
-            const alts = ['phone', 'phonenumber', 'primaryphone', 'telephone']
-            for (const a of alts) {
+        const fieldAlts = alts[field.key]
+        if (fieldAlts) {
+            for (const a of fieldAlts) {
                 const found = normalized.get(a)
                 if (found) { mapping[field.key] = found; break }
             }
@@ -123,8 +102,8 @@ export function autoMapColumns(entity: string, columns: string[]) {
     return mapping
 }
 
-export function validateMapping(entity: string, mapping: Record<string, string>, columns: string[]) {
-    const fields = getMappingFields(entity)
+export function validateMapping(entity: string, mapping: Record<string, string>, columns: string[], dynamicFields?: MappingField[]) {
+    const fields = dynamicFields && dynamicFields.length > 0 ? dynamicFields : getMappingFields(entity)
     const available = new Set(columns)
 
     for (const field of fields) {

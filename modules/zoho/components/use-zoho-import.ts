@@ -6,9 +6,10 @@ import zohoBooksAPI, {
     ZohoBooksConnectionStatus,
     ZohoBooksExportStatusResponse,
     ZohoBooksImportResponse,
+    type EntityInfo,
 } from '@/modules/zoho/api/zoho-books-api'
-import { fileManagementAPI, type FileStatusResponse } from '@/modules/files'
-import { autoMapColumns, validateMapping } from './zoho-mapping-utils'
+import { fileManagementAPI, type FileStatusResponse, filterDQColumns } from '@/modules/files'
+import { autoMapColumns, validateMapping, type MappingField } from './zoho-mapping-utils'
 
 // ─── Types ────────────────────────────────────────────────────────
 export interface ZohoFile {
@@ -23,15 +24,7 @@ export interface ZohoFile {
 }
 
 export interface ZohoImportConfig {
-    entity:
-    | 'contacts'
-    | 'items'
-    | 'invoices'
-    | 'customers'
-    | 'vendors'
-    | 'sales_orders'
-    | 'purchase_orders'
-    | 'inventory_items'
+    entity: string
     dateFrom: string
     dateTo: string
     limit: number
@@ -71,7 +64,7 @@ export function useZohoImport({
     const [files, setFiles] = useState<ZohoFile[]>([])
 
     const [config, setConfig] = useState<ZohoImportConfig>({
-        entity: 'contacts',
+        entity: 'customers',
         dateFrom: '',
         dateTo: '',
         limit: 200,
@@ -89,7 +82,12 @@ export function useZohoImport({
     const [columnsError, setColumnsError] = useState<string | null>(null)
     const [mappingOpen, setMappingOpen] = useState(false)
     const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
+    const [discoveredEntities, setDiscoveredEntities] = useState<EntityInfo[]>([])
+    const [entitiesLoading, setEntitiesLoading] = useState(false)
     const [orgIdInput, setOrgIdInput] = useState('')
+
+    // Dynamic entity field definitions (fetched from backend)
+    const [entityFields, setEntityFields] = useState<MappingField[]>([])
 
     // ─── Internal helpers ─────────────────────────────────────────
     const isPermissionError = (err: unknown) =>
@@ -119,15 +117,17 @@ export function useZohoImport({
 
     const waitForZohoExportCompletion = async (
         fileId: string,
-        maxAttempts: number = 40,
-        intervalMs: number = 1500
+        maxAttempts: number = 120,
+        baseIntervalMs: number = 2000
     ): Promise<ZohoBooksExportStatusResponse | null> => {
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
             const status = await zohoBooksAPI.getExportStatus(fileId)
-            if (status.status === 'completed' || status.status === 'failed') {
+            if (status.status === 'completed' || status.status === 'failed' || status.status === 'pushed') {
                 return status
             }
-            await sleep(intervalMs)
+            // Progressive backoff: 2s for first 10, then 3s for next 20, then 5s after
+            const interval = attempt < 10 ? baseIntervalMs : attempt < 30 ? 3000 : 5000
+            await sleep(interval)
         }
         return null
     }
@@ -179,6 +179,99 @@ export function useZohoImport({
         }
     }
 
+    // ─── Entity discovery ──────────────────────────────────────────
+    const loadEntities = async (orgId?: string) => {
+        setEntitiesLoading(true)
+        try {
+            const resp = await zohoBooksAPI.discoverEntities(orgId)
+            setDiscoveredEntities(resp.entities || [])
+        } catch {
+            setDiscoveredEntities([])
+        } finally {
+            setEntitiesLoading(false)
+        }
+    }
+
+    // ─── Dynamic entity fields ──────────────────────────────────────
+    const loadEntityFields = async (entity: string) => {
+        console.log('[Zoho] loadEntityFields called for:', entity)
+        try {
+            const resp = await zohoBooksAPI.getEntityFields(entity)
+            console.log('[Zoho] Entity fields response:', resp)
+            const fields: MappingField[] = (resp.fields || []).map((f: any) => ({
+                key: f.key,
+                label: f.label || f.key,
+                required: f.required || false,
+                help: f.description || '',
+            }))
+            setEntityFields(fields)
+        } catch (err) {
+            console.error('[Zoho] Failed to load entity fields:', err)
+            setEntityFields([])
+        }
+    }
+
+    // ─── AI auto-map ──────────────────────────────────────────────
+    const [autoMapLoading, setAutoMapLoading] = useState(false)
+
+    const aiAutoMap = async () => {
+        if (availableColumns.length === 0) {
+            console.warn('[Zoho] aiAutoMap: no availableColumns, skipping')
+            return
+        }
+        setAutoMapLoading(true)
+        try {
+            // First try local matching (fast)
+            const localMapping = autoMapColumns(config.entity, availableColumns, entityFields)
+            console.log('[Zoho] Local mapping:', localMapping, `(${Object.keys(localMapping).length} fields)`)
+
+            const unmapped = (entityFields.length > 0 ? entityFields : []).filter(f => !localMapping[f.key])
+            console.log('[Zoho] Unmapped fields:', unmapped.length, 'entityFields:', entityFields.length)
+
+            // If all fields mapped locally, use that
+            if (unmapped.length === 0 || entityFields.length === 0) {
+                console.log('[Zoho] All fields mapped locally or no entity fields, skipping backend')
+                setColumnMapping(localMapping)
+                setAutoMapLoading(false)
+                return
+            }
+
+            // Call backend: template.json first, AI fallback
+            const fileId = selectedFile?.upload_id || uploadId
+            console.log('[Zoho] Calling backend aiAutoMap with', availableColumns.length, 'columns, entity:', config.entity, 'fileId:', fileId)
+            const resp = await zohoBooksAPI.aiAutoMap(availableColumns, config.entity, fileId)
+            console.log('[Zoho] Backend response:', resp)
+
+            if (resp.mapping && Object.keys(resp.mapping).length > 0) {
+                // Resolve backend mapping values to actual availableColumns names
+                // Backend may return lowercase column names, so match case-insensitively
+                const validMapping: Record<string, string> = {}
+                const colLookup = new Map(availableColumns.map(c => [c.toLowerCase(), c]))
+                for (const [field, col] of Object.entries(resp.mapping)) {
+                    const actualCol = colLookup.get(col.toLowerCase())
+                    if (actualCol) {
+                        validMapping[field] = actualCol
+                    } else {
+                        console.warn(`[Zoho] Backend mapped ${field} → "${col}" but column not in availableColumns, skipping`)
+                    }
+                }
+                console.log('[Zoho] Valid backend mappings:', Object.keys(validMapping).length, 'of', Object.keys(resp.mapping).length)
+
+                const merged = { ...localMapping, ...validMapping }
+                console.log('[Zoho] Final merged mapping:', merged, `(${Object.keys(merged).length} fields)`)
+                setColumnMapping(merged)
+            } else {
+                console.log('[Zoho] Backend returned empty mapping, using local only')
+                setColumnMapping(localMapping)
+            }
+        } catch (err) {
+            console.error('[Zoho] AI auto-map failed, falling back to local:', err)
+            setColumnMapping(autoMapColumns(config.entity, availableColumns, entityFields))
+        } finally {
+            setAutoMapLoading(false)
+        }
+    }
+
     // ─── Connection handlers ──────────────────────────────────────
     const checkConnection = async () => {
         try {
@@ -192,6 +285,9 @@ export function useZohoImport({
                 setOrgIdInput(status.org_id || stored || '')
             } else {
                 setOrgIdInput(status.org_id || '')
+            }
+            if (status.connected) {
+                loadEntities(status.org_id)
             }
         } catch (err) {
             console.error('Error checking connection:', err)
@@ -254,10 +350,11 @@ export function useZohoImport({
 
             try {
                 const resp = await fileManagementAPI.getFileColumns(fileUploadId, idToken)
-                const cols = resp.columns || []
+                const rawCols = resp.columns || []
+                const cols = filterDQColumns(rawCols)
                 setAvailableColumns(cols)
                 setSelectedColumns(new Set(cols))
-                setColumnMapping(autoMapColumns(config.entity, cols))
+                setColumnMapping(autoMapColumns(config.entity, cols, entityFields))
 
                 if (cols.length === 0) {
                     setColumnsError('No columns detected for this file. You can still proceed.')
@@ -340,7 +437,7 @@ export function useZohoImport({
         }
 
         if (mode === 'destination') {
-            const validation = validateMapping(config.entity, columnMapping, availableColumns)
+            const validation = validateMapping(config.entity, columnMapping, availableColumns, entityFields)
             if (!validation.valid) {
                 setError(validation.message)
                 onNotification?.(validation.message || 'Please complete mapping', 'error')
@@ -432,6 +529,21 @@ export function useZohoImport({
         }
     }, [mode, idToken])
 
+    // Fetch entity fields from backend when entity changes
+    useEffect(() => {
+        if (connected && config.entity) {
+            console.log('[Zoho] useEffect: connected =', connected, 'entity =', config.entity)
+            loadEntityFields(config.entity)
+        }
+    }, [connected, config.entity])
+
+    // Re-run auto-mapping when entity fields arrive (handles race with file selection)
+    useEffect(() => {
+        if (entityFields.length > 0 && availableColumns.length > 0) {
+            setColumnMapping(autoMapColumns(config.entity, availableColumns, entityFields))
+        }
+    }, [entityFields])
+
     useEffect(() => {
         checkConnection()
 
@@ -498,6 +610,14 @@ export function useZohoImport({
         setMappingOpen,
         columnMapping,
         setColumnMapping,
+        // Entity discovery
+        discoveredEntities,
+        entitiesLoading,
+        // Dynamic entity fields
+        entityFields,
+        // AI auto-map
+        aiAutoMap,
+        autoMapLoading,
         // Import / Export
         isImporting,
         isExporting,

@@ -118,21 +118,34 @@ export default function ZohoBooksImport(props: UseZohoImportProps) {
             <Select
               value={z.config.entity}
               onValueChange={(value) =>
-                z.setConfig((prev) => ({ ...prev, entity: value as typeof prev.entity }))
+                z.setConfig((prev) => ({ ...prev, entity: value }))
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select entity" />
+                <SelectValue placeholder={z.entitiesLoading ? 'Loading entities...' : 'Select entity'} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="contacts">Contacts</SelectItem>
-                <SelectItem value="customers">Customers</SelectItem>
-                <SelectItem value="vendors">Vendors</SelectItem>
-                <SelectItem value="items">Items</SelectItem>
-                <SelectItem value="invoices">Invoices</SelectItem>
-                <SelectItem value="sales_orders">Sales Orders</SelectItem>
-                <SelectItem value="purchase_orders">Purchase Orders</SelectItem>
-                <SelectItem value="inventory_items">Inventory Items</SelectItem>
+                {z.entitiesLoading ? (
+                  <SelectItem value="__loading" disabled>
+                    Loading entities...
+                  </SelectItem>
+                ) : z.discoveredEntities.length > 0 ? (
+                  z.discoveredEntities.map((e) => (
+                    <SelectItem key={e.entity} value={e.entity} disabled={!e.available}>
+                      {e.label}
+                      {e.has_data ? ` (${e.record_count.toLocaleString()})` : e.available ? ' (empty)' : ' — not available'}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <>
+                    <SelectItem value="customers">Customers</SelectItem>
+                    <SelectItem value="vendors">Vendors</SelectItem>
+                    <SelectItem value="items">Items</SelectItem>
+                    <SelectItem value="invoices">Invoices</SelectItem>
+                    <SelectItem value="sales_orders">Sales Orders</SelectItem>
+                    <SelectItem value="purchase_orders">Purchase Orders</SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -365,7 +378,7 @@ export default function ZohoBooksImport(props: UseZohoImportProps) {
           </DialogHeader>
 
           <div className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-2">
-            {getMappingFields(z.config.entity).map((field) => (
+            {(z.entityFields.length > 0 ? z.entityFields : getMappingFields(z.config.entity)).map((field) => (
               <div
                 key={field.key}
                 className="grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)_minmax(0,220px)] gap-3 items-center"
@@ -398,18 +411,18 @@ export default function ZohoBooksImport(props: UseZohoImportProps) {
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
-              onClick={() => {
-                z.setColumnMapping(autoMapColumns(z.config.entity, z.availableColumns))
-              }}
+              onClick={() => z.aiAutoMap()}
+              disabled={z.autoMapLoading}
             >
-              Auto map
+              {z.autoMapLoading ? 'Mapping...' : 'Auto map'}
             </Button>
             <Button
               onClick={() => {
                 const validation = validateMapping(
                   z.config.entity,
                   z.columnMapping,
-                  z.availableColumns
+                  z.availableColumns,
+                  z.entityFields
                 )
                 if (!validation.valid) {
                   z.setError(validation.message)
