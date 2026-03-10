@@ -14,7 +14,7 @@ import {
   Upload,
   Zap
 } from "lucide-react"
-import type { AnalyzeResponse, HealthResponse, TransformResponse, ValidateResponse } from "@/lib/api/erp-transform-api"
+import type { AnalyzeResponse, HealthResponse, TransformResponse, ValidateResponse } from "@/modules/transform"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import React, { useEffect, useRef, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -22,12 +22,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { MainLayout } from "@/components/layout/main-layout"
+import { MainLayout } from "@/shared/layout/main-layout"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
-import { erpTransformAPI } from "@/lib/api/erp-transform-api"
-import { useToast } from "@/hooks/use-toast"
-import { AuthGuard } from "@/components/auth/auth-guard"
+import { erpTransformAPI } from "@/modules/transform"
+import { useToast } from "@/shared/hooks/use-toast"
+import { AuthGuard } from "@/modules/auth"
 
 export default function DataToolsPage() {
   const { toast } = useToast()

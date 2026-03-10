@@ -1,0 +1,1091 @@
+"use client";
+
+import { Building2, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useOrgSettings, type AppRole } from "./org-settings/use-org-settings";
+import { OrgGeneralTab } from "./org-settings/org-general-tab";
+import { OrgMembersTab } from "./org-settings/org-members-tab";
+import { OrgPermissionsTab } from "./org-settings/org-permissions-tab";
+import { OrgServicesTab } from "./org-settings/org-services-tab";
+
+export function OrganizationSettings() {
+  const hookData = useOrgSettings();
+
+  return (
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden rounded-2xl border border-border shadow-2xl bg-card">
+          <div className="p-8 pb-4 flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 border border-primary/20">
+              <UserPlus className="w-8 h-8 text-primary" />
+            </div>
+            <DialogHeader className="space-y-2">
+              <DialogTitle className="text-2xl font-bold tracking-tight text-foreground">Add Team Member</DialogTitle>
+              <DialogDescription className="text-muted-foreground text-sm leading-relaxed max-w-[320px]">
+                Enter the email address of the person you'd like to add and select their role within the organization.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="px-8 pb-8 pt-4 space-y-6">
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="invite-email" className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  Email Address
+                </Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  placeholder="colleague@company.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  disabled={isSendingInvite}
+                  className="h-11 rounded-xl focus-visible:ring-primary/20 transition-all border-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-role" className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                  Access Level
+                </Label>
+                <Select
+                  value={inviteRole}
+                  onValueChange={(value) => setInviteRole(value as AppRole)}
+                  disabled={isSendingInvite}
+                >
+                  <SelectTrigger id="invite-role" className="h-11 rounded-xl focus:ring-primary/20">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {allowedInviteRoles.map((role) => (
+                      <SelectItem key={role} value={role} className="rounded-lg">
+                        <span className="font-medium">{role}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Button
+                onClick={handleSubmitInvite}
+                disabled={isSendingInvite || !inviteEmail.includes("@")}
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl shadow-sm transition-all active:scale-95 group"
+              >
+                {isSendingInvite ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Adding Member...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2">
+                    Add Member
+                    <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 text-primary-foreground/80" />
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Centered Tabs Header */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 pt-2 pb-4">
+        <div />
+        <div className="overflow-x-auto justify-self-center">
+          <TabsList className="inline-flex h-10 sm:h-12 items-center justify-center rounded-xl bg-muted p-1 sm:p-1.5 gap-1">
+          <TabsTrigger
+            value="organization"
+            className="inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg px-3 sm:px-6 py-2 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Building2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Organization</span>
+            <span className="sm:hidden">Org</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="members"
+            className="inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg px-3 sm:px-6 py-2 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Users className="w-4 h-4" />
+            <span>Members</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="permissions"
+            className="inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg px-3 sm:px-6 py-2 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Shield className="w-4 h-4" />
+            <span className="hidden sm:inline">Permissions</span>
+            <span className="sm:hidden">Perms</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="services"
+            className="inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg px-3 sm:px-6 py-2 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Cog className="w-4 h-4" />
+            <span>Services</span>
+          </TabsTrigger>
+          </TabsList>
+        </div>
+        <div className="justify-self-end">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={handleRefreshAdminTab}
+            disabled={isRefreshingOrg}
+            aria-label="Refresh admin data"
+          >
+            {isRefreshingOrg ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Organization Settings Tab */}
+      <TabsContent value="organization" className="space-y-6">
+        <PermissionWrapper
+          permission={canManageSettingsPermission}
+          permissionKey="settings"
+          userRole={currentUserRole ?? undefined}
+          message="You do not have permission to manage organization profile."
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                Organization Details
+              </CardTitle>
+              <CardDescription>
+                Manage your organization's information and preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Logo Section */}
+              <div className="flex items-center gap-6">
+                <div className="w-20 h-20 bg-muted rounded-xl flex items-center justify-center border-2 border-dashed border-muted-foreground/30 overflow-hidden">
+                  {logoDataUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={logoDataUrl}
+                      alt="Organization logo"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <Building2 className="w-8 h-8 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <h4 className="font-medium">Organization Logo</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Upload a logo for your organization
+                  </p>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleLogoSelected(e.target.files?.[0])}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLogoUploadClick}
+                    disabled={!canManageOrganization}
+                  >
+                    Upload Logo
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Organization Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="org-name">Organization Name</Label>
+                  <Input
+                    id="org-name"
+                    placeholder="Infiniqon"
+                    value={orgSettings.name}
+                    onChange={(e) => handleOrgChange("name", e.target.value)}
+                    disabled={!canManageOrganization}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="org-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="org-email"
+                      className="pl-10"
+                      placeholder="contact@infiniqon.com"
+                      value={orgSettings.email}
+                      onChange={(e) => handleOrgChange("email", e.target.value)}
+                      disabled={!canManageOrganization}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="org-phone">Contact Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="org-phone"
+                      className="pl-10"
+                      placeholder="+91 63 4567 8900"
+                      value={orgSettings.phone}
+                      onChange={(e) => handleOrgChange("phone", e.target.value)}
+                      disabled={!canManageOrganization}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="org-address">Address</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="org-address"
+                      className="pl-10"
+                      placeholder="Ekkaduthangal, Chennai, Tamil Nadu"
+                      value={orgSettings.address}
+                      onChange={(e) => handleOrgChange("address", e.target.value)}
+                      disabled={!canManageOrganization}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Subscription Plan */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Plan</Label>
+                  <Select
+                    value={orgSettings.subscriptionPlan}
+                    onValueChange={(value) =>
+                      handleOrgChange("subscriptionPlan", value)
+                    }
+                    disabled={!canManageOrganization}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="pro">Pro</SelectItem>
+                      <SelectItem value="enterprise">Enterprise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleSaveOrg}
+                  disabled={isSavingOrg || !canManageOrganization}
+                >
+                  {isSavingOrg && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  {isSavingOrg ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </PermissionWrapper>
+      </TabsContent>
+
+      {/* Members Tab */}
+      <TabsContent value="members" className="space-y-6">
+        <PermissionWrapper
+          permission={canViewMembersPermission}
+          permissionKey="members_view"
+          requiredRole={["Super Admin", "Admin", "Data Steward"]}
+          userRole={currentUserRole ?? undefined}
+          message="You do not have permission to view members."
+        >
+          <PermissionWrapper
+            permission={canManageMembersPermission}
+            permissionKey="members_manage"
+            requiredRole={["Super Admin", "Admin", "Data Steward"]}
+            userRole={currentUserRole ?? undefined}
+            message="You do not have permission to manage members."
+          >
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Members & Roles
+                </CardTitle>
+              </div>
+                <Button
+                  className="flex items-center gap-2"
+                  onClick={handleInviteMember}
+                  disabled={!canInviteMembers}
+                  title={inviteHelpText}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Add Member
+                </Button>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead className="text-center">Role</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-center">Joined</TableHead>
+                    <TableHead className="text-center">Last Login</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoadingOrg && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-muted-foreground">
+                        Loading members...
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!isLoadingOrg && allMembers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-muted-foreground">
+                        No team members or pending invites.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!isLoadingOrg &&
+                    allMembers.map((person) => {
+                      const isSelf = Boolean(
+                        currentUserId && person.displayId === currentUserId,
+                      );
+                      const isInvite = person.isInvite;
+
+                      return (
+                        <TableRow key={person.displayId}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="w-9 h-9 border border-border/50">
+                                {person.displayAvatar ? (
+                                  <AvatarImage src={person.displayAvatar} />
+                                ) : null}
+                                <AvatarFallback className={`${isInvite ? 'bg-indigo-50 text-indigo-600 font-bold' : 'bg-primary/10 text-primary'} text-xs`}>
+                                  {person.displayName
+                                    .split(" ")
+                                    .map((n) => n?.[0])
+                                    .filter(Boolean)
+                                    .join("")
+                                    .toUpperCase() || "?"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium flex items-center gap-2 text-sm sm:text-base">
+                                  {person.displayName}
+                                  {isSelf && (
+                                    <Badge variant="outline" className="text-[10px] h-4">
+                                      You
+                                    </Badge>
+                                  )}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate max-w-[150px] sm:max-w-none">
+                                  {person.displayEmail}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-center">
+                              <Badge variant={getRoleBadgeVariant(person.displayRole)} className="text-[10px] h-5 min-w-[100px] justify-center">
+                                {person.displayRole}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-center">
+                              <Badge
+                                variant={isInvite ? "secondary" : getStatusBadgeVariant(person.displayStatus)}
+                                className={cn(
+                                  "text-[10px] h-5 px-3 min-w-[80px] justify-center",
+                                  person.displayStatus === "Active" && "bg-emerald-50 text-emerald-700 border-emerald-100",
+                                  isInvite && "bg-indigo-50 text-indigo-700 border-indigo-100"
+                                )}
+                              >
+                                {person.displayStatus}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs text-center">
+                            {person.displayJoined}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs text-center">
+                            {person.displayLastLogin}
+                          </TableCell>
+                          <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    disabled={isSelf || !canManageMembersPermission}
+                                    title={
+                                      isSelf
+                                        ? "You cannot change your own role here."
+                                        : !canManageMembersPermission
+                                          ? "You do not have permission to manage members."
+                                          : undefined
+                                    }
+                                  >
+                                    <MoreHorizontal className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-[180px]">
+                                  <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground font-bold px-2 py-1.5">Actions</DropdownMenuLabel>
+
+                                  {isInvite ? (
+                                    <DropdownMenuItem
+                                      className="text-red-600 focus:text-red-600 focus:bg-red-50 gap-2 cursor-pointer"
+                                      onClick={() => handleRevokeInvite(person.displayId, person.displayEmail)}
+                                    >
+                                      {revokingInviteId === person.displayId ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : (
+                                        <X className="w-3.5 h-3.5" />
+                                      )}
+                                      Revoke Invite
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <>
+                                      {canChangeAllRoles ? (
+                                        <>
+                                          {person.displayRole === "Super Admin" ? (
+                                            <DropdownMenuItem disabled className="text-xs italic">
+                                              Super Admin is fixed
+                                            </DropdownMenuItem>
+                                          ) : (
+                                            <DropdownMenuSub>
+                                              <DropdownMenuSubTrigger className="gap-2">
+                                                <UserCog className="w-3.5 h-3.5" />
+                                                Change Role
+                                              </DropdownMenuSubTrigger>
+                                              <DropdownMenuPortal>
+                                                <DropdownMenuSubContent className="w-[140px]">
+                                                  {VALID_ROLES.filter((r: string) => r !== person.displayRole).map((role: string) => (
+                                                    <DropdownMenuItem
+                                                      key={role}
+                                                      className="cursor-pointer"
+                                                      onClick={() => updateMemberRole(person.displayId, role as AppRole)}
+                                                    >
+                                                      {role}
+                                                    </DropdownMenuItem>
+                                                  ))}
+                                                </DropdownMenuSubContent>
+                                              </DropdownMenuPortal>
+                                            </DropdownMenuSub>
+                                          )}
+                                        </>
+                                      ) : (
+                                        canManageDataStewards && person.displayRole === "Data Steward" && (
+                                          <DropdownMenuItem disabled className="text-xs italic">
+                                            Admin cannot demote
+                                          </DropdownMenuItem>
+                                        )
+                                      )}
+
+                                      {currentUserRole === "Super Admin" && person.displayRole !== "Super Admin" && (
+                                        <>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            className="text-red-600 focus:text-red-600 focus:bg-red-50 gap-2 cursor-pointer"
+                                            onClick={() => removeMember(person.displayId)}
+                                          >
+                                            <UserMinus className="w-3.5 h-3.5" />
+                                            Remove Member
+                                          </DropdownMenuItem>
+                                        </>
+                                      )}
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          </PermissionWrapper>
+        </PermissionWrapper>
+      </TabsContent>
+
+      {/* Permissions Tab */}
+      <TabsContent value="permissions" className="space-y-6">
+        <PermissionWrapper
+          requiredRole={["Super Admin", "Admin"]}
+          userRole={currentUserRole ?? undefined}
+          message="Only Super Admins and Admins can modify role permissions."
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Role Permissions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[300px]">Permission</TableHead>
+                    {/* <TableHead className="text-center">Owner</TableHead> */}
+                    <TableHead className="text-center">Super Admin</TableHead>
+                    <TableHead className="text-center">Admin</TableHead>
+                    <TableHead className="text-center">Data Stewards</TableHead>
+                    {/* <TableHead className="text-center">Viewer</TableHead> */}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {permissions.map((permission) => (
+                    <TableRow key={permission.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{permission.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {permission.description}
+                          </p>
+                        </div>
+                      </TableCell>
+                      {/* <TableCell className="text-center">
+                      <div className="flex justify-center">
+                        <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center cursor-not-allowed opacity-70">
+                          <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                      </div>
+                    </TableCell> */}
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() =>
+                              togglePermission(permission.id, "superadmin")
+                            }
+                            disabled
+                            title="Super Admin permissions are fixed"
+                            className="w-6 h-6 rounded-full flex items-center justify-center transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {permission.superadmin ? (
+                              <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                              </div>
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                                <X className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() =>
+                              togglePermission(permission.id, "admin")
+                            }
+                            disabled={!canChangeAllRoles}
+                            className="w-6 h-6 rounded-full flex items-center justify-center transition-opacity disabled:cursor-not-allowed disabled:opacity-50 hover:opacity-80"
+                          >
+                            {permission.admin ? (
+                              <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                              </div>
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                                <X className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() =>
+                              togglePermission(permission.id, "dataSteward")
+                            }
+                            disabled={
+                              !canChangeAllRoles && !canManageDataStewards
+                            }
+                            className="w-6 h-6 rounded-full flex items-center justify-center transition-opacity disabled:cursor-not-allowed disabled:opacity-50 hover:opacity-80"
+                          >
+                            {permission.dataSteward ? (
+                              <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                              </div>
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                                <X className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <Separator className="my-6" />
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleSavePermissions}
+                  disabled={
+                    isSavingPermissions ||
+                    (!canChangeAllRoles && !canManageDataStewards)
+                  }
+                >
+                  {isSavingPermissions && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  {isSavingPermissions ? "Saving..." : "Save Permissions"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </PermissionWrapper>
+      </TabsContent>
+
+      {/* Services Tab */}
+      <TabsContent value="services" className="space-y-6">
+        <PermissionWrapper
+          permission={canManageSettingsPermission}
+          permissionKey="settings"
+          userRole={currentUserRole ?? undefined}
+          message="You do not have permission to manage connected services."
+        >
+          {/* ERP Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="w-5 h-5" />
+                Configuration
+              </CardTitle>
+              <CardDescription>
+                Configure default input and export systems for your data
+                processing workflows
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Default Input ERP */}
+                <div className="space-y-3">
+                  <Label>Import</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Select the default source for data imports
+                  </p>
+                  <Select
+                    value={servicesSettings.defaultInputErp}
+                    onValueChange={(value) =>
+                      handleServicesChange("defaultInputErp", value)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select input ERP" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ERP_OPTIONS.map((erp) => (
+                        <SelectItem key={erp.value} value={erp.value}>
+                          {erp.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {servicesSettings.defaultInputErp === "custom" && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2">
+                      <Input
+                        placeholder="Enter custom ERP name"
+                        value={servicesSettings.customInputErpName}
+                        onChange={(e) =>
+                          handleServicesChange(
+                            "customInputErpName",
+                            e.target.value,
+                          )
+                        }
+                        className="flex-1"
+                      />
+                      <Button size="sm" variant="outline" className="shrink-0">
+                        <Plus className="w-4 h-4 mr-1" />
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Default Export ERP */}
+                <div className="space-y-3">
+                  <Label>Export</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Select the default source for data exports
+                  </p>
+                  <Select
+                    value={servicesSettings.defaultExportErp}
+                    onValueChange={(value) =>
+                      handleServicesChange("defaultExportErp", value)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select export ERP" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ERP_OPTIONS.map((erp) => (
+                        <SelectItem key={erp.value} value={erp.value}>
+                          {erp.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {servicesSettings.defaultExportErp === "custom" && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2">
+                      <Input
+                        placeholder="Enter custom ERP name"
+                        value={servicesSettings.customExportErpName}
+                        onChange={(e) =>
+                          handleServicesChange(
+                            "customExportErpName",
+                            e.target.value,
+                          )
+                        }
+                        className="flex-1"
+                      />
+                      <Button size="sm" variant="outline" className="shrink-0">
+                        <Plus className="w-4 h-4 mr-1" />
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Data Format */}
+                <div className="space-y-3">
+                  <Label>Data Format</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Select the preferred data format
+                  </p>
+                  <Select
+                    value={servicesSettings.preferredFormat}
+                    onValueChange={(value) =>
+                      handleServicesChange("preferredFormat", value)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="csv">CSV</SelectItem>
+                      <SelectItem value="json">JSON</SelectItem>
+                      <SelectItem value="xlsx">XLSX</SelectItem>
+                      <SelectItem value="sql">SQL</SelectItem>
+                      <SelectItem value="parquet">Parquet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Services Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Cog className="w-5 h-5" />
+                Services
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Data Transform */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg shrink-0">
+                    <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">
+                      Data Transform
+                    </h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Transform and normalize data between different ERP formats
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={servicesSettings.dataTransformEnabled}
+                  onCheckedChange={(checked) =>
+                    handleServicesChange("dataTransformEnabled", checked)
+                  }
+                  className="shrink-0"
+                />
+              </div>
+
+              {/* Data Quality */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="p-2 bg-green-100 dark:bg-green-500/20 rounded-lg shrink-0">
+                    <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">
+                      Data Quality
+                    </h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Validate, clean, and fix data quality issues automatically
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={servicesSettings.dataQualityEnabled}
+                  onCheckedChange={(checked) =>
+                    handleServicesChange("dataQualityEnabled", checked)
+                  }
+                  className="shrink-0"
+                />
+              </div>
+
+              {/* CleanDataShield */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-500/20 rounded-lg shrink-0">
+                    <ShieldCheck className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-medium text-sm sm:text-base">
+                        CleanDataShield™
+                      </h4>
+                      <Badge variant="secondary" className="text-xs">
+                        Premium
+                      </Badge>
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Protects your data from external threats.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={servicesSettings.cleanDataShieldEnabled}
+                  onCheckedChange={(checked) =>
+                    handleServicesChange("cleanDataShieldEnabled", checked)
+                  }
+                  className="shrink-0"
+                />
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-end">
+                <Button onClick={handleSaveServices} disabled={isSavingServices}>
+                  {isSavingServices && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  {isSavingServices ? "Saving..." : "Save Services"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {SHOW_GLOBAL_SETTINGS_PRESETS && (
+            <>
+          {/* Global Settings Presets */}
+          <Card>
+            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="w-5 h-5" />
+                  Global Settings Presets
+                </CardTitle>
+                <CardDescription>
+                  Manage global DQ settings presets used across files and workflows.
+                </CardDescription>
+              </div>
+              <Button onClick={openCreatePresetDialog} className="gap-2">
+                <Plus className="w-4 h-4" />
+                New Preset
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {isLoadingPresets ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading presets...
+                </div>
+              ) : settingsPresets.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                  No presets yet. Create a new preset to define global defaults.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Preset Name</TableHead>
+                      <TableHead>Default</TableHead>
+                      <TableHead>Updated</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {settingsPresets.map((preset) => (
+                      <TableRow key={preset.preset_id}>
+                        <TableCell className="font-medium">
+                          {preset.preset_name}
+                        </TableCell>
+                        <TableCell>
+                          {preset.is_default ? (
+                            <Badge variant="secondary">Default</Badge>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleSetDefaultPreset(preset)}
+                              disabled={isSavingPreset}
+                            >
+                              Set Default
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {preset.updated_at
+                            ? new Date(preset.updated_at).toLocaleString()
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditPresetDialog(preset)}
+                            disabled={isSavingPreset}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              setPresetToDelete(preset);
+                              setIsDeletePresetOpen(true);
+                            }}
+                            disabled={isSavingPreset}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Dialog open={isPresetDialogOpen} onOpenChange={setIsPresetDialogOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>
+                  {presetDialogMode === "create" ? "Create Preset" : "Edit Preset"}
+                </DialogTitle>
+                <DialogDescription>
+                  Define global DQ settings to reuse across workflows.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Preset Name</Label>
+                  <Input
+                    value={presetFormName}
+                    onChange={(e) => setPresetFormName(e.target.value)}
+                    placeholder="e.g. Default DQ Rules"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Preset Config (JSON)</Label>
+                  <Textarea
+                    value={presetFormConfig}
+                    onChange={(e) => setPresetFormConfig(e.target.value)}
+                    className="min-h-[220px] font-mono text-xs"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={presetFormDefault}
+                    onCheckedChange={setPresetFormDefault}
+                  />
+                  <Label>Set as default preset</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsPresetDialogOpen(false)}
+                  disabled={isSavingPreset}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSavePreset} disabled={isSavingPreset}>
+                  {isSavingPreset && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  {presetDialogMode === "create" ? "Create" : "Save"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <AlertDialog open={isDeletePresetOpen} onOpenChange={setIsDeletePresetOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete preset?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {presetToDelete
+                    ? `Delete preset "${presetToDelete.preset_name}"? This cannot be undone.`
+                    : "This action cannot be undone."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isSavingPreset}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeletePreset}
+                  disabled={isSavingPreset}
+                >
+                  {isSavingPreset ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+            </>
+          )}
+        </PermissionWrapper>
+      </TabsContent >
+    </Tabs >
+  );
+}

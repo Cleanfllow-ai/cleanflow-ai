@@ -1,8 +1,8 @@
 "use client"
 
-import { AuthGuard } from "@/components/auth/auth-guard"
-import { MainLayout } from "@/components/layout/main-layout"
-import { OrganizationSettings } from "@/components/settings/organization-settings"
+import { AuthGuard } from "@/modules/auth"
+import { MainLayout } from "@/shared/layout/main-layout"
+import { OrganizationSettings } from "@/modules/auth"
 
 export default function AdminPage() {
   return (

@@ -4,7 +4,7 @@ import { Microscope, Zap, GitBranch, Tag } from "lucide-react"
 
 import Image from "next/image"
 import React from "react"
-import { LoginForm } from "@/components/auth/login-form"
+import { LoginForm } from "@/modules/auth"
 
 export default function LoginPage() {
   return (

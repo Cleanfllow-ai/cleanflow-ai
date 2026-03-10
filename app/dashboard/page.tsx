@@ -1,14 +1,10 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { MainLayout } from "@/components/layout/main-layout"
-import { DashboardHeader } from "@/components/dashboard/dashboard-header"
-import { ActivityFeed } from "@/components/dashboard/activity-feed"
-import { TopIssuesChart } from "@/components/dashboard/top-issues-chart"
-import { DqCharts, ProcessingSummary } from "@/components/dashboard/dq-charts"
-import { AuthGuard } from "@/components/auth/auth-guard"
-import { useAuth } from "@/components/providers/auth-provider"
-import { fileManagementAPI, type FileStatusResponse, type OverallDqReportResponse, type TopIssue } from "@/lib/api/file-management-api"
+import { MainLayout } from "@/shared/layout/main-layout"
+import { DashboardHeader, ActivityFeed, TopIssuesChart, DqCharts, ProcessingSummary } from "@/modules/dashboard"
+import { AuthGuard, useAuth } from "@/modules/auth"
+import { fileManagementAPI, type FileStatusResponse, type OverallDqReportResponse, type TopIssue } from "@/modules/files"
 
 const toNumericCount = (value: unknown): number => {
   if (typeof value === "number" && Number.isFinite(value)) return value

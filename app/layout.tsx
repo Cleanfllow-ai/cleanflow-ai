@@ -2,10 +2,11 @@ import "./globals.css"
 
 import { Inter, Playfair_Display } from "next/font/google"
 
-import { AuthProvider } from "@/components/providers/auth-provider"
+import { AuthProvider } from "@/modules/auth"
+import { FilePreloader } from "@/modules/files/components/file-preloader"
 import type { Metadata } from "next"
 import type React from "react"
-import { ReduxProvider } from "@/components/providers/redux-provider"
+import { ReduxProvider } from "@/shared/providers/redux-provider"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
@@ -56,6 +57,7 @@ export default function RootLayout({
           <AuthProvider>
             <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
               {children}
+              <FilePreloader />
             </ThemeProvider>
           </AuthProvider>
         </ReduxProvider>

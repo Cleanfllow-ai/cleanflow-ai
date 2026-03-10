@@ -1,6 +1,6 @@
 "use client";
 
-import { CreateOrganizationForm } from "@/components/auth/create-organization-form";
+import { CreateOrganizationForm } from "@/modules/auth";
 import { Suspense } from "react";
 
 export default function CreateOrganizationPage() {

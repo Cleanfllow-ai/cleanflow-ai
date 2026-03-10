@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { InviteSetPasswordForm } from "@/components/auth/invite-set-password-form";
+import { InviteSetPasswordForm } from "@/modules/auth";
 
 export default function InviteSetPasswordPage() {
   return (

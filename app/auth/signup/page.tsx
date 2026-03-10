@@ -4,7 +4,7 @@ import { FileSpreadsheet, Layers, Upload } from "lucide-react"
 
 import Image from "next/image"
 import React from "react"
-import { SignUpForm } from "@/components/auth/signup-form"
+import { SignUpForm } from "@/modules/auth"
 
 export default function SignUpPage() {
   return (
