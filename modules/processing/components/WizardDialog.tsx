@@ -10,6 +10,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { ProcessingWizard } from "./ProcessingWizard"
+import { SourceStep } from "./steps/SourceStep"
 import { ProcessingWizardProvider, useProcessingWizard } from "./WizardContext"
 import { fileManagementAPI } from "@/modules/files"
 import type { FileStatusResponse } from "@/modules/files"
@@ -169,15 +170,13 @@ function WizardInitializer({
     )
 }
 
-function NewWizardInitializer({
+function ImportOnlyInitializer({
     authToken,
     onComplete,
-    onStarted,
     onClose,
 }: {
     authToken: string
     onComplete?: () => void
-    onStarted?: () => void
     onClose: () => void
 }) {
     const { initializeNew } = useProcessingWizard()
@@ -191,10 +190,8 @@ function NewWizardInitializer({
     if (!initialized) return null
 
     return (
-        <ProcessingWizard
-            onClose={onClose}
-            onStarted={onStarted}
-            onComplete={() => {
+        <SourceStep
+            onUploadComplete={() => {
                 onClose()
                 if (onComplete) onComplete()
             }}
@@ -218,16 +215,15 @@ export function WizardDialog({
             <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
                 <DialogHeader className="px-6 py-4 border-b border-muted/40">
                     <DialogTitle>
-                        {mode === "new" ? "Import & Process" : `Process: ${file?.original_filename || file?.filename}`}
+                        {mode === "new" ? "Import File" : `Process: ${file?.original_filename || file?.filename}`}
                     </DialogTitle>
                 </DialogHeader>
                 <div className="flex-1 overflow-hidden">
                     <ProcessingWizardProvider>
                         {mode === "new" ? (
-                            <NewWizardInitializer
+                            <ImportOnlyInitializer
                                 authToken={authToken}
                                 onComplete={onComplete}
-                                onStarted={onStarted}
                                 onClose={() => onOpenChange(false)}
                             />
                         ) : (

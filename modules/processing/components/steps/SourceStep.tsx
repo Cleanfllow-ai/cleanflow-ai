@@ -24,7 +24,11 @@ import { fileManagementAPI } from "@/modules/files"
 import { useProcessingWizard } from "../WizardContext"
 import { SOURCE_OPTIONS, ERP_OPTIONS } from "@/modules/files/page/constants"
 
-export function SourceStep() {
+interface SourceStepProps {
+    onUploadComplete?: () => void
+}
+
+export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
     const { authToken, initializeWithFile, nextStep } = useProcessingWizard()
 
     const [selectedSource, setSelectedSource] = useState("local")
@@ -37,6 +41,10 @@ export function SourceStep() {
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const handleUploadSuccess = async (uploadId: string, fileName: string) => {
+        if (onUploadComplete) {
+            onUploadComplete()
+            return
+        }
         try {
             setLoadingColumns(true)
             setUploadError(null)
@@ -51,6 +59,10 @@ export function SourceStep() {
     }
 
     const handleImportComplete = async (uploadId: string) => {
+        if (onUploadComplete) {
+            onUploadComplete()
+            return
+        }
         try {
             setLoadingColumns(true)
             setUploadError(null)
@@ -133,7 +145,7 @@ export function SourceStep() {
         return (
             <div className="flex flex-col items-center justify-center h-full gap-4 p-12">
                 <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Loading file columns...</p>
+                <p className="text-sm text-muted-foreground">Processing...</p>
             </div>
         )
     }
