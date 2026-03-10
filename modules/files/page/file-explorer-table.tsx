@@ -17,6 +17,7 @@ import {
     Menu,
     RefreshCw,
     X,
+    Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -72,6 +73,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         handleOpenQuarantineEditor,
         recentlyUploaded, setRecentlyUploaded,
         setWizardFile, setWizardOpen,
+        handleNewImportOpen,
     } = state;
 
     const SortIcon = ({
@@ -179,6 +181,14 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                     )}
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
+                    <Button
+                        size="sm"
+                        className="h-9 gap-1.5 px-3"
+                        onClick={handleNewImportOpen}
+                    >
+                        <Plus className="h-4 w-4" />
+                        Import
+                    </Button>
                     <Button
                         variant="outline"
                         size="sm"

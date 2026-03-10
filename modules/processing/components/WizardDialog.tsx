@@ -17,10 +17,11 @@ import type { FileStatusResponse } from "@/modules/files"
 interface WizardDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    file: FileStatusResponse | null
+    file?: FileStatusResponse | null
     authToken: string
     onComplete?: () => void
     onStarted?: () => void
+    mode?: "new" | "existing"
 }
 
 // Inner component that uses the wizard context
@@ -168,6 +169,39 @@ function WizardInitializer({
     )
 }
 
+function NewWizardInitializer({
+    authToken,
+    onComplete,
+    onStarted,
+    onClose,
+}: {
+    authToken: string
+    onComplete?: () => void
+    onStarted?: () => void
+    onClose: () => void
+}) {
+    const { initializeNew } = useProcessingWizard()
+    const [initialized, setInitialized] = React.useState(false)
+
+    React.useEffect(() => {
+        initializeNew(authToken)
+        setInitialized(true)
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    if (!initialized) return null
+
+    return (
+        <ProcessingWizard
+            onClose={onClose}
+            onStarted={onStarted}
+            onComplete={() => {
+                onClose()
+                if (onComplete) onComplete()
+            }}
+        />
+    )
+}
+
 export function WizardDialog({
     open,
     onOpenChange,
@@ -175,24 +209,36 @@ export function WizardDialog({
     authToken,
     onComplete,
     onStarted,
+    mode = "existing",
 }: WizardDialogProps) {
-    if (!file) return null
+    if (mode === "existing" && !file) return null
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
                 <DialogHeader className="px-6 py-4 border-b border-muted/40">
-                    <DialogTitle>Process: {file.original_filename}</DialogTitle>
+                    <DialogTitle>
+                        {mode === "new" ? "Import & Process" : `Process: ${file?.original_filename || file?.filename}`}
+                    </DialogTitle>
                 </DialogHeader>
                 <div className="flex-1 overflow-hidden">
                     <ProcessingWizardProvider>
-                        <WizardInitializer
-                            file={file}
-                            authToken={authToken}
-                            onComplete={onComplete}
-                            onStarted={onStarted}
-                            onClose={() => onOpenChange(false)}
-                        />
+                        {mode === "new" ? (
+                            <NewWizardInitializer
+                                authToken={authToken}
+                                onComplete={onComplete}
+                                onStarted={onStarted}
+                                onClose={() => onOpenChange(false)}
+                            />
+                        ) : (
+                            <WizardInitializer
+                                file={file!}
+                                authToken={authToken}
+                                onComplete={onComplete}
+                                onStarted={onStarted}
+                                onClose={() => onOpenChange(false)}
+                            />
+                        )}
                     </ProcessingWizardProvider>
                 </div>
             </DialogContent>

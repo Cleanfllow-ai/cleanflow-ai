@@ -79,6 +79,8 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         // Wizard
         wizardOpen, wizardFile, handleWizardOpenChange, handleWizardComplete,
         idToken, loadFiles, setWizardOpen,
+        // New import wizard
+        newImportWizardOpen, handleNewImportClose,
         // Column export
         showColumnExportModal, setShowColumnExportModal,
         columnExportFile, setColumnExportFile,
@@ -686,14 +688,15 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                 </DialogContent>
             </Dialog>
 
-            {/* Processing Wizard Dialog */}
+            {/* New Import Wizard (triggered via + Import button) */}
             <WizardDialog
-                open={wizardOpen}
-                onOpenChange={setWizardOpen}
-                file={wizardFile}
-                authToken={idToken || ""}
-                onStarted={() => { setWizardOpen(false); loadFiles(); }}
-                onComplete={() => { setWizardOpen(false); loadFiles(); }}
+                open={state.newImportWizardOpen}
+                onOpenChange={(open) => {
+                    if (!open) state.handleNewImportClose(true);
+                }}
+                authToken={state.idToken || ""}
+                mode="new"
+                onComplete={() => state.handleNewImportClose(true)}
             />
 
             {/* Quarantine Editor Dialog */}

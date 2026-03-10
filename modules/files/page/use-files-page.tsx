@@ -89,7 +89,9 @@ export function useFilesPage() {
     const [loadingProfiling, setLoadingProfiling] = useState(false);
     const [pushQBModalOpen, setPushQBModalOpen] = useState(false);
     const [fileToPush, setFileToPush] = useState<FileStatusResponse | null>(null);
-    const [activeSection, setActiveSection] = useState<"upload" | "explorer">("upload");
+    const [activeSection, setActiveSection] = useState<"upload" | "explorer">("explorer");
+    // New import wizard state
+    const [newImportWizardOpen, setNewImportWizardOpen] = useState(false);
     const [selectedSource, setSelectedSource] = useState("local");
     const [selectedDestination, setSelectedDestination] = useState("null");
     const [lastActiveSelector, setLastActiveSelector] = useState<'source' | 'destination'>('source');
@@ -582,6 +584,16 @@ export function useFilesPage() {
         setWizardOpen(false);
         setWizardFile(null);
     };
+
+    const handleNewImportOpen = useCallback(() => {
+        if (!ensureFilesPermission()) return;
+        setNewImportWizardOpen(true);
+    }, [ensureFilesPermission]);
+
+    const handleNewImportClose = useCallback((reload?: boolean) => {
+        setNewImportWizardOpen(false);
+        if (reload) loadFiles();
+    }, [loadFiles]);
 
     // ─── Column selection ─────────────────────────────────────────────
     const handleColumnConfirm = async () => {
@@ -1190,6 +1202,9 @@ export function useFilesPage() {
         detailsOpen, setDetailsOpen, selectedFile, setSelectedFile,
         handleViewDetails, handleStartProcessing,
         wizardOpen, setWizardOpen, wizardFile, setWizardFile, handleWizardOpenChange, handleWizardComplete,
+        // New import wizard
+        newImportWizardOpen, setNewImportWizardOpen,
+        handleNewImportOpen, handleNewImportClose,
         // Quarantine editor
         quarantineEditorOpen, setQuarantineEditorOpen,
         quarantineEditorFile, setQuarantineEditorFile,
