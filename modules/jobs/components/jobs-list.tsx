@@ -204,8 +204,8 @@ export function JobsList() {
                         <CalendarClock className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-semibold tracking-tight">Create Jobs</h1>
-                        <p className="text-sm text-muted-foreground">Manage automated ERP sync schedules</p>
+                        <h1 className="text-xl font-semibold tracking-tight">Scheduled Jobs</h1>
+                        <p className="text-sm text-muted-foreground">Automated ERP sync schedules</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -215,10 +215,42 @@ export function JobsList() {
                     </Button>
                     <Button size="sm" onClick={handleCreateNew}>
                         <Plus className="h-4 w-4 mr-1.5" />
-                        Create Job
+                        New Job
                     </Button>
                 </div>
             </div>
+
+            {/* Summary stats */}
+            {!loading && jobs.length > 0 && (() => {
+                const active = jobs.filter(j => j.status === "ACTIVE").length
+                const paused = jobs.filter(j => j.status === "PAUSED").length
+                const failed = jobs.filter(j => j.status === "FAILED" || j.status === "AUTO_PAUSED").length
+                return (
+                    <div className="flex items-center gap-6 px-6 py-3 border-b border-border/40 bg-muted/20">
+                        <div className="flex items-center gap-1.5 text-sm">
+                            <span className="text-muted-foreground">Total</span>
+                            <span className="font-semibold tabular-nums">{jobs.length}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-sm">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                            <span className="text-muted-foreground">Active</span>
+                            <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{active}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-sm">
+                            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                            <span className="text-muted-foreground">Paused</span>
+                            <span className="font-semibold tabular-nums text-amber-600 dark:text-amber-400">{paused}</span>
+                        </div>
+                        {failed > 0 && (
+                            <div className="flex items-center gap-1.5 text-sm">
+                                <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                                <span className="text-muted-foreground">Failed</span>
+                                <span className="font-semibold tabular-nums text-red-600 dark:text-red-400">{failed}</span>
+                            </div>
+                        )}
+                    </div>
+                )
+            })()}
 
             {/* Search */}
             <div className="px-6 py-3 border-b border-border/40">

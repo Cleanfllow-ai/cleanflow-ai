@@ -23,31 +23,25 @@ const navigation = [
 		name: "Dashboard",
 		href: "/dashboard",
 		icon: BarChart3,
-		description: "Monitor performance, analytics, and system activity",
+		description: "Analytics & data quality insights",
 	},
-	// {
-	// 	name: "Transform Data",
-	// 	href: "/data-tools",
-	// 	icon: Zap,
-	// 	description: "Upload and transform your files",
-	// },
 	{
-		name: "Catalog Items",
+		name: "Data Catalog",
 		href: "/files",
 		icon: FileText,
-		description: "Manage file uploads, processing workflows, and exports",
+		description: "Import, process & export files",
 	},
 	{
-		name: "Create Jobs",
+		name: "Jobs",
 		href: "/jobs",
 		icon: CalendarClock,
-		description: "Manage automated ERP sync schedules",
+		description: "Automated ERP sync schedules",
 	},
 	{
 		name: "Admin",
 		href: "/admin",
 		icon: Settings,
-		description: "Configure organization-level settings and permissions",
+		description: "Organization settings & permissions",
 	},
 ]
 
@@ -206,59 +200,71 @@ function AppSidebarComponent() {
 					})}
 				</nav>
 
-				<div className="p-4 border-t border-sidebar-border/60">
+				<div className="p-4 border-t border-sidebar-border/60 space-y-2">
 					{!collapsed && (
-						<div className="space-y-3">
+						<>
 							{isAuthenticated && (
-								<div className="px-4 py-2">
-									<div className="text-sm font-medium truncate">
-										{user?.name || 'User'}
+								<div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-muted/40">
+									<div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-xs font-semibold text-primary uppercase">
+										{(user?.name || user?.email || "U").charAt(0)}
 									</div>
-									<div className="text-xs text-muted-foreground truncate">
-										{user?.email}
+									<div className="flex-1 min-w-0">
+										<div className="text-sm font-medium truncate leading-tight">
+											{user?.name || 'User'}
+										</div>
+										<div className="text-[11px] text-muted-foreground truncate leading-tight">
+											{user?.email}
+										</div>
 									</div>
 								</div>
 							)}
 							<button
 								onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-								className="flex items-center space-x-3 px-4 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg w-full"
+								className="flex items-center space-x-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg w-full"
 							>
 								{theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
 								<span className="text-sm">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
 							</button>
 							<button
 								onClick={() => setChatOpen(true)}
-								className="flex items-center space-x-3 px-4 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg w-full"
+								className="flex items-center space-x-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg w-full"
 							>
 								<HelpCircle className="w-4 h-4" />
 								<span className="text-sm">Help & Support</span>
 							</button>
 							{isAuthenticated && (
-								<Button
+								<button
 									onClick={handleLogout}
-									variant="outline"
-									className="w-full flex items-center space-x-3 px-4 py-2 text-destructive hover:bg-destructive/10 rounded-lg justify-start"
+									className="flex items-center space-x-3 px-3 py-2 text-destructive/80 hover:text-destructive hover:bg-destructive/10 rounded-lg w-full"
 								>
 									<LogOut className="w-4 h-4" />
 									<span className="text-sm">Logout</span>
-								</Button>
+								</button>
 							)}
-							<div className="text-xs text-muted-foreground text-center">
-								<div>© CleanFlowAI</div>
-							</div>
-						</div>
+						</>
 					)}
 					{collapsed && isAuthenticated && (
 						<div className="flex flex-col items-center space-y-2">
-							<Button
+							<div
+								className="w-8 h-8 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-xs font-semibold text-primary uppercase cursor-default"
+								title={user?.name || user?.email || "User"}
+							>
+								{(user?.name || user?.email || "U").charAt(0)}
+							</div>
+							<button
+								onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+								className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
+								title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+							>
+								{theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+							</button>
+							<button
 								onClick={handleLogout}
-								variant="outline"
-								size="sm"
-								className="text-destructive hover:bg-destructive/10 p-2"
+								className="p-2 text-destructive/70 hover:text-destructive hover:bg-destructive/10 rounded-lg"
 								title="Logout"
 							>
 								<LogOut className="w-4 h-4" />
-							</Button>
+							</button>
 						</div>
 					)}
 				</div>

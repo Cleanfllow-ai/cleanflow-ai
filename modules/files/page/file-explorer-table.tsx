@@ -170,17 +170,25 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="h-9 px-2 shrink-0"
+                            className="h-9 px-2 shrink-0 text-muted-foreground hover:text-foreground"
                             onClick={() => {
                                 setSearchQuery("");
                                 setStatusFilter("all");
                             }}
+                            title="Clear filters"
                         >
-                            <Filter className="h-4 w-4" />
+                            <X className="h-4 w-4" />
                         </Button>
                     )}
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
+                    {!loading && files.length > 0 && (
+                        <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">
+                            {filteredFiles.length === files.length
+                                ? `${files.length} file${files.length !== 1 ? "s" : ""}`
+                                : `${filteredFiles.length} of ${files.length}`}
+                        </span>
+                    )}
                     <Button
                         size="sm"
                         className="h-9 gap-1.5 px-3"
@@ -288,9 +296,28 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                             )}
                             {!loading && tableEmpty && (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-24 text-center text-sm text-muted-foreground">
-                                        <FileText className="h-6 w-6 mx-auto mb-1 opacity-50" />
-                                        No files found
+                                    <TableCell colSpan={10} className="py-16 text-center">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="w-12 h-12 rounded-xl bg-muted/60 flex items-center justify-center">
+                                                <FileText className="h-6 w-6 text-muted-foreground/60" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-medium">
+                                                    {searchQuery || statusFilter !== "all" ? "No matching files" : "No files yet"}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {searchQuery || statusFilter !== "all"
+                                                        ? "Try adjusting your search or filter"
+                                                        : "Import a file to start analyzing data quality"}
+                                                </p>
+                                            </div>
+                                            {!searchQuery && statusFilter === "all" && (
+                                                <Button size="sm" className="gap-1.5 mt-1" onClick={handleNewImportOpen}>
+                                                    <Plus className="h-3.5 w-3.5" />
+                                                    Import File
+                                                </Button>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             )}

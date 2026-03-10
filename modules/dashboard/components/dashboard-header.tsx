@@ -1,6 +1,6 @@
 "use client"
 
-import { Download, LogOut, RefreshCw, Loader2 } from "lucide-react"
+import { Download, RefreshCw, Loader2 } from "lucide-react"
 import { useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
@@ -85,21 +85,23 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
     }
   }
 
+  const today = new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+
   return (
     <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Dashboard</h1>
-        <p className="text-muted-foreground text-sm sm:text-base">
-          {isAuthenticated && user ? `Welcome back, ${user.name || user.email}` : 'Real-time insights into your ERP data transformation pipeline'}
-        </p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
+          {isAuthenticated && user ? `Welcome back, ${user.name?.split(" ")[0] || "there"}` : "Dashboard"}
+        </h1>
+        <p className="text-muted-foreground text-sm">{today}</p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 sm:space-x-3">
-        {/* <Badge variant="outline">
-          <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
-          Live Data
-        </Badge> */}
-
+      <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
           {refreshing ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -115,15 +117,8 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
           ) : (
             <Download className="w-4 h-4 mr-2" />
           )}
-          Export
+          Export Report
         </Button>
-
-        {/* {isAuthenticated && (
-          <Button variant="outline" size="sm" onClick={handleLogout} className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/50">
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        )} */}
       </div>
     </div>
   )

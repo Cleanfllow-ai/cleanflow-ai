@@ -122,14 +122,14 @@ export function useFilesPage() {
     const [useCustomRules, setUseCustomRules] = useState(false);
     const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
         new Set([
-            "file", "score", "quality", "rows", "category",
+            "file", "score", "quality", "rows",
             "status", "uploaded", "updated", "processingTime", "actions",
         ]),
     );
     const [selectedDestinationFormat, setSelectedDestinationFormat] = useState<string | null>(null);
     const [pendingVisibleColumns, setPendingVisibleColumns] = useState<Set<string>>(
         new Set([
-            "file", "score", "quality", "rows", "category",
+            "file", "score", "quality", "rows",
             "status", "uploaded", "updated", "processingTime", "actions",
         ]),
     );
