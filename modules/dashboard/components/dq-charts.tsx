@@ -2,7 +2,7 @@
 
 import { memo, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, AlertTriangle, CheckCircle, ChevronRight, FileText, TrendingUp } from "lucide-react"
+import { AlertCircle, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -72,7 +72,7 @@ function DqChartsComponent({ files }: DqChartsProps) {
         return (
           <div
             className="flex items-center justify-between p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 cursor-pointer hover:bg-amber-500/10 transition-colors"
-            onClick={() => router.push("/files?tab=explorer&status=attention")}
+            onClick={() => router.push("/files")}
           >
             <div className="flex items-center gap-2 text-sm">
               <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
@@ -90,66 +90,6 @@ function DqChartsComponent({ files }: DqChartsProps) {
           </div>
         )
       })()}
-
-      {/* Metric cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card
-          className="cursor-pointer hover:border-primary/30 transition-colors"
-          onClick={() => router.push("/files?tab=explorer")}
-        >
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <FileText className="h-4 w-4 text-blue-500" />
-              <span className="text-sm text-muted-foreground">Total Files</span>
-            </div>
-            <div className="text-2xl font-bold">{visibleFiles.length}</div>
-            <p className="text-xs text-muted-foreground">{completedFiles.length} files processed</p>
-          </CardContent>
-        </Card>
-        <Card
-          className="cursor-pointer hover:border-primary/30 transition-colors"
-          onClick={() => router.push("/files?tab=explorer&status=bad")}
-        >
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-muted-foreground">Avg DQ</span>
-            </div>
-            <div
-              className={`text-2xl font-bold ${avgDqScore >= 90 ? "text-green-500" : avgDqScore >= 70 ? "text-yellow-500" : "text-red-500"
-                }`}
-            >
-              {avgDqScore.toFixed(1)}%
-            </div>
-          </CardContent>
-        </Card>
-        <Card
-          className="cursor-pointer hover:border-primary/30 transition-colors"
-          onClick={() => router.push("/files?tab=explorer&status=DQ_FIXED")}
-        >
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-muted-foreground">Rows Processed</span>
-            </div>
-            <div className="text-2xl font-bold">{totalRowsIn.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">{totalRowsOut.toLocaleString()} valid output rows</p>
-          </CardContent>
-        </Card>
-        <Card
-          className="cursor-pointer hover:border-primary/30 transition-colors"
-          onClick={() => router.push("/files?tab=explorer&status=DQ_FIXED")}
-        >
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-              <span className="text-sm text-muted-foreground">Issues Resolved</span>
-            </div>
-            <div className="text-2xl font-bold">{totalRowsFixed.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">{totalRowsQuarantined.toLocaleString()} quarantined</p>
-          </CardContent>
-        </Card>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <RowDistributionChart

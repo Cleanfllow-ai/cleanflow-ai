@@ -78,10 +78,27 @@ export function QuarantineEditorToolbar({
           {session && <span className="text-xs opacity-50">Session {session.session_id.slice(0, 8)}</span>}
         </div>
       </div>
-      <p className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1.5">
-        <span className="inline-block w-1 h-1 rounded-full bg-blue-500" />
-        Excel-style editing: click a cell to edit, press Enter or Escape to finish. Changes auto-save in the background.
-      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+          <span className="inline-block w-1 h-1 rounded-full bg-blue-500" />
+          Click a cell to edit · auto-saves in the background
+        </p>
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          {[
+            { key: "Enter", label: "confirm" },
+            { key: "Esc", label: "cancel" },
+            { key: "Tab", label: "next cell" },
+            { key: "↑↓", label: "navigate" },
+          ].map(({ key, label }) => (
+            <span key={key} className="flex items-center gap-1">
+              <kbd className="inline-flex h-4 items-center rounded border border-border bg-muted px-1 font-mono text-[10px] font-medium text-muted-foreground">
+                {key}
+              </kbd>
+              <span className="opacity-60">{label}</span>
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

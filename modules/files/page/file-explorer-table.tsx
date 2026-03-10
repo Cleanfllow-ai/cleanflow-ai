@@ -529,11 +529,6 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                         </TableBody>
                     </Table>
                 </div>
-                {filteredFiles.length > 0 && (
-                    <p className="px-4 py-2 text-xs text-muted-foreground border-t">
-                        Timestamps in IST (UTC+5:30)
-                    </p>
-                )}
             </div>
         </div>
     );

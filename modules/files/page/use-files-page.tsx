@@ -35,10 +35,6 @@ export function useFilesPage() {
     const router = useRouter();
     const pathname = usePathname();
 
-    useEffect(() => {
-        console.log("API Response / Table Source Data:", files);
-    }, [files]);
-
     const [loading, setLoading] = useState(false);
     const [isManualRefresh, setIsManualRefresh] = useState(false);
 

@@ -99,7 +99,7 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
           <div className="flex h-full flex-col">
             <DialogHeader className="px-6 py-4 border-b shrink-0">
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-3 min-w-0 flex-wrap">
                   <DialogTitle className="flex items-center gap-2 text-lg font-semibold truncate">
                     <FileText className="w-5 h-5 text-primary shrink-0" />
                     <span className="truncate">{currentFile.original_filename || currentFile.filename || "File"}</span>
@@ -107,6 +107,21 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                   <Badge className={cn("shrink-0", getStatusColor(currentFile.status))} variant="outline">
                     {currentFile.status}
                   </Badge>
+                  {typeof currentFile.dq_score === "number" && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "shrink-0 tabular-nums font-semibold",
+                        currentFile.dq_score >= 90
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : currentFile.dq_score >= 70
+                          ? "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                          : "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"
+                      )}
+                    >
+                      {currentFile.dq_score.toFixed(1)}%
+                    </Badge>
+                  )}
                 </div>
               </div>
             </DialogHeader>
