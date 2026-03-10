@@ -212,13 +212,16 @@ export function WizardDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+            <DialogContent className={mode === "new"
+                ? "max-w-xl flex flex-col p-0 gap-0 overflow-hidden"
+                : "max-w-5xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
+            }>
                 <DialogHeader className="px-6 py-4 border-b border-muted/40">
                     <DialogTitle>
                         {mode === "new" ? "Import File" : `Process: ${file?.original_filename || file?.filename}`}
                     </DialogTitle>
                 </DialogHeader>
-                <div className="flex-1 overflow-hidden">
+                <div className={mode === "new" ? "overflow-hidden" : "flex-1 overflow-hidden"}>
                     <ProcessingWizardProvider>
                         {mode === "new" ? (
                             <ImportOnlyInitializer

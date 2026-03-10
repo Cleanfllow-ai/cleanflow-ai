@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useFilesPage } from "@/modules/files/page/use-files-page";
 import { FileExplorerTable } from "@/modules/files/page/file-explorer-table";
 import { FilesPageDialogs } from "@/modules/files/page/files-page-dialogs";
+import { FilesPageHeader } from "@/modules/files/page/files-page-header";
 
 export default function FilesPage() {
   return (
@@ -23,6 +24,7 @@ function FilesPageContent() {
   return (
     <TooltipProvider>
       <div className="space-y-4 p-3 sm:p-0">
+        <FilesPageHeader files={state.files} />
         <FileExplorerTable state={state} />
         <FilesPageDialogs state={state} />
       </div>

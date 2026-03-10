@@ -242,11 +242,8 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                         className="text-xs cursor-pointer hover:text-foreground transition-colors text-left"
                                         onClick={() => handleSort("score")}
                                     >
-                                        <span className="flex items-center">Score<SortIcon field="score" /></span>
+                                        <span className="flex items-center">Quality<SortIcon field="score" /></span>
                                     </TableHead>
-                                )}
-                                {visibleColumns.has("quality") && (
-                                    <TableHead className="text-xs text-left">Data Quality</TableHead>
                                 )}
                                 {visibleColumns.has("rows") && (
                                     <TableHead className="text-xs text-left">Rows</TableHead>
@@ -342,26 +339,17 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                     {visibleColumns.has("score") && (
                                         <TableCell className="text-left">
                                             {typeof file.dq_score === "number" ? (
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn("w-[58px] justify-center text-xs tabular-nums font-medium", getScoreBadgeColor(file.dq_score))}
-                                                >
-                                                    {file.dq_score.toFixed(1)}%
-                                                </Badge>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground">—</span>
-                                            )}
-                                        </TableCell>
-                                    )}
-                                    {visibleColumns.has("quality") && (
-                                        <TableCell className="text-left">
-                                            {typeof file.dq_score === "number" ? (
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn("w-20 justify-center text-xs font-medium", getScoreBadgeColor(file.dq_score))}
-                                                >
-                                                    {getDqQualityLabel(file.dq_score)}
-                                                </Badge>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn("w-[58px] justify-center text-xs tabular-nums font-medium", getScoreBadgeColor(file.dq_score))}
+                                                    >
+                                                        {file.dq_score.toFixed(1)}%
+                                                    </Badge>
+                                                    <span className={cn("text-[10px] leading-none", getScoreBadgeColor(file.dq_score).replace(/border-\S+/g, "").trim())}>
+                                                        {getDqQualityLabel(file.dq_score)}
+                                                    </span>
+                                                </div>
                                             ) : (
                                                 <span className="text-xs text-muted-foreground">—</span>
                                             )}

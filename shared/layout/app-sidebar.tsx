@@ -191,7 +191,6 @@ function AppSidebarComponent() {
 									{!collapsed && (
 										<div className="flex-1">
 											<div className="font-medium">{item.name}</div>
-											<div className="text-xs text-muted-foreground mt-0.5">{item.description}</div>
 										</div>
 									)}
 								</div>

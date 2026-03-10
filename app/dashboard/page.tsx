@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { MainLayout } from "@/shared/layout/main-layout"
 import { DashboardHeader, ActivityFeed, TopIssuesChart, DqCharts, ProcessingSummary } from "@/modules/dashboard"
+import { DashboardKpiCards } from "@/modules/dashboard/components/dashboard-kpi-cards"
 import { AuthGuard, useAuth } from "@/modules/auth"
 import { fileManagementAPI, type FileStatusResponse, type OverallDqReportResponse, type TopIssue } from "@/modules/files"
 
@@ -144,6 +145,8 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-6 animate-in fade-in duration-300">
             <DashboardHeader onRefresh={handleRefresh} />
+
+            <DashboardKpiCards files={files} />
 
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
               <div className="xl:col-span-3 space-y-6">
