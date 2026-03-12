@@ -16,9 +16,10 @@ const COLORS = [
 
 type Props = {
   issues?: TopIssue[]
+  isLoading?: boolean
 }
 
-export function TopIssuesChart({ issues }: Props) {
+export function TopIssuesChart({ issues, isLoading }: Props) {
   const normalized = (issues || [])
     .filter((i) => typeof i.count === "number" && i.count > 0)
     .sort((a, b) => b.count - a.count)
@@ -51,7 +52,22 @@ export function TopIssuesChart({ issues }: Props) {
         </div>
       </CardHeader>
       <CardContent className="pt-2 pb-3 max-h-[280px] overflow-y-auto">
-        {issuesWithPct.length === 0 ? (
+        {isLoading && issuesWithPct.length === 0 ? (
+          <div className="space-y-2 py-2 animate-pulse">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-muted shrink-0" />
+                <div className="flex-1 space-y-1">
+                  <div className="flex justify-between">
+                    <div className="h-3 bg-muted rounded w-2/3" />
+                    <div className="h-3 bg-muted rounded w-8" />
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : issuesWithPct.length === 0 ? (
           <div className="text-center text-sm text-muted-foreground py-6">
             No issues yet. Process files to see real data quality insights.
           </div>

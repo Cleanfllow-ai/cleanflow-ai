@@ -19,7 +19,7 @@ interface ColumnExportDialogProps {
   columns: string[]
   onExport: (options: {
     format: 'csv' | 'excel' | 'json'
-    dataType: 'all' | 'clean' | 'quarantine'
+    dataType: 'raw' | 'all' | 'clean' | 'quarantine'
     columns: string[]
     columnMapping: Record<string, string>
   }) => void
@@ -31,7 +31,7 @@ interface ColumnExportContentProps {
   columns: string[]
   onExport: (options: {
     format: 'csv' | 'excel' | 'json'
-    dataType: 'all' | 'clean' | 'quarantine'
+    dataType: 'raw' | 'all' | 'clean' | 'quarantine'
     columns: string[]
     columnMapping: Record<string, string>
   }) => void
@@ -39,7 +39,7 @@ interface ColumnExportContentProps {
   onCancel?: () => void
   onSecondaryAction?: (options: {
     format: 'csv' | 'excel' | 'json'
-    dataType: 'all' | 'clean' | 'quarantine'
+    dataType: 'raw' | 'all' | 'clean' | 'quarantine'
     columns: string[]
     columnMapping: Record<string, string>
   }) => void
@@ -74,7 +74,7 @@ export function ColumnExportContent({
   className
 }: ColumnExportContentProps) {
   const [selectedFormat, setSelectedFormat] = useState<'csv' | 'excel' | 'json'>('csv')
-  const [dataType, setDataType] = useState<'all' | 'clean' | 'quarantine'>('all')
+  const [dataType, setDataType] = useState<'raw' | 'all' | 'clean' | 'quarantine'>('all')
   const [columnStates, setColumnStates] = useState<Record<string, ColumnState>>({})
 
   // DQ suffixes that are added to original column names by the DQ engine
@@ -247,9 +247,10 @@ export function ColumnExportContent({
   ] as const
 
   const dataTypeOptions = [
-    { value: 'all', label: 'All Data' },
+    { value: 'raw', label: 'Original Data' },
+    { value: 'all', label: 'Processed (All)' },
     { value: 'clean', label: 'Clean Only' },
-    { value: 'quarantine', label: 'Quarantined' }
+    { value: 'quarantine', label: 'Quarantined Only' },
   ] as const
 
   const renamedCount = Object.keys(columnMapping).length
@@ -306,7 +307,7 @@ export function ColumnExportContent({
             <Label className="text-sm font-medium">Data</Label>
             <Select
               value={dataType}
-              onValueChange={(value) => setDataType(value as 'all' | 'clean' | 'quarantine')}
+              onValueChange={(value) => setDataType(value as 'raw' | 'all' | 'clean' | 'quarantine')}
               disabled={exporting}
             >
               <SelectTrigger>

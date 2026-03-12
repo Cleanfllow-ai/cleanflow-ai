@@ -8,7 +8,6 @@ import {
     Eye,
     Search,
     Filter,
-    Download,
     Upload,
     Play,
     Pencil,
@@ -71,14 +70,14 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         visibleColumns, setDisplayColumnModalOpen,
         isManualRefresh, handleManualRefresh,
         handleViewDetails, handleStartProcessing,
-        openActionsDialog, handleDeleteClick, handleQuickExport,
+        openActionsDialog, handleDeleteClick,
         downloading, deleting,
         handleOpenQuarantineEditor,
         recentlyUploaded, setRecentlyUploaded,
         setWizardFile, setWizardOpen,
         handleNewImportOpen,
     } = state;
-    const { activeUploads, getUploadForFile } = useUploadManager();
+    const { activeUploads, getUploadForFile, cancelUpload } = useUploadManager();
 
     const SortIcon = ({
         field,
@@ -496,16 +495,15 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                {!isProcessing && !isUploading && (() => {
-                                                    const isProcessed = file.status === "DQ_FIXED" || file.status === "COMPLETED";
-                                                    return (
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
+                                                {!isProcessing && !isUploading && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 className="h-7 sm:h-8 gap-1 px-2 text-xs font-medium text-primary hover:text-primary hover:bg-primary/10"
                                                                 disabled={downloading === file.upload_id}
+                                                                onClick={() => openActionsDialog(file)}
                                                             >
                                                                 {downloading === file.upload_id ? (
                                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -514,43 +512,24 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                 )}
                                                                 <span className="hidden sm:inline">Export</span>
                                                             </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-52">
-                                                            <DropdownMenuItem onClick={() => handleQuickExport(file, "raw")}>
-                                                                <Download className="h-3.5 w-3.5 mr-2" />
-                                                                Original Data
-                                                            </DropdownMenuItem>
-                                                            {isProcessed && (
-                                                                <>
-                                                                    <DropdownMenuItem onClick={() => handleQuickExport(file, "all")}>
-                                                                        <Download className="h-3.5 w-3.5 mr-2" />
-                                                                        Processed Data (All)
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleQuickExport(file, "clean")}>
-                                                                        <Download className="h-3.5 w-3.5 mr-2" />
-                                                                        Clean Data Only
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleQuickExport(file, "quarantine")}>
-                                                                        <Download className="h-3.5 w-3.5 mr-2" />
-                                                                        Quarantined Data Only
-                                                                    </DropdownMenuItem>
-                                                                </>
-                                                            )}
-                                                            <DropdownMenuItem onClick={() => openActionsDialog(file)}>
-                                                                <Upload className="h-3.5 w-3.5 mr-2" />
-                                                                Advanced Export...
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                    );
-                                                })()}
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Export / Download</TooltipContent>
+                                                    </Tooltip>
+                                                )}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
                                                             className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                            onClick={() => handleDeleteClick(file)}
+                                                            onClick={() => {
+                                                                // Cancel active upload if file is still uploading
+                                                                if (file.status === "UPLOADING") {
+                                                                    cancelUpload(file.upload_id);
+                                                                    cancelUpload(file.original_filename || file.filename || "");
+                                                                }
+                                                                handleDeleteClick(file);
+                                                            }}
                                                             disabled={deleting === file.upload_id}
                                                         >
                                                             {deleting === file.upload_id ? (
@@ -560,7 +539,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                             )}
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>Delete</TooltipContent>
+                                                    <TooltipContent>{file.status === "UPLOADING" ? "Cancel & Delete" : "Delete"}</TooltipContent>
                                                 </Tooltip>
                                                         </>
                                                     );

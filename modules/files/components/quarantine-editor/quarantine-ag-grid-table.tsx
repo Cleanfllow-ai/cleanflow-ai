@@ -169,6 +169,26 @@ export function QuarantineAgGridTable({
         resizable: true,
         minWidth: 100,
         flex: 1,
+        tooltipValueGetter: (params) => {
+          if (!params.data) return null
+          const statusValue = String(params.data[`${col}_dq_status`] ?? '').toLowerCase()
+          if (!statusValue || statusValue === 'clean') return null
+          // Extract per-column violations from the row's dq_violations string
+          const violations = String((params.data as any).dq_violations ?? '')
+          if (violations) {
+            const colLower = col.toLowerCase()
+            const tokens = violations.split(';').map((t: string) => t.trim()).filter((t: string) => {
+              const lower = t.toLowerCase()
+              return (
+                lower.includes(`(${colLower})`) ||
+                lower.startsWith(`${colLower}:`) ||
+                lower.includes(` ${colLower}:`)
+              )
+            })
+            if (tokens.length > 0) return `${statusValue.toUpperCase()}: ${tokens.join('; ')}`
+          }
+          return `Status: ${statusValue}`
+        },
         cellClassRules: {
           ...(isEditable
             ? {
@@ -178,11 +198,7 @@ export function QuarantineAgGridTable({
                 },
                 'ag-cell-saved': (params) => {
                   if (!params.data) return false
-                  // In-session: cell was saved this session via the edits hook
                   if (isCellSaved && isCellSaved(String(params.data.row_id), col)) return true
-                  // Persistent: on reload the patch includes {col}_dq_status='edited'
-                  // so the row comes back from the backend already flipped — show green
-                  // without requiring any in-memory state.
                   return String(params.data[`${col}_dq_status`] ?? '').toLowerCase() === 'edited'
                 },
               }
@@ -271,6 +287,9 @@ export function QuarantineAgGridTable({
         onBodyScrollEnd={handleBodyScrollEnd}
         // Keyboard navigation
         enterNavigatesVerticallyAfterEdit={true}
+        // Tooltips
+        tooltipShowDelay={300}
+        tooltipHideDelay={3000}
         // Suppress the default context menu (prevent browser conflict)
         suppressContextMenu={true}
         // Treat field names literally — prevents AG Grid from splitting "Account.Name"

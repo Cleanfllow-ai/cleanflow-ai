@@ -66,61 +66,58 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                   >
                     {visibleHeaders.map((header) => {
                       const value = row && typeof row === "object" ? row[header] : ""
-                      const status = String(row?.dq_status || "").toLowerCase()
-                      const cellStatus = row?.cell_status ? row.cell_status[header] : undefined
-                      const resolvedStatus = (cellStatus || "clean") as string
-                      const isStatusCell = header === "dq_status"
-                      const isViolationCell = header === "dq_violations"
-                      const cellClass = isStatusCell
-                        ? status === "clean"
-                          ? "bg-emerald-500/10 text-emerald-700"
-                          : status === "fixed"
-                            ? "bg-amber-500/10 text-amber-700"
-                            : status === "quarantined"
-                              ? "bg-red-500/10 text-red-700"
-                              : ""
-                        : isViolationCell
-                          ? status === "quarantined"
-                            ? "bg-red-500/10 text-red-800"
-                            : status === "fixed"
-                              ? "bg-amber-500/10 text-amber-800"
-                              : ""
-                          : resolvedStatus === "quarantined"
-                            ? "bg-red-500/10 text-red-800"
-                            : resolvedStatus === "fixed"
-                              ? "bg-amber-500/10 text-amber-800"
-                              : resolvedStatus === "clean"
-                                ? "bg-emerald-500/5 text-emerald-800"
-                                : ""
 
+                      // ── Per-cell DQ status ─────────────────────────────────
+                      // 1. Prefer explicit per-cell map (dq_cell_status: {col: status})
+                      const dqCellMap = (row as any)?.dq_cell_status
+                      const explicitCellStatus = dqCellMap && typeof dqCellMap === "object"
+                        ? String(dqCellMap[header] || "").toLowerCase()
+                        : ""
+
+                      // 2. Infer from dq_violations / fixes_applied strings
+                      const violationsRaw = String((row as any)?.dq_violations || "")
+                      const fixesRaw = String((row as any)?.fixes_applied || "")
+
+                      // Extract tokens for this column — format: "RULE(col)" or "col: RULE" or "col=RULE"
+                      const extractForCol = (raw: string) =>
+                        raw.split(";").map((t) => t.trim()).filter((t) => {
+                          if (!t) return false
+                          const lower = t.toLowerCase()
+                          const col = header.toLowerCase()
+                          return (
+                            lower.includes(`(${col})`) ||
+                            lower.startsWith(`${col}:`) ||
+                            lower.startsWith(`${col} :`) ||
+                            lower.startsWith(`${col}=`) ||
+                            lower.includes(` ${col}:`) ||
+                            lower.includes(` ${col} `)
+                          )
+                        })
+
+                      const colViolations = extractForCol(violationsRaw)
+                      const colFixes = extractForCol(fixesRaw)
+
+                      const resolvedStatus =
+                        explicitCellStatus ||
+                        (colViolations.length > 0 ? "quarantined" : "") ||
+                        (colFixes.length > 0 ? "fixed" : "")
+
+                      const cellClass =
+                        resolvedStatus === "quarantined"
+                          ? "bg-red-500/10 text-red-800 dark:text-red-400"
+                          : resolvedStatus === "fixed"
+                          ? "bg-amber-500/10 text-amber-800 dark:text-amber-400"
+                          : resolvedStatus === "clean"
+                          ? "bg-emerald-500/5 text-emerald-800 dark:text-emerald-400"
+                          : ""
+
+                      // ── Tooltip ────────────────────────────────────────────
                       const tooltipLines: string[] = []
-                      if (resolvedStatus) {
-                        tooltipLines.push(`Status: ${resolvedStatus}`)
-                      }
-
-                      const violationsRaw = (row as any)?.dq_violations as string | undefined
-                      if (violationsRaw) {
-                        const tokens = violationsRaw.split(";").map((v) => v.trim()).filter(Boolean)
-                        const perCell = tokens.filter((t) => t.toLowerCase().includes(header.toLowerCase()))
-                        const toShow = perCell.length > 0 ? perCell : tokens
-                        if (toShow.length > 0) {
-                          tooltipLines.push(`Issues: ${toShow.join(", ")}`)
-                        }
-                      }
-
-                      const fixesRaw = (row as any)?.fixes_applied as string | undefined
-                      if (fixesRaw) {
-                        const tokens = fixesRaw.split(";").map((v) => v.trim()).filter(Boolean)
-                        const perCell = tokens.filter((t) => t.toLowerCase().includes(header.toLowerCase()))
-                        const toShow = perCell.length > 0 ? perCell : tokens
-                        if (toShow.length > 0) {
-                          tooltipLines.push(`Fixes: ${toShow.join(", ")}`)
-                        }
-                      }
-
-                      if (tooltipLines.length === 0) {
-                        tooltipLines.push("Status: clean")
-                      }
+                      if (resolvedStatus) tooltipLines.push(`Status: ${resolvedStatus}`)
+                      if (colViolations.length > 0) tooltipLines.push(`Issues: ${colViolations.join(", ")}`)
+                      else if (violationsRaw && resolvedStatus === "quarantined") tooltipLines.push(`Issues: ${violationsRaw}`)
+                      if (colFixes.length > 0) tooltipLines.push(`Fixes: ${colFixes.join(", ")}`)
+                      if (tooltipLines.length === 0) tooltipLines.push("Clean")
 
                       return (
                         <UiTooltip key={header}>

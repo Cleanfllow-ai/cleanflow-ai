@@ -12,7 +12,6 @@ import { FileUp, Loader2, Upload, X, HardDrive } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn, formatBytes } from '@/shared/lib/utils'
-import { getChunkSize } from '@/modules/files/api/multipart-upload'
 import { useUploadManager } from '@/modules/files/context/upload-manager'
 
 const ACCEPTED = '.csv,.xlsx,.xls,.json,.txt'
@@ -34,7 +33,7 @@ export default function DirectUploadForm({
   onError,
   disabled,
 }: DirectUploadFormProps) {
-  const { activeUploads, startUpload } = useUploadManager()
+  const { activeUploads, startUpload, cancelUpload } = useUploadManager()
   const [file, setFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
 
@@ -90,15 +89,7 @@ export default function DirectUploadForm({
     }
   }
 
-  const SINGLE_THRESHOLD = 50 * 1024 * 1024
   const displayFile = file || (activeUpload ? { name: activeUpload.fileName, size: activeUpload.fileSize } : null)
-  const chunkInfo = displayFile && displayFile.size > SINGLE_THRESHOLD
-    ? (() => {
-        const cs = getChunkSize(displayFile.size)
-        const parts = Math.ceil(displayFile.size / cs)
-        return `${parts} part${parts > 1 ? 's' : ''} × ${formatBytes(cs)}`
-      })()
-    : null
 
   return (
     <div className="space-y-4">
@@ -144,7 +135,6 @@ export default function DirectUploadForm({
               <p className="text-sm font-medium truncate">{displayFile.name}</p>
               <p className="text-xs text-muted-foreground">
                 {formatBytes(displayFile.size)}
-                {chunkInfo && <span className="ml-2 opacity-60">· {chunkInfo}</span>}
               </p>
             </div>
           </div>
@@ -161,7 +151,7 @@ export default function DirectUploadForm({
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>
-              {progress.partsComplete}/{progress.partsTotal} parts · {formatBytes(progress.loaded)} / {formatBytes(progress.total)}
+              {formatBytes(progress.loaded)} / {formatBytes(progress.total)}
             </span>
             <span>{progress.percent}%</span>
           </div>
@@ -175,27 +165,31 @@ export default function DirectUploadForm({
         </div>
       )}
 
-      {/* Upload button */}
-      <Button
-        onClick={handleUpload}
-        disabled={disabled || isUploading || !file || !token}
-        className="w-full gap-2"
-      >
-        {isUploading ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Uploading {progress ? `${progress.percent}%` : '…'}
-          </>
-        ) : (
-          <>
-            <Upload className="h-4 w-4" />
-            Upload to Pipeline
-          </>
-        )}
-      </Button>
+      {/* Upload / Cancel buttons */}
+      {isUploading ? (
+        <Button
+          variant="destructive"
+          onClick={() => {
+            if (activeUpload) cancelUpload(activeUpload.fileName)
+          }}
+          className="w-full gap-2"
+        >
+          <X className="h-4 w-4" />
+          Cancel Upload
+        </Button>
+      ) : (
+        <Button
+          onClick={handleUpload}
+          disabled={disabled || !file || !token}
+          className="w-full gap-2"
+        >
+          <Upload className="h-4 w-4" />
+          Upload to Pipeline
+        </Button>
+      )}
 
       <p className="text-xs text-muted-foreground text-center">
-        Chunked multipart upload direct to S3 — no size limit
+        Direct upload to S3 — up to 5 GB
       </p>
     </div>
   )

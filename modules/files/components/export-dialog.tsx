@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { FileDown, Loader2, Server, Share2 } from 'lucide-react'
+import { FileDown, Loader2, Server, Upload } from 'lucide-react'
 import { ColumnExportContent } from '@/modules/files/components/column-export-dialog'
 import UnifiedBridgeImport from '@/modules/unified-bridge/components/unified-bridge-import'
 import type { FileStatusResponse } from '@/modules/files/api/file-management-api'
@@ -29,7 +29,7 @@ interface ExportDialogProps {
   isLoadingColumns: boolean
   onDownload: (options: {
     format: 'csv' | 'excel' | 'json'
-    dataType: 'all' | 'clean' | 'quarantine'
+    dataType: 'raw' | 'all' | 'clean' | 'quarantine'
     columns: string[]
     columnMapping: Record<string, string>
   }) => void
@@ -55,7 +55,7 @@ export function ExportDialog({
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary/10">
-              <Share2 className="h-4 w-4 text-primary" />
+              <Upload className="h-4 w-4 text-primary" />
             </div>
             Export Data
           </DialogTitle>
@@ -75,7 +75,7 @@ export function ExportDialog({
           <TabsList className="mx-6 mt-4 shrink-0 w-fit">
             <TabsTrigger value="download" className="gap-1.5">
               <FileDown className="h-3.5 w-3.5" />
-              Extract
+              Download
             </TabsTrigger>
             <TabsTrigger value="bridge" className="gap-1.5">
               <Server className="h-3.5 w-3.5" />
@@ -95,7 +95,7 @@ export function ExportDialog({
                 fileName={filename}
                 columns={columns}
                 onExport={onDownload}
-                primaryActionLabel="Extract"
+                primaryActionLabel="Download"
                 exporting={downloading}
                 showTitle={false}
                 className="h-full"
@@ -107,6 +107,7 @@ export function ExportDialog({
           <TabsContent value="bridge" className="flex-1 min-h-0 overflow-y-auto mt-0 px-6 pb-6 pt-4">
             <UnifiedBridgeImport
               mode="destination"
+              uploadId={file?.upload_id}
               onNotification={() => {}}
             />
           </TabsContent>

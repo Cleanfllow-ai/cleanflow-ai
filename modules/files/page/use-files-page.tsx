@@ -968,7 +968,7 @@ export function useFilesPage() {
 
     const handleColumnExport = async (options: {
         format: "csv" | "excel" | "json";
-        dataType: "all" | "clean" | "quarantine";
+        dataType: "raw" | "all" | "clean" | "quarantine";
         columns: string[];
         columnMapping: Record<string, string>;
     }) => {
@@ -1008,7 +1008,7 @@ export function useFilesPage() {
 
     const handleColumnExportWithErp = async (options: {
         format: "csv" | "excel" | "json";
-        dataType: "all" | "clean" | "quarantine";
+        dataType: "raw" | "all" | "clean" | "quarantine";
         columns: string[];
         columnMapping: Record<string, string>;
     }) => {
@@ -1107,6 +1107,43 @@ export function useFilesPage() {
             toast({ title: "Download failed", description: "Unable to download file", variant: "destructive" });
         } finally {
             setDownloadingFormat(null);
+            setDownloading(null);
+        }
+    };
+
+    const handleQuickExport = async (
+        file: FileStatusResponse,
+        dataType: "raw" | "all" | "clean" | "quarantine",
+    ) => {
+        if (!idToken) return;
+        if (!ensureFilesPermission()) return;
+        setDownloading(file.upload_id);
+        try {
+            const exportResult = await fileManagementAPI.exportWithColumns(
+                file.upload_id, idToken,
+                { format: "csv", data: dataType },
+            );
+            const baseFilename = (file.original_filename || file.filename || "file").replace(/\.[^/.]+$/, "");
+            const suffixMap: Record<string, string> = { raw: "_original", all: "_processed", clean: "_clean", quarantine: "_quarantined" };
+            const filename = `${baseFilename}${suffixMap[dataType] || ""}.csv`;
+            const link = document.createElement("a");
+            if (exportResult.blob) {
+                const url = URL.createObjectURL(exportResult.blob);
+                link.href = url; link.download = filename;
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } else if (exportResult.downloadUrl) {
+                link.href = exportResult.downloadUrl; link.target = "_blank"; link.rel = "noopener noreferrer"; link.download = filename;
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            } else {
+                throw new Error("No downloadable export payload received");
+            }
+            toast({ title: "Export complete", description: `Downloaded ${dataType === "raw" ? "original" : dataType} data` });
+        } catch (error) {
+            console.error("Quick export error:", error);
+            const msg = error instanceof Error ? error.message : "Unable to export file";
+            toast({ title: "Export failed", description: msg.includes("NoSuchKey") ? "File data not available. The file may not have been fully uploaded." : msg, variant: "destructive" });
+        } finally {
             setDownloading(null);
         }
     };
@@ -1220,7 +1257,7 @@ export function useFilesPage() {
         // Download / export
         downloading, downloadingFormat,
         showDownloadModal, setShowDownloadModal, downloadModalFile,
-        handleDownloadClick, handleFormatSelected, handleDirectDownload,
+        handleDownloadClick, handleFormatSelected, handleDirectDownload, handleQuickExport,
         showErpModal, setShowErpModal, erpModalConfig, handleDownloadWithErp,
         // Column export
         showColumnExportModal, setShowColumnExportModal,

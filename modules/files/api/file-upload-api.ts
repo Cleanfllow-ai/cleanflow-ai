@@ -123,6 +123,13 @@ export async function deleteUpload(uploadId: string, authToken: string): Promise
     })
 }
 
+export async function confirmUpload(uploadId: string, authToken: string, totalSize: number): Promise<void> {
+    return makeRequest(`/uploads/${uploadId}/confirm`, authToken, {
+        method: 'POST',
+        body: JSON.stringify({ total_size: totalSize }),
+    })
+}
+
 // ─── S3 Upload Methods ───
 
 export async function uploadToS3(presignedUrl: string, file: File, onProgress?: (progress: number) => void): Promise<void> {

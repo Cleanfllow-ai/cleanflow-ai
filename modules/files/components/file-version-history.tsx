@@ -20,6 +20,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/shared/hooks/use-toast'
+import { formatToIST } from '@/shared/lib/utils'
 import {
   fileManagementAPI,
   type FileVersionSummary,
@@ -203,9 +204,7 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
                       {v.rows_quarantined != null && <span>{v.rows_quarantined} quarantined</span>}
                       {v.rows_clean != null && <span>{v.rows_clean} clean</span>}
                       {v.uploaded_at && (
-                        <span title={new Date(v.uploaded_at).toISOString()}>
-                          {new Date(v.uploaded_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' })}
-                        </span>
+                        <span>{formatToIST(v.uploaded_at)}</span>
                       )}
                     </div>
                   </div>
@@ -335,9 +334,7 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
                       </span>
                     )}
                     {previewVersion.uploaded_at && (
-                      <span title={new Date(previewVersion.uploaded_at).toISOString()}>
-                        {new Date(previewVersion.uploaded_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' })}
-                      </span>
+                      <span>{formatToIST(previewVersion.uploaded_at)}</span>
                     )}
                   </div>
                 )}

@@ -62,6 +62,7 @@ const mergeIssues = (bucket: Map<string, number>, issues: TopIssue[]) => {
 export default function DashboardPage() {
   const [files, setFiles] = useState<FileStatusResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isOverallLoading, setIsOverallLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
   const [topIssues, setTopIssues] = useState<TopIssue[]>([])
   const { idToken } = useAuth()
@@ -72,7 +73,25 @@ export default function DashboardPage() {
 
     try {
       const response = await fileManagementAPI.getUploads(idToken)
-      setFiles(response.items || [])
+      const items = response.items || []
+      setFiles(items)
+
+      // Seed top issues from per-file dq_issues as an instant fallback
+      // (shows immediately while the heavier overall report loads in background)
+      const seed = new Map<string, number>()
+      for (const f of items) {
+        for (const issue of (f.dq_issues || [])) {
+          if (issue) seed.set(issue, (seed.get(issue) || 0) + 1)
+        }
+      }
+      if (seed.size > 0) {
+        setTopIssues(
+          Array.from(seed.entries())
+            .map(([violation, count]) => ({ violation, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5),
+        )
+      }
     } catch (error: any) {
       const message = (error?.message || "").toLowerCase()
       if (!message.includes("permission denied") && !message.includes("organization membership required")) {
@@ -84,10 +103,11 @@ export default function DashboardPage() {
 
   const loadOverall = useCallback(async () => {
     if (!idToken) return
+    setIsOverallLoading(true)
     try {
       const overall: OverallDqReportResponse = await fileManagementAPI.downloadOverallDqReport(idToken)
       if (!overall) {
-        setTopIssues([])
+        // Don't wipe existing fallback issues — keep whatever files provided
         return
       }
 
@@ -104,26 +124,32 @@ export default function DashboardPage() {
         mergeIssues(merged, normalizeViolationCounts((stats as any)?.violation_counts))
       }
 
-      setTopIssues(
-        Array.from(merged.entries())
-          .map(([violation, count]) => ({ violation, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 5),
-      )
+      if (merged.size > 0) {
+        setTopIssues(
+          Array.from(merged.entries())
+            .map(([violation, count]) => ({ violation, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5),
+        )
+      }
     } catch (error: any) {
       const message = (error?.message || "").toLowerCase()
       if (!message.includes("permission denied") && !message.includes("organization membership required")) {
         console.warn("Failed to load overall DQ report.")
       }
-      setTopIssues([])
+      // Don't clear topIssues on error — keep the file-level fallback
+    } finally {
+      setIsOverallLoading(false)
     }
   }, [idToken])
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
-      await Promise.all([loadFiles(), loadOverall()])
+      await loadFiles()
       setIsLoading(false)
+      // Load overall DQ report in background — doesn't block rendering
+      loadOverall()
     }
     loadData()
   }, [loadFiles, loadOverall])
@@ -131,10 +157,10 @@ export default function DashboardPage() {
   // Refresh all dashboard data
   const handleRefresh = useCallback(async () => {
     setIsLoading(true)
-    await Promise.all([loadFiles(), loadOverall()])
+    await loadFiles()
     setIsLoading(false)
-    // Increment refresh key to force re-render of components that fetch their own data
     setRefreshKey(prev => prev + 1)
+    loadOverall()
   }, [loadFiles, loadOverall])
 
   return (
@@ -155,7 +181,7 @@ export default function DashboardPage() {
 
               <div className="xl:col-span-1 space-y-4">
                 <ActivityFeed files={files} />
-                <TopIssuesChart issues={topIssues} />
+                <TopIssuesChart issues={topIssues} isLoading={isOverallLoading} />
                 <ProcessingSummary files={files} />
               </div>
             </div>

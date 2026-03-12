@@ -20,6 +20,7 @@ import ErpSourceForm from "./erp-source-form"
 
 interface UnifiedBridgeImportProps {
   mode?: "source" | "destination"
+  uploadId?: string
   onImportComplete?: (uploadId: string) => void
   onNotification?: (message: string, type: "success" | "error") => void
   onPermissionDenied?: () => void
@@ -29,6 +30,7 @@ type IngestionSource = "ftp" | "tcp" | "http" | "other"
 
 export default function UnifiedBridgeImport({
   mode = "source",
+  uploadId,
   onImportComplete,
   onNotification,
   onPermissionDenied,
@@ -215,6 +217,7 @@ export default function UnifiedBridgeImport({
           <TabsContent value="other" className="mt-0 h-full">
             <ErpSourceForm
               mode={mode}
+              uploadId={uploadId}
               token={idToken || ""}
               onIngestionStart={handleIngestionStart}
               onIngestionComplete={handleIngestionComplete}

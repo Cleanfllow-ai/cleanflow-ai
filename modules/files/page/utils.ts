@@ -50,6 +50,8 @@ export const getStatusBadgeColor = (status: string) => {
     case "DQ_RUNNING":
     case "NORMALIZING":
       return "bg-blue-100 dark:bg-blue-500/20 text-blue-800 dark:text-blue-400 border-blue-300 dark:border-blue-500/30"
+    case "UPLOADING":
+      return "bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-400 border-purple-300 dark:border-purple-500/30"
     case "QUEUED":
     case "UPLOADED":
     case "DQ_DISPATCHED":

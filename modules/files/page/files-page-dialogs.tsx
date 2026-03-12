@@ -59,7 +59,9 @@ import {
     ColumnProfilingPanel,
     QuarantineEditorDialog,
     ExportDialog,
+    ImportDialog,
 } from "@/modules/files";
+import { useToast } from "@/shared/hooks/use-toast";
 import { WizardDialog } from "@/modules/processing";
 import type { FilesPageState } from "./use-files-page";
 
@@ -134,6 +136,8 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         renameError, setRenameError,
         handleRenameConfirm,
     } = state;
+
+    const { toast } = useToast();
 
     const renderRuleOption = (
         ruleId: string,
@@ -630,15 +634,16 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                 </DialogContent>
             </Dialog>
 
-            {/* New Import Wizard (triggered via + Import button) */}
-            <WizardDialog
+            {/* Import Dialog (triggered via + Import button) */}
+            <ImportDialog
                 open={state.newImportWizardOpen}
                 onOpenChange={(open) => {
                     if (!open) state.handleNewImportClose(true);
                 }}
-                authToken={state.idToken || ""}
-                mode="new"
-                onComplete={() => state.handleNewImportClose(true)}
+                onImportComplete={() => state.handleNewImportClose(true)}
+                onNotification={(message, type) =>
+                    toast({ title: type === 'success' ? 'Import Complete' : 'Import Error', description: message, variant: type === 'error' ? 'destructive' : 'default' })
+                }
             />
 
             {/* Quarantine Editor Dialog */}
