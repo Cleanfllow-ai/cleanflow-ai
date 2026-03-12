@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Loader2, Play, CloudUpload, Wand2 } from 'lucide-react'
+import { Loader2, Play, CloudUpload } from 'lucide-react'
 import type { QuarantineSession } from '@/modules/files/types'
 
 interface QuarantineEditorToolbarProps {
@@ -17,7 +17,7 @@ interface QuarantineEditorToolbarProps {
   submitting: boolean
   savedAt?: Date | null
   onReprocess: () => void
-  onOpenCustomRule: () => void
+  onOpenCustomRule?: () => void // reserved for future AI fix feature
 }
 
 export function QuarantineEditorToolbar({
@@ -26,7 +26,6 @@ export function QuarantineEditorToolbar({
   submitting,
   savedAt,
   onReprocess,
-  onOpenCustomRule,
 }: QuarantineEditorToolbarProps) {
   const [showSaved, setShowSaved] = useState(false)
 
@@ -49,16 +48,6 @@ export function QuarantineEditorToolbar({
               <Play className="w-4 h-4 mr-1.5" />
             )}
             Reprocess
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!session}
-            onClick={onOpenCustomRule}
-            className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300"
-          >
-            <Wand2 className="w-4 h-4 mr-1" />
-            AI Fix
           </Button>
         </div>
 

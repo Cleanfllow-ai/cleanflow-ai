@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Cog, Database, Edit, Loader2, Plus, Shield, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { Check, Cog, Edit, Loader2, Plus, Shield, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,14 +24,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { PermissionWrapper } from "@/modules/auth/components/permission-wrapper";
 import type { SettingsPreset } from "@/modules/files";
-import { ERP_OPTIONS, SHOW_GLOBAL_SETTINGS_PRESETS, type AppRole } from "./use-org-settings";
+import { SHOW_GLOBAL_SETTINGS_PRESETS, type AppRole } from "./use-org-settings";
 
 interface OrgServicesTabProps {
   currentUserRole: AppRole | undefined;
@@ -108,136 +107,6 @@ export function OrgServicesTab({
       userRole={currentUserRole}
       message="You do not have permission to manage connected services."
     >
-      {/* ERP Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="w-5 h-5" />
-            Configuration
-          </CardTitle>
-          <CardDescription>
-            Configure default input and export systems for your data
-            processing workflows
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Default Input ERP */}
-            <div className="space-y-3">
-              <Label>Import</Label>
-              <p className="text-sm text-muted-foreground">
-                Select the default source for data imports
-              </p>
-              <Select
-                value={servicesSettings.defaultInputErp}
-                onValueChange={(value) =>
-                  handleServicesChange("defaultInputErp", value)
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select input ERP" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ERP_OPTIONS.map((erp) => (
-                    <SelectItem key={erp.value} value={erp.value}>
-                      {erp.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {servicesSettings.defaultInputErp === "custom" && (
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2">
-                  <Input
-                    placeholder="Enter custom ERP name"
-                    value={servicesSettings.customInputErpName}
-                    onChange={(e) =>
-                      handleServicesChange(
-                        "customInputErpName",
-                        e.target.value,
-                      )
-                    }
-                    className="flex-1"
-                  />
-                  <Button size="sm" variant="outline" className="shrink-0">
-                    <Plus className="w-4 h-4 mr-1" />
-                    Save
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Default Export ERP */}
-            <div className="space-y-3">
-              <Label>Export</Label>
-              <p className="text-sm text-muted-foreground">
-                Select the default source for data exports
-              </p>
-              <Select
-                value={servicesSettings.defaultExportErp}
-                onValueChange={(value) =>
-                  handleServicesChange("defaultExportErp", value)
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select export ERP" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ERP_OPTIONS.map((erp) => (
-                    <SelectItem key={erp.value} value={erp.value}>
-                      {erp.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {servicesSettings.defaultExportErp === "custom" && (
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2">
-                  <Input
-                    placeholder="Enter custom ERP name"
-                    value={servicesSettings.customExportErpName}
-                    onChange={(e) =>
-                      handleServicesChange(
-                        "customExportErpName",
-                        e.target.value,
-                      )
-                    }
-                    className="flex-1"
-                  />
-                  <Button size="sm" variant="outline" className="shrink-0">
-                    <Plus className="w-4 h-4 mr-1" />
-                    Save
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Data Format */}
-            <div className="space-y-3">
-              <Label>Data Format</Label>
-              <p className="text-sm text-muted-foreground">
-                Select the preferred data format
-              </p>
-              <Select
-                value={servicesSettings.preferredFormat}
-                onValueChange={(value) =>
-                  handleServicesChange("preferredFormat", value)
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="csv">CSV</SelectItem>
-                  <SelectItem value="json">JSON</SelectItem>
-                  <SelectItem value="xlsx">XLSX</SelectItem>
-                  <SelectItem value="sql">SQL</SelectItem>
-                  <SelectItem value="parquet">Parquet</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Services Selection */}
       <Card>
         <CardHeader>
