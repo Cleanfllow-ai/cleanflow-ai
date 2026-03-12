@@ -10,7 +10,6 @@
  * - GRID-02: Resizable columns via drag
  * - GRID-03: Frozen/pinned headers during vertical scroll (AG Grid default)
  * - GRID-04: Arrow key navigation and Enter-to-edit on cells
- * - AI fix suggestion button (✨) per quarantined cell via AiSuggestCellRenderer
  *
  * Designed to be wired into the quarantine editor dialog in Plan 02.
  * AG Grid handles row virtualization internally — no external virtual scroll needed.
@@ -28,7 +27,6 @@ import {
   type GridApi,
 } from 'ag-grid-community'
 import type { QuarantineRow } from '@/modules/files/types/quarantine.types'
-import { AiSuggestCellRenderer } from './quarantine-ai-suggest-cell'
 import './quarantine-ag-grid-theme.css'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -171,15 +169,6 @@ export function QuarantineAgGridTable({
         resizable: true,
         minWidth: 100,
         flex: 1,
-        // AI suggest button on editable quarantined cells
-        ...(isEditable && {
-          cellRenderer: AiSuggestCellRenderer,
-          cellRendererParams: {
-            uploadId,
-            authToken,
-            onAccept: stableOnAccept,
-          },
-        }),
         cellClassRules: {
           ...(isEditable
             ? {
@@ -277,10 +266,6 @@ export function QuarantineAgGridTable({
         // Loading overlay: show only when loading and no rows are present yet
         loading={loading && rows.length === 0}
         // Cell editing — double-click (or Enter/F2) to start editing.
-        // singleClickEdit is intentionally OFF: editable columns use AiSuggestCellRenderer
-        // which embeds interactive buttons. With singleClickEdit=true, a click anywhere on
-        // the cell — including the ✨ wand button — would unmount the renderer and mount the
-        // text editor, making the AI suggestion popover impossible to open.
         onCellValueChanged={handleCellValueChanged}
         // Infinite scroll trigger
         onBodyScrollEnd={handleBodyScrollEnd}

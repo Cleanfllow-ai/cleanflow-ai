@@ -8,7 +8,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Download, Eye, GitBranch, Loader2, Play, X } from 'lucide-react'
+import { Download, Eye, GitBranch, Loader2, Play } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -202,7 +202,11 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
                     <div className="flex gap-3 text-xs text-muted-foreground">
                       {v.rows_quarantined != null && <span>{v.rows_quarantined} quarantined</span>}
                       {v.rows_clean != null && <span>{v.rows_clean} clean</span>}
-                      {v.uploaded_at && <span>{new Date(v.uploaded_at).toLocaleDateString()}</span>}
+                      {v.uploaded_at && (
+                        <span title={new Date(v.uploaded_at).toISOString()}>
+                          {new Date(v.uploaded_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -331,7 +335,9 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
                       </span>
                     )}
                     {previewVersion.uploaded_at && (
-                      <span>{new Date(previewVersion.uploaded_at).toLocaleDateString()}</span>
+                      <span title={new Date(previewVersion.uploaded_at).toISOString()}>
+                        {new Date(previewVersion.uploaded_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                      </span>
                     )}
                   </div>
                 )}

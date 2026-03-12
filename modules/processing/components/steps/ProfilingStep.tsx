@@ -229,7 +229,7 @@ export function ProfilingStep() {
                         </div>
                         {profile.rules && profile.rules.length > 0 && (
                           <div className="text-xs">
-                            <span className="text-muted-foreground">Auto Rules: </span>
+                            <span className="text-muted-foreground">AI Rules: </span>
                             {profile.rules
                               .filter((r: any) => r.decision === "auto")
                               .map((r: any) => getRuleLabel(r.rule_id))
