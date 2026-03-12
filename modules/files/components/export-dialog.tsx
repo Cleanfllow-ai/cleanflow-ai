@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Download, Loader2, Server, Upload } from 'lucide-react'
+import { FileDown, Loader2, Server, Share2 } from 'lucide-react'
 import { ColumnExportContent } from '@/modules/files/components/column-export-dialog'
 import UnifiedBridgeImport from '@/modules/unified-bridge/components/unified-bridge-import'
 import type { FileStatusResponse } from '@/modules/files/api/file-management-api'
@@ -55,12 +55,12 @@ export function ExportDialog({
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary/10">
-              <Upload className="h-4 w-4 text-primary" />
+              <Share2 className="h-4 w-4 text-primary" />
             </div>
             Export Data
           </DialogTitle>
           <DialogDescription>
-            Download a copy locally or push to any destination via the Unified Bridge.
+            Extract a local copy or deliver to any destination via the Unified Bridge.
           </DialogDescription>
           {file && (
             <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
@@ -74,8 +74,8 @@ export function ExportDialog({
         <Tabs defaultValue="download" className="flex-1 flex flex-col min-h-0">
           <TabsList className="mx-6 mt-4 shrink-0 w-fit">
             <TabsTrigger value="download" className="gap-1.5">
-              <Download className="h-3.5 w-3.5" />
-              Download
+              <FileDown className="h-3.5 w-3.5" />
+              Extract
             </TabsTrigger>
             <TabsTrigger value="bridge" className="gap-1.5">
               <Server className="h-3.5 w-3.5" />
@@ -83,7 +83,7 @@ export function ExportDialog({
             </TabsTrigger>
           </TabsList>
 
-          {/* ── Download tab ── */}
+          {/* ── Extract tab ── */}
           <TabsContent value="download" className="flex-1 min-h-0 overflow-hidden mt-0 px-6 pb-6">
             {isLoadingColumns ? (
               <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
@@ -95,7 +95,7 @@ export function ExportDialog({
                 fileName={filename}
                 columns={columns}
                 onExport={onDownload}
-                primaryActionLabel="Download"
+                primaryActionLabel="Extract"
                 exporting={downloading}
                 showTitle={false}
                 className="h-full"
