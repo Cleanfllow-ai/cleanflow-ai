@@ -262,7 +262,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
           description: error?.message || 'Unable to submit reprocess',
           variant: 'destructive',
         })
-        throw error
+        return null
       } finally {
         setSubmitting(false)
       }

@@ -49,16 +49,11 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
 
   // Reprocess handler
   const handleReprocess = async () => {
-    try {
-      const result = await editor.submitReprocess()
-      if (result?.new_upload_id && onReprocessSubmitted) {
-        onReprocessSubmitted(result.new_upload_id)
-      }
-      handleClose()
-    } catch (error) {
-      // Error already toasted in hook
-      console.error('Reprocess failed:', error)
+    const result = await editor.submitReprocess()
+    if (result?.new_upload_id && onReprocessSubmitted) {
+      onReprocessSubmitted(result.new_upload_id)
     }
+    if (result) handleClose()
   }
 
   // After server-side apply-all: refresh session so rows + etag are up-to-date
