@@ -545,12 +545,12 @@ export function useAuth() {
     })
   }
 
-  /** Return a guaranteed-valid idToken (refreshes if <2 min left). */
+  /** Return a guaranteed-valid idToken (refreshes if <10 min left). */
   const getValidToken = async (): Promise<string> => {
     const token = authState.idToken
     if (!token) throw new Error('Not authenticated')
     const payload = parseJWT(token)
-    if (payload && payload.exp - Date.now() / 1000 > 120) return token
+    if (payload && payload.exp - Date.now() / 1000 > 600) return token
     // Token expires in <2 minutes — refresh first
     if (authState.refreshToken) {
       const res = await refreshSession(authState.refreshToken)

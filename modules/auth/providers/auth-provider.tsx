@@ -34,6 +34,8 @@ interface AuthContextType {
   cancelMfa: () => void;
   // Password functions
   completeNewPassword: (newPassword: string) => Promise<any>;
+  // Token refresh
+  getValidToken: () => Promise<string>;
   permissions: Record<string, boolean>;
   permissionsLoaded: boolean;
   userRole: string | null;
@@ -161,6 +163,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         cancelMfa: auth.cancelMfa,
         // Password functions
         completeNewPassword: auth.completeNewPassword,
+        // Token refresh
+        getValidToken: auth.getValidToken,
         // Permissions
         permissions,
         permissionsLoaded,

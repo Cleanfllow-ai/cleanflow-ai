@@ -78,7 +78,7 @@ export default function DirectUploadForm({
     try {
       // Get a guaranteed-valid token (refreshes if near expiry)
       const freshToken = getValidToken ? await getValidToken() : token
-      const uploadId = await startUpload(file, freshToken)
+      const uploadId = await startUpload(file, freshToken, getValidToken)
       onUploadComplete({
         success: true,
         message: `${file.name} uploaded successfully (${formatBytes(file.size)})`,

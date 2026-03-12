@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useCallback, useRef, useState } from 'react'
-import { multipartUpload, type MultipartProgress } from '@/modules/files/api/multipart-upload'
+import { multipartUpload, type MultipartProgress, type GetToken } from '@/modules/files/api/multipart-upload'
 
 export interface ActiveUpload {
   uploadId: string | null
@@ -14,7 +14,7 @@ export interface ActiveUpload {
 
 interface UploadManagerContextType {
   activeUploads: ActiveUpload[]
-  startUpload: (file: File, token: string) => Promise<string>
+  startUpload: (file: File, token: string, getToken?: GetToken) => Promise<string>
   getUploadForFile: (uploadIdOrName: string) => ActiveUpload | undefined
   hasActiveUploads: boolean
 }
@@ -44,7 +44,7 @@ export function UploadManagerProvider({
     setActiveUploads(Array.from(uploadsRef.current.values()))
   }, [])
 
-  const startUpload = useCallback(async (file: File, token: string): Promise<string> => {
+  const startUpload = useCallback(async (file: File, token: string, getToken?: GetToken): Promise<string> => {
     const internalId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
     uploadsRef.current.set(internalId, {
@@ -65,7 +65,7 @@ export function UploadManagerProvider({
           entry.progress = progress
           sync()
         }
-      })
+      }, getToken)
       resolvedUploadId = uploadId
 
       // Mark completed

@@ -35,6 +35,9 @@ export interface CompletedPart {
   ETag: string
 }
 
+/** Optional token refresher — called before each API request to get a valid token. */
+export type GetToken = () => Promise<string>
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
@@ -46,12 +49,13 @@ export function getChunkSize(fileSize: number): number {
   return Math.min(MAX_CHUNK_BYTES, Math.max(MIN_CHUNK_BYTES, minForSize))
 }
 
-async function apiPost(path: string, body: object, token: string): Promise<any> {
+async function apiPost(path: string, body: object, token: string, getToken?: GetToken): Promise<any> {
+  const validToken = getToken ? await getToken() : token
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${validToken}`,
     },
     body: JSON.stringify(body),
   })
@@ -68,12 +72,14 @@ async function singleUpload(
   file: File,
   token: string,
   onProgress?: (p: MultipartProgress) => void,
+  getToken?: GetToken,
 ): Promise<string> {
   // 1. Init via existing /uploads endpoint (already deployed)
   const initRes = await apiPost(
     '/uploads',
     { filename: file.name, content_type: file.type || 'application/octet-stream' },
     token,
+    getToken,
   )
 
   const uploadId: string = initRes.upload_id
@@ -125,7 +131,7 @@ async function singleUpload(
   })
 
   // 3. Confirm upload — transitions status from UPLOADING → UPLOADED
-  await apiPost(`/uploads/${uploadId}/confirm`, { total_size: fileSize }, token)
+  await apiPost(`/uploads/${uploadId}/confirm`, { total_size: fileSize }, token, getToken)
 
   return uploadId
 }
@@ -194,6 +200,7 @@ async function multipartUploadLarge(
   file: File,
   token: string,
   onProgress?: (p: MultipartProgress) => void,
+  getToken?: GetToken,
 ): Promise<string> {
   const chunkSize = getChunkSize(file.size)
   const totalParts = Math.ceil(file.size / chunkSize)
@@ -203,6 +210,7 @@ async function multipartUploadLarge(
     '/uploads/multipart/init',
     { filename: file.name, content_type: file.type || 'application/octet-stream' },
     token,
+    getToken,
   )
 
   let bytesLoaded = 0
@@ -229,6 +237,7 @@ async function multipartUploadLarge(
       `/uploads/multipart/${upload_id}/presign-part`,
       { part_number: partNumber },
       token,
+      getToken,
     )
 
     const etag = await uploadPart(url, chunk, (delta) => reportProgress(delta))
@@ -240,7 +249,7 @@ async function multipartUploadLarge(
   try {
     completedParts = await runWithConcurrency(partTasks, CONCURRENCY)
   } catch (err) {
-    await apiPost(`/uploads/multipart/${upload_id}/abort`, {}, token).catch(() => {})
+    await apiPost(`/uploads/multipart/${upload_id}/abort`, {}, token, getToken).catch(() => {})
     throw err
   }
 
@@ -249,7 +258,7 @@ async function multipartUploadLarge(
   await apiPost(`/uploads/multipart/${upload_id}/complete`, {
     parts: completedParts,
     total_size: file.size,
-  }, token)
+  }, token, getToken)
 
   return upload_id
 }
@@ -260,14 +269,18 @@ async function multipartUploadLarge(
  * Upload a file to the pipeline.
  * Automatically selects single vs multipart based on file size.
  * Returns the upload_id.
+ *
+ * @param getToken  Optional async function that returns a fresh auth token.
+ *                  Called before every API request so long uploads never hit 401.
  */
 export async function multipartUpload(
   file: File,
   token: string,
   onProgress?: (p: MultipartProgress) => void,
+  getToken?: GetToken,
 ): Promise<string> {
   if (file.size <= SINGLE_UPLOAD_THRESHOLD) {
-    return singleUpload(file, token, onProgress)
+    return singleUpload(file, token, onProgress, getToken)
   }
-  return multipartUploadLarge(file, token, onProgress)
+  return multipartUploadLarge(file, token, onProgress, getToken)
 }
