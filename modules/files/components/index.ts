@@ -1,4 +1,5 @@
 export { ColumnExportDialog, ColumnExportContent } from "./column-export-dialog"
+export { ExportDialog } from "./export-dialog"
 export { ColumnProfilingPanel } from "./column-profiling-panel"
 export { default as CustomDestinationExport } from "./custom-destination-export"
 export { DownloadFormatModal, DownloadFormatContent } from "./download-format-modal"

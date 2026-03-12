@@ -9,6 +9,7 @@ import {
     Search,
     Filter,
     Download,
+    Upload,
     Play,
     Pencil,
     ArrowUpDown,
@@ -480,19 +481,20 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         <TooltipTrigger asChild>
                                                             <Button
                                                                 variant="ghost"
-                                                                size="icon"
-                                                                className="h-7 w-7 sm:h-8 sm:w-8"
+                                                                size="sm"
+                                                                className="h-7 sm:h-8 gap-1 px-2 text-xs font-medium text-primary hover:text-primary hover:bg-primary/10"
                                                                 onClick={() => openActionsDialog(file)}
                                                                 disabled={downloading === file.upload_id}
                                                             >
                                                                 {downloading === file.upload_id ? (
-                                                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                                 ) : (
-                                                                    <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                    <Upload className="h-3.5 w-3.5" />
                                                                 )}
+                                                                <span className="hidden sm:inline">Export</span>
                                                             </Button>
                                                         </TooltipTrigger>
-                                                        <TooltipContent>Download</TooltipContent>
+                                                        <TooltipContent>Export — download or push to ERP</TooltipContent>
                                                     </Tooltip>
                                                 )}
                                                 <Tooltip>
