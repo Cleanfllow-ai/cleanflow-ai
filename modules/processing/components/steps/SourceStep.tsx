@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useState } from "react"
+import React, { useRef, useState, useEffect } from "react"
 import {
     Upload,
     Loader2,
@@ -23,6 +23,7 @@ import { UnifiedBridgeImport } from "@/modules/unified-bridge"
 import { fileManagementAPI } from "@/modules/files"
 import { useProcessingWizard } from "../WizardContext"
 import { SOURCE_OPTIONS, ERP_OPTIONS } from "@/modules/files/page/constants"
+import { useUploadManager } from "@/modules/files/context/upload-manager"
 
 interface SourceStepProps {
     onUploadComplete?: () => void
@@ -30,15 +31,25 @@ interface SourceStepProps {
 
 export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
     const { authToken, initializeWithFile, nextStep } = useProcessingWizard()
+    const { activeUploads, startUpload } = useUploadManager()
 
     const [selectedSource, setSelectedSource] = useState("local")
     const [selectedErp, setSelectedErp] = useState("quickbooks")
-    const [uploading, setUploading] = useState(false)
-    const [uploadProgress, setUploadProgress] = useState(0)
     const [dragActive, setDragActive] = useState(false)
     const [uploadError, setUploadError] = useState<string | null>(null)
     const [loadingColumns, setLoadingColumns] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const mountedRef = useRef(true)
+
+    useEffect(() => {
+        mountedRef.current = true
+        return () => { mountedRef.current = false }
+    }, [])
+
+    // Read upload state from the persistent upload manager (survives tab switches & dialog close)
+    const activeUpload = activeUploads.find(u => u.status === 'uploading')
+    const uploading = !!activeUpload
+    const uploadProgress = activeUpload?.progress?.percent ?? 0
 
     const handleUploadSuccess = async (uploadId: string, fileName: string) => {
         if (onUploadComplete) {
@@ -91,29 +102,21 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
             setUploadError("Please upload a CSV, Excel, or JSON file")
             return
         }
-        setUploading(true)
-        setUploadProgress(0)
         setUploadError(null)
         try {
-            const result = await fileManagementAPI.uploadFileComplete(
-                file,
-                authToken,
-                false,
-                (p) => setUploadProgress(p),
-                undefined,
-                false,
-            )
-            await handleUploadSuccess(result.upload_id, file.name)
+            // Upload via the persistent manager — survives tab switches and dialog close
+            const uploadId = await startUpload(file, authToken)
+            // If component unmounted during upload (dialog closed/tab switched), stop here
+            if (!mountedRef.current) return
+            await handleUploadSuccess(uploadId, file.name)
         } catch (e: any) {
+            if (!mountedRef.current) return
             const message = e?.message?.toLowerCase() || ""
             setUploadError(
                 message.includes("permission denied")
                     ? "You do not have permission to upload files."
                     : "Upload failed. Please try again.",
             )
-        } finally {
-            setUploading(false)
-            setUploadProgress(0)
         }
     }
 
@@ -152,11 +155,11 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
 
     return (
         <div className="flex flex-col h-full overflow-auto p-6 space-y-5">
-            {/* Source selector */}
+            {/* Source selector — disabled while uploading */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground shrink-0">Source:</span>
-                    <Select value={selectedSource} onValueChange={setSelectedSource}>
+                    <Select value={selectedSource} onValueChange={setSelectedSource} disabled={uploading}>
                         <SelectTrigger className="w-[180px] h-9">
                             <SelectValue placeholder="Select source" />
                         </SelectTrigger>
@@ -219,7 +222,9 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
                             <div className="flex flex-col items-center gap-6">
                                 <Loader2 className="h-14 w-14 animate-spin text-primary" />
                                 <div className="text-center">
-                                    <p className="text-base font-medium">Uploading...</p>
+                                    <p className="text-base font-medium">
+                                        Uploading{activeUpload?.fileName ? ` ${activeUpload.fileName}` : ''}...
+                                    </p>
                                     <p className="text-3xl font-bold text-primary mt-1">
                                         {uploadProgress.toFixed(1)}%
                                     </p>

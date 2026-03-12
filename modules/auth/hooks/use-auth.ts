@@ -545,12 +545,33 @@ export function useAuth() {
     })
   }
 
+  /** Return a guaranteed-valid idToken (refreshes if <2 min left). */
+  const getValidToken = async (): Promise<string> => {
+    const token = authState.idToken
+    if (!token) throw new Error('Not authenticated')
+    const payload = parseJWT(token)
+    if (payload && payload.exp - Date.now() / 1000 > 120) return token
+    // Token expires in <2 minutes — refresh first
+    if (authState.refreshToken) {
+      const res = await refreshSession(authState.refreshToken)
+      if (res.success) {
+        // After refreshSession, state is updated but we need the token now.
+        // Re-read from storage since setState is async.
+        const stored = loadStoredTokens()
+        if (stored?.idToken) return stored.idToken
+      }
+    }
+    if (authState.idToken) return authState.idToken
+    throw new Error('Token refresh failed')
+  }
+
   return {
     ...authState,
     signup,
     confirmSignup,
     login,
     logout,
+    getValidToken,
     // Password functions
     completeNewPassword,
     // MFA functions

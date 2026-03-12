@@ -9,7 +9,7 @@ import {
     Search,
     Filter,
     Download,
-    Share2,
+    Upload,
     Play,
     Pencil,
     ArrowUpDown,
@@ -49,12 +49,14 @@ import {
 import {
     STATUS_OPTIONS,
 } from "@/modules/files/page/constants";
+import { Progress } from "@/components/ui/progress";
 import {
     calculateProcessingTime,
     getDqQualityLabel,
     getScoreBadgeColor,
     getStatusBadgeColor,
 } from "@/modules/files/page/utils";
+import { useUploadManager } from "@/modules/files/context/upload-manager";
 import type { FilesPageState } from "./use-files-page";
 
 interface FileExplorerTableProps {
@@ -69,13 +71,14 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         visibleColumns, setDisplayColumnModalOpen,
         isManualRefresh, handleManualRefresh,
         handleViewDetails, handleStartProcessing,
-        openActionsDialog, handleDeleteClick,
+        openActionsDialog, handleDeleteClick, handleQuickExport,
         downloading, deleting,
         handleOpenQuarantineEditor,
         recentlyUploaded, setRecentlyUploaded,
         setWizardFile, setWizardOpen,
         handleNewImportOpen,
     } = state;
+    const { activeUploads, getUploadForFile } = useUploadManager();
 
     const SortIcon = ({
         field,
@@ -327,14 +330,30 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                 >
                                     {visibleColumns.has("file") && (
                                         <TableCell className="text-left">
-                                            <div>
-                                                <p className="text-xs sm:text-sm font-medium truncate max-w-[100px] sm:max-w-[200px]">
-                                                    {file.original_filename || file.filename || "Untitled"}
-                                                </p>
-                                                <p className="text-[10px] sm:text-xs text-muted-foreground">
-                                                    {formatBytes(file.input_size_bytes || file.file_size || 0)}
-                                                </p>
-                                            </div>
+                                            {(() => {
+                                                const upload = file.status === "UPLOADING"
+                                                    ? getUploadForFile(file.upload_id) || getUploadForFile(file.original_filename || file.filename || "")
+                                                    : undefined;
+                                                return (
+                                                    <div>
+                                                        <p className="text-xs sm:text-sm font-medium truncate max-w-[100px] sm:max-w-[200px]">
+                                                            {file.original_filename || file.filename || "Untitled"}
+                                                        </p>
+                                                        {upload && upload.status === "uploading" ? (
+                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <Progress value={upload.progress?.percent ?? 0} className="h-1.5 w-20 sm:w-28" />
+                                                                <span className="text-[10px] sm:text-xs text-primary font-medium tabular-nums">
+                                                                    {upload.progress?.percent ?? 0}%
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-[10px] sm:text-xs text-muted-foreground">
+                                                                {formatBytes(file.input_size_bytes || file.file_size || 0)}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </TableCell>
                                     )}
                                     {visibleColumns.has("score") && (
@@ -417,13 +436,14 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                         <TableCell className="text-left" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex justify-start gap-0.5 sm:gap-1">
                                                 {(() => {
+                                                    const isUploading = file.status === "UPLOADING";
                                                     const isProcessing =
                                                         file.status === "DQ_RUNNING" ||
                                                         file.status === "DQ_DISPATCHED" ||
-                                                        file.status === "UPLOADING";
+                                                        isUploading;
                                                     return (
                                                         <>
-                                                {(file.status === "UPLOADED" ||
+                                                {!isUploading && (file.status === "UPLOADED" ||
                                                     file.status === "DQ_FAILED" ||
                                                     file.status === "FAILED" ||
                                                     file.status === "UPLOAD_FAILED") && (
@@ -476,27 +496,54 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                {!isProcessing && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
+                                                {!isProcessing && !isUploading && (() => {
+                                                    const isProcessed = file.status === "DQ_FIXED" || file.status === "COMPLETED";
+                                                    return (
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 className="h-7 sm:h-8 gap-1 px-2 text-xs font-medium text-primary hover:text-primary hover:bg-primary/10"
-                                                                onClick={() => openActionsDialog(file)}
                                                                 disabled={downloading === file.upload_id}
                                                             >
                                                                 {downloading === file.upload_id ? (
                                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                                 ) : (
-                                                                    <Share2 className="h-3.5 w-3.5" />
+                                                                    <Upload className="h-3.5 w-3.5" />
                                                                 )}
                                                                 <span className="hidden sm:inline">Export</span>
                                                             </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>Export — download or push to ERP</TooltipContent>
-                                                    </Tooltip>
-                                                )}
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-52">
+                                                            <DropdownMenuItem onClick={() => handleQuickExport(file, "raw")}>
+                                                                <Download className="h-3.5 w-3.5 mr-2" />
+                                                                Original Data
+                                                            </DropdownMenuItem>
+                                                            {isProcessed && (
+                                                                <>
+                                                                    <DropdownMenuItem onClick={() => handleQuickExport(file, "all")}>
+                                                                        <Download className="h-3.5 w-3.5 mr-2" />
+                                                                        Processed Data (All)
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleQuickExport(file, "clean")}>
+                                                                        <Download className="h-3.5 w-3.5 mr-2" />
+                                                                        Clean Data Only
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleQuickExport(file, "quarantine")}>
+                                                                        <Download className="h-3.5 w-3.5 mr-2" />
+                                                                        Quarantined Data Only
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                            <DropdownMenuItem onClick={() => openActionsDialog(file)}>
+                                                                <Upload className="h-3.5 w-3.5 mr-2" />
+                                                                Advanced Export...
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                    );
+                                                })()}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
