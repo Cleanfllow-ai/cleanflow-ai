@@ -124,12 +124,12 @@ function AppSidebarComponent() {
 			{/* Sidebar */}
 			<aside
 				className={cn(
-					"flex flex-col h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border shadow-sm",
+					"flex flex-col h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border shadow-sm overflow-hidden",
 					isMobile ? [
-						"fixed left-0 top-0 z-50 w-72",
+						"fixed left-0 top-0 z-50 w-72 transition-transform duration-200 ease-in-out",
 						mobileOpen ? "translate-x-0" : "-translate-x-full"
 					] : [
-						"relative",
+						"relative transition-[width] duration-200 ease-in-out",
 						collapsed ? "w-16" : "w-72"
 					]
 				)}

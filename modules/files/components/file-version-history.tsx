@@ -204,7 +204,7 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
                       {v.rows_clean != null && <span>{v.rows_clean} clean</span>}
                       {v.uploaded_at && (
                         <span title={new Date(v.uploaded_at).toISOString()}>
-                          {new Date(v.uploaded_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                          {new Date(v.uploaded_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' })}
                         </span>
                       )}
                     </div>
@@ -336,7 +336,7 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
                     )}
                     {previewVersion.uploaded_at && (
                       <span title={new Date(previewVersion.uploaded_at).toISOString()}>
-                        {new Date(previewVersion.uploaded_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                        {new Date(previewVersion.uploaded_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' })}
                       </span>
                     )}
                   </div>
