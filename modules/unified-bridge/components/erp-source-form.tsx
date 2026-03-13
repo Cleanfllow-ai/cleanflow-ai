@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { QuickBooksImport } from '@/modules/quickbooks'
 import { ZohoBooksImport } from '@/modules/zoho'
 import { SnowflakeImport } from '@/modules/snowflake'
+import { GoogleDriveImport } from '@/modules/googledrive'
 import SchemaDropForm from './schema-drop-form'
 
 interface ErpSourceFormProps {
@@ -28,6 +29,7 @@ interface ErpSourceFormProps {
 }
 
 const ERP_OPTIONS = [
+  { label: "GOOGLE DRIVE", value: "googledrive" },
   { label: "QUICKBOOKS ONLINE", value: "quickbooks" },
   { label: "ZOHO BOOKS", value: "zoho-books" },
   { label: "SNOWFLAKE", value: "snowflake" },
@@ -46,6 +48,7 @@ const ERP_OPTIONS = [
 
 /** Map ERP selector values to provider keys used by the backend API */
 const PROVIDER_MAP: Record<string, string> = {
+  "googledrive": "googledrive",
   "quickbooks": "quickbooks",
   "zoho-books": "zohobooks",
   "snowflake": "snowflake",
@@ -63,7 +66,7 @@ export default function ErpSourceForm({
   onError,
   disabled,
 }: ErpSourceFormProps) {
-  const [selectedErp, setSelectedErp] = useState("quickbooks")
+  const [selectedErp, setSelectedErp] = useState("googledrive")
   const [importMode, setImportMode] = useState<"entity" | "schema">("entity")
 
   const handleNotification = (message: string, type: "success" | "error") => {
@@ -83,6 +86,15 @@ export default function ErpSourceForm({
   }
 
   const renderErpContent = () => {
+    if (selectedErp === "googledrive") {
+      return (
+        <GoogleDriveImport
+          mode={mode}
+          onImportComplete={handleImportComplete}
+          onNotification={handleNotification}
+        />
+      )
+    }
     if (selectedErp === "quickbooks") {
       return (
         <QuickBooksImport
@@ -148,8 +160,11 @@ export default function ErpSourceForm({
         </Select>
       </div>
 
-      {/* Import Mode: Entity vs Schema Drop (source mode only) */}
-      {mode === "source" && (
+      {/* Google Drive: no Entity/Schema tabs — render file browser directly */}
+      {selectedErp === "googledrive" && renderErpContent()}
+
+      {/* Import Mode: Entity vs Schema Drop (source mode only, non-file-source connectors) */}
+      {selectedErp !== "googledrive" && mode === "source" && (
         <Tabs value={importMode} onValueChange={(v) => setImportMode(v as "entity" | "schema")} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="entity" className="text-xs sm:text-sm">
@@ -178,7 +193,7 @@ export default function ErpSourceForm({
       )}
 
       {/* Destination mode: no schema drop, just entity-based export */}
-      {mode === "destination" && renderErpContent()}
+      {selectedErp !== "googledrive" && mode === "destination" && renderErpContent()}
     </div>
   )
 }
