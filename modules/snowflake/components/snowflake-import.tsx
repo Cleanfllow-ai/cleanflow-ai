@@ -196,6 +196,67 @@ export default function SnowflakeImport({
                                 </div>
                             ) : (
                                 <>
+                                    {/* Warehouse / Database / Schema */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                                        {s.warehouses.length > 0 && (
+                                            <div>
+                                                <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Warehouse</Label>
+                                                <Select
+                                                    value={s.selectedWarehouse}
+                                                    onValueChange={s.setSelectedWarehouse}
+                                                >
+                                                    <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
+                                                        <SelectValue placeholder="Select warehouse" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {s.warehouses.map((wh) => (
+                                                            <SelectItem key={wh.name} value={wh.name}>
+                                                                {wh.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                        <div>
+                                            <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Database</Label>
+                                            <Select
+                                                value={s.selectedDatabase}
+                                                onValueChange={s.setSelectedDatabase}
+                                            >
+                                                <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
+                                                    <SelectValue placeholder="Select database" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {s.databases.map((db) => (
+                                                        <SelectItem key={db.name} value={db.name}>
+                                                            {db.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Schema</Label>
+                                            <Select
+                                                value={s.selectedSchema}
+                                                onValueChange={s.setSelectedSchema}
+                                                disabled={!s.selectedDatabase}
+                                            >
+                                                <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
+                                                    <SelectValue placeholder={s.selectedDatabase ? "Select schema" : "Select database first"} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {s.schemas.map((sch) => (
+                                                        <SelectItem key={sch.name} value={sch.name}>
+                                                            {sch.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
                                     {/* Table + Limit */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                         <div>
@@ -268,6 +329,74 @@ export default function SnowflakeImport({
                     {/* Export Form - Destination Mode */}
                     {mode === "destination" && (
                         <div className="grid gap-3 sm:gap-4">
+                            {/* Warehouse / Database / Schema */}
+                            {s.metadataLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+                                    <span className="text-sm text-muted-foreground">Loading Snowflake metadata...</span>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                                    {s.warehouses.length > 0 && (
+                                        <div>
+                                            <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Warehouse</Label>
+                                            <Select
+                                                value={s.selectedWarehouse}
+                                                onValueChange={s.setSelectedWarehouse}
+                                            >
+                                                <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
+                                                    <SelectValue placeholder="Select warehouse" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {s.warehouses.map((wh) => (
+                                                        <SelectItem key={wh.name} value={wh.name}>
+                                                            {wh.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Database</Label>
+                                        <Select
+                                            value={s.selectedDatabase}
+                                            onValueChange={s.setSelectedDatabase}
+                                        >
+                                            <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
+                                                <SelectValue placeholder="Select database" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {s.databases.map((db) => (
+                                                    <SelectItem key={db.name} value={db.name}>
+                                                        {db.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Schema</Label>
+                                        <Select
+                                            value={s.selectedSchema}
+                                            onValueChange={s.setSelectedSchema}
+                                            disabled={!s.selectedDatabase}
+                                        >
+                                            <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
+                                                <SelectValue placeholder={s.selectedDatabase ? "Select schema" : "Select database first"} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {s.schemas.map((sch) => (
+                                                    <SelectItem key={sch.name} value={sch.name}>
+                                                        {sch.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* File Selection */}
                             <div>
                                 <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Select File to Export</Label>
