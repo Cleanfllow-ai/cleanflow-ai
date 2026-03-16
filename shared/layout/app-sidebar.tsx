@@ -21,7 +21,7 @@ const mainNav = [
 	{ name: "Jobs", href: "/jobs", icon: CalendarClock },
 ]
 const settingsNav = [
-	{ name: "Organization", href: "/admin", icon: Settings },
+	{ name: "Admin", href: "/admin", icon: Settings },
 ]
 function AppSidebarComponent() {
 	const [collapsed, setCollapsed] = useState(false)
