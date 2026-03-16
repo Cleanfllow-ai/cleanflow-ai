@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 
 import { useToast } from "@/shared/hooks/use-toast"
 import { DqReportResponse, FileStatusResponse, fileManagementAPI } from "@/modules/files/api/file-management-api"
@@ -37,6 +37,55 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
   const [latestVersionUploadId, setLatestVersionUploadId] = useState<string | null | undefined>(undefined)
   const { toast } = useToast()
 
+  const loadPreview = useCallback(async () => {
+    const targetFile = latestFile || file
+    if (!targetFile) return
+
+    setPreviewLoading(true)
+    setPreviewError(null)
+    try {
+      const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
+      const token = authTokens.idToken
+      if (!token) throw new Error("Not authenticated")
+      const data = await fileManagementAPI.getFilePreview(latestVersionUploadId || targetFile.upload_id, token)
+      setPreviewData(data)
+    } catch (err: any) {
+      setPreviewError(err.message || "Failed to load preview")
+    } finally {
+      setPreviewLoading(false)
+    }
+  }, [latestFile, file, latestVersionUploadId])
+
+  const loadDqReport = useCallback(async () => {
+    const targetFile = latestFile || file
+    if (!targetFile) return
+
+    setDqReportLoading(true)
+    setDqReportError(null)
+    try {
+      const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
+      const token = authTokens.idToken
+      if (!token) throw new Error("Not authenticated")
+      const report = await fileManagementAPI.downloadDqReport(latestVersionUploadId || targetFile.upload_id, token)
+      setDqReport(report)
+
+      const sampleIssues = report?.hybrid_summary?.outstanding_issues || []
+      const initialIssues = sampleIssues.slice(0, ISSUES_PAGE_SIZE)
+      setIssues(initialIssues)
+
+      const totalIssues = report?.hybrid_summary?.outstanding_issues_total ?? sampleIssues.length
+      setIssuesTotal(totalIssues)
+      const hasMore = totalIssues > initialIssues.length
+      const sampleSize = report?.hybrid_summary?.outstanding_issues_sample_size ?? sampleIssues.length
+      setIssuesNextOffset(hasMore ? Math.min(sampleSize, ISSUES_PAGE_SIZE) : null)
+      setAvailableViolations(report?.violation_counts || {})
+    } catch (err: any) {
+      setDqReportError(err.message || "Failed to load DQ report")
+    } finally {
+      setDqReportLoading(false)
+    }
+  }, [latestFile, file, latestVersionUploadId])
+
   useEffect(() => {
     // latestVersionUploadId === undefined means "not yet resolved" — wait for it
     if (latestVersionUploadId === undefined) return
@@ -46,7 +95,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
     if (open && file && activeTab === "dq-report" && !dqReport) {
       void loadDqReport()
     }
-  }, [open, file, activeTab, latestVersionUploadId])
+  }, [open, file, activeTab, latestVersionUploadId, loadPreview, loadDqReport])
 
   useEffect(() => {
     if (!open) {
@@ -110,55 +159,6 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
     } catch (error) {
       console.error("Failed to refresh file details", error)
       setLatestVersionUploadId(null)
-    }
-  }
-
-  const loadPreview = async () => {
-    const targetFile = latestFile || file
-    if (!targetFile) return
-
-    setPreviewLoading(true)
-    setPreviewError(null)
-    try {
-      const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
-      const token = authTokens.idToken
-      if (!token) throw new Error("Not authenticated")
-      const data = await fileManagementAPI.getFilePreview(latestVersionUploadId || targetFile.upload_id, token)
-      setPreviewData(data)
-    } catch (err: any) {
-      setPreviewError(err.message || "Failed to load preview")
-    } finally {
-      setPreviewLoading(false)
-    }
-  }
-
-  const loadDqReport = async () => {
-    const targetFile = latestFile || file
-    if (!targetFile) return
-
-    setDqReportLoading(true)
-    setDqReportError(null)
-    try {
-      const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
-      const token = authTokens.idToken
-      if (!token) throw new Error("Not authenticated")
-      const report = await fileManagementAPI.downloadDqReport(latestVersionUploadId || targetFile.upload_id, token)
-      setDqReport(report)
-
-      const sampleIssues = report?.hybrid_summary?.outstanding_issues || []
-      const initialIssues = sampleIssues.slice(0, ISSUES_PAGE_SIZE)
-      setIssues(initialIssues)
-
-      const totalIssues = report?.hybrid_summary?.outstanding_issues_total ?? sampleIssues.length
-      setIssuesTotal(totalIssues)
-      const hasMore = totalIssues > initialIssues.length
-      const sampleSize = report?.hybrid_summary?.outstanding_issues_sample_size ?? sampleIssues.length
-      setIssuesNextOffset(hasMore ? Math.min(sampleSize, ISSUES_PAGE_SIZE) : null)
-      setAvailableViolations(report?.violation_counts || {})
-    } catch (err: any) {
-      setDqReportError(err.message || "Failed to load DQ report")
-    } finally {
-      setDqReportLoading(false)
     }
   }
 

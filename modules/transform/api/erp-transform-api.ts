@@ -1,18 +1,5 @@
 // Move API base URL to env
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
-
-// Helper function to check if API is available
-const isAPIAvailable = async (): Promise<boolean> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/health`, { 
-      method: 'GET',
-      signal: AbortSignal.timeout(5000) // 5 second timeout
-    })
-    return response.ok
-  } catch {
-    return false
-  }
-}
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || ""
 
 export interface HealthResponse {
   status: string

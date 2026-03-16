@@ -199,7 +199,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
         }
 
         try {
-          await session.refreshEtag(activeUploadId, authToken!)
+          await session.refreshEtag(activeUploadId, authToken!, session.session?.base_upload_id || activeUploadId)
         } catch {
           // If refresh fails the next autosave will also fail; the retry
           // counter will eventually surface a terminal error.

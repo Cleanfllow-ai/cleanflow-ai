@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { cognitoApi } from '@/modules/auth/api/cognito-client'
 import type { User, AuthState, MfaSetupData } from '@/modules/auth/types/auth.types'
@@ -29,16 +29,10 @@ export function useAuth() {
       try {
         const { idToken, accessToken, refreshToken } = storedTokens
         const payload = parseJWT(idToken)
-        console.log('Parsed JWT payload:', payload)
 
         if (payload && payload.exp > Date.now() / 1000) {
           setAuthState({
-            user: {
-              email: payload.email,
-              sub: payload.sub,
-              username: payload['cognito:username'],
-              name: payload.name || payload.email.split('@')[0]
-            },
+            user: buildUserFromPayload(payload),
             isLoading: false,
             isAuthenticated: true,
             idToken,
@@ -65,10 +59,14 @@ export function useAuth() {
   }, [])
 
   // Auto-refresh tokens before they expire
+  const isRefreshingRef = useRef(false)
+
   useEffect(() => {
     if (!authState.isAuthenticated || !authState.refreshToken || !authState.idToken || authState.mfaSession) return
 
-    const checkAndRefresh = () => {
+    const checkAndRefresh = async () => {
+      if (isRefreshingRef.current) return
+
       const payload = parseJWT(authState.idToken!)
       if (!payload) return
 
@@ -76,8 +74,12 @@ export function useAuth() {
 
       // If expires in less than 5 minutes (300s), refresh
       if (expiresIn < 300) {
-        console.log('Token expiring soon, refreshing session...')
-        refreshSession(authState.refreshToken!)
+        isRefreshingRef.current = true
+        try {
+          await refreshSession(authState.refreshToken!)
+        } finally {
+          isRefreshingRef.current = false
+        }
       }
     }
 
@@ -551,7 +553,7 @@ export function useAuth() {
     if (!token) throw new Error('Not authenticated')
     const payload = parseJWT(token)
     if (payload && payload.exp - Date.now() / 1000 > 600) return token
-    // Token expires in <2 minutes — refresh first
+    // Token expires soon — refresh first
     if (authState.refreshToken) {
       const res = await refreshSession(authState.refreshToken)
       if (res.success) {
@@ -561,7 +563,6 @@ export function useAuth() {
         if (stored?.idToken) return stored.idToken
       }
     }
-    if (authState.idToken) return authState.idToken
     throw new Error('Token refresh failed')
   }
 

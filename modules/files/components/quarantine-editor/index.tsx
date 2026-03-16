@@ -83,7 +83,6 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
             submitting={editor.submitting}
             savedAt={editor.lastSavedAt}
             onReprocess={handleReprocess}
-            onOpenCustomRule={() => setCustomRuleOpen(true)}
           />
         {/* Table section — flex: 1 consumes remaining height, position: relative
             establishes a containing block so the absolute inner div gets a

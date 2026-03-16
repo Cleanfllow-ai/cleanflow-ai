@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-// import { ChatDrawer } from './chat-drawer'
+import { ChatDrawer } from './chat-drawer'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export function ChatButton() {
@@ -32,7 +32,7 @@ export function ChatButton() {
         )}
       </AnimatePresence>
 
-      {/* <ChatDrawer isOpen={isOpen} onClose={() => setIsOpen(false)} /> */}
+      <ChatDrawer isOpen={isOpen} onClose={() => setIsOpen(false)} />
     </>
   )
 }

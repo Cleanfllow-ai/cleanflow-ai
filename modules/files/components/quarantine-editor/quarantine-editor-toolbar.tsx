@@ -17,7 +17,6 @@ interface QuarantineEditorToolbarProps {
   submitting: boolean
   savedAt?: Date | null
   onReprocess: () => void
-  onOpenCustomRule?: () => void
 }
 
 export function QuarantineEditorToolbar({

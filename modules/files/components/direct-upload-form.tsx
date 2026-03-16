@@ -120,7 +120,7 @@ export default function DirectUploadForm({
               {isDragging ? 'Drop file here' : 'Drag & drop or click to select'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              CSV, Excel, JSON, or TXT — up to 5 TB
+              CSV, Excel, JSON, or TXT — up to 50 GB
             </p>
           </div>
         </div>
@@ -189,7 +189,7 @@ export default function DirectUploadForm({
       )}
 
       <p className="text-xs text-muted-foreground text-center">
-        Direct upload to S3 — up to 5 GB
+        Direct upload to S3 — up to 50 GB
       </p>
     </div>
   )

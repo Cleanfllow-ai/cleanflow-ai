@@ -1,10 +1,16 @@
 import { AWS_CONFIG } from '@/shared/config/aws-config'
 import { makeRequest } from './file-upload-api'
+import { splitCSVLine } from '@/modules/files/utils/csv-parser'
 import type {
     ExportDownloadResult,
 } from '@/modules/files/types'
 
 const API_BASE_URL = AWS_CONFIG.API_BASE_URL
+
+/** Validate that a URL looks like a legitimate S3 presigned URL */
+function isValidS3Url(url: string): boolean {
+    return url.startsWith('https://') && (url.includes('.s3.') || url.includes('.amazonaws.com'))
+}
 
 // API Endpoints used by this module
 const ENDPOINTS = {
@@ -39,6 +45,9 @@ export async function downloadFileFromApi(uploadId: string, fileType: 'csv' | 'e
         // Response may contain presigned URL - parse and fetch from S3
         const data = await response.json()
         if (data.presigned_url) {
+            if (!isValidS3Url(data.presigned_url)) {
+                throw new Error('Invalid presigned URL: must be an HTTPS S3/AWS URL')
+            }
             console.log('📥 Fetching from presigned URL:', data.filename || 'file')
             const s3Response = await fetch(data.presigned_url)
             if (!s3Response.ok) {
@@ -130,6 +139,9 @@ export async function exportWithColumns(
         // Response contains presigned URL - parse and fetch from S3
         const data = await response.json()
         if (data.presigned_url) {
+            if (!isValidS3Url(data.presigned_url)) {
+                throw new Error('Invalid presigned URL: must be an HTTPS S3/AWS URL')
+            }
             console.log('📥 Fetching from presigned URL:', data.filename)
             // Fetch the actual file from S3 presigned URL
             try {
@@ -192,11 +204,11 @@ export async function getFilePreviewFromS3(uploadId: string, authToken: string, 
             return { headers: [], sample_data: [], total_rows: 0 }
         }
 
-        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+        const headers = splitCSVLine(lines[0]).map(h => h.trim())
         const previewLines = lines.slice(1, Math.min(maxRows + 1, lines.length))
 
         const sample_data = previewLines.map(line => {
-            const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+            const values = splitCSVLine(line).map(v => v.trim())
             const row: Record<string, any> = {}
             headers.forEach((header, index) => {
                 row[header] = values[index] || ''

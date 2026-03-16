@@ -100,7 +100,9 @@ export {
   ingestFromTcp,
   ingestFromHttp,
   uploadBinary,
+  validateFtpConfig,
   testFtpConnection,
+  validateTcpConfig,
   testTcpConnection,
   testHttpEndpoint,
 } from './file-ingestion-api'
@@ -190,7 +192,9 @@ export const fileManagementAPI = {
   ingestFromTcp: ingestionApi.ingestFromTcp,
   ingestFromHttp: ingestionApi.ingestFromHttp,
   uploadBinary: ingestionApi.uploadBinary,
+  validateFtpConfig: ingestionApi.validateFtpConfig,
   testFtpConnection: ingestionApi.testFtpConnection,
+  validateTcpConfig: ingestionApi.validateTcpConfig,
   testTcpConnection: ingestionApi.testTcpConnection,
   testHttpEndpoint: ingestionApi.testHttpEndpoint,
 

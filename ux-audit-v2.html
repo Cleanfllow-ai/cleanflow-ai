@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CleanFlowAI — Revised UX Proposal (B2B Professional)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Proposed B2B palette */
+    --bg: #F8F9FB;
+    --surface: #FFFFFF;
+    --surface-hover: #F3F4F8;
+    --border: #E5E7EB;
+    --border-strong: #D1D5DB;
+    --text: #111827;
+    --text-secondary: #6B7280;
+    --text-muted: #9CA3AF;
+    --primary: #2563EB;         /* Professional blue — trust, clarity */
+    --primary-light: #EFF6FF;
+    --primary-hover: #1D4ED8;
+    --accent: #0D9488;          /* Teal — data quality health */
+    --accent-light: #F0FDFA;
+    --destructive: #DC2626;
+    --destructive-light: #FEF2F2;
+    --warning: #D97706;
+    --warning-light: #FFFBEB;
+    --success: #059669;
+    --success-light: #ECFDF5;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; line-height:1.6; -webkit-font-smoothing: antialiased; }
+
+  .container { max-width: 1080px; margin: 0 auto; padding: 48px 32px; }
+
+  h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.025em; color: var(--text); margin-bottom: 6px; }
+  .subtitle { color: var(--text-secondary); font-size: 14px; margin-bottom: 48px; max-width: 640px; line-height: 1.7; }
+
+  /* Section */
+  .section { margin-bottom: 56px; }
+  .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 16px; }
+
+  /* Comparison card */
+  .comparison { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+  .comparison-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .comparison-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .comparison-body { padding: 20px; }
+
+  .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.02em; }
+  .tag-theme { background: var(--primary-light); color: var(--primary); }
+  .tag-ux { background: var(--accent-light); color: var(--accent); }
+  .tag-new { background: #F5F3FF; color: #7C3AED; }
+
+  /* Before/After columns */
+  .ba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .ba-col { padding: 16px; border-radius: 8px; }
+  .ba-before { background: #FEF2F2; border: 1px solid #FECACA; }
+  .ba-after { background: var(--success-light); border: 1px solid #A7F3D0; }
+  .ba-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+  .ba-before .ba-label { color: var(--destructive); }
+  .ba-after .ba-label { color: var(--success); }
+  .ba-text { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+  .ba-text strong { color: var(--text); }
+
+  /* Mockup containers */
+  .mockup { margin-top: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); overflow: hidden; }
+  .mockup-chrome { background: var(--surface); padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
+  .mockup-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); }
+  .mockup-inner { padding: 16px; font-size: 12px; }
+
+  /* Mini components */
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; }
+  .pill-blue { background: var(--primary-light); color: var(--primary); }
+  .pill-green { background: var(--success-light); color: var(--success); }
+  .pill-red { background: var(--destructive-light); color: var(--destructive); }
+  .pill-amber { background: var(--warning-light); color: var(--warning); }
+  .pill-gray { background: #F3F4F6; color: var(--text-secondary); }
+
+  .card-sm { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
+  .card-label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .card-value { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600; color: var(--text); margin-top: 2px; }
+  .card-delta { font-size: 11px; font-weight: 500; margin-top: 2px; }
+
+  /* Sidebar mockup */
+  .sidebar-mock { width: 220px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 8px; }
+  .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 13px; color: var(--text-secondary); font-weight: 500; margin-bottom: 2px; cursor: default; }
+  .sidebar-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+  .sidebar-icon { width: 16px; height: 16px; border-radius: 4px; background: currentColor; opacity: 0.2; flex-shrink: 0; }
+  .sidebar-badge { margin-left: auto; font-size: 10px; font-weight: 700; background: var(--destructive); color: #fff; padding: 0 5px; border-radius: 8px; min-width: 16px; text-align: center; line-height: 16px; }
+  .sidebar-dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+
+  /* Table mockup */
+  .table-mock { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .table-mock th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .table-mock td { padding: 10px 12px; border-bottom: 1px solid #F3F4F6; color: var(--text); }
+  .table-mock tr:hover td { background: var(--surface-hover); }
+
+  /* Stepper */
+  .stepper { display: flex; align-items: center; gap: 0; }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .step-line { width: 20px; height: 2px; }
+  .step-done { background: var(--success); }
+  .step-active { background: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); width: 10px; height: 10px; }
+  .step-pending { background: var(--border); }
+  .step-fail { background: var(--destructive); }
+
+  /* Theme comparison box */
+  .theme-box { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 32px; }
+  .theme-side { padding: 28px; }
+  .theme-dark { background: #0f1219; color: #e2e5ec; }
+  .theme-light { background: #FFFFFF; color: #111827; }
+  .theme-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 12px; opacity: 0.5; }
+  .theme-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .theme-desc { font-size: 12px; opacity: 0.6; line-height: 1.6; }
+
+  .divider { height: 1px; background: var(--border); margin: 40px 0; }
+
+  /* Spec table */
+  .spec-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+  .spec-table th { text-align: left; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); font-weight: 600; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .spec-table td { padding: 8px 12px; border: 1px solid var(--border); }
+  .spec-table .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; margin-right: 6px; border: 1px solid rgba(0,0,0,0.08); }
+  .mono { font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+
+  .callout { background: var(--primary-light); border: 1px solid #BFDBFE; border-radius: 8px; padding: 16px 20px; margin: 24px 0; }
+  .callout-title { font-size: 13px; font-weight: 600; color: var(--primary); margin-bottom: 4px; }
+  .callout-text { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+
+  /* Nav */
+  .page-nav { position: sticky; top: 0; z-index: 100; background: rgba(248,249,251,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 10px 0; }
+  .page-nav-inner { max-width: 1080px; margin: 0 auto; padding: 0 32px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .page-nav a {
+    font-size: 12px; font-weight: 500; padding: 5px 12px; border-radius: 6px;
+    text-decoration: none; color: var(--text-secondary); transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+  .page-nav a:hover { color: var(--primary); background: var(--primary-light); border-color: #BFDBFE; }
+</style>
+</head>
+<body>
+
+<nav class="page-nav">
+  <div class="page-nav-inner">
+    <a href="#theme">Theme Decision</a>
+    <a href="#design-system">Design System</a>
+    <a href="#sidebar-ux">Sidebar</a>
+    <a href="#dashboard-ux">Dashboard</a>
+    <a href="#files-ux">Files Page</a>
+    <a href="#dialogs-ux">Dialogs</a>
+    <a href="#onboarding">Onboarding</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<h1>CleanFlowAI — Revised UX Proposal</h1>
+<p class="subtitle">
+  B2B enterprise data quality platform used by business people (accountants, data stewards, ops teams).
+  The design must be <strong>professional, minimalist, and user-friendly</strong> — not a dark hacker terminal,
+  but a clean productivity tool they trust with their data.
+</p>
+
+<!-- ═══════════════════ THEME DECISION ═══════════════════ -->
+<section class="section" id="theme">
+<div class="section-label">1 &mdash; Theme Direction</div>
+
+<div class="theme-box">
+  <div class="theme-side theme-dark">
+    <div class="theme-label">Current: Dark "Command Center"</div>
+    <div class="theme-title">Looks cool, wrong audience</div>
+    <div class="theme-desc">
+      Dark UIs work for developer tools (VS Code, Terminal, Grafana).
+      But 81% of business users prefer light mode for productivity apps.
+      Dark themes increase eye strain during extended data review sessions.
+      The "hacker aesthetic" signals "technical tool" — not "business platform."
+    </div>
+  </div>
+  <div class="theme-side theme-light">
+    <div class="theme-label">Proposed: Clean Light Professional</div>
+    <div class="theme-title">Trust, clarity, productivity</div>
+    <div class="theme-desc">
+      Inspired by Linear, Notion, Atlan, and Snowflake's console.
+      Soft neutral backgrounds (#F8F9FB, not pure white).
+      High-contrast text for readability. Blue primary for trust/authority.
+      Teal accent for data health indicators. Minimal borders, generous whitespace.
+    </div>
+  </div>
+</div>
+
+<div class="callout">
+  <div class="callout-title">Research insight</div>
+  <div class="callout-text">
+    "Muted tones of gray create a serene, businesslike environment that makes navigation more natural
+    and shows important information more clearly." — Minimalist UI Design for SaaS (Uitop, 2025).
+    Dark mode should remain available as an option, but <strong>light mode should be the default</strong>.
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ DESIGN SYSTEM ═══════════════════ -->
+<section class="section" id="design-system">
+<div class="section-label">2 &mdash; Design System Spec</div>
+
+<div class="comparison">
+  <div class="comparison-header">
+    <div class="comparison-title">Color Palette</div>
+    <span class="tag tag-theme">Theme</span>
+  </div>
+  <div class="comparison-body">
+    <table class="spec-table">
+      <tr><th>Token</th><th>Value</th><th>Usage</th></tr>
+      <tr><td>Background</td><td><span class="swatch" style="background:#F8F9FB"></span><span class="mono">#F8F9FB</span></td><td>Page background — soft warm gray, not pure white</td></tr>
+      <tr><td>Surface</td><td><span class="swatch" style="background:#FFFFFF"></span><span class="mono">#FFFFFF</span></td><td>Cards, dialogs, popovers</td></tr>
+      <tr><td>Border</td><td><span class="swatch" style="background:#E5E7EB"></span><span class="mono">#E5E7EB</span></td><td>Dividers, card borders — subtle, not heavy</td></tr>
+      <tr><td>Primary</td><td><span class="swatch" style="background:#2563EB"></span><span class="mono">#2563EB</span></td><td>Actions, links, active states — professional blue</td></tr>
+      <tr><td>Accent</td><td><span class="swatch" style="background:#0D9488"></span><span class="mono">#0D9488</span></td><td>Data quality health, success indicators</td></tr>
+      <tr><td>Text</td><td><span class="swatch" style="background:#111827"></span><span class="mono">#111827</span></td><td>Primary text — high contrast on light backgrounds</td></tr>
+      <tr><td>Text Secondary</td><td><span class="swatch" style="background:#6B7280"></span><span class="mono">#6B7280</span></td><td>Labels, descriptions, timestamps</td></tr>
+      <tr><td>Destructive</td><td><span class="swatch" style="background:#DC2626"></span><span class="mono">#DC2626</span></td><td>Errors, failed states, quarantined data</td></tr>
+      <tr><td>Warning</td><td><span class="swatch" style="background:#D97706"></span><span class="mono">#D97706</span></td><td>Attention needed, in-progress states</td></tr>
+      <tr><td>Success</td><td><span class="swatch" style="background:#059669"></span><span class="mono">#059669</span></td><td>Complete, validated, clean data</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="comparison">
+  <div class="comparison-header">
+    <div class="comparison-title">Typography</div>
+    <span class="tag tag-theme">Theme</span>
+  </div>
+  <div class="comparison-body">
+    <table class="spec-table">
+      <tr><th>Role</th><th>Font</th><th>Why</th></tr>
+      <tr><td>UI / Body</td><td><span class="mono">Inter</span></td><td>Industry standard for B2B SaaS. Optimized for screens. Excellent legibility at small sizes. Used by Linear, Vercel, Stripe.</td></tr>
+      <tr><td>Data / Numbers</td><td><span class="mono">IBM Plex Mono</span></td><td>Keep this — excellent for tabular data, scores, row counts. Professional monospace feel.</td></tr>
+      <tr><td>Headings</td><td><span class="mono">Inter (600-700)</span></td><td>Same family, heavier weight. No need for a separate display font — consistency > novelty in B2B.</td></tr>
+    </table>
+    <div style="margin-top:12px; font-size:12px; color:var(--text-secondary);">
+      <strong>Note:</strong> The research says Inter is "generic" for creative projects — but for B2B enterprise,
+      <strong>familiarity IS the feature</strong>. Users shouldn't notice the font. They should notice the data.
+    </div>
+  </div>
+</div>
+
+<div class="comparison">
+  <div class="comparison-header">
+    <div class="comparison-title">Component Style Guide</div>
+    <span class="tag tag-theme">Theme</span>
+  </div>
+  <div class="comparison-body" style="font-size:13px; color:var(--text-secondary); line-height:1.8;">
+    <strong>Buttons:</strong> Solid fill for primary actions (blue), outline for secondary, ghost for tertiary.
+    Consistent 8px radius. No gradients, no glows.<br>
+    <strong>Cards:</strong> White surface, 1px #E5E7EB border, 12px radius, no shadows (or very subtle shadow-sm).<br>
+    <strong>Tables:</strong> No zebra stripes. Subtle bottom border per row. Hover state: #F3F4F8 background. Header: uppercase 11px, gray-500 text.<br>
+    <strong>Badges/Pills:</strong> Light tinted backgrounds with matching text (e.g., blue-50 bg + blue-600 text). No heavy borders.<br>
+    <strong>Spacing:</strong> 4px base grid. 16px component padding. 24px section gaps. Generous whitespace.
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+<section class="section" id="sidebar-ux">
+<div class="section-label">3 &mdash; Sidebar: Add Live Context</div>
+
+<div class="comparison">
+  <div class="comparison-header">
+    <div class="comparison-title">Navigation with contextual badges</div>
+    <span class="tag tag-ux">UX Improvement</span>
+  </div>
+  <div class="comparison-body">
+    <div class="ba-grid">
+      <div class="ba-before">
+        <div class="ba-label">Before</div>
+        <div class="ba-text">Dark sidebar with static navigation links. No indication of what needs attention. Users navigate blindly between pages.</div>
+      </div>
+      <div class="ba-after">
+        <div class="ba-label">After</div>
+        <div class="ba-text">
+          <strong>Light sidebar</strong> (white/surface) matching the professional theme.
+          <strong>Badge counts</strong> show files needing attention.
+          <strong>Status dots</strong> show active jobs.
+          Users see at a glance where action is needed.
+        </div>
+      </div>
+    </div>
+    <div class="mockup" style="margin-top:16px;">
+      <div class="mockup-inner" style="display:flex; gap:20px;">
+        <!-- Light sidebar mockup -->
+        <div class="sidebar-mock">
+          <div style="padding:8px 10px 12px; margin-bottom:8px; border-bottom:1px solid var(--border);">
+            <div style="font-size:14px; font-weight:700; color:var(--text);">CleanFlowAI</div>
+            <div style="font-size:10px; color:var(--text-muted);">Data Quality Platform</div>
+          </div>
+          <div style="font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; padding:4px 10px 6px;">Main</div>
+          <div class="sidebar-item">
+            <div class="sidebar-icon"></div>
+            Dashboard
+          </div>
+          <div class="sidebar-item active">
+            <div class="sidebar-icon"></div>
+            Data Catalog
+            <span class="sidebar-badge">3</span>
+          </div>
+          <div class="sidebar-item">
+            <div class="sidebar-icon"></div>
+            Jobs
+            <span class="sidebar-dot"></span>
+          </div>
+          <div class="sidebar-item">
+            <div class="sidebar-icon"></div>
+            Data Tools
+          </div>
+          <div style="font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; padding:12px 10px 6px; border-top:1px solid var(--border); margin-top:4px;">Settings</div>
+          <div class="sidebar-item">
+            <div class="sidebar-icon"></div>
+            Organization
+          </div>
+        </div>
+        <!-- Explanation -->
+        <div style="flex:1; font-size:12px; color:var(--text-secondary); line-height:1.8;">
+          <strong style="color:var(--text);">Key changes:</strong><br>
+          <span class="pill pill-red" style="margin:2px 0;">3</span> = 3 files need remediation (quarantined rows or failed)<br><br>
+          <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--success); vertical-align:middle;"></span>
+          = Active jobs currently running<br><br>
+          <strong>White sidebar</strong> instead of dark slate — matches the professional light theme.
+          Grouped into "Main" and "Settings" sections for clarity.<br><br>
+          <strong>Cost:</strong> ~30 lines of code. Fetch file attention count from existing Redux store.
+          Fetch active job count from jobs API on interval.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ DASHBOARD ═══════════════════ -->
+<section class="section" id="dashboard-ux">
+<div class="section-label">4 &mdash; Dashboard: Make It Actionable</div>
+
+<div class="comparison">
+  <div class="comparison-header">
+    <div class="comparison-title">KPI cards with trend indicators</div>
+    <span class="tag tag-ux">UX Improvement</span>
+  </div>
+  <div class="comparison-body">
+    <div class="mockup">
+      <div class="mockup-inner">
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+          <div class="card-sm">
+            <div class="card-label">Total Files</div>
+            <div class="card-value">47</div>
+            <div class="card-delta" style="color:var(--success);">↑ 5 this week</div>
+          </div>
+          <div class="card-sm">
+            <div class="card-label">Avg DQ Score</div>
+            <div class="card-value" style="color:var(--success);">87.5%</div>
+            <div class="card-delta" style="color:var(--success);">↑ 2.3% vs last week</div>
+          </div>
+          <div class="card-sm">
+            <div class="card-label">Processed</div>
+            <div class="card-value">41</div>
+            <div class="card-delta" style="color:var(--text-muted);">87% completion</div>
+          </div>
+          <div class="card-sm">
+            <div class="card-label">Quarantined Rows</div>
+            <div class="card-value" style="color:var(--warning);">1,247</div>
+            <div class="card-delta" style="color:var(--destructive);">↑ 89 — needs attention</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--text-secondary); margin-top:12px; line-height:1.7;">
+      <strong>What changed:</strong> Each KPI now shows a delta/trend line below the value.
+      Users immediately know if things are getting better or worse.
+      Compare against previous week's data (already available in the overall DQ report endpoint).
+    </div>
+  </div>
+</div>
+
+<div class="comparison">
+  <div class="comparison-header">
+    <div class="comparison-title">Action Required panel (replaces passive attention banner)</div>
+    <span class="tag tag-ux">UX Improvement</span>
+  </div>
+  <div class="comparison-body">
+    <div class="mockup">
+      <div class="mockup-inner">
+        <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:10px;">Needs your attention</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <!-- Item 1 -->
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--surface); cursor:pointer;">
+            <span class="pill pill-red">42 quarantined</span>
+            <span style="font-size:13px; font-weight:500; flex:1;">invoices_march.csv</span>
+            <span style="font-size:12px; color:var(--primary); font-weight:500;">Open Editor →</span>
+          </div>
+          <!-- Item 2 -->
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--surface); cursor:pointer;">
+            <span class="pill pill-amber">Failed</span>
+            <span style="font-size:13px; font-weight:500; flex:1;">customers_q4.xlsx</span>
+            <span style="font-size:12px; color:var(--primary); font-weight:500;">Retry →</span>
+          </div>
+          <!-- Item 3 -->
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:8px; border:1px solid #BFDBFE; background:var(--primary-light); cursor:pointer;">
+            <span class="pill pill-blue">Processing</span>
+            <span style="font-size:13px; font-weight:500; flex:1;">vendor_payments.csv</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <div style="width:60px; height:4px; border-radius:2px; background:#DBEAFE; overflow:hidden;"><div style="width:65%; height:100%; background:var(--primary); border-radius:2px;"></div></div>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-muted);">65%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--text-secondary); margin-top:12px; line-height:1.7;">
+      <strong>Why this matters:</strong> The current dashboard shows charts you can't act on.
+      This panel turns the dashboard into a <strong>task manager</strong> — users see what needs doing and can
+      jump directly to the quarantine editor, retry processing, or view progress.
+      When nothing needs attention, this section hides and charts take the full width.
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ FILES ═══════════════════ -->
+<section class="section" id="files-ux">
+<div class="section-label">5 &mdash; Files Page: Pipeline Stepper + Quick Actions</div>
+
+<div class="comparison">
+  <div class="comparison-header">
+    <div class="comparison-title">Replace status badge with mini pipeline stepper</div>
+    <span class="tag tag-ux">UX Improvement</span>
+  </div>
+  <div class="comparison-body">
+    <div class="mockup">
+      <div class="mockup-inner">
+        <table class="table-mock">
+          <thead>
+            <tr><th>File</th><th>Quality</th><th>Pipeline Status</th><th>Updated</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>invoices_march.csv</strong><br><span style="font-size:10px; color:var(--text-muted);">2.4 MB</span></td>
+              <td><span class="pill pill-green">92.1%</span></td>
+              <td>
+                <div class="stepper">
+                  <div class="step-dot step-done"></div>
+                  <div class="step-line step-done"></div>
+                  <div class="step-dot step-done"></div>
+                  <div class="step-line step-done"></div>
+                  <div class="step-dot step-done"></div>
+                </div>
+                <span style="font-size:10px; color:var(--success); margin-left:6px;">Complete</span>
+              </td>
+              <td style="font-size:11px; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">2h ago</td>
+              <td><span style="font-size:11px; color:var(--primary); cursor:pointer;">View</span></td>
+            </tr>
+            <tr>
+              <td><strong>vendor_payments.csv</strong><br><span style="font-size:10px; color:var(--text-muted);">890 KB</span></td>
+              <td><span style="font-size:11px; color:var(--text-muted);">—</span></td>
+              <td>
+                <div class="stepper">
+                  <div class="step-dot step-done"></div>
+                  <div class="step-line step-done"></div>
+                  <div class="step-dot step-active"></div>
+                  <div class="step-line step-pending"></div>
+                  <div class="step-dot step-pending"></div>
+                </div>
+                <span style="font-size:10px; color:var(--primary); margin-left:6px;">Processing...</span>
+              </td>
+              <td style="font-size:11px; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">just now</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td><strong>customers_q4.xlsx</strong><br><span style="font-size:10px; color:var(--text-muted);">1.1 MB</span></td>
+              <td><span style="font-size:11px; color:var(--text-muted);">—</span></td>
+              <td>
+                <div class="stepper">
+                  <div class="step-dot step-done"></div>
+                  <div class="step-line step-fail"></div>
+                  <div class="step-dot step-fail"></div>
+                  <div class="step-line step-pending"></div>
+                  <div class="step-dot step-pending"></div>
+                </div>
+                <span style="font-size:10px; color:var(--destructive); margin-left:6px;">Failed</span>
+              </td>
+              <td style="font-size:11px; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">1d ago</td>
+              <td><span style="font-size:11px; color:var(--primary); cursor:pointer;">Retry</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--text-secondary); margin-top:12px; line-height:1.7;">
+      The 3-dot stepper (Upload → Process → Complete) replaces text badges like "DQ_RUNNING".
+      At a glance, users see <strong>where each file is in the pipeline</strong> and what failed.
+    </div>
+  </div>
+</div>
+
+<div class="comparison">
+  <div class="comparison-header">
+    <div class="comparison-title">Quick Process: One-click after upload</div>
+    <span class="tag tag-ux">UX Improvement</span>
+  </div>
+  <div class="comparison-body">
+    <div class="mockup">
+      <div class="mockup-inner" style="text-align:center; padding:20px;">
+        <div style="font-size:13px; font-weight:600; margin-bottom:4px;">invoices_march.csv uploaded successfully</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:16px;">2.4 MB · 1,247 rows · 14 columns detected</div>
+        <div style="display:flex; gap:8px; justify-content:center;">
+          <div style="padding:8px 24px; border-radius:6px; background:var(--primary); color:#fff; font-size:13px; font-weight:600; cursor:pointer;">
+            Process Now
+          </div>
+          <div style="padding:8px 24px; border-radius:6px; border:1px solid var(--border); color:var(--text-secondary); font-size:13px; font-weight:500; cursor:pointer;">
+            Configure →
+          </div>
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:10px;">
+          "Process Now" uses auto-detected column types and default DQ rules
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--text-secondary); margin-top:12px; line-height:1.7;">
+      Currently users are forced through a 6-step wizard even for simple files.
+      This gives business users a <strong>one-click happy path</strong> while keeping the full wizard
+      accessible for power users who need custom rules.
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ DIALOGS ═══════════════════ -->
+<section class="section" id="dialogs-ux">
+<div class="section-label">6 &mdash; Dialogs: Reduce Nesting</div>
+
+<div class="comparison">
+  <div class="comparison-header">
+    <div class="comparison-title">Inline export dropdown (replaces 3-dialog chain)</div>
+    <span class="tag tag-ux">UX Improvement</span>
+  </div>
+  <div class="comparison-body">
+    <div class="ba-grid">
+      <div class="ba-before">
+        <div class="ba-label">Current: 3+ clicks</div>
+        <div class="ba-text">
+          Click Export button → ExportDialog opens → Choose format →
+          (optional) ColumnExportDialog → Download. Three separate modals for the most common action.
+        </div>
+      </div>
+      <div class="ba-after">
+        <div class="ba-label">Proposed: 1 click</div>
+        <div class="ba-text">
+          Click Export dropdown → <strong>CSV / Excel / JSON</strong> directly.
+          One click to download. "Advanced export..." at bottom opens column selection only if needed.
+        </div>
+      </div>
+    </div>
+    <div class="mockup" style="margin-top:16px;">
+      <div class="mockup-inner" style="display:flex; justify-content:center;">
+        <div style="position:relative;">
+          <div style="padding:6px 14px; border-radius:6px; border:1px solid var(--border); font-size:12px; font-weight:500; display:flex; align-items:center; gap:4px; cursor:pointer;">
+            Export <span style="font-size:10px;">▾</span>
+          </div>
+          <div style="position:absolute; top:100%; left:0; margin-top:4px; width:180px; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.08); padding:4px; z-index:1;">
+            <div style="padding:7px 10px; border-radius:4px; font-size:12px; cursor:pointer; color:var(--text);">Download as CSV</div>
+            <div style="padding:7px 10px; border-radius:4px; font-size:12px; cursor:pointer; color:var(--text);">Download as Excel</div>
+            <div style="padding:7px 10px; border-radius:4px; font-size:12px; cursor:pointer; color:var(--text);">Download as JSON</div>
+            <div style="height:1px; background:var(--border); margin:4px 0;"></div>
+            <div style="padding:7px 10px; border-radius:4px; font-size:12px; cursor:pointer; color:var(--primary);">Advanced export...</div>
+            <div style="padding:7px 10px; border-radius:4px; font-size:12px; cursor:pointer; color:var(--accent);">Push to ERP →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ ONBOARDING ═══════════════════ -->
+<section class="section" id="onboarding">
+<div class="section-label">7 &mdash; Onboarding: First-Time Experience</div>
+
+<div class="comparison">
+  <div class="comparison-header">
+    <div class="comparison-title">Getting started checklist (replaces empty dashboard)</div>
+    <span class="tag tag-new">New Feature</span>
+  </div>
+  <div class="comparison-body">
+    <div class="mockup">
+      <div class="mockup-inner">
+        <div style="max-width:480px; margin:0 auto; padding:24px;">
+          <div style="font-size:16px; font-weight:700; margin-bottom:4px;">Welcome to CleanFlowAI</div>
+          <div style="font-size:13px; color:var(--text-secondary); margin-bottom:20px;">Complete these steps to start cleaning your data.</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:8px; border:1px solid var(--border); background:var(--surface);">
+              <div style="width:22px; height:22px; border-radius:50%; border:2px solid var(--border); flex-shrink:0;"></div>
+              <div style="flex:1;">
+                <div style="font-size:13px; font-weight:600;">Upload your first file</div>
+                <div style="font-size:11px; color:var(--text-muted);">CSV, Excel, or JSON — up to 1 GB</div>
+              </div>
+              <span style="font-size:12px; color:var(--primary); font-weight:500; cursor:pointer;">Upload →</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:8px; border:1px solid var(--border); background:var(--surface); opacity:0.5;">
+              <div style="width:22px; height:22px; border-radius:50%; border:2px solid var(--border); flex-shrink:0;"></div>
+              <div style="flex:1;">
+                <div style="font-size:13px; font-weight:600;">Run data quality processing</div>
+                <div style="font-size:11px; color:var(--text-muted);">AI detects column types and applies 33+ quality rules</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:8px; border:1px solid var(--border); background:var(--surface); opacity:0.5;">
+              <div style="width:22px; height:22px; border-radius:50%; border:2px solid var(--border); flex-shrink:0;"></div>
+              <div style="flex:1;">
+                <div style="font-size:13px; font-weight:600;">Review & fix quarantined rows</div>
+                <div style="font-size:11px; color:var(--text-muted);">Edit flagged cells in the inline quarantine editor</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:8px; border:1px solid var(--border); background:var(--surface); opacity:0.5;">
+              <div style="width:22px; height:22px; border-radius:50%; border:2px solid var(--border); flex-shrink:0;"></div>
+              <div style="flex:1;">
+                <div style="font-size:13px; font-weight:600;">Export clean data</div>
+                <div style="font-size:11px; color:var(--text-muted);">Download as CSV/Excel or push directly to QuickBooks/Zoho</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--text-secondary); margin-top:12px; line-height:1.7;">
+      Shown when <code>files.length === 0</code>. Each step links directly to the relevant action.
+      Completed steps show a green checkmark. The checklist disappears once all 4 steps are done.
+      This solves the "empty dashboard void" problem and reduces time-to-first-value.
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- Summary -->
+<div style="margin-top:48px; padding:28px; border-radius:12px; background:var(--surface); border:1px solid var(--border);">
+  <div style="font-size:16px; font-weight:700; margin-bottom:6px;">Summary of Changes</div>
+  <div style="font-size:13px; color:var(--text-secondary); line-height:1.8;">
+    <strong>Theme:</strong> Light-first professional theme (Inter + IBM Plex Mono, blue primary, soft neutral backgrounds)<br>
+    <strong>Sidebar:</strong> Light sidebar with attention badges and active job indicators<br>
+    <strong>Dashboard:</strong> KPI trends, Action Required panel, live processing status<br>
+    <strong>Files:</strong> Pipeline stepper replacing text badges, one-click Quick Process<br>
+    <strong>Export:</strong> Inline dropdown replacing 3-dialog chain<br>
+    <strong>Onboarding:</strong> Getting-started checklist for empty states<br><br>
+    <strong>What we're NOT changing:</strong> All existing functionality, data flows, API calls, and business logic remain identical.
+    These are UX/UI improvements only.
+  </div>
+</div>
+
+</div>
+</body>
+</html>

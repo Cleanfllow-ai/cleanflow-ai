@@ -3,7 +3,7 @@
 import { BarChart3, FileText, Gauge, TrendingUp, Target, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { fileManagementAPI, type FileStatusResponse } from '@/modules/files'
+import { type FileStatusResponse } from '@/modules/files'
 
 interface AnalyticsSectionProps {
   files: FileStatusResponse[]

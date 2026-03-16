@@ -6,7 +6,7 @@ import { AlertTriangle, CheckCircle, FileText, TrendingUp } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import type { DqChartsProps } from "@/modules/dashboard/components/chart-constants"
-import { ChartsCarousel } from "@/modules/dashboard/components/charts/charts-carousel"
+import { ProfessionalChartsCarousel } from "@/modules/dashboard/components/professional-charts-carousel"
 import { DqScoreChart } from "@/modules/dashboard/components/charts/dq-score-chart"
 
 import { RowDistributionChart } from "@/modules/dashboard/components/charts/row-distribution-chart"
@@ -146,7 +146,7 @@ function DqChartsComponent({ files }: DqChartsProps) {
 
       <Card className="border-border bg-card">
         <CardContent className="px-4 pb-4 pt-2">
-          <ChartsCarousel files={files} />
+          <ProfessionalChartsCarousel files={files} />
         </CardContent>
       </Card>
     </div>

@@ -108,13 +108,13 @@ export function JobRunDetailModal({ run, open, onOpenChange }: JobRunDetailModal
                     <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Started</p>
                         <p className="text-xs">
-                            {run.started_at ? format(new Date(run.started_at), "MMM d, yyyy HH:mm:ss") : "—"}
+                            {run.started_at ? (() => { try { return format(new Date(run.started_at), "MMM d, yyyy HH:mm:ss") } catch { return "\u2014" } })() : "\u2014"}
                         </p>
                     </div>
                     <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Completed</p>
                         <p className="text-xs">
-                            {run.completed_at ? format(new Date(run.completed_at), "MMM d, yyyy HH:mm:ss") : "—"}
+                            {run.completed_at ? (() => { try { return format(new Date(run.completed_at), "MMM d, yyyy HH:mm:ss") } catch { return "\u2014" } })() : "\u2014"}
                         </p>
                     </div>
                     {run.source_erp && (

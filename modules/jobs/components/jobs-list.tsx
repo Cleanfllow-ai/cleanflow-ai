@@ -528,7 +528,7 @@ export function JobsList() {
                                                             className="text-[12px] text-muted-foreground tabular-nums"
                                                             style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}
                                                         >
-                                                            {format(new Date(job.last_run_at), "MMM d, HH:mm")}
+                                                            {(() => { try { return format(new Date(job.last_run_at), "MMM d, HH:mm") } catch { return "\u2014" } })()}
                                                         </span>
                                                     </div>
                                                 ) : (

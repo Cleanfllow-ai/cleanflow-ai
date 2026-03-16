@@ -22,10 +22,19 @@ interface UseFilePollingParams {
 export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParams) {
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set())
   const processingFilesRef = useRef(processingFiles)
+  const timeoutIdsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   useEffect(() => {
     processingFilesRef.current = processingFiles
   }, [processingFiles])
+
+  // Cleanup all pending timeouts on unmount
+  useEffect(() => {
+    return () => {
+      timeoutIdsRef.current.forEach((id) => clearTimeout(id))
+      timeoutIdsRef.current.clear()
+    }
+  }, [])
 
   const checkProcessingStatus = useCallback(
     async (uploadId: string) => {
@@ -75,6 +84,7 @@ export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParam
 
       const checkStatus = async () => {
         if (!processingFilesRef.current.has(uploadId)) {
+          timeoutIdsRef.current.delete(uploadId)
           return
         }
 
@@ -82,6 +92,7 @@ export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParam
           const status = await checkProcessingStatus(uploadId)
 
           if (status.status === "DQ_FIXED" || status.status === "DQ_FAILED" || status.status === "FAILED") {
+            timeoutIdsRef.current.delete(uploadId)
             setProcessingFiles((prev) => {
               const next = new Set(prev)
               next.delete(uploadId)
@@ -96,9 +107,11 @@ export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParam
             return
           }
 
-          setTimeout(checkStatus, 15000)
+          const tid = setTimeout(checkStatus, 15000)
+          timeoutIdsRef.current.set(uploadId, tid)
         } catch (error) {
           console.error(`Error monitoring ${uploadId}:`, error)
+          timeoutIdsRef.current.delete(uploadId)
           setProcessingFiles((prev) => {
             const next = new Set(prev)
             next.delete(uploadId)
@@ -107,7 +120,8 @@ export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParam
         }
       }
 
-      setTimeout(checkStatus, 15000)
+      const tid = setTimeout(checkStatus, 15000)
+      timeoutIdsRef.current.set(uploadId, tid)
     },
     [checkProcessingStatus, toast]
   )

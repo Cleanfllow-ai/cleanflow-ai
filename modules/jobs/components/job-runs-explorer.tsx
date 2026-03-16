@@ -217,8 +217,8 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground tabular-nums">
                                             {run.started_at
-                                                ? format(new Date(run.started_at), "MMM d, HH:mm:ss")
-                                                : "—"
+                                                ? (() => { try { return format(new Date(run.started_at), "MMM d, HH:mm:ss") } catch { return "\u2014" } })()
+                                                : "\u2014"
                                             }
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground tabular-nums text-right">

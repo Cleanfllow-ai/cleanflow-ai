@@ -50,8 +50,6 @@ class QuickBooksService {
       }
     }
 
-    console.log('📡 QuickBooks API Request:', url, options.method || 'GET')
-
     try {
       // Create abort controller with timeout (60 seconds for export operations)
       const controller = new AbortController()
@@ -64,7 +62,6 @@ class QuickBooksService {
       })
 
       clearTimeout(timeoutId)
-      console.log('📥 Response:', response.status)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
@@ -271,10 +268,13 @@ class QuickBooksService {
 
         // Listen for message from callback window
         const messageHandler = (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) return
           if (event.data.type === 'quickbooks-auth-success') {
+            clearInterval(checkWindow)
             window.removeEventListener('message', messageHandler)
             resolve({ success: true, realmId: event.data.realmId })
           } else if (event.data.type === 'quickbooks-auth-error') {
+            clearInterval(checkWindow)
             window.removeEventListener('message', messageHandler)
             resolve({ success: false, error: event.data.error })
           }

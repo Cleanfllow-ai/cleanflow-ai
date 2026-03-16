@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Pinecone } from '@pinecone-database/pinecone'
 import { readFile } from 'fs/promises'
 import path from 'path'
+import { generateFallbackEmbedding, chunkText } from '../_lib/embeddings'
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
 const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || 'cleanflowai-docs'
@@ -41,41 +42,6 @@ async function generateEmbedding(text: string): Promise<number[]> {
     console.warn('Error generating embedding:', error)
     return generateFallbackEmbedding(text)
   }
-}
-
-// Fallback embedding function
-function generateFallbackEmbedding(text: string): number[] {
-  const seed = text
-    .split('')
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  const random = Math.sin(seed) * 10000
-  const embedding: number[] = []
-  for (let i = 0; i < 384; i++) {
-    embedding.push(
-      Math.sin(random + i) * 0.5 + Math.cos(random * i) * 0.5
-    )
-  }
-  return embedding
-}
-
-// Split text into chunks
-function chunkText(text: string, chunkSize: number = 500): string[] {
-  const chunks: string[] = []
-  let currentChunk = ''
-
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text]
-
-  for (const sentence of sentences) {
-    if ((currentChunk + sentence).length > chunkSize) {
-      if (currentChunk) chunks.push(currentChunk.trim())
-      currentChunk = sentence
-    } else {
-      currentChunk += sentence
-    }
-  }
-
-  if (currentChunk) chunks.push(currentChunk.trim())
-  return chunks
 }
 
 export async function POST(req: NextRequest) {

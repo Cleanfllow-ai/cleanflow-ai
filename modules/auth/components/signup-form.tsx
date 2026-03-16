@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Building2, Briefcase, Eye, EyeOff, FileText, Globe, Lock, Mail, User, Phone, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 

@@ -35,7 +35,7 @@ export interface ZohoBooksExportResponse {
 
 export interface ZohoBooksExportStatusResponse {
     upload_id: string
-    status: 'processing' | 'completed' | 'failed' | 'not_started'
+    status: 'processing' | 'completed' | 'failed' | 'not_started' | 'pushed'
     message?: string
     processed_count?: number
     success_count?: number

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "@/modules/auth"
 import { useToast } from "@/shared/hooks/use-toast"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
@@ -93,6 +93,7 @@ async function waitForNewVersion(
     originalUploadId: string,
     token: string,
     maxWaitMs: number = 60000,
+    cancelledRef?: React.MutableRefObject<boolean>,
 ): Promise<FileStatusResponse | null> {
     const interval = 3000
     const startTime = Date.now()
@@ -105,7 +106,9 @@ async function waitForNewVersion(
     } catch { /* ignore */ }
 
     while (Date.now() - startTime < maxWaitMs) {
+        if (cancelledRef?.current) return null
         await new Promise(resolve => setTimeout(resolve, interval))
+        if (cancelledRef?.current) return null
         try {
             const resp = await fileManagementAPI.getFileVersions(originalUploadId, token)
             const versions = resp.versions || []
@@ -126,6 +129,7 @@ async function waitForDeltaReprocess(
         maxWaitMs?: number
         expectedSnapshotId?: string
         previousSnapshotId?: string | null
+        cancelledRef?: React.MutableRefObject<boolean>
     } = {},
 ): Promise<FileStatusResponse | null> {
     const interval = 2000
@@ -133,7 +137,9 @@ async function waitForDeltaReprocess(
     const maxWaitMs = options.maxWaitMs ?? 60000
 
     while (Date.now() - startTime < maxWaitMs) {
+        if (options.cancelledRef?.current) return null
         await new Promise(resolve => setTimeout(resolve, interval))
+        if (options.cancelledRef?.current) return null
         try {
             const file = await fileManagementAPI.getFileStatus(uploadId, token)
             const currentSnapshotId = file.current_reprocess_snapshot_id || null
@@ -161,12 +167,15 @@ async function pollReExportStatus(
     jobId: string,
     uploadId: string,
     maxWaitMs: number = 120000,
+    cancelledRef?: React.MutableRefObject<boolean>,
 ): Promise<{ status: string; records_exported?: number; destination?: string; error?: string } | null> {
     const interval = 5000
     const startTime = Date.now()
 
     while (Date.now() - startTime < maxWaitMs) {
+        if (cancelledRef?.current) return null
         await new Promise(resolve => setTimeout(resolve, interval))
+        if (cancelledRef?.current) return null
         try {
             const result = await jobsAPI.checkReExportStatus(jobId, uploadId)
             if (result.status === "SUCCESS" || result.status === "FAILED") {
@@ -201,6 +210,13 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
     // Ref to access latest entries without adding to callback deps
     const entriesRef = useRef(entries)
     entriesRef.current = entries
+
+    // Cancellation ref — set to true when the hook unmounts or dialog closes
+    const cancelledRef = useRef(false)
+    useEffect(() => {
+        cancelledRef.current = false
+        return () => { cancelledRef.current = true }
+    }, [open])
 
     useEffect(() => {
         if (!open || !run || !idToken) {
@@ -388,10 +404,11 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
                     maxWaitMs: 60000,
                     expectedSnapshotId: reprocessResult.reprocess_snapshot_id,
                     previousSnapshotId,
+                    cancelledRef,
                 })
             } else {
                 // Wait for the reprocess worker to create the new version
-                updatedFile = await waitForNewVersion(fileUploadId, idToken, 60000)
+                updatedFile = await waitForNewVersion(fileUploadId, idToken, 60000, cancelledRef)
             }
 
             if (!updatedFile) {
@@ -410,7 +427,7 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
             await jobsAPI.reExportFile(jobId, targetUploadId, entity)
 
             // Poll for the async export result
-            const exportResult = await pollReExportStatus(jobId, targetUploadId, 120000)
+            const exportResult = await pollReExportStatus(jobId, targetUploadId, 120000, cancelledRef)
 
             if (exportResult?.status === "SUCCESS") {
                 toast({

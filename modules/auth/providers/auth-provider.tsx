@@ -2,13 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { useAuth as useAuthHook } from "@/modules/auth/hooks/use-auth";
+import type { MfaSetupData } from "@/modules/auth/types/auth.types";
 import { orgAPI } from "@/modules/auth/api/org-api";
 import { usePathname } from "next/navigation";
-
-interface MfaSetupData {
-  secretCode: string;
-  qrCodeUrl: string;
-}
 
 interface AuthContextType {
   user: any;
@@ -71,12 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [auth.isAuthenticated, auth.idToken]);
 
-  // Fetch permissions when auth state changes
-  useEffect(() => {
-    refreshPermissions();
-  }, [refreshPermissions]);
-
-  // Re-fetch permissions on page navigation
+  // Re-fetch permissions on page navigation (also covers initial auth state change)
   useEffect(() => {
     if (auth.isAuthenticated) {
       refreshPermissions();

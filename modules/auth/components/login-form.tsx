@@ -155,7 +155,7 @@ export function LoginForm() {
           {/* Sign up link */}
           <p className="text-center text-sm text-muted-foreground">
             Don't have an account?{' '}
-            <Link href={`/auth/signup${window.location.search}`} className="text-accent hover:opacity-90 font-medium">Sign up</Link>
+            <Link href={`/auth/signup${f.searchParamsString ? `?${f.searchParamsString}` : ''}`} className="text-accent hover:opacity-90 font-medium">Sign up</Link>
           </p>
         </CardContent>
       </Card>

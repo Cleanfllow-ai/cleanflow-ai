@@ -52,10 +52,10 @@ export function InviteSetPasswordForm() {
         title: "Password set",
         description: "Sign in to complete organization joining.",
       });
+      sessionStorage.setItem("invite_token", token);
       const params = new URLSearchParams({
         org_id: orgId,
         invite_id: inviteId,
-        token,
         email,
       });
       router.push(`/auth/login?${params.toString()}`);

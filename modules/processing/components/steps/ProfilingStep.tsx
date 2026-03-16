@@ -92,10 +92,10 @@ export function ProfilingStep() {
       const response = await fileManagementAPI.getColumnProfilingPreview(uploadId, authToken, [column], 200)
       const profiles = (response as any)?.profiles || (response as any)?.column_profiles || {}
       if (profiles?.[column]) {
-        setColumnProfiles({
-          ...columnProfiles,
+        setColumnProfiles(prev => ({
+          ...prev,
           [column]: profiles[column],
-        })
+        }))
       }
     } catch (err) {
       console.error("Failed to profile column", column, err)

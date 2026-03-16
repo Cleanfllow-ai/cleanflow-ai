@@ -198,6 +198,7 @@ class ZohoBooksService {
         )
 
         const messageHandler = (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) return
           if (event.data.type === 'zoho-books-auth-success') {
             window.removeEventListener('message', messageHandler)
             resolve({ success: true })

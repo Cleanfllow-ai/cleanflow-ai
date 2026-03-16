@@ -121,6 +121,34 @@ export function useSnowflakeImport({
         }
     }, [])
 
+    const loadMetadata = useCallback(async () => {
+        setMetadataLoading(true)
+        try {
+            const [wh, dbs] = await Promise.all([
+                snowflakeAPI.listWarehouses(),
+                snowflakeAPI.listDatabases(),
+            ])
+            setWarehouses(wh)
+            setDatabases(dbs)
+            if (wh.length > 0 && !selectedWarehouse) {
+                setSelectedWarehouse(wh[0].name)
+            }
+            if (selectedDatabase && selectedSchema) {
+                const tbl = await snowflakeAPI.listTables(selectedDatabase, selectedSchema)
+                    .catch(() => [] as SnowflakeMetadataItem[])
+                setTables(tbl)
+            }
+        } catch (error) {
+            console.error("Failed to load metadata:", error)
+            onNotification?.(
+                "Failed to load Snowflake metadata. Please check your connection.",
+                "error"
+            )
+        } finally {
+            setMetadataLoading(false)
+        }
+    }, [onNotification, selectedWarehouse, selectedDatabase, selectedSchema])
+
     const connectOAuth = useCallback(async () => {
         setIsConnecting(true)
         try {
@@ -142,7 +170,7 @@ export function useSnowflakeImport({
         } finally {
             setIsConnecting(false)
         }
-    }, [checkConnection, onNotification])
+    }, [checkConnection, onNotification, loadMetadata])
 
     const disconnect = useCallback(async () => {
         try {
@@ -167,36 +195,6 @@ export function useSnowflakeImport({
     }, [onNotification])
 
     // ─── Metadata loading ─────────────────────────────────────────────────
-
-    const loadMetadata = useCallback(async () => {
-        setMetadataLoading(true)
-        try {
-            // Load warehouses and databases in parallel; tables load via cascading effects
-            const [wh, dbs] = await Promise.all([
-                snowflakeAPI.listWarehouses(),
-                snowflakeAPI.listDatabases(),
-            ])
-            setWarehouses(wh)
-            setDatabases(dbs)
-            if (wh.length > 0 && !selectedWarehouse) {
-                setSelectedWarehouse(wh[0].name)
-            }
-            // If we already have a selected database + schema, load tables
-            if (selectedDatabase && selectedSchema) {
-                const tbl = await snowflakeAPI.listTables(selectedDatabase, selectedSchema)
-                    .catch(() => [] as SnowflakeMetadataItem[])
-                setTables(tbl)
-            }
-        } catch (error) {
-            console.error("Failed to load metadata:", error)
-            onNotification?.(
-                "Failed to load Snowflake metadata. Please check your connection.",
-                "error"
-            )
-        } finally {
-            setMetadataLoading(false)
-        }
-    }, [onNotification, selectedWarehouse, selectedDatabase, selectedSchema])
 
     const loadSchemas = useCallback(async (database: string) => {
         if (!database) return

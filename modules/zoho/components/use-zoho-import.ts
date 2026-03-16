@@ -194,10 +194,8 @@ export function useZohoImport({
 
     // ─── Dynamic entity fields ──────────────────────────────────────
     const loadEntityFields = async (entity: string) => {
-        console.log('[Zoho] loadEntityFields called for:', entity)
         try {
             const resp = await zohoBooksAPI.getEntityFields(entity)
-            console.log('[Zoho] Entity fields response:', resp)
             const fields: MappingField[] = (resp.fields || []).map((f: any) => ({
                 key: f.key,
                 label: f.label || f.key,
@@ -223,14 +221,11 @@ export function useZohoImport({
         try {
             // First try local matching (fast)
             const localMapping = autoMapColumns(config.entity, availableColumns, entityFields)
-            console.log('[Zoho] Local mapping:', localMapping, `(${Object.keys(localMapping).length} fields)`)
 
             const unmapped = (entityFields.length > 0 ? entityFields : []).filter(f => !localMapping[f.key])
-            console.log('[Zoho] Unmapped fields:', unmapped.length, 'entityFields:', entityFields.length)
 
             // If all fields mapped locally, use that
             if (unmapped.length === 0 || entityFields.length === 0) {
-                console.log('[Zoho] All fields mapped locally or no entity fields, skipping backend')
                 setColumnMapping(localMapping)
                 setAutoMapLoading(false)
                 return
@@ -238,9 +233,7 @@ export function useZohoImport({
 
             // Call backend: template.json first, AI fallback
             const fileId = selectedFile?.upload_id || uploadId
-            console.log('[Zoho] Calling backend aiAutoMap with', availableColumns.length, 'columns, entity:', config.entity, 'fileId:', fileId)
             const resp = await zohoBooksAPI.aiAutoMap(availableColumns, config.entity, fileId)
-            console.log('[Zoho] Backend response:', resp)
 
             if (resp.mapping && Object.keys(resp.mapping).length > 0) {
                 // Resolve backend mapping values to actual availableColumns names
@@ -251,17 +244,11 @@ export function useZohoImport({
                     const actualCol = colLookup.get(col.toLowerCase())
                     if (actualCol) {
                         validMapping[field] = actualCol
-                    } else {
-                        console.warn(`[Zoho] Backend mapped ${field} → "${col}" but column not in availableColumns, skipping`)
                     }
                 }
-                console.log('[Zoho] Valid backend mappings:', Object.keys(validMapping).length, 'of', Object.keys(resp.mapping).length)
-
                 const merged = { ...localMapping, ...validMapping }
-                console.log('[Zoho] Final merged mapping:', merged, `(${Object.keys(merged).length} fields)`)
                 setColumnMapping(merged)
             } else {
-                console.log('[Zoho] Backend returned empty mapping, using local only')
                 setColumnMapping(localMapping)
             }
         } catch (err) {
@@ -532,7 +519,6 @@ export function useZohoImport({
     // Fetch entity fields from backend when entity changes
     useEffect(() => {
         if (connected && config.entity) {
-            console.log('[Zoho] useEffect: connected =', connected, 'entity =', config.entity)
             loadEntityFields(config.entity)
         }
     }, [connected, config.entity])

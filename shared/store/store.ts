@@ -1,14 +1,12 @@
 import { configureStore } from "@reduxjs/toolkit"
 import { type TypedUseSelectorHook, useDispatch, useSelector } from "react-redux"
 import dashboardSlice from "@/modules/dashboard/store/dashboardSlice"
-import apiSlice from "@/shared/store/apiSlice"
 import transformSlice from "@/modules/transform/store/transformSlice"
 import filesReducer from "@/modules/files/store/filesSlice"
 
 export const store = configureStore({
   reducer: {
     dashboard: dashboardSlice,
-    api: apiSlice,
     transform: transformSlice,
     files: filesReducer,
   },

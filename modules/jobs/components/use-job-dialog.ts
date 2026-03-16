@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
 import { fileManagementAPI } from '@/modules/files'
 import {
@@ -161,8 +161,6 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const [presetsLoading, setPresetsLoading] = useState(false)
     const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null)
     const [selectedPresetConfig, setSelectedPresetConfig] = useState<Record<string, any> | null>(null)
-    const [pendingPresetName, setPendingPresetName] = useState("")
-
     // Advanced — Custom Rules (legacy flat list)
     const [globalRules, setGlobalRules] = useState<RuleState[]>(DEFAULT_GLOBAL_RULES.map(r => ({ ...r })))
     const [rulesLoading, setRulesLoading] = useState(false)
@@ -237,7 +235,6 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             setAllColumns([])
             setSelectedPresetId(null)
             setSelectedPresetConfig(normalizePresetConfig(DEFAULT_SETTINGS_PRESET.config))
-            setPendingPresetName("")
             setGlobalRules(DEFAULT_GLOBAL_RULES.map(r => ({ ...r })))
             setRulesLoadedFromApi(false)
             setAdvancedOpen(false)
@@ -256,6 +253,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
 
     // ─── Fetch Columns ────────────────────────────────────────────────────────
 
+    // TODO: Wire to real API — currently uses static template columns
     const handleFetchColumns = async () => {
         setFetchingCols(true)
         try {
@@ -434,6 +432,31 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         setEditMaxTextLen(normalized.hygiene?.max_text_length ?? 255)
     }
 
+    const handleSelectPreset = useCallback(async (presetId: string, presetList?: SettingsPreset[]) => {
+        if (presetId === "none") {
+            setSelectedPresetId(null)
+            applyPresetConfigToEditor(DEFAULT_SETTINGS_PRESET.config || {})
+            return
+        }
+        setSelectedPresetId(presetId)
+
+        const list = presetList || presets
+        const localPreset = list.find(p => p.preset_id === presetId)
+        if (localPreset?.config) {
+            applyPresetConfigToEditor(localPreset.config)
+            if (presetId === DEFAULT_SETTINGS_PRESET.preset_id) return
+        }
+
+        // Fetch full preset details using fileManagementAPI
+        try {
+            const preset = await fileManagementAPI.getSettingsPreset(presetId)
+            if (preset?.config) applyPresetConfigToEditor(preset.config)
+        } catch (err) {
+            console.error('Failed to load preset details:', err)
+            // Keep local fallback already applied above.
+        }
+    }, [presets])
+
     useEffect(() => {
         if (currentAdvancedStep !== "settings" || !dataImported) return
         let cancelled = false
@@ -472,33 +495,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
 
         loadPresets()
         return () => { cancelled = true }
-    }, [currentAdvancedStep, dataImported])
-
-    const handleSelectPreset = async (presetId: string, presetList?: SettingsPreset[]) => {
-        if (presetId === "none") {
-            setSelectedPresetId(null)
-            applyPresetConfigToEditor(DEFAULT_SETTINGS_PRESET.config || {})
-            return
-        }
-        setSelectedPresetId(presetId)
-        setPendingPresetName("")
-
-        const list = presetList || presets
-        const localPreset = list.find(p => p.preset_id === presetId)
-        if (localPreset?.config) {
-            applyPresetConfigToEditor(localPreset.config)
-            if (presetId === DEFAULT_SETTINGS_PRESET.preset_id) return
-        }
-
-        // Fetch full preset details using fileManagementAPI
-        try {
-            const preset = await fileManagementAPI.getSettingsPreset(presetId)
-            if (preset?.config) applyPresetConfigToEditor(preset.config)
-        } catch (err) {
-            console.error('Failed to load preset details:', err)
-            // Keep local fallback already applied above.
-        }
-    }
+    }, [currentAdvancedStep, dataImported, handleSelectPreset, selectedPresetId])
 
     // ─── Preset Editing ───────────────────────────────────────────────────────
     const [presetEditMode, setPresetEditMode] = useState(false)

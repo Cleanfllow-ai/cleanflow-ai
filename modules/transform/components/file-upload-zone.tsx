@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react"
 import { useDropzone } from "react-dropzone"
 import { useAppDispatch, useAppSelector } from "@/shared/store/store"
-import { setUploadedFile, setError } from "@/modules/transform/store/transformSlice"
+import { setUploadedFileInfo, setError } from "@/modules/transform/store/transformSlice"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,8 +13,9 @@ import { cn } from "@/shared/lib/utils"
 
 export function FileUploadZone() {
   const dispatch = useAppDispatch()
-  const { uploadedFile, isLoading } = useAppSelector((state) => state.transform)
+  const { uploadedFileInfo, isLoading } = useAppSelector((state) => state.transform)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [localFile, setLocalFile] = useState<File | null>(null)
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -26,7 +27,8 @@ export function FileUploadZone() {
           setUploadProgress((prev) => {
             if (prev >= 100) {
               clearInterval(interval)
-              dispatch(setUploadedFile(file))
+              setLocalFile(file)
+              dispatch(setUploadedFileInfo({ name: file.name, size: file.size, type: file.type }))
               return 100
             }
             return prev + 10
@@ -53,7 +55,8 @@ export function FileUploadZone() {
   })
 
   const removeFile = () => {
-    dispatch(setUploadedFile(null))
+    setLocalFile(null)
+    dispatch(setUploadedFileInfo(null))
     setUploadProgress(0)
   }
 
@@ -82,18 +85,18 @@ export function FileUploadZone() {
     }
   }
 
-  if (uploadedFile) {
+  if (uploadedFileInfo) {
     return (
       <Card className="hover:glow transition-all duration-300">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">{getFileIcon(uploadedFile.name)}</span>
+                <span className="text-2xl">{getFileIcon(uploadedFileInfo.name)}</span>
               </div>
               <div>
-                <div className="font-medium text-foreground">{uploadedFile.name}</div>
-                <div className="text-sm text-muted-foreground">{formatFileSize(uploadedFile.size)}</div>
+                <div className="font-medium text-foreground">{uploadedFileInfo.name}</div>
+                <div className="text-sm text-muted-foreground">{formatFileSize(uploadedFileInfo.size)}</div>
                 <div className="flex items-center space-x-2 mt-1">
                   <CheckCircle className="w-4 h-4 text-green-500" />
                   <Badge variant="outline" className="text-xs">

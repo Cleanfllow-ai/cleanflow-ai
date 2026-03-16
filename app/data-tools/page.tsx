@@ -203,6 +203,8 @@ export default function DataToolsPage() {
         setTransformResults(result)
         toast({ title: "Transformation Complete", description: `Transformed ${result.row_count} rows successfully!`, variant: "default" })
       }
+      setLoading(false)
+      setCurrentStep('complete')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Transformation failed'
       setError(errorMessage)
@@ -210,8 +212,6 @@ export default function DataToolsPage() {
       setCurrentStep('upload')
       toast({ title: "Transformation Failed", description: errorMessage, variant: "destructive" })
     }
-    setLoading(false)
-    setCurrentStep('complete')
   }
   const downloadFile = () => {
     if (downloadUrl && selectedFile) {

@@ -159,7 +159,7 @@ interface WizardActions {
     toggleColumn: (column: string) => void
 
     // Profiling
-    setColumnProfiles: (profiles: Record<string, ColumnProfile>) => void
+    setColumnProfiles: (profiles: Record<string, ColumnProfile> | ((prev: Record<string, ColumnProfile>) => Record<string, ColumnProfile>)) => void
     setRequiredColumns: (columns: string[]) => void
     setColumnCoreType: (column: string, core: string) => void
     setColumnTypeAlias: (column: string, alias: string | null) => void
@@ -277,7 +277,10 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
             })
         },
 
-        setColumnProfiles: (profiles) => setState((s) => ({ ...s, columnProfiles: profiles })),
+        setColumnProfiles: (profiles) => setState((s) => ({
+            ...s,
+            columnProfiles: typeof profiles === 'function' ? profiles(s.columnProfiles) : profiles,
+        })),
 
         setRequiredColumns: (columns) => setState((s) => ({ ...s, requiredColumns: columns })),
 
@@ -408,7 +411,7 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
         if (state.uploadId && state.step !== "columns") {
             saveWizardState(state)
         }
-    }, [state.step, state.uploadId])
+    }, [state.step, state.uploadId, state.selectedColumns, state.columnCoreTypes, state.columnRules, state.customRules])
 
     return (
         <WizardContext.Provider value={{ ...state, ...actions }}>

@@ -122,7 +122,7 @@ export function getMappingFields(entity: string): MappingField[] {
 }
 
 export function normalizeKey(value: string) {
-    return value.toLowerCase().replace(/[\s_]+/g, '')
+    return value.toLowerCase().replace(/[\s_-]+/g, '')
 }
 
 export function autoMapColumns(entity: string, columns: string[], dynamicFields?: MappingField[]) {

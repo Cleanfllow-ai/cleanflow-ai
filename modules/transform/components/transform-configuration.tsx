@@ -22,13 +22,14 @@ import { Play, Zap, Settings } from "lucide-react"
 
 export function TransformConfiguration() {
   const dispatch = useAppDispatch()
-  const { supportedErps, supportedEntities, selectedErp, selectedEntity, autoDetect, isLoading, uploadedFile } =
+  const { supportedErps, supportedEntities, selectedErp, selectedEntity, autoDetect, isLoading, uploadedFileInfo } =
     useAppSelector((state) => state.transform)
 
   const [outputFormat, setOutputFormat] = useState("json")
 
+  // TODO: Wire to erpTransformAPI
   const handleTransform = async () => {
-    if (!uploadedFile) return
+    if (!uploadedFileInfo) return
 
     dispatch(setLoading(true))
     dispatch(setError(null))
@@ -79,7 +80,7 @@ export function TransformConfiguration() {
           type: "transform",
           status: "success",
           timestamp: new Date().toISOString(),
-          details: `${uploadedFile.name} transformed successfully`,
+          details: `${uploadedFileInfo.name} transformed successfully`,
         }),
       )
     } catch (error) {
@@ -90,7 +91,7 @@ export function TransformConfiguration() {
           type: "transform",
           status: "error",
           timestamp: new Date().toISOString(),
-          details: `Failed to transform ${uploadedFile.name}`,
+          details: `Failed to transform ${uploadedFileInfo.name}`,
         }),
       )
     } finally {
@@ -181,10 +182,13 @@ export function TransformConfiguration() {
             </Badge>
           </div>
 
-          <Button onClick={handleTransform} disabled={isLoading} className="glow">
-            <Play className="w-4 h-4 mr-2" />
-            {isLoading ? "Transforming..." : "Transform Data"}
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button onClick={handleTransform} disabled={isLoading} className="glow">
+              <Play className="w-4 h-4 mr-2" />
+              {isLoading ? "Transforming..." : "Transform Data"}
+            </Button>
+            <p className="text-sm text-muted-foreground">(Preview — transform uses sample data)</p>
+          </div>
         </div>
       </CardContent>
     </Card>

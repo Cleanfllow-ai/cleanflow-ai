@@ -204,6 +204,7 @@ class GoogleDriveService {
                 }
 
                 const messageHandler = (event: MessageEvent) => {
+                    if (event.origin !== window.location.origin) return
                     if (event.data.type === "googledrive-auth-success") {
                         cleanup({ success: true })
                     } else if (event.data.type === "googledrive-auth-error") {

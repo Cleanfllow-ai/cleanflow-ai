@@ -303,7 +303,6 @@ export function useOrgSettings() {
     const [inviteRole, setInviteRole] = useState<AppRole>("Data Steward");
     const [isSendingInvite, setIsSendingInvite] = useState(false);
     const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
-    const [showPendingInvites, setShowPendingInvites] = useState(false);
     const logoInputRef = useRef<HTMLInputElement | null>(null);
     const presetFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -952,6 +951,7 @@ export function useOrgSettings() {
         setServicesSettings((prev) => ({ ...prev, [field]: value }));
     };
 
+    // TODO: Wire to backend API
     const handleSaveServices = async () => {
         toast({
             title: "Services settings saved",

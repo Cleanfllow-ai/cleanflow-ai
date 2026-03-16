@@ -10,6 +10,7 @@ import Image from 'next/image'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/modules/auth'
+import { cognitoApi } from '@/modules/auth/api/cognito-client'
 
 interface EmailVerificationProps {
   email: string
@@ -74,10 +75,14 @@ export function EmailVerification({ email, onVerified, onBack }: EmailVerificati
   }
 
   const handleResendCode = async () => {
-    // Implement resend logic here
-    setTimeLeft(300) // Reset timer
     setError('')
-    setSuccess('Verification code resent successfully!')
+    try {
+      await cognitoApi.resendConfirmationCode(email)
+      setTimeLeft(300) // Reset timer
+      setSuccess('Verification code resent successfully!')
+    } catch (err: any) {
+      setError(err?.message || 'Failed to resend verification code.')
+    }
   }
 
   if (!mounted) return null

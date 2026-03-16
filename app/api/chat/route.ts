@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Pinecone } from '@pinecone-database/pinecone'
+import { generateFallbackEmbedding } from './_lib/embeddings'
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
 const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || 'cleanflowai-docs'
@@ -40,21 +41,6 @@ async function generateEmbedding(text: string): Promise<number[]> {
     console.warn('Error generating embedding:', error)
     return generateFallbackEmbedding(text)
   }
-}
-
-// Fallback embedding function (generates random vector for testing)
-function generateFallbackEmbedding(text: string): number[] {
-  const seed = text
-    .split('')
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  const random = Math.sin(seed) * 10000
-  const embedding: number[] = []
-  for (let i = 0; i < 384; i++) {
-    embedding.push(
-      Math.sin(random + i) * 0.5 + Math.cos(random * i) * 0.5
-    )
-  }
-  return embedding
 }
 
 // Helper function to query Groq for chat completion
@@ -123,7 +109,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
-    console.log(`\n🤖 Chat request received:`, message.substring(0, 50) + '...')
+    console.log('Chat request received')
 
     // Check if API key exists
     if (!GROQ_API_KEY) {
@@ -186,13 +172,9 @@ Provide clear, concise, and helpful answers. If you don't know something, say so
       sources,
     })
   } catch (error) {
-    console.error('❌ Chat API error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Chat API error:', error)
     return NextResponse.json(
-      {
-        error: 'Failed to process chat message',
-        details: errorMessage,
-      },
+      { error: 'AI service temporarily unavailable' },
       { status: 500 }
     )
   }

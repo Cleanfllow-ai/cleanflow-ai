@@ -159,10 +159,8 @@ export function useQuickBooksImport({
 
     // ─── Dynamic entity fields ──────────────────────────────────────
     const loadEntityFields = async (entity: string) => {
-        console.log('[QB] loadEntityFields called for:', entity)
         try {
             const resp = await quickBooksAPI.getEntityFields(entity)
-            console.log('[QB] Entity fields response:', resp)
             const fields: MappingField[] = (resp.fields || []).map((f: any) => ({
                 key: f.key,
                 label: f.label || f.key,
@@ -187,13 +185,10 @@ export function useQuickBooksImport({
         setAutoMapLoading(true)
         try {
             const localMapping = autoMapColumns(config.entity, availableColumns, entityFields)
-            console.log('[QB] Local mapping:', localMapping, `(${Object.keys(localMapping).length} fields)`)
 
             const unmapped = (entityFields.length > 0 ? entityFields : []).filter(f => !localMapping[f.key])
-            console.log('[QB] Unmapped fields:', unmapped.length, 'entityFields:', entityFields.length)
 
             if (unmapped.length === 0 || entityFields.length === 0) {
-                console.log('[QB] All fields mapped locally or no entity fields, skipping backend')
                 setColumnMapping(localMapping)
                 setAutoMapLoading(false)
                 return
@@ -201,9 +196,7 @@ export function useQuickBooksImport({
 
             // Call backend: template.json first, AI fallback
             const fileId = selectedFile?.upload_id || uploadId
-            console.log('[QB] Calling backend aiAutoMap with', availableColumns.length, 'columns, entity:', config.entity, 'fileId:', fileId)
             const resp = await quickBooksAPI.aiAutoMap(availableColumns, config.entity, fileId)
-            console.log('[QB] Backend response:', resp)
 
             if (resp.mapping && Object.keys(resp.mapping).length > 0) {
                 // Resolve backend mapping values to actual availableColumns names
@@ -214,17 +207,11 @@ export function useQuickBooksImport({
                     const actualCol = colLookup.get(col.toLowerCase())
                     if (actualCol) {
                         validMapping[field] = actualCol
-                    } else {
-                        console.warn(`[QB] Backend mapped ${field} → "${col}" but column not in availableColumns, skipping`)
                     }
                 }
-                console.log('[QB] Valid backend mappings:', Object.keys(validMapping).length, 'of', Object.keys(resp.mapping).length)
-
                 const merged = { ...localMapping, ...validMapping }
-                console.log('[QB] Final merged mapping:', merged, `(${Object.keys(merged).length} fields)`)
                 setColumnMapping(merged)
             } else {
-                console.log('[QB] Backend returned empty mapping, using local only')
                 setColumnMapping(localMapping)
             }
         } catch (err) {
@@ -465,7 +452,6 @@ export function useQuickBooksImport({
     // Fetch entity fields from backend when entity changes
     useEffect(() => {
         if (connected && config.entity) {
-            console.log('[QB] useEffect: connected =', connected, 'entity =', config.entity)
             loadEntityFields(config.entity)
         }
     }, [connected, config.entity])

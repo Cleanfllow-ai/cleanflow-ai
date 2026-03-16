@@ -254,8 +254,7 @@ export function useQuarantineSession() {
    * manifest or rows.  Used to recover from stale-etag 409 errors.
    */
   const refreshEtag = useCallback(
-    async (uploadId: string, authToken: string): Promise<string> => {
-      const baseUploadId = state.session?.base_upload_id || state.manifest?.upload_id || uploadId
+    async (uploadId: string, authToken: string, baseUploadId: string): Promise<string> => {
       const sessionResp = await startQuarantineSession(uploadId, authToken, baseUploadId)
       const freshEtag = sessionResp.session_etag || ''
       setState((prev) => {
@@ -264,7 +263,7 @@ export function useQuarantineSession() {
       })
       return freshEtag
     },
-    [state.session?.base_upload_id, state.manifest?.upload_id]
+    []
   )
 
   return {
