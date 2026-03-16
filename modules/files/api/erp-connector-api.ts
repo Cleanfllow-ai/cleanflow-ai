@@ -23,6 +23,45 @@ export interface ConnectorERPListResponse {
   connectors: string[]
 }
 
+export interface ColumnResolution {
+  column: string
+  entity: string
+  cdf_field: string
+  confidence?: number
+  method?: string
+}
+
+export interface SchemaResolveResponse {
+  resolutions: ColumnResolution[]
+  entities_needed: string[]
+  unmapped: string[]
+  total: number
+  mapped: number
+}
+
+export interface MultiExportEntityResult {
+  entity: string
+  success_count: number
+  failed_count: number
+  errors: string[]
+}
+
+export interface MultiExportResponse {
+  status: 'done' | 'failed'
+  results: MultiExportEntityResult[]
+}
+
+export interface MultiExportProgress {
+  provider: string
+  status: 'running' | 'done' | 'failed'
+  entities: Array<{
+    entity: string
+    status: 'pending' | 'running' | 'done' | 'failed'
+    success: number
+    failed: number
+  }>
+}
+
 /**
  * Generic ERP Connector API.
  * Uses the unified /erp/connector/* endpoints — works for any registered provider.
@@ -177,6 +216,53 @@ class ERPConnectorService {
       method: 'DELETE',
       body: JSON.stringify({ provider }),
     })
+  }
+
+  /**
+   * Resolve CSV columns to entity.field pairs via LLM + template matching.
+   */
+  async schemaResolve(
+    provider: string,
+    columns: string[]
+  ): Promise<SchemaResolveResponse> {
+    return await this.makeRequest<SchemaResolveResponse>('/erp/schema-resolve', {
+      method: 'POST',
+      body: JSON.stringify({ provider, columns }),
+    })
+  }
+
+  /**
+   * Start a multi-entity export using pre-resolved column mappings.
+   */
+  async multiExport(
+    provider: string,
+    uploadId: string,
+    columnResolutions: ColumnResolution[],
+    orgId?: string
+  ): Promise<MultiExportResponse> {
+    return await this.makeRequest<MultiExportResponse>('/erp/multi-export', {
+      method: 'POST',
+      body: JSON.stringify({
+        provider,
+        upload_id: uploadId,
+        column_resolutions: columnResolutions,
+        org_id: orgId,
+      }),
+    })
+  }
+
+  /**
+   * Poll progress for an in-flight multi-entity export.
+   */
+  async multiExportStatus(
+    provider: string,
+    uploadId: string
+  ): Promise<MultiExportProgress> {
+    const params = new URLSearchParams({ provider, upload_id: uploadId })
+    return await this.makeRequest<MultiExportProgress>(
+      `/erp/multi-export/status?${params.toString()}`,
+      { method: 'GET' }
+    )
   }
 }
 
