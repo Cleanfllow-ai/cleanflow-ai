@@ -57,6 +57,9 @@ export interface FileStatusResponse {
   patch_notes?: string | null
   // Pipeline source tracking
   source_type?: string
+  // ERP detection
+  detected_erp?: string | null
+  detected_entity?: string
 }
 
 export interface FileListResponse {

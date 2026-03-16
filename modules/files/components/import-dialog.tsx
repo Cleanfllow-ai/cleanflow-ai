@@ -44,6 +44,8 @@ export function ImportDialog({
       if (result.uploadId) {
         onImportComplete?.(result.uploadId)
       }
+      // Auto-close dialog on success
+      onOpenChange(false)
     } else {
       onNotification?.(result.message, 'error')
     }
@@ -98,7 +100,10 @@ export function ImportDialog({
           <TabsContent value="bridge" className="mt-0 px-6 pb-6 pt-4 max-h-[70vh] overflow-y-auto">
             <UnifiedBridgeImport
               mode="source"
-              onImportComplete={onImportComplete}
+              onImportComplete={(uploadId) => {
+                onImportComplete?.(uploadId)
+                onOpenChange(false)
+              }}
               onNotification={onNotification}
             />
           </TabsContent>

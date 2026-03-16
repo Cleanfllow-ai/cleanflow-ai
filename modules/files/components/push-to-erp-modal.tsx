@@ -117,7 +117,7 @@ export function PushToERPModal({
         }
 
         setStatus('Exporting data to QuickBooks (this may take a moment)...')
-        const response = await quickBooksAPI.exportToQuickBooks(file.upload_id)
+        const response = await quickBooksAPI.exportToQuickBooks(file.upload_id, file.detected_entity)
 
         setStatus('')
         setResult({
@@ -138,7 +138,7 @@ export function PushToERPModal({
         }
 
         setStatus('Exporting data to Zoho Books (this may take a moment)...')
-        const response = await zohoBooksAPI.exportToZoho(file.upload_id)
+        const response = await zohoBooksAPI.exportToZoho(file.upload_id, file.detected_entity)
 
         setStatus('')
         const successCount = response.success_count || 0
@@ -163,7 +163,7 @@ export function PushToERPModal({
         }
 
         setStatus(`Exporting data to ${selectedOption.label} (this may take a moment)...`)
-        const response = await erpConnectorAPI.exportToERP(provider, file.upload_id)
+        const response = await erpConnectorAPI.exportToERP(provider, file.upload_id, file.detected_entity)
 
         setStatus('')
         const exported = (response.records_created || 0) + (response.records_updated || 0)

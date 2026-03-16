@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import {
     Loader2,
     Upload,
@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AWS_CONFIG } from "@/shared/config/aws-config"
+import { splitCSVLine } from "@/modules/files/utils/csv-parser"
+import { getFileStatus } from "@/modules/files/api/file-upload-api"
 
 const API_BASE = AWS_CONFIG.API_BASE_URL || ""
 
@@ -69,10 +71,68 @@ export default function SchemaDropForm({
 
     const isSnowflake = provider === "snowflake"
 
+    // Snowflake connection context (database + schema selectors)
+    const [sfDatabase, setSfDatabase] = useState<string | null>(null)
+    const [sfSchema, setSfSchema] = useState<string | null>(null)
+    const [sfDatabases, setSfDatabases] = useState<string[]>([])
+    const [sfSchemas, setSfSchemas] = useState<string[]>([])
+    const [sfMetaLoading, setSfMetaLoading] = useState(false)
+
     const apiHeaders = useCallback(() => ({
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
     }), [token])
+
+    // Fetch Snowflake databases + seed from connection defaults
+    useEffect(() => {
+        if (!isSnowflake || !token) return
+
+        const headers = apiHeaders()
+
+        // Load connection status (for defaults) + database list in parallel
+        setSfMetaLoading(true)
+        Promise.all([
+            fetch(`${API_BASE}/snowflake/connections`, { method: "GET", headers })
+                .then((r) => r.json()).catch(() => ({})),
+            fetch(`${API_BASE}/snowflake/databases`, { method: "GET", headers })
+                .then((r) => r.json()).catch(() => ({ items: [] })),
+        ]).then(([status, dbResp]) => {
+            const dbList = (dbResp.items || []).map((d: { name: string }) => d.name)
+            setSfDatabases(dbList)
+
+            // Seed from user's saved connection
+            const defaultDb = status.sf_user_database
+            const defaultSc = status.sf_user_schema
+            if (defaultDb) {
+                setSfDatabase(defaultDb)
+                // Load schemas for the default database
+                fetch(`${API_BASE}/snowflake/schemas?database=${encodeURIComponent(defaultDb)}`, { method: "GET", headers })
+                    .then((r) => r.json())
+                    .then((scResp) => {
+                        const scList = (scResp.items || []).map((s: { name: string }) => s.name)
+                        setSfSchemas(scList)
+                        if (defaultSc) setSfSchema(defaultSc)
+                    })
+                    .catch(() => {})
+            }
+        }).finally(() => setSfMetaLoading(false))
+    }, [isSnowflake, token, apiHeaders])
+
+    // When user changes database, reload schemas
+    const handleDatabaseChange = useCallback((db: string) => {
+        setSfDatabase(db)
+        setSfSchema(null)
+        setSfSchemas([])
+        fetch(`${API_BASE}/snowflake/schemas?database=${encodeURIComponent(db)}`, {
+            method: "GET",
+            headers: apiHeaders(),
+        })
+            .then((r) => r.json())
+            .then((scResp) => {
+                setSfSchemas((scResp.items || []).map((s: { name: string }) => s.name))
+            })
+            .catch(() => {})
+    }, [apiHeaders])
 
     // ─── Parse CSV headers ─────────────────────────────────────────
     const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,9 +149,9 @@ export default function SchemaDropForm({
                 setError("Could not read file")
                 return
             }
-            // Parse first line as headers
-            const firstLine = text.split("\n")[0].trim()
-            const headers = firstLine.split(",").map((h) => h.trim().replace(/^["']|["']$/g, ""))
+            // Parse first line as headers (handles quoted commas, escaped quotes)
+            const firstLine = text.split(/\r?\n/)[0].trim()
+            const headers = splitCSVLine(firstLine).map((h) => h.trim())
             if (headers.length === 0 || (headers.length === 1 && !headers[0])) {
                 setError("No columns found in CSV")
                 return
@@ -112,7 +172,12 @@ export default function SchemaDropForm({
             const resp = await fetch(`${API_BASE}/erp/schema-resolve`, {
                 method: "POST",
                 headers: apiHeaders(),
-                body: JSON.stringify({ provider, columns: csvColumns }),
+                body: JSON.stringify({
+                    provider,
+                    columns: csvColumns,
+                    ...(sfDatabase && { database: sfDatabase }),
+                    ...(sfSchema && { schema: sfSchema }),
+                }),
             })
 
             if (!resp.ok) {
@@ -130,7 +195,7 @@ export default function SchemaDropForm({
             setError((err as Error).message || "Failed to resolve columns")
             setPhase("upload")
         }
-    }, [csvColumns, provider, apiHeaders])
+    }, [csvColumns, provider, apiHeaders, sfDatabase, sfSchema])
 
     // ─── Execute cross-entity import ───────────────────────────────
     const runImport = useCallback(async () => {
@@ -151,6 +216,8 @@ export default function SchemaDropForm({
                         cdf_field: r.cdf_field,
                     })),
                     filters: { limit: 1000 },
+                    ...(sfDatabase && { database: sfDatabase }),
+                    ...(sfSchema && { schema: sfSchema }),
                 }),
             })
 
@@ -163,6 +230,44 @@ export default function SchemaDropForm({
             if (data.error) {
                 throw new Error(data.error)
             }
+
+            // Async mode: backend offloaded to Lambda, poll until done
+            if (data.poll && data.upload_id) {
+                const maxAttempts = 90  // 3 minutes at 2s intervals
+                for (let i = 0; i < maxAttempts; i++) {
+                    await new Promise((r) => setTimeout(r, 2000))
+                    try {
+                        const fileStatus = await getFileStatus(data.upload_id, token)
+                        if (fileStatus.status === "UPLOADED") {
+                            setImportResult({
+                                ...data,
+                                records_imported: fileStatus.rows_in || data.records_imported,
+                                columns_included: fileStatus.erp_metadata?.columns_mapped,
+                                message: `Imported ${fileStatus.rows_in || "?"} rows from ${data.entities_used?.length || "?"} entities`,
+                                status: "done",
+                            })
+                            setPhase("done")
+                            onNotification?.(
+                                `Imported ${fileStatus.rows_in || "?"} rows`,
+                                "success"
+                            )
+                            if (data.upload_id) {
+                                onImportComplete?.(data.upload_id)
+                            }
+                            return
+                        }
+                        if (fileStatus.status === "IMPORT_FAILED") {
+                            throw new Error(fileStatus.erp_metadata?.error || "Import failed")
+                        }
+                    } catch (pollErr: any) {
+                        if (pollErr.message?.includes("Import failed")) throw pollErr
+                        // Transient poll error — keep trying
+                    }
+                }
+                throw new Error("Import timed out — check your files list, it may still complete")
+            }
+
+            // Synchronous mode: result is already complete
             setImportResult(data)
             setPhase("done")
             onNotification?.(
@@ -176,7 +281,7 @@ export default function SchemaDropForm({
             setError((err as Error).message || "Import failed")
             setPhase("review")
         }
-    }, [resolutions, provider, apiHeaders, onNotification, onImportComplete])
+    }, [resolutions, provider, apiHeaders, onNotification, onImportComplete, sfDatabase, sfSchema])
 
     // ─── Update a single resolution's entity ───────────────────────
     const updateResolution = (index: number, field: string, value: string) => {
@@ -214,9 +319,49 @@ export default function SchemaDropForm({
                 <div className="space-y-4">
                     <div className="text-sm text-muted-foreground">
                         {isSnowflake
-                            ? "Upload a sample CSV with the columns you need. The system will match each column against your Snowflake tables and pull data via SQL."
+                            ? "Select your Snowflake database and schema, then upload a sample CSV. The system will scan all tables to match columns and pull cross-table data via SQL."
                             : "Upload a sample CSV file with the columns you need. The system will resolve each column to the right entity and pull cross-entity data automatically."}
                     </div>
+
+                    {/* Snowflake: Database & Schema selectors */}
+                    {isSnowflake && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Database</Label>
+                                <Select
+                                    value={sfDatabase || ""}
+                                    onValueChange={handleDatabaseChange}
+                                    disabled={sfMetaLoading}
+                                >
+                                    <SelectTrigger className="h-9 text-sm">
+                                        <SelectValue placeholder={sfMetaLoading ? "Loading..." : "Select database"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {sfDatabases.map((db) => (
+                                            <SelectItem key={db} value={db}>{db}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Schema</Label>
+                                <Select
+                                    value={sfSchema || ""}
+                                    onValueChange={(sc) => setSfSchema(sc)}
+                                    disabled={!sfDatabase || sfSchemas.length === 0}
+                                >
+                                    <SelectTrigger className="h-9 text-sm">
+                                        <SelectValue placeholder={!sfDatabase ? "Pick database first" : "Select schema"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {sfSchemas.map((sc) => (
+                                            <SelectItem key={sc} value={sc}>{sc}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    )}
 
                     <div
                         className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
@@ -260,9 +405,12 @@ export default function SchemaDropForm({
                             onClick={resolveColumns}
                             className="w-full"
                             size="lg"
+                            disabled={isSnowflake && (!sfDatabase || !sfSchema)}
                         >
                             <Sparkles className="mr-2 h-4 w-4" />
-                            Resolve Columns ({csvColumns.length})
+                            {isSnowflake && (!sfDatabase || !sfSchema)
+                                ? "Select database & schema first"
+                                : `Resolve Columns (${csvColumns.length})`}
                         </Button>
                     )}
                 </div>
@@ -288,6 +436,11 @@ export default function SchemaDropForm({
                                 {resolutions.length} mapped, {unmapped.length} unmapped
                                 {entitiesNeeded.length > 0 && ` — pulling from ${entitiesNeeded.join(", ")}`}
                                 {sfTables && ` (scanned ${Object.keys(sfTables).length} tables)`}
+                                {isSnowflake && sfDatabase && sfSchema && (
+                                    <span className="ml-1 text-muted-foreground/70">
+                                        in {sfDatabase}.{sfSchema}
+                                    </span>
+                                )}
                             </p>
                         </div>
                         <Button variant="ghost" size="sm" onClick={reset}>
@@ -395,9 +548,25 @@ export default function SchemaDropForm({
                     <div className="text-sm space-y-1 text-muted-foreground">
                         <p>File: <span className="font-medium text-foreground">{importResult.filename}</span></p>
                         <p>Rows: <span className="font-medium text-foreground">{importResult.records_imported}</span></p>
+                        <p>Columns: <span className="font-medium text-foreground">
+                            {importResult.columns_included ?? importResult.columns?.length} of {importResult.columns_total ?? importResult.columns?.length}
+                        </span></p>
                         <p>{isSnowflake ? "Tables" : "Entities"}: <span className="font-medium text-foreground">{importResult.entities_used?.join(", ")}</span></p>
-                        <p>Columns: <span className="font-medium text-foreground">{importResult.columns?.join(", ")}</span></p>
                     </div>
+
+                    {(importResult.entities_no_data?.length > 0 || importResult.entities_not_joined?.length > 0) && (
+                        <Alert className="border-amber-200 bg-amber-50 py-2">
+                            <AlertCircle className="h-4 w-4 text-amber-600" />
+                            <AlertDescription className="text-xs text-amber-800 ml-2 space-y-0.5">
+                                {importResult.entities_no_data?.length > 0 && (
+                                    <p>No data available: {importResult.entities_no_data.join(", ")}</p>
+                                )}
+                                {importResult.entities_not_joined?.length > 0 && (
+                                    <p>Could not join: {importResult.entities_not_joined.join(", ")}</p>
+                                )}
+                            </AlertDescription>
+                        </Alert>
+                    )}
 
                     <Button variant="outline" onClick={reset} className="w-full">
                         Import Another Schema
