@@ -1,17 +1,13 @@
 "use client"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Cell, Pie, PieChart } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-
 import { CHART_COLORS, chartConfig } from "@/modules/dashboard/components/chart-constants"
-
 interface RowDistributionChartProps {
   totalRowsOut: number
   totalRowsFixed: number
   totalRowsQuarantined: number
 }
-
 export function RowDistributionChart({
   totalRowsOut,
   totalRowsFixed,
@@ -30,12 +26,13 @@ export function RowDistributionChart({
       fill: CHART_COLORS.red,
     },
   ].filter((d) => d.value > 0)
-
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="border-border">
       <CardHeader className="pb-1 pt-3 px-4">
-        <CardTitle className="text-sm font-semibold">Data Quality Distribution</CardTitle>
-        <CardDescription className="text-xs">Breakdown of processed rows by quality status</CardDescription>
+        <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground"
+        >
+          Row Distribution
+        </CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-3 pt-1">
         {dqDistributionData.length > 0 ? (
@@ -49,7 +46,11 @@ export function RowDistributionChart({
                 outerRadius={80}
                 paddingAngle={3}
                 dataKey="value"
-                label={({ name, percent }) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
+                label={({ name, percent }) => {
+                  const pct = (percent as number) * 100;
+                  if (pct < 1) return null;
+                  return `${name} ${pct.toFixed(0)}%`;
+                }}
                 labelLine={false}
                 strokeWidth={0}
               >
@@ -69,4 +70,3 @@ export function RowDistributionChart({
     </Card>
   )
 }
-

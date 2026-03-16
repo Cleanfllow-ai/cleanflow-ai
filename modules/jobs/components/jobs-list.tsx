@@ -46,13 +46,35 @@ const FREQ_LABELS: Record<string, string> = {
 const statusBadge = (status: string) => {
     switch (status) {
         case "ACTIVE":
-            return <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/20"><CheckCircle2 className="h-3 w-3 mr-1" />Active</Badge>
+            return (
+                <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                    <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                    </span>
+                    Active
+                </Badge>
+            )
         case "PAUSED":
-            return <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25 hover:bg-amber-500/20"><Pause className="h-3 w-3 mr-1" />Paused</Badge>
+            return (
+                <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/25 hover:bg-amber-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                    <Pause className="h-3 w-3" />
+                    Paused
+                </Badge>
+            )
         case "FAILED":
-            return <Badge className="bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/25 hover:bg-red-500/20"><XCircle className="h-3 w-3 mr-1" />Failed</Badge>
+            return (
+                <Badge className="bg-red-500/10 text-red-400 border border-red-500/25 hover:bg-red-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                    <XCircle className="h-3 w-3" />
+                    Failed
+                </Badge>
+            )
         default:
-            return <Badge variant="outline">{status}</Badge>
+            return (
+                <Badge variant="outline" className="text-[11px] tracking-wide uppercase px-2.5 py-0.5">
+                    {status}
+                </Badge>
+            )
     }
 }
 
@@ -196,56 +218,117 @@ export function JobsList() {
     // ─── Render ─────────────────────────────────────────────────────────────
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full bg-background">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-border/60">
-                <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
+                <div className="flex items-center gap-3.5">
                     <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 border border-primary/20">
                         <CalendarClock className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-semibold tracking-tight">Scheduled Jobs</h1>
-                        <p className="text-sm text-muted-foreground">Automated ERP sync schedules</p>
+                        <h1
+                            className="text-xl font-semibold tracking-wider uppercase text-foreground"
+                            style={{ fontFamily: "'Outfit', var(--font-sans, system-ui, sans-serif)" }}
+                        >
+                            Scheduled Jobs
+                        </h1>
+                        <p className="text-[13px] text-muted-foreground mt-0.5">
+                            Automated ERP sync schedules and pipeline orchestration
+                        </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" onClick={loadJobs} disabled={loading}>
-                        <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
-                        Refresh
+                <div className="flex items-center gap-2.5">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadJobs}
+                        disabled={loading}
+                        className="border-border/60 bg-card/50 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", loading && "animate-spin")} />
+                        <span className="text-[12px] tracking-wide">Refresh</span>
                     </Button>
-                    <Button size="sm" onClick={handleCreateNew}>
-                        <Plus className="h-4 w-4 mr-1.5" />
-                        New Job
+                    <Button
+                        size="sm"
+                        onClick={handleCreateNew}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    >
+                        <Plus className="h-3.5 w-3.5 mr-1.5" />
+                        <span className="text-[12px] tracking-wide">New Job</span>
                     </Button>
                 </div>
             </div>
 
-            {/* Summary stats */}
+            {/* Summary stats bar */}
             {!loading && jobs.length > 0 && (() => {
                 const active = jobs.filter(j => j.status === "ACTIVE").length
                 const paused = jobs.filter(j => j.status === "PAUSED").length
                 const failed = jobs.filter(j => j.status === "FAILED" || j.status === "AUTO_PAUSED").length
                 return (
-                    <div className="flex items-center gap-6 px-6 py-3 border-b border-border/40 bg-muted/20">
-                        <div className="flex items-center gap-1.5 text-sm">
-                            <span className="text-muted-foreground">Total</span>
-                            <span className="font-semibold tabular-nums">{jobs.length}</span>
+                    <div className="flex items-center gap-0 px-6 py-0 border-b border-border/40 bg-muted/10">
+                        {/* Total */}
+                        <div className="flex items-center gap-2 pr-5 py-2.5 border-r border-border/30">
+                            <span
+                                className="text-[10px] text-muted-foreground uppercase tracking-widest"
+                                
+                            >
+                                Total
+                            </span>
+                            <span
+                                className="text-[13px] font-semibold text-foreground tabular-nums"
+                                style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}
+                            >
+                                {jobs.length}
+                            </span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-sm">
+                        {/* Active */}
+                        <div className="flex items-center gap-2 px-5 py-2.5 border-r border-border/30">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                            <span className="text-muted-foreground">Active</span>
-                            <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{active}</span>
+                            <span
+                                className="text-[10px] text-muted-foreground uppercase tracking-widest"
+                                
+                            >
+                                Active
+                            </span>
+                            <span
+                                className="text-[13px] font-semibold tabular-nums text-emerald-400"
+                                style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}
+                            >
+                                {active}
+                            </span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-sm">
+                        {/* Paused */}
+                        <div className="flex items-center gap-2 px-5 py-2.5 border-r border-border/30">
                             <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-                            <span className="text-muted-foreground">Paused</span>
-                            <span className="font-semibold tabular-nums text-amber-600 dark:text-amber-400">{paused}</span>
+                            <span
+                                className="text-[10px] text-muted-foreground uppercase tracking-widest"
+                                
+                            >
+                                Paused
+                            </span>
+                            <span
+                                className="text-[13px] font-semibold tabular-nums text-amber-400"
+                                style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}
+                            >
+                                {paused}
+                            </span>
                         </div>
+                        {/* Failed */}
                         {failed > 0 && (
-                            <div className="flex items-center gap-1.5 text-sm">
+                            <div className="flex items-center gap-2 px-5 py-2.5">
                                 <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-                                <span className="text-muted-foreground">Failed</span>
-                                <span className="font-semibold tabular-nums text-red-600 dark:text-red-400">{failed}</span>
+                                <span
+                                    className="text-[10px] text-muted-foreground uppercase tracking-widest"
+                                    
+                                >
+                                    Failed
+                                </span>
+                                <span
+                                    className="text-[13px] font-semibold tabular-nums text-red-400"
+                                    style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}
+                                >
+                                    {failed}
+                                </span>
                             </div>
                         )}
                     </div>
@@ -253,14 +336,14 @@ export function JobsList() {
             })()}
 
             {/* Search */}
-            <div className="px-6 py-3 border-b border-border/40">
+            <div className="px-6 py-3 border-b border-border/40 bg-background">
                 <div className="relative max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
                     <Input
                         placeholder="Search jobs..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 h-9"
+                        className="pl-9 h-9 bg-muted/20 border-border/50 text-sm placeholder:text-muted-foreground/40 focus:border-primary/40 focus:bg-muted/30 transition-colors"
                     />
                 </div>
             </div>
@@ -273,12 +356,24 @@ export function JobsList() {
                 if (failedJobs.length === 0 || loading) return null
 
                 return (
-                    <div className="mx-6 mt-3 flex items-center gap-3 p-3 rounded-lg border border-red-500/20 bg-red-500/5">
-                        <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-                        <p className="text-sm flex-1">
-                            <strong>{failedJobs.length}</strong> job{failedJobs.length > 1 ? "s" : ""} need{failedJobs.length === 1 ? "s" : ""} attention:{" "}
-                            {failedJobs.slice(0, 3).map((j) => j.name).join(", ")}
-                            {failedJobs.length > 3 && ` and ${failedJobs.length - 3} more`}
+                    <div className="mx-6 mt-3 flex items-center gap-3 p-3 rounded-lg border border-red-500/25 bg-red-500/5"
+                        style={{ boxShadow: "0 0 15px -3px rgba(239, 68, 68, 0.1), 0 0 6px -4px rgba(239, 68, 68, 0.15)" }}
+                    >
+                        <div className="flex items-center justify-center w-7 h-7 rounded-md bg-red-500/10 border border-red-500/20 shrink-0">
+                            <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+                        </div>
+                        <p className="text-sm text-foreground/80 flex-1">
+                            <strong
+                                className="text-red-400"
+                                style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}
+                            >
+                                {failedJobs.length}
+                            </strong>
+                            {" "}job{failedJobs.length > 1 ? "s" : ""} need{failedJobs.length === 1 ? "s" : ""} attention:{" "}
+                            <span className="text-muted-foreground">
+                                {failedJobs.slice(0, 3).map((j) => j.name).join(", ")}
+                                {failedJobs.length > 3 && ` and ${failedJobs.length - 3} more`}
+                            </span>
                         </p>
                     </div>
                 )
@@ -288,42 +383,82 @@ export function JobsList() {
             <div className="flex-1 overflow-auto px-6 py-4">
                 {loading && jobs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                        <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
-                        <p className="text-sm">Loading jobs...</p>
+                        <div className="w-14 h-14 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center mb-4">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary/60" />
+                        </div>
+                        <p
+                            className="text-[11px] uppercase tracking-widest text-muted-foreground/60"
+                            
+                        >
+                            Loading jobs...
+                        </p>
                     </div>
                 ) : filteredJobs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20">
-                        <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4">
-                            <CalendarClock className="h-8 w-8 text-primary/60" />
+                        <div className="w-16 h-16 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center mb-5">
+                            <CalendarClock className="h-7 w-7 text-primary/40" />
                         </div>
-                        <h3 className="text-lg font-medium mb-1">
+                        <h3
+                            className="text-lg font-semibold mb-1.5 tracking-wide uppercase text-foreground/80"
+                            style={{ fontFamily: "'Outfit', var(--font-sans, system-ui, sans-serif)" }}
+                        >
                             {searchQuery ? "No matching jobs" : "No jobs yet"}
                         </h3>
-                        <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
+                        <p className="text-sm text-muted-foreground mb-5 text-center max-w-sm">
                             {searchQuery
                                 ? "Try a different search term"
                                 : "Create your first automated ERP sync job to get started"
                             }
                         </p>
                         {!searchQuery && (
-                            <Button onClick={handleCreateNew}>
+                            <Button onClick={handleCreateNew} className="bg-primary hover:bg-primary/90">
                                 <Plus className="h-4 w-4 mr-1.5" />
                                 Create Job
                             </Button>
                         )}
                     </div>
                 ) : (
-                    <div className="rounded-xl border border-border/60 overflow-hidden bg-card">
+                    <div className="rounded-xl border border-border/50 overflow-hidden bg-card/50">
                         <Table>
                             <TableHeader>
-                                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                                <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/50">
                                     <TableHead className="w-8" />
-                                    <TableHead className="font-semibold">Job Name</TableHead>
-                                    <TableHead className="font-semibold">Pipeline</TableHead>
-                                    <TableHead className="font-semibold">Frequency</TableHead>
-                                    <TableHead className="font-semibold">Status</TableHead>
-                                    <TableHead className="font-semibold">Last Run</TableHead>
-                                    <TableHead className="font-semibold text-right">Actions</TableHead>
+                                    <TableHead
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
+                                        
+                                    >
+                                        Job Name
+                                    </TableHead>
+                                    <TableHead
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
+                                        
+                                    >
+                                        Pipeline
+                                    </TableHead>
+                                    <TableHead
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
+                                        
+                                    >
+                                        Frequency
+                                    </TableHead>
+                                    <TableHead
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
+                                        
+                                    >
+                                        Status
+                                    </TableHead>
+                                    <TableHead
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
+                                        
+                                    >
+                                        Last Run
+                                    </TableHead>
+                                    <TableHead
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 text-right"
+                                        
+                                    >
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -332,45 +467,55 @@ export function JobsList() {
                                         <TableRow
                                             key={job.job_id}
                                             className={cn(
-                                                "cursor-pointer transition-colors",
-                                                expandedJobId === job.job_id && "bg-muted/20"
+                                                "cursor-pointer transition-colors border-b border-border/30 hover:bg-muted/15",
+                                                expandedJobId === job.job_id && "bg-primary/[0.03] border-l-2 border-l-primary/40"
                                             )}
                                             onClick={() => toggleExpand(job.job_id)}
                                         >
                                             <TableCell className="w-8 pr-0">
                                                 {expandedJobId === job.job_id
-                                                    ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                                    : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                                    ? <ChevronDown className="h-3.5 w-3.5 text-primary/60" />
+                                                    : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
                                                 }
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium">{job.name}</span>
-                                                    <span className="text-xs text-muted-foreground">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-medium text-[13px] text-foreground">{job.name}</span>
+                                                    <span
+                                                        className="text-[11px] text-muted-foreground/60 tracking-wide"
+                                                        
+                                                    >
                                                         {job.dq_config?.mode === "custom" ? "Custom DQ" : "Default DQ"}
                                                         {job.entities?.[0] && (
-                                                            <> · {job.entities[0].replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}</>
+                                                            <> &middot; {job.entities[0].replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}</>
                                                         )}
                                                     </span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-1.5 text-sm">
+                                                <div className="flex items-center gap-1.5 text-[13px]">
                                                     <span className="font-medium text-primary">
                                                         {ERP_LABELS[job.source] || job.source}
                                                     </span>
-                                                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                                                    <span className="font-medium text-accent-foreground">
+                                                    <ArrowRight className="h-3 w-3 text-muted-foreground/40" />
+                                                    <span className="font-medium text-accent dark:text-accent">
                                                         {ERP_LABELS[job.destination] || job.destination}
                                                     </span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                    <Clock className="h-3.5 w-3.5" />
-                                                    {FREQ_LABELS[frequencyFromBackend(job.frequency_type, job.frequency_value).frequency] || job.frequency_value || "—"}
+                                                <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                                                    <Clock className="h-3 w-3 text-muted-foreground/50" />
+                                                    <span style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}>
+                                                        {FREQ_LABELS[frequencyFromBackend(job.frequency_type, job.frequency_value).frequency] || job.frequency_value || "\u2014"}
+                                                    </span>
                                                     {job.frequency_type === "cron" && job.frequency_value && (
-                                                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded ml-1">{job.frequency_value}</code>
+                                                        <code
+                                                            className="text-[10px] bg-muted/40 border border-border/40 px-1.5 py-0.5 rounded ml-1 text-muted-foreground"
+                                                            style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}
+                                                        >
+                                                            {job.frequency_value}
+                                                        </code>
                                                     )}
                                                 </div>
                                             </TableCell>
@@ -379,22 +524,25 @@ export function JobsList() {
                                                 {job.last_run_at ? (
                                                     <div className="flex items-center gap-1.5">
                                                         {runStatusIcon(job.last_run_status || "")}
-                                                        <span className="text-xs text-muted-foreground">
+                                                        <span
+                                                            className="text-[12px] text-muted-foreground tabular-nums"
+                                                            style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}
+                                                        >
                                                             {format(new Date(job.last_run_at), "MMM d, HH:mm")}
                                                         </span>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-xs text-muted-foreground">Never</span>
+                                                    <span className="text-[11px] text-muted-foreground/50 italic">Never</span>
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted/30">
+                                                            <MoreHorizontal className="h-4 w-4 text-muted-foreground/60" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
+                                                    <DropdownMenuContent align="end" className="bg-card border-border/60">
                                                         <DropdownMenuItem onClick={() => handleEdit(job)}>
                                                             <Edit2 className="h-4 w-4 mr-2" />
                                                             Edit
@@ -409,7 +557,7 @@ export function JobsList() {
                                                                 <><Play className="h-4 w-4 mr-2" />Resume</>
                                                             )}
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuSeparator className="bg-border/40" />
                                                         <DropdownMenuItem
                                                             className="text-destructive focus:text-destructive"
                                                             onClick={() => { setJobToDelete(job); setDeleteDialogOpen(true) }}
@@ -424,7 +572,7 @@ export function JobsList() {
 
                                         {/* Expanded Run History */}
                                         {expandedJobId === job.job_id && (
-                                            <TableRow key={`${job.job_id}-runs`} className="bg-muted/10 hover:bg-muted/10">
+                                            <TableRow key={`${job.job_id}-runs`} className="bg-muted/5 hover:bg-muted/5 border-b border-border/20">
                                                 <TableCell colSpan={7} className="p-0">
                                                     <JobRunsExplorer jobId={job.job_id} />
                                                 </TableCell>
@@ -449,18 +597,27 @@ export function JobsList() {
 
             {/* Delete Confirmation */}
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <AlertDialogContent>
+                <AlertDialogContent className="bg-card border-border/60">
                     <AlertDialogHeader>
-                        <AlertDialogTitle className="flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-destructive" />
-                            Delete Job
+                        <AlertDialogTitle className="flex items-center gap-2.5">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-destructive/10 border border-destructive/20">
+                                <AlertTriangle className="h-4 w-4 text-destructive" />
+                            </div>
+                            <span
+                                className="text-base font-semibold tracking-wide"
+                                style={{ fontFamily: "'Outfit', var(--font-sans, system-ui, sans-serif)" }}
+                            >
+                                Delete Job
+                            </span>
                         </AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Are you sure you want to delete <strong>{jobToDelete?.name}</strong>? This will remove the scheduled job and all its run history. This action cannot be undone.
+                        <AlertDialogDescription className="text-muted-foreground text-[13px] leading-relaxed mt-2">
+                            Are you sure you want to delete <strong className="text-foreground">{jobToDelete?.name}</strong>? This will remove the scheduled job and all its run history. This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                    <AlertDialogFooter className="mt-2">
+                        <AlertDialogCancel disabled={deleting} className="border-border/50 bg-muted/20 hover:bg-muted/40">
+                            Cancel
+                        </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             disabled={deleting}

@@ -1,5 +1,6 @@
 export const STATUS_OPTIONS = [
   { label: "All", value: "all", type: "status" },
+  { label: "Needs Attention", value: "attention", type: "attention" },
   { label: "Uploaded", value: "UPLOADED", type: "status" },
   { label: "Processed", value: "DQ_FIXED", type: "status" },
   { label: "Processing", value: "DQ_RUNNING", type: "status" },

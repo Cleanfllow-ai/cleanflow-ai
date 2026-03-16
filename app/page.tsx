@@ -19,12 +19,11 @@ export default function HomePage() {
     }
   }, [isAuthenticated, isLoading, router])
 
-  // Show loading state while checking authentication
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="h-8 w-8 text-primary" />
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-6 w-6 text-primary animate-spin" />
+        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Loading</p>
       </div>
     </div>
   )

@@ -1,10 +1,15 @@
 @import "tailwindcss";
-/* Removed external animation imports for a clean, static UI */
 
-/* Light theme: accessible, data-focused palette */
+/* ═══════════════════════════════════════════════════════════════════════════
+   CleanFlowAI Design System
+   Brand: Deep blue (#2a4477) + Teal (#0cbeb6) + Cyan (#00dfc2)
+   Approach: Clean, accessible, data-focused — for business users
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Light Theme (default) ────────────────────────────────────────────────── */
 :root {
-  --background: oklch(0.985 0 0); /* soft off-white */
-  --foreground: oklch(0.22 0 0); /* high-contrast text */
+  --background: oklch(0.985 0 0);      /* soft off-white */
+  --foreground: oklch(0.22 0 0);       /* high-contrast text */
 
   --card: oklch(0.98 0 0);
   --card-foreground: var(--foreground);
@@ -12,11 +17,11 @@
   --popover-foreground: var(--foreground);
 
   /* Brand colors */
-  --primary: #2a4477; /* deep blue */
+  --primary: #2a4477;                  /* deep blue — trust, authority */
   --primary-foreground: oklch(0.97 0 0);
-  --accent: #0cbeb6; /* teal */
+  --accent: #0cbeb6;                   /* teal — data quality health */
   --accent-foreground: oklch(0.1 0 0);
-  --secondary: #00dfc2; /* cyan */
+  --secondary: #00dfc2;                /* cyan — highlights */
   --secondary-foreground: oklch(0.1 0 0);
 
   --muted: oklch(0.95 0 0);
@@ -47,8 +52,9 @@
   --sidebar-ring: var(--ring);
 }
 
+/* ─── Dark Theme ───────────────────────────────────────────────────────────── */
 .dark {
-  --background: oklch(0.24 0 0); /* comfortable dark */
+  --background: oklch(0.24 0 0);
   --foreground: oklch(0.93 0 0);
 
   --card: oklch(0.26 0 0);
@@ -88,8 +94,11 @@
   --sidebar-ring: var(--ring);
 }
 
+/* ─── Tailwind Theme ───────────────────────────────────────────────────────── */
 @theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -128,7 +137,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* Base element styles without Tailwind @apply for broader tooling compatibility */
+/* ─── Base ──────────────────────────────────────────────────────────────────── */
 *, *::before, *::after {
   border-color: var(--border);
 }
@@ -136,6 +145,14 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Animations removed for performance and clarity */
+/* ─── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(0.75 0 0); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.6 0 0); }
+* { scrollbar-width: thin; scrollbar-color: oklch(0.75 0 0) transparent; }
+
+::selection { background: color-mix(in oklab, var(--primary) 20%, transparent); }

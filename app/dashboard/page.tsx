@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react"
 import { MainLayout } from "@/shared/layout/main-layout"
 import { DashboardHeader, ActivityFeed, TopIssuesChart, DqCharts, ProcessingSummary } from "@/modules/dashboard"
 import { DashboardKpiCards } from "@/modules/dashboard/components/dashboard-kpi-cards"
+import { OnboardingChecklist } from "@/modules/dashboard/components/onboarding-checklist"
+import { ActionRequiredPanel } from "@/modules/dashboard/components/action-required-panel"
 import { AuthGuard, useAuth } from "@/modules/auth"
 import { fileManagementAPI, type FileStatusResponse, type OverallDqReportResponse, type TopIssue } from "@/modules/files"
 
@@ -18,7 +20,6 @@ const toNumericCount = (value: unknown): number => {
 
 const normalizeTopIssues = (raw: unknown): TopIssue[] => {
   if (!Array.isArray(raw)) return []
-
   const merged = new Map<string, number>()
   for (const item of raw) {
     if (!item || typeof item !== "object") continue
@@ -29,13 +30,10 @@ const normalizeTopIssues = (raw: unknown): TopIssue[] => {
       (typeof issue.rule === "string" && issue.rule) ||
       (typeof issue.name === "string" && issue.name) ||
       ""
-    const count = toNumericCount(
-      issue.count ?? issue.total ?? issue.occurrences ?? issue.value,
-    )
+    const count = toNumericCount(issue.count ?? issue.total ?? issue.occurrences ?? issue.value)
     if (!violation || count <= 0) continue
     merged.set(violation, (merged.get(violation) || 0) + count)
   }
-
   return Array.from(merged.entries())
     .map(([violation, count]) => ({ violation, count }))
     .sort((a, b) => b.count - a.count)
@@ -44,10 +42,7 @@ const normalizeTopIssues = (raw: unknown): TopIssue[] => {
 const normalizeViolationCounts = (raw: unknown): TopIssue[] => {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return []
   return Object.entries(raw as Record<string, unknown>)
-    .map(([violation, count]) => ({
-      violation,
-      count: toNumericCount(count),
-    }))
+    .map(([violation, count]) => ({ violation, count: toNumericCount(count) }))
     .filter((issue) => issue.count > 0)
     .sort((a, b) => b.count - a.count)
 }
@@ -67,17 +62,12 @@ export default function DashboardPage() {
   const [topIssues, setTopIssues] = useState<TopIssue[]>([])
   const { idToken } = useAuth()
 
-  // Load files for analytics
   const loadFiles = useCallback(async () => {
     if (!idToken) return
-
     try {
       const response = await fileManagementAPI.getUploads(idToken)
       const items = response.items || []
       setFiles(items)
-
-      // Seed top issues from per-file dq_issues as an instant fallback
-      // (shows immediately while the heavier overall report loads in background)
       const seed = new Map<string, number>()
       for (const f of items) {
         for (const issue of (f.dq_issues || [])) {
@@ -106,24 +96,17 @@ export default function DashboardPage() {
     setIsOverallLoading(true)
     try {
       const overall: OverallDqReportResponse = await fileManagementAPI.downloadOverallDqReport(idToken)
-      if (!overall) {
-        // Don't wipe existing fallback issues — keep whatever files provided
-        return
-      }
-
+      if (!overall) return
       const merged = new Map<string, number>()
       const months = Object.values(overall?.months || {})
-
       mergeIssues(merged, normalizeTopIssues((overall as any).top_issues))
       mergeIssues(merged, normalizeTopIssues((overall as any).top_violations))
       mergeIssues(merged, normalizeViolationCounts((overall as any).violation_counts))
-
       for (const stats of months) {
         mergeIssues(merged, normalizeTopIssues((stats as any)?.top_issues))
         mergeIssues(merged, normalizeTopIssues((stats as any)?.top_violations))
         mergeIssues(merged, normalizeViolationCounts((stats as any)?.violation_counts))
       }
-
       if (merged.size > 0) {
         setTopIssues(
           Array.from(merged.entries())
@@ -137,7 +120,6 @@ export default function DashboardPage() {
       if (!message.includes("permission denied") && !message.includes("organization membership required")) {
         console.warn("Failed to load overall DQ report.")
       }
-      // Don't clear topIssues on error — keep the file-level fallback
     } finally {
       setIsOverallLoading(false)
     }
@@ -148,13 +130,11 @@ export default function DashboardPage() {
       setIsLoading(true)
       await loadFiles()
       setIsLoading(false)
-      // Load overall DQ report in background — doesn't block rendering
       loadOverall()
     }
     loadData()
   }, [loadFiles, loadOverall])
 
-  // Refresh all dashboard data
   const handleRefresh = useCallback(async () => {
     setIsLoading(true)
     await loadFiles()
@@ -163,19 +143,31 @@ export default function DashboardPage() {
     loadOverall()
   }, [loadFiles, loadOverall])
 
+  // Check if this is a first-time user (no files at all)
+  const isNewUser = !isLoading && files.filter((f) => !f.parent_upload_id).length === 0
+
   return (
     <AuthGuard>
       <MainLayout>
         {isLoading ? (
           <DashboardSkeleton />
+        ) : isNewUser ? (
+          /* ─── UX Improvement: Onboarding checklist for empty dashboard ────── */
+          <div className="space-y-6">
+            <DashboardHeader onRefresh={handleRefresh} />
+            <OnboardingChecklist files={files} />
+          </div>
         ) : (
-          <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="space-y-5">
             <DashboardHeader onRefresh={handleRefresh} />
 
             <DashboardKpiCards files={files} />
 
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-              <div className="xl:col-span-3 space-y-6">
+            {/* ─── UX Improvement: Action Required panel ──────────────────────── */}
+            <ActionRequiredPanel files={files} />
+
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-5">
+              <div className="xl:col-span-3 space-y-5">
                 <DqCharts files={files} key={`dq-charts-${refreshKey}`} />
               </div>
 
@@ -194,17 +186,20 @@ export default function DashboardPage() {
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse">
-      <div className="h-10 w-72 rounded-md bg-muted/70" />
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div className="xl:col-span-3 space-y-6">
-          <div className="h-96 rounded-xl border bg-card" />
-          <div className="h-80 rounded-xl border bg-card" />
+    <div className="space-y-5 animate-pulse">
+      <div className="h-10 w-72 rounded-md bg-muted" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-24 rounded-xl border border-border bg-card" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-5">
+        <div className="xl:col-span-3 space-y-5">
+          <div className="h-80 rounded-xl border border-border bg-card" />
         </div>
         <div className="xl:col-span-1 space-y-4">
-          <div className="h-56 rounded-xl border bg-card" />
-          <div className="h-56 rounded-xl border bg-card" />
-          <div className="h-56 rounded-xl border bg-card" />
+          <div className="h-56 rounded-xl border border-border bg-card" />
+          <div className="h-56 rounded-xl border border-border bg-card" />
         </div>
       </div>
     </div>

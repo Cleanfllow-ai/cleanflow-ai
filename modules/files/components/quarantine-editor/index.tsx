@@ -4,9 +4,7 @@
  * Main entry point for quarantine editor feature
  * Orchestrates all sub-components and business logic
  */
-
 'use client'
-
 import { useState } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { useAuth } from '@/modules/auth'
@@ -16,7 +14,6 @@ import { QuarantineEditorToolbar } from './quarantine-editor-toolbar'
 import { QuarantineAgGridTable } from './quarantine-ag-grid-table'
 import { QuarantineCustomRuleDialog } from './quarantine-custom-rule-dialog'
 import type { QuarantineEditorDialogProps } from '@/modules/files/types'
-
 /**
  * Quarantine Editor Dialog
  *
@@ -31,22 +28,18 @@ import type { QuarantineEditorDialogProps } from '@/modules/files/types'
  */
 export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSubmitted }: QuarantineEditorDialogProps) {
   const { idToken } = useAuth()
-
   // Main editor hook
   const editor = useQuarantineEditor({
     file,
     authToken: idToken,
     open,
   })
-
   // Custom rule dialog state
   const [customRuleOpen, setCustomRuleOpen] = useState(false)
-
   // Close handler
   const handleClose = () => {
     onOpenChange(false)
   }
-
   // Reprocess handler
   const handleReprocess = async () => {
     const result = await editor.submitReprocess()
@@ -55,12 +48,10 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
     }
     if (result) handleClose()
   }
-
   // After server-side apply-all: refresh session so rows + etag are up-to-date
   const handleRuleApplied = (_newEtag: string, _rowsAffected: number) => {
     editor.refreshSession()
   }
-
   const isGridReady = editor.compatibilityMode || Boolean(editor.manifest)
   const gridInstanceKey = [
     file?.upload_id ?? 'none',
@@ -68,7 +59,6 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
     String(editor.dataVersion),
     String(editor.totalRows),
   ].join(':')
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -86,7 +76,6 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
             pendingCount={editor.pendingCount}
             compatibilityMode={editor.compatibilityMode}
           />
-
           {/* Row 2 — toolbar */}
           <QuarantineEditorToolbar
             session={editor.sessionInfo}
@@ -96,7 +85,6 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
             onReprocess={handleReprocess}
             onOpenCustomRule={() => setCustomRuleOpen(true)}
           />
-
         {/* Table section — flex: 1 consumes remaining height, position: relative
             establishes a containing block so the absolute inner div gets a
             definite pixel height regardless of flex/percentage quirks. */}
@@ -124,7 +112,6 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500" />
                   </span>
                   <span className="text-sm font-medium text-slate-500"
-                    style={{ fontFamily: "'DM Sans', var(--font-sans, system-ui, sans-serif)" }}
                   >
                     Loading quarantine data...
                   </span>
@@ -135,7 +122,6 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
         </div>
       </DialogContent>
     </Dialog>
-
     {/* AI Custom Rule Dialog — rendered outside the main dialog to avoid
         Radix DismissableLayer conflicts between two nested dialogs */}
     <QuarantineCustomRuleDialog
@@ -150,6 +136,5 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
     </>
   )
 }
-
 // Named export for convenient importing
 export { QuarantineEditorDialog as default }

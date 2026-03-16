@@ -21,7 +21,7 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
 
   const handleRefresh = async () => {
     if (!onRefresh) return
-    
+
     setRefreshing(true)
     try {
       await onRefresh()
@@ -58,7 +58,7 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
     setExporting(true)
     try {
       const report = await fileManagementAPI.downloadOverallDqReport(idToken)
-      
+
       // Create blob and download
       const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -69,7 +69,7 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
-      
+
       toast({
         title: "Exported",
         description: "Dashboard data exported successfully",
@@ -93,31 +93,45 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
   })
 
   return (
-    <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+    <div className="flex flex-col space-y-4 sm:flex-row sm:items-end sm:justify-between sm:space-y-0">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
+        <h1 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-1.5">
           {isAuthenticated && user ? `Welcome back, ${user.name?.split(" ")[0] || "there"}` : "Dashboard"}
         </h1>
-        <p className="text-muted-foreground text-sm">{today}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          {today}
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="h-8 px-3 border border-border text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+        >
           {refreshing ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
           ) : (
-            <RefreshCw className="w-4 h-4 mr-2" />
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
           )}
-          Refresh
+          <span className="text-xs">Refresh</span>
         </Button>
 
-        <Button variant="outline" size="sm" onClick={handleExportDashboard} disabled={exporting}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleExportDashboard}
+          disabled={exporting}
+          className="h-8 px-3 border border-border text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+        >
           {exporting ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
           ) : (
-            <Download className="w-4 h-4 mr-2" />
+            <Download className="w-3.5 h-3.5 mr-1.5" />
           )}
-          Export Report
+          <span className="text-xs">Export Report</span>
         </Button>
       </div>
     </div>

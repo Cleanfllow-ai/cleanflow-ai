@@ -30,21 +30,21 @@ export function LoginForm() {
 
   return (
     <div className="w-full">
-      {/* Header Section with Logo */}
+      {/* Header Section */}
       <div className="text-center mb-8">
-        <div className="flex justify-center mb-6">
-          <div className="relative w-16 h-16">
+        <div className="flex justify-center mb-5">
+          <div className="relative w-14 h-14">
             <Image
               src="/images/infiniqon-logo-light.png"
               alt="CleanFlowAI"
-              width={64}
-              height={64}
+              width={56}
+              height={56}
               className="rounded-xl object-contain"
             />
           </div>
         </div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back</h1>
-        <p className="text-muted-foreground">Enter your credentials to access your account</p>
+        <h1 className="font-sans text-2xl font-bold tracking-tight text-foreground mb-1.5">Welcome back</h1>
+        <p className="text-sm text-muted-foreground">Enter your credentials to access the command center</p>
       </div>
 
       <Card className="w-full border-0 shadow-none bg-transparent">
@@ -263,9 +263,9 @@ export function LoginForm() {
                   {f.qrCodeDataUrl ? (
                     <img src={f.qrCodeDataUrl} alt="MFA QR Code" className="w-48 h-48" />
                   ) : (
-                    <div className="w-48 h-48 flex items-center justify-center bg-gray-100 rounded">
+                    <div className="w-48 h-48 flex items-center justify-center bg-muted rounded">
                       <div className="text-center text-sm text-muted-foreground">
-                        <Smartphone className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                        <Smartphone className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
                         <p>Scan QR code in your</p>
                         <p>authenticator app</p>
                       </div>

@@ -1,13 +1,11 @@
 import "./globals.css"
 
-import { Inter, Playfair_Display } from "next/font/google"
-
+import { Inter } from "next/font/google"
 import { AuthProvider } from "@/modules/auth"
 import { FilePreloader } from "@/modules/files/components/file-preloader"
 import type { Metadata } from "next"
 import type React from "react"
 import { ReduxProvider } from "@/shared/providers/redux-provider"
-import { SpeedInsights } from "@vercel/speed-insights/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 
@@ -17,16 +15,9 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
-const playfairDisplay = Playfair_Display({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-playfair",
-  weight: ["400", "700"],
-})
-
 export const metadata: Metadata = {
-  title: "CleanFlowAI - Data Transformation Platform",
-  description: "Transform your ERP data seamlessly with our professional data transformation platform",
+  title: "CleanFlowAI - Data Quality Platform",
+  description: "Enterprise data quality, transformation, and ERP integration platform",
   generator: 'v0.app',
   icons: {
     icon: [
@@ -51,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfairDisplay.variable}`} suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased bg-background text-foreground min-h-screen">
         <ReduxProvider>
           <AuthProvider>

@@ -42,10 +42,11 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             bgColor: "bg-primary/8",
             valueColor: "",
             alertColor: stats.failed > 0 ? "text-destructive" : "text-muted-foreground",
+            accentColor: "bg-primary",
         },
         {
             label: "Avg DQ Score",
-            value: stats.avgScore !== null ? `${stats.avgScore.toFixed(1)}%` : "—",
+            value: stats.avgScore !== null ? `${stats.avgScore.toFixed(1)}%` : "\u2014",
             sub:
                 stats.avgScore !== null
                     ? stats.avgScore >= 90
@@ -80,6 +81,14 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
                     ? "text-amber-600 dark:text-amber-400"
                     : "text-destructive",
             alertColor: "text-muted-foreground",
+            accentColor:
+                stats.avgScore === null
+                    ? "bg-muted-foreground/30"
+                    : stats.avgScore >= 90
+                    ? "bg-emerald-500"
+                    : stats.avgScore >= 70
+                    ? "bg-amber-500"
+                    : "bg-destructive",
         },
         {
             label: "Processed",
@@ -93,6 +102,7 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             bgColor: "bg-emerald-500/8",
             valueColor: "",
             alertColor: "text-muted-foreground",
+            accentColor: "bg-emerald-500",
         },
         {
             label: "Quarantined Rows",
@@ -106,6 +116,7 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
                     ? "text-amber-600 dark:text-amber-400"
                     : "",
             alertColor: "text-muted-foreground",
+            accentColor: stats.totalQuarantined > 0 ? "bg-amber-500" : "bg-muted-foreground/30",
         },
     ]
 
@@ -114,14 +125,21 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             {cards.map((card) => (
                 <div
                     key={card.label}
-                    className="rounded-xl border bg-card px-4 py-3.5 flex items-start gap-3"
+                    className="relative overflow-hidden rounded-xl border border-border bg-card px-4 py-3.5 flex items-start gap-3"
                 >
+                    {/* Left accent bar */}
+                    <div
+                        className={`absolute left-0 top-0 bottom-0 w-[3px] ${card.accentColor}`}
+                    />
+
                     <div className={`mt-0.5 flex-shrink-0 w-8 h-8 rounded-lg ${card.bgColor} flex items-center justify-center`}>
                         <card.icon className={`h-4 w-4 ${card.iconColor}`} />
                     </div>
                     <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground leading-none mb-1.5">{card.label}</p>
-                        <p className={`text-xl font-bold leading-none tabular-nums ${card.valueColor}`}>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground leading-none mb-2">
+                            {card.label}
+                        </p>
+                        <p className={`text-xl font-bold leading-none font-mono tabular-nums ${card.valueColor}`}>
                             {card.value}
                         </p>
                         <p className={`text-[11px] mt-1.5 leading-none ${card.alertColor}`}>

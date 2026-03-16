@@ -20,55 +20,91 @@ export const calculateProcessingTime = (
   updatedAt: string | null | undefined
 ): string => {
   if (!uploadedAt || !updatedAt) return "-"
-
   const uploadTime = new Date(uploadedAt).getTime()
   const updateTime = new Date(updatedAt).getTime()
   const diffMs = updateTime - uploadTime
-
   if (diffMs < 0) return "-"
-
   const seconds = Math.floor(diffMs / 1000)
   const minutes = Math.floor(seconds / 60)
   const hours = Math.floor(minutes / 60)
   const days = Math.floor(hours / 24)
-
   if (days > 0) return `${days}d ${hours % 24}h`
   if (hours > 0) return `${hours}h ${minutes % 60}m`
   if (minutes > 0) return `${minutes}m ${seconds % 60}s`
   return `${seconds}s`
 }
 
+/**
+ * Returns whether a status represents an "active" (in-progress) state.
+ * Used to show a pulsing indicator next to the badge.
+ */
+export const isActiveStatus = (status: string): boolean => {
+  return ["DQ_RUNNING", "NORMALIZING", "REPROCESSING", "UPLOADING", "QUEUED", "DQ_DISPATCHED"].includes(status)
+}
+
+/**
+ * Returns a human-readable label for file status.
+ * Simplifies technical status names for business users.
+ */
+export const getStatusLabel = (status: string): string => {
+  switch (status) {
+    case "DQ_FIXED": return "Complete"
+    case "COMPLETED": return "Complete"
+    case "DQ_COMPLETE": return "Complete"
+    case "DQ_RUNNING": return "Processing"
+    case "NORMALIZING": return "Processing"
+    case "DQ_DISPATCHED": return "Queued"
+    case "QUEUED": return "Queued"
+    case "UPLOADED": return "Uploaded"
+    case "UPLOADING": return "Uploading"
+    case "DQ_FAILED": return "Failed"
+    case "FAILED": return "Failed"
+    case "UPLOAD_FAILED": return "Upload Failed"
+    case "REJECTED": return "Rejected"
+    case "REPROCESSING": return "Reprocessing"
+    case "REPROCESS_FAILED": return "Reprocess Failed"
+    default: return status
+  }
+}
+
 export const getStatusBadgeColor = (status: string) => {
   switch (status) {
+    // Success states — green
     case "DQ_FIXED":
     case "COMPLETED":
-      return "bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-400 border-green-300 dark:border-green-500/30"
+    case "DQ_COMPLETE":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/25"
+    // Failed states — red
     case "FAILED":
     case "DQ_FAILED":
+    case "UPLOAD_FAILED":
     case "REJECTED":
-      return "bg-red-100 dark:bg-red-500/20 text-red-800 dark:text-red-400 border-red-300 dark:border-red-500/30"
+    case "REPROCESS_FAILED":
+      return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25"
+    // Active/processing states — blue
     case "DQ_RUNNING":
     case "NORMALIZING":
     case "REPROCESSING":
-      return "bg-blue-100 dark:bg-blue-500/20 text-blue-800 dark:text-blue-400 border-blue-300 dark:border-blue-500/30"
-    case "UPLOADING":
-      return "bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-400 border-purple-300 dark:border-purple-500/30"
+      return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/25"
+    // Waiting states — amber
     case "QUEUED":
-    case "UPLOADED":
     case "DQ_DISPATCHED":
-      return "bg-yellow-100 dark:bg-yellow-500/20 text-yellow-800 dark:text-yellow-400 border-yellow-300 dark:border-yellow-500/30"
+    case "UPLOADED":
+      return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/25"
+    // Upload in progress — purple
+    case "UPLOADING":
+      return "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-400 dark:border-violet-500/25"
     default:
-      return "bg-gray-100 dark:bg-gray-500/20 text-gray-800 dark:text-gray-400 border-gray-300 dark:border-gray-500/30"
+      return "bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-500/15 dark:text-gray-400 dark:border-gray-500/25"
   }
 }
 
 export const getScoreBadgeColor = (score: number) => {
   if (score >= 90) {
-    return "bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-400 border-green-300 dark:border-green-500/30"
+    return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/25"
   }
   if (score >= 70) {
-    return "bg-yellow-100 dark:bg-yellow-500/20 text-yellow-800 dark:text-yellow-400 border-yellow-300 dark:border-yellow-500/30"
+    return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/25"
   }
-  return "bg-red-100 dark:bg-red-500/20 text-red-800 dark:text-red-400 border-red-300 dark:border-red-500/30"
+  return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25"
 }
-

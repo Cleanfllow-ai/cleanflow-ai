@@ -250,7 +250,7 @@ export function SignUpForm() {
       case 5:
         return "bg-green-500";
       default:
-        return "bg-gray-200";
+        return "bg-muted";
     }
   };
 
@@ -281,7 +281,7 @@ export function SignUpForm() {
             />
           </div>
         </div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">
+        <h1 className="font-sans text-2xl font-bold tracking-tight text-foreground mb-1.5">
           {step === 1 ? "Create account" : "Organization Details"}
         </h1>
         <p className="text-muted-foreground">

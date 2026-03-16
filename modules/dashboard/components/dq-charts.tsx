@@ -2,9 +2,8 @@
 
 import { memo, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, AlertTriangle, CheckCircle, ChevronRight, FileText, TrendingUp } from "lucide-react"
+import { AlertTriangle, CheckCircle, FileText, TrendingUp } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import type { DqChartsProps } from "@/modules/dashboard/components/chart-constants"
 import { ChartsCarousel } from "@/modules/dashboard/components/charts/charts-carousel"
@@ -62,91 +61,76 @@ function DqChartsComponent({ files }: DqChartsProps) {
 
   return (
     <div className="space-y-4">
-      {/* Attention banner */}
-      {attentionFiles.length > 0 && (() => {
-        const failed = attentionFiles.filter((f) => ["DQ_FAILED", "REJECTED", "UPLOAD_FAILED"].includes(f.status)).length
-        const quarantined = attentionFiles.filter((f) => f.status === "DQ_FIXED" && (f.rows_quarantined || 0) > 0).length
-        const parts: string[] = []
-        if (failed > 0) parts.push(`${failed} failed`)
-        if (quarantined > 0) parts.push(`${quarantined} with quarantined rows`)
-        return (
-          <div
-            className="flex items-center justify-between p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 cursor-pointer hover:bg-amber-500/10 transition-colors"
-            onClick={() => router.push("/files?tab=explorer&status=attention")}
-          >
-            <div className="flex items-center gap-2 text-sm">
-              <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-              <span>
-                <strong>{attentionFiles.length}</strong> file{attentionFiles.length > 1 ? "s" : ""} need attention
-                {parts.length > 0 && (
-                  <span className="text-muted-foreground"> — {parts.join(", ")}</span>
-                )}
-              </span>
-            </div>
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-amber-600 hover:text-amber-700">
-              View All
-              <ChevronRight className="h-3.5 w-3.5 ml-1" />
-            </Button>
-          </div>
-        )
-      })()}
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card
-          className="cursor-pointer hover:border-primary/30 transition-colors"
+          className="relative overflow-hidden cursor-pointer border-border bg-card hover:border-primary/30 transition-colors"
           onClick={() => router.push("/files?tab=explorer")}
         >
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-sky-500" />
           <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <FileText className="h-4 w-4 text-blue-500" />
-              <span className="text-sm text-muted-foreground">Total Files</span>
+            <div className="flex items-center gap-2 mb-1.5">
+              <FileText className="h-3.5 w-3.5 text-sky-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Total Files</span>
             </div>
-            <div className="text-2xl font-bold">{visibleFiles.length}</div>
-            <p className="text-xs text-muted-foreground">{completedFiles.length} files processed</p>
+            <div className="font-sans text-2xl font-bold text-foreground">{visibleFiles.length}</div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              <span className="font-mono tabular-nums">{completedFiles.length}</span> files processed
+            </p>
           </CardContent>
         </Card>
         <Card
-          className="cursor-pointer hover:border-primary/30 transition-colors"
+          className="relative overflow-hidden cursor-pointer border-border bg-card hover:border-primary/30 transition-colors"
           onClick={() => router.push("/files?tab=explorer&status=bad")}
         >
+          <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${avgDqScore >= 90 ? "bg-emerald-500" : avgDqScore >= 70 ? "bg-amber-500" : "bg-rose-500"}`} />
           <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-muted-foreground">Avg DQ</span>
+            <div className="flex items-center gap-2 mb-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Avg DQ</span>
             </div>
             <div
-              className={`text-2xl font-bold ${avgDqScore >= 90 ? "text-green-500" : avgDqScore >= 70 ? "text-yellow-500" : "text-red-500"
-                }`}
+              className={`font-sans text-2xl font-bold ${avgDqScore >= 90 ? "text-emerald-400" : avgDqScore >= 70 ? "text-amber-400" : "text-rose-400"}`}
             >
-              {avgDqScore.toFixed(1)}%
+              <span className="font-mono tabular-nums">{avgDqScore.toFixed(1)}</span>%
             </div>
           </CardContent>
         </Card>
         <Card
-          className="cursor-pointer hover:border-primary/30 transition-colors"
+          className="relative overflow-hidden cursor-pointer border-border bg-card hover:border-primary/30 transition-colors"
           onClick={() => router.push("/files?tab=explorer&status=DQ_FIXED")}
         >
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500" />
           <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-muted-foreground">Rows Processed</span>
+            <div className="flex items-center gap-2 mb-1.5">
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rows Processed</span>
             </div>
-            <div className="text-2xl font-bold">{totalRowsIn.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">{totalRowsOut.toLocaleString()} valid output rows</p>
+            <div className="font-sans text-2xl font-bold text-foreground font-mono tabular-nums">
+              {totalRowsIn.toLocaleString()}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              <span className="font-mono tabular-nums">{totalRowsOut.toLocaleString()}</span> valid output rows
+            </p>
           </CardContent>
         </Card>
         <Card
-          className="cursor-pointer hover:border-primary/30 transition-colors"
+          className="relative overflow-hidden cursor-pointer border-border bg-card hover:border-primary/30 transition-colors"
           onClick={() => router.push("/files?tab=explorer&status=DQ_FIXED")}
         >
+          <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${totalRowsFixed > 0 ? "bg-amber-500" : "bg-muted-foreground/30"}`} />
           <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-              <span className="text-sm text-muted-foreground">Issues Resolved</span>
+            <div className="flex items-center gap-2 mb-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Issues Resolved</span>
             </div>
-            <div className="text-2xl font-bold">{totalRowsFixed.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">{totalRowsQuarantined.toLocaleString()} quarantined</p>
+            <div className="font-sans text-2xl font-bold text-foreground font-mono tabular-nums">
+              {totalRowsFixed.toLocaleString()}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              <span className="font-mono tabular-nums">{totalRowsQuarantined.toLocaleString()}</span> quarantined
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -160,7 +144,7 @@ function DqChartsComponent({ files }: DqChartsProps) {
         <DqScoreChart completedFiles={completedFiles} />
       </div>
 
-      <Card className="border-0 shadow-sm">
+      <Card className="border-border bg-card">
         <CardContent className="px-4 pb-4 pt-2">
           <ChartsCarousel files={files} />
         </CardContent>
@@ -170,4 +154,3 @@ function DqChartsComponent({ files }: DqChartsProps) {
 }
 
 export const DqCharts = memo(DqChartsComponent)
-

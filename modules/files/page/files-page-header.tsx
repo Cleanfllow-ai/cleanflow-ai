@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
+import { Database, CheckCircle2, AlertTriangle } from "lucide-react"
 import type { FileStatusResponse } from "@/modules/files"
 
 interface FilesPageHeaderProps {
@@ -20,7 +21,12 @@ export function FilesPageHeader({ files }: FilesPageHeaderProps) {
     if (stats.total === 0) {
         return (
             <div className="pb-1">
-                <h1 className="text-xl font-semibold tracking-tight">Data Catalog</h1>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium mb-1">
+                    File Management
+                </p>
+                <h1 className="font-sans text-xl font-bold tracking-tight">
+                    Data Catalog
+                </h1>
                 <p className="text-sm text-muted-foreground mt-0.5">
                     Import and process your data files
                 </p>
@@ -30,27 +36,50 @@ export function FilesPageHeader({ files }: FilesPageHeaderProps) {
 
     return (
         <div className="pb-1">
-            <h1 className="text-xl font-semibold tracking-tight">Data Catalog</h1>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-muted-foreground">
-                <span className="tabular-nums">
-                    <span className="font-medium text-foreground">{stats.total}</span> file{stats.total !== 1 ? "s" : ""}
-                </span>
-                {stats.processed > 0 && (
-                    <>
-                        <span className="text-border">·</span>
-                        <span className="tabular-nums text-emerald-600 dark:text-emerald-400">
-                            <span className="font-medium">{stats.processed}</span> processed
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium mb-1">
+                File Management
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+                <h1 className="font-sans text-xl font-bold tracking-tight mr-2">
+                    Data Catalog
+                </h1>
+
+                {/* Stat pills */}
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/40 border border-border/50">
+                        <Database className="h-3 w-3 text-primary" />
+                        <span className="font-mono text-[12px] font-semibold tabular-nums text-foreground">
+                            {stats.total}
                         </span>
-                    </>
-                )}
-                {stats.failed > 0 && (
-                    <>
-                        <span className="text-border">·</span>
-                        <span className="tabular-nums text-destructive">
-                            <span className="font-medium">{stats.failed}</span> failed
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            files
                         </span>
-                    </>
-                )}
+                    </div>
+
+                    {stats.processed > 0 && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                            <span className="font-mono text-[12px] font-semibold tabular-nums text-emerald-400">
+                                {stats.processed}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-wider text-emerald-400/60">
+                                processed
+                            </span>
+                        </div>
+                    )}
+
+                    {stats.failed > 0 && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-destructive/10 border border-destructive/20">
+                            <AlertTriangle className="h-3 w-3 text-destructive" />
+                            <span className="font-mono text-[12px] font-semibold tabular-nums text-destructive">
+                                {stats.failed}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-wider text-destructive/60">
+                                failed
+                            </span>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     )

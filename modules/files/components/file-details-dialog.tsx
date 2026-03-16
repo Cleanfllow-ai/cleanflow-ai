@@ -97,22 +97,24 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="w-[98vw] h-[80vh] max-w-6xl max-h-none p-0 flex flex-col gap-0">
           <div className="flex h-full flex-col">
-            <DialogHeader className="px-6 py-4 border-b shrink-0">
+            <DialogHeader className="px-6 py-3 border-b shrink-0">
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 min-w-0">
-                  <DialogTitle className="flex items-center gap-2 text-lg font-semibold truncate">
-                    <FileText className="w-5 h-5 text-primary shrink-0" />
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4 text-primary" />
+                  </div>
+                  <DialogTitle className="flex items-center gap-2.5 font-sans text-base font-semibold tracking-tight truncate">
                     <span className="truncate">{currentFile.original_filename || currentFile.filename || "File"}</span>
                   </DialogTitle>
-                  <Badge className={cn("shrink-0", getStatusColor(currentFile.status))} variant="outline">
+                  <Badge className={cn("shrink-0 text-[10px] font-medium", getStatusColor(currentFile.status))} variant="outline">
                     {currentFile.status}
                   </Badge>
                 </div>
               </div>
             </DialogHeader>
 
-            <div className="px-6 py-2 border-b shrink-0 bg-muted/10">
-              <div className="inline-flex rounded-lg border bg-muted p-1">
+            <div className="px-6 py-2 border-b shrink-0">
+              <div className="inline-flex rounded-lg bg-muted p-0.5 gap-0.5">
                 {!hideTabs.includes("details") && (
                   <button
                     onClick={() => setActiveTab("details")}

@@ -60,17 +60,17 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
     switch (status) {
       case "DQ_FIXED":
       case "EXPORTED":
-        return "text-green-500"
+        return "text-emerald-400"
       case "DQ_FAILED":
       case "UPLOAD_FAILED":
-        return "text-red-500"
+        return "text-rose-400"
       case "DQ_RUNNING":
       case "NORMALIZING":
       case "QUEUED":
       case "UPLOADING":
-        return "text-amber-500"
+        return "text-amber-400"
       default:
-        return "text-gray-500"
+        return "text-muted-foreground"
     }
   }
 
@@ -78,10 +78,10 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
     switch (status) {
       case "DQ_FIXED":
       case "EXPORTED":
-        return "bg-green-500/10"
+        return "bg-emerald-500/10"
       case "DQ_FAILED":
       case "UPLOAD_FAILED":
-        return "bg-red-500/10"
+        return "bg-rose-500/10"
       case "DQ_RUNNING":
       case "NORMALIZING":
       case "QUEUED":
@@ -89,6 +89,24 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
         return "bg-amber-500/10"
       default:
         return "bg-muted"
+    }
+  }
+
+  const getStatusLabelColor = (status: string) => {
+    switch (status) {
+      case "DQ_FIXED":
+      case "EXPORTED":
+        return "text-emerald-400"
+      case "DQ_FAILED":
+      case "UPLOAD_FAILED":
+        return "text-rose-400"
+      case "DQ_RUNNING":
+      case "NORMALIZING":
+      case "QUEUED":
+      case "UPLOADING":
+        return "text-amber-400"
+      default:
+        return "text-muted-foreground"
     }
   }
 
@@ -112,22 +130,26 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
     .slice(0, 10)
 
   return (
-    <Card className="h-fit">
-      <CardHeader className="py-2 px-3">
+    <Card className="h-fit border-border bg-card">
+      <CardHeader className="py-2.5 px-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
-          <span className="text-xs text-muted-foreground">{recentFiles.length}</span>
+          <CardTitle className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            Recent Activity
+          </CardTitle>
+          <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+            {recentFiles.length}
+          </span>
         </div>
       </CardHeader>
       <CardContent className="px-3 pt-0 pr-4">
         <ScrollArea className="h-[240px] pr-2">
           {recentFiles.length === 0 ? (
             <div className="text-center text-muted-foreground py-6">
-              <FileText className="w-6 h-6 mx-auto mb-2 opacity-50" />
+              <FileText className="w-6 h-6 mx-auto mb-2 opacity-40" />
               <p className="text-xs">No recent activity</p>
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-0.5">
               {recentFiles.map((file) => {
                 const ActivityIcon = getActivityIcon(file.status)
                 const filename = file.original_filename || file.filename || 'File'
@@ -135,23 +157,34 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
                 return (
                   <div
                     key={file.upload_id}
-                    className="flex items-center gap-2.5 py-2 px-2.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => router.push(`/files?tab=explorer&file=${file.upload_id}`)}
+                    className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer group"
+                    onClick={() => router.push(`/files?highlight=${file.upload_id}`)}
                   >
-                    <div className={`rounded-md p-1.5 ${getStatusBg(file.status)}`}>
+                    {/* Icon pill */}
+                    <div className={`rounded-md p-1.5 ${getStatusBg(file.status)} transition-colors`}>
                       <ActivityIcon className={`h-3.5 w-3.5 ${getStatusColor(file.status)}`} />
                     </div>
+
+                    {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate" title={filename}>
+                      <p className="text-xs font-medium text-foreground truncate group-hover:text-foreground/90" title={filename}>
                         {filename.length > 20 ? filename.slice(0, 20) + '...' : filename}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {getActivityLabel(file.status)}
-                        {file.dq_score ? ` • ${file.dq_score}%` : ''}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`text-[10px] font-medium ${getStatusLabelColor(file.status)}`}>
+                          {getActivityLabel(file.status)}
+                        </span>
+                        {file.dq_score ? (
+                          <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+                            {file.dq_score}%
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                    <span className="text-[10px] text-muted-foreground shrink-0">
-                          {(file.updated_at || file.created_at) ? formatTime(file.updated_at ?? file.created_at ?? '') : ''}
+
+                    {/* Time */}
+                    <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 shrink-0">
+                      {(file.updated_at || file.created_at) ? formatTime(file.updated_at ?? file.created_at ?? '') : ''}
                     </span>
                   </div>
                 )
