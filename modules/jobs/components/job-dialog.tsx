@@ -274,7 +274,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                                                                 <div className="flex justify-between">
                                                                     <span className="text-muted-foreground">Null Rate:</span>
                                                                     <span className={cn(
-                                                                        profile.null_rate != null && profile.null_rate > 0.1 ? "text-yellow-500 font-medium" : "text-green-500"
+                                                                        profile.null_rate != null && profile.null_rate > 0.1 ? "text-amber-600 dark:text-yellow-500 font-medium" : "text-emerald-600 dark:text-green-500"
                                                                     )}>
                                                                         {profile.null_rate != null ? `${(profile.null_rate * 100).toFixed(1)}%` : "N/A"}
                                                                     </span>
@@ -340,7 +340,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                                                                     {d.presets.map(p => (
                                                                         <SelectItem key={p.preset_id} value={p.preset_id}>
                                                                             <div className="flex items-center gap-2">
-                                                                                {p.is_default && <Star className="w-3 h-3 text-yellow-500" />}
+                                                                                {p.is_default && <Star className="w-3 h-3 text-amber-500" />}
                                                                                 {p.preset_name}
                                                                             </div>
                                                                         </SelectItem>

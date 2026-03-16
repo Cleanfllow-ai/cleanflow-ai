@@ -57,7 +57,7 @@ export function QuarantineEditorToolbar({
           {/* Color legend */}
           <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-border">
             <LegendDot color="bg-transparent border border-border" label="Clean" />
-            <LegendDot color="bg-amber-400" label="Fixed" />
+            <LegendDot color="bg-orange-500" label="Fixed" />
             <LegendDot color="bg-red-400" label="Quarantined" />
             <LegendDot color="bg-blue-500" label="Edited" />
           </div>

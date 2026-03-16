@@ -73,13 +73,13 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
   const getStatusColor = (status: string) => {
     const s = status?.toUpperCase() || ""
     if (s.includes("FIXED") || s.includes("COMPLETED") || s.includes("PROCESSED")) {
-      return "bg-green-500/10 text-green-500 border-green-500/20"
+      return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-green-500/10 dark:text-green-500 dark:border-green-500/20"
     }
-    if (s.includes("FAILED")) return "bg-red-500/10 text-red-500 border-red-500/20"
+    if (s.includes("FAILED")) return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-500 dark:border-red-500/20"
     if (s.includes("RUNNING") || s.includes("PROCESSING") || s.includes("QUEUED")) {
-      return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+      return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-yellow-500/10 dark:text-yellow-500 dark:border-yellow-500/20"
     }
-    return "bg-blue-500/10 text-blue-500 border-blue-500/20"
+    return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-500 dark:border-blue-500/20"
   }
 
   const isDqMatrixReady = (() => {

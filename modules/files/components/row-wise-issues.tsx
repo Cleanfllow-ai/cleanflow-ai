@@ -68,7 +68,7 @@ export function RowWiseIssues({
     const getViolationColor = (violation: string) => {
         if (violation.includes('missing') || violation.includes('required')) return 'text-red-500 bg-red-500/10 border-red-500/20';
         if (violation.includes('invalid') || violation.includes('duplicate')) return 'text-orange-500 bg-orange-500/10 border-orange-500/20';
-        if (violation.includes('format') || violation.includes('type')) return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
+        if (violation.includes('format') || violation.includes('type')) return 'text-amber-700 bg-amber-50 border-amber-200 dark:text-yellow-500 dark:bg-yellow-500/10 dark:border-yellow-500/20';
         return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
     };
 

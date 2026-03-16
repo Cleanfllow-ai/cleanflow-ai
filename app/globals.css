@@ -25,7 +25,7 @@
   --secondary-foreground: oklch(0.1 0 0);
 
   --muted: oklch(0.95 0 0);
-  --muted-foreground: oklch(0.45 0 0);
+  --muted-foreground: oklch(0.40 0 0);
 
   --destructive: oklch(0.62 0.25 25);
   --destructive-foreground: oklch(0.98 0 0);

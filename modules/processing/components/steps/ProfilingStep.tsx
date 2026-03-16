@@ -216,7 +216,7 @@ export function ProfilingStep() {
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Null Rate:</span>
-                            <span className={profile.null_rate > 0.1 ? "text-yellow-500" : "text-green-500"}>
+                            <span className={profile.null_rate > 0.1 ? "text-amber-600 dark:text-yellow-500" : "text-emerald-600 dark:text-green-500"}>
                               {(profile.null_rate * 100).toFixed(1)}%
                             </span>
                           </div>

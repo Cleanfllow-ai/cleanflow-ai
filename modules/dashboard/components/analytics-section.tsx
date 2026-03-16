@@ -50,29 +50,29 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
             value: visibleFiles.length.toString(),
             change: visibleFiles.length > 0 ? '+100%' : '0%',
             icon: FileText,
-            color: 'text-blue-400'
+            color: 'text-blue-600'
           },
           {
             title: 'Avg DQ',
             value: `${avgDqScore.toFixed(1)}%`,
             change: avgDqScore > 90 ? '+5%' : avgDqScore > 70 ? '+2%' : '0%',
             icon: Gauge,
-            color: 'text-green-400',
-            valueColor: avgDqScore >= 90 ? 'text-green-500' : avgDqScore >= 70 ? 'text-yellow-500' : 'text-red-500'
+            color: 'text-emerald-600',
+            valueColor: avgDqScore >= 90 ? 'text-emerald-600' : avgDqScore >= 70 ? 'text-amber-600' : 'text-red-600'
           },
           {
             title: 'Rows Processed',
             value: totalRowsProcessed.toLocaleString(),
             change: totalRowsProcessed > 0 ? '+100%' : '0%',
             icon: TrendingUp,
-            color: 'text-purple-400'
+            color: 'text-violet-600'
           },
           {
             title: 'Success Rate',
             value: visibleFiles.length > 0 ? `${Math.round((completedFiles.length / visibleFiles.length) * 100)}%` : '0%',
             change: completedFiles.length > 0 ? '+100%' : '0%',
             icon: Target,
-            color: 'text-orange-400'
+            color: 'text-orange-600'
           }
         ].map((stat) => (
           <div key={stat.title} className="h-full">
@@ -113,9 +113,9 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
                 <div>
                   <span className="font-medium">{issue.issue}</span>
                   <Badge variant="secondary" className={
-                    issue.severity === 'Fatal' ? "bg-red-500/20 text-red-400 ml-2" :
-                    issue.severity === 'High' ? "bg-orange-500/20 text-orange-400 ml-2" :
-                    "bg-yellow-500/20 text-yellow-400 ml-2"
+                    issue.severity === 'Fatal' ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 ml-2" :
+                    issue.severity === 'High' ? "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 ml-2" :
+                    "bg-amber-100 text-amber-700 dark:bg-yellow-500/20 dark:text-yellow-400 ml-2"
                   }>
                     {issue.severity}
                   </Badge>
@@ -143,15 +143,15 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-green-400">Completed</span>
+                  <span className="text-emerald-600 dark:text-green-400">Completed</span>
                   <span>{completedFiles.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-yellow-400">Processing</span>
+                  <span className="text-amber-600 dark:text-yellow-400">Processing</span>
                   <span>{processingFiles.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-red-400">Failed</span>
+                  <span className="text-red-600 dark:text-red-400">Failed</span>
                   <span>{failedFiles.length}</span>
                 </div>
               </div>
@@ -169,11 +169,11 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
                   <span>{files.reduce((sum, f) => sum + (f.rows_in || 0), 0)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-green-400">Validated Output Rows</span>
+                  <span className="text-emerald-600 dark:text-green-400">Validated Output Rows</span>
                   <span>{totalRowsProcessed}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-yellow-400">Records Quarantined</span>
+                  <span className="text-amber-600 dark:text-yellow-400">Records Quarantined</span>
                   <span>{totalQuarantined}</span>
                 </div>
               </div>

@@ -64,8 +64,8 @@ export function FileDqReportTab({
 
         {dqReportError && (
           <div className="flex flex-col items-center justify-center h-64 text-center">
-            <div className="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mb-4">
-              <AlertTriangle className="h-8 w-8 text-yellow-500" />
+            <div className="w-16 h-16 bg-amber-100 dark:bg-yellow-500/10 rounded-full flex items-center justify-center mb-4">
+              <AlertTriangle className="h-8 w-8 text-amber-600 dark:text-yellow-500" />
             </div>
             <h3 className="text-lg font-medium mb-2">Report Unavailable</h3>
             <p className="text-muted-foreground max-w-md">{dqReportError}</p>

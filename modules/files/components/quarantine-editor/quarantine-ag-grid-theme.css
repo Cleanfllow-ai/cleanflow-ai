@@ -70,11 +70,11 @@
   color: #111827;
 }
 
-/* Fixed — subtle amber left border. "Engine auto-corrected this." */
+/* Fixed — subtle orange left border. "Engine auto-corrected this." */
 .quarantine-ag-grid .ag-cell-fixed {
-  background: #FFFBEB;
-  color: #92400E;
-  box-shadow: inset 2px 0 0 #F59E0B;
+  background: #FFF7ED;
+  color: #9A3412;
+  box-shadow: inset 2px 0 0 #F97316;
 }
 
 /* Quarantined — subtle red left border. "Needs your attention." */
