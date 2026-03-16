@@ -5,7 +5,7 @@ import { useAuth } from "@/modules/auth"
 import { useToast } from "@/shared/hooks/use-toast"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
 import { jobsAPI } from "@/modules/jobs/api/jobs-api"
-import type { FileStatusResponse } from "@/modules/files/types"
+import type { FileStatusResponse, QuarantineReprocessResponse } from "@/modules/files/types"
 import type { JobRun } from "@/modules/jobs/types/jobs.types"
 
 const ERP_DISPLAY: Record<string, string> = {
@@ -53,7 +53,7 @@ export interface JobRunFilesState {
     quarantineEditorOpen: boolean
     handleOpenQuarantineEditor: (file: FileStatusResponse, entity?: string) => void
     handleQuarantineEditorClose: () => void
-    handleReprocessSubmitted: (newUploadId: string) => void
+    handleReprocessSubmitted: (result: QuarantineReprocessResponse) => void
     exporting: boolean
 }
 
@@ -117,6 +117,41 @@ async function waitForNewVersion(
     }
 
     return null // Timeout
+}
+
+async function waitForDeltaReprocess(
+    uploadId: string,
+    token: string,
+    options: {
+        maxWaitMs?: number
+        expectedSnapshotId?: string
+        previousSnapshotId?: string | null
+    } = {},
+): Promise<FileStatusResponse | null> {
+    const interval = 2000
+    const startTime = Date.now()
+    const maxWaitMs = options.maxWaitMs ?? 60000
+
+    while (Date.now() - startTime < maxWaitMs) {
+        await new Promise(resolve => setTimeout(resolve, interval))
+        try {
+            const file = await fileManagementAPI.getFileStatus(uploadId, token)
+            const currentSnapshotId = file.current_reprocess_snapshot_id || null
+            if (options.expectedSnapshotId && currentSnapshotId === options.expectedSnapshotId) {
+                return file
+            }
+            if (!options.expectedSnapshotId && options.previousSnapshotId && currentSnapshotId && currentSnapshotId !== options.previousSnapshotId) {
+                return file
+            }
+            if (!options.expectedSnapshotId && !options.previousSnapshotId && file.remediation_state === "DELTA_APPLIED") {
+                return file
+            }
+        } catch {
+            // ignore and keep polling
+        }
+    }
+
+    return null
 }
 
 /**
@@ -331,21 +366,33 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
      * Called by QuarantineEditorDialog after reprocess is submitted.
      * Polls for the reprocessed version, then kicks off async re-export and polls for result.
      */
-    const handleReprocessSubmitted = useCallback(async (newUploadId: string) => {
+    const handleReprocessSubmitted = useCallback(async (reprocessResult: QuarantineReprocessResponse) => {
         const entity = quarantineEntity
         const fileUploadId = quarantineFile?.upload_id
+        const previousSnapshotId = quarantineFile?.current_reprocess_snapshot_id || null
         const jobId = run?.job_id
         const destination = run?.destination_erp
         const destLabel = ERP_DISPLAY[destination || ""] || destination || "destination"
 
         if (!entity || !fileUploadId || !jobId || !idToken) return
+        const effectiveMode = reprocessResult.effective_mode || "full"
+        const targetUploadId = reprocessResult.new_upload_id || reprocessResult.base_upload_id || fileUploadId
 
         setExporting(true)
         toast({ title: "Reprocessing...", description: `Waiting for reprocess to complete before exporting to ${destLabel}` })
 
         try {
-            // Wait for the reprocess worker to create the new version
-            const updatedFile = await waitForNewVersion(fileUploadId, idToken, 60000)
+            let updatedFile: FileStatusResponse | null
+            if (effectiveMode === "delta") {
+                updatedFile = await waitForDeltaReprocess(fileUploadId, idToken, {
+                    maxWaitMs: 60000,
+                    expectedSnapshotId: reprocessResult.reprocess_snapshot_id,
+                    previousSnapshotId,
+                })
+            } else {
+                // Wait for the reprocess worker to create the new version
+                updatedFile = await waitForNewVersion(fileUploadId, idToken, 60000)
+            }
 
             if (!updatedFile) {
                 toast({ title: "Export skipped", description: "Reprocess is still in progress. Clean data will need to be exported manually.", variant: "destructive" })
@@ -360,20 +407,20 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
 
             // Kick off async re-export (returns immediately)
             toast({ title: "Exporting...", description: `Exporting cleaned rows to ${destLabel}` })
-            await jobsAPI.reExportFile(jobId, newUploadId, entity)
+            await jobsAPI.reExportFile(jobId, targetUploadId, entity)
 
             // Poll for the async export result
-            const result = await pollReExportStatus(jobId, newUploadId, 120000)
+            const exportResult = await pollReExportStatus(jobId, targetUploadId, 120000)
 
-            if (result?.status === "SUCCESS") {
+            if (exportResult?.status === "SUCCESS") {
                 toast({
                     title: "Successfully Exported",
-                    description: `${result.records_exported ?? 0} cleaned rows exported to ${destLabel}`,
+                    description: `${exportResult.records_exported ?? 0} cleaned rows exported to ${destLabel}`,
                 })
-            } else if (result?.status === "FAILED") {
+            } else if (exportResult?.status === "FAILED") {
                 toast({
                     title: "Export Failed",
-                    description: result.error || `Could not export cleaned rows to ${destLabel}. Please try exporting manually.`,
+                    description: exportResult.error || `Could not export cleaned rows to ${destLabel}. Please try exporting manually.`,
                     variant: "destructive",
                 })
             } else {

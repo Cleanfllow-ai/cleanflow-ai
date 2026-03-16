@@ -18,7 +18,13 @@ const DQ_HIDDEN_COLUMNS = new Set([
 ])
 
 export function FilePreviewTab({ previewLoading, previewError, previewData }: FilePreviewTabProps) {
-  const visibleHeaders = previewData?.headers?.filter((h) => !DQ_HIDDEN_COLUMNS.has(h)) ?? []
+  const visibleHeaders = previewData?.headers?.filter((h) =>
+    !DQ_HIDDEN_COLUMNS.has(h) &&
+    !h.endsWith("_dq_status") &&
+    !h.endsWith("_dq_fixed") &&
+    !h.endsWith("_dq_quarantined") &&
+    !h.startsWith("_")
+  ) ?? []
 
   return (
     <div className="h-full flex flex-col">
@@ -62,43 +68,50 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                   <tr
                     key={idx}
                     className="border-b transition-colors hover:bg-muted/30"
-                    title={row?.dq_violations || row?.dq_status || ""}
                   >
                     {visibleHeaders.map((header) => {
                       const value = row && typeof row === "object" ? row[header] : ""
 
-                      // ── Per-cell DQ status ─────────────────────────────────
-                      // 1. Prefer explicit per-cell map (dq_cell_status: {col: status})
-                      const dqCellMap = (row as any)?.dq_cell_status
-                      const explicitCellStatus = dqCellMap && typeof dqCellMap === "object"
-                        ? String(dqCellMap[header] || "").toLowerCase()
-                        : ""
+                      // ── Per-cell DQ status resolution ─────────────────────
+                      // Backend returns cell_status map: { colName: "quarantined"|"fixed"|"clean" }
+                      const cellStatusMap = (row as any)?.cell_status
+                      let mapCellStatus = ""
+                      if (cellStatusMap && typeof cellStatusMap === "object") {
+                        mapCellStatus = String(cellStatusMap[header] || "").toLowerCase()
+                      } else if (typeof cellStatusMap === "string") {
+                        try {
+                          const parsed = JSON.parse(cellStatusMap)
+                          mapCellStatus = String(parsed?.[header] || "").toLowerCase()
+                        } catch { /* not JSON */ }
+                      }
 
-                      // 2. Infer from dq_violations / fixes_applied strings
+                      // 3. Infer from dq_violations / fixes_applied strings
                       const violationsRaw = String((row as any)?.dq_violations || "")
                       const fixesRaw = String((row as any)?.fixes_applied || "")
+                      const colLower = header.toLowerCase()
 
-                      // Extract tokens for this column — format: "RULE(col)" or "col: RULE" or "col=RULE"
                       const extractForCol = (raw: string) =>
                         raw.split(";").map((t) => t.trim()).filter((t) => {
                           if (!t) return false
                           const lower = t.toLowerCase()
-                          const col = header.toLowerCase()
                           return (
-                            lower.includes(`(${col})`) ||
-                            lower.startsWith(`${col}:`) ||
-                            lower.startsWith(`${col} :`) ||
-                            lower.startsWith(`${col}=`) ||
-                            lower.includes(` ${col}:`) ||
-                            lower.includes(` ${col} `)
+                            lower.includes(`(${colLower})`) ||
+                            lower.startsWith(`${colLower}:`) ||
+                            lower.startsWith(`${colLower} :`) ||
+                            lower.startsWith(`${colLower}=`) ||
+                            lower.includes(` ${colLower}:`) ||
+                            lower.includes(` ${colLower} `)
                           )
                         })
 
                       const colViolations = extractForCol(violationsRaw)
                       const colFixes = extractForCol(fixesRaw)
 
+                      // Resolve status: cell_status map > inferred from violation/fix strings
                       const resolvedStatus =
-                        explicitCellStatus ||
+                        (mapCellStatus && mapCellStatus !== "nan" && mapCellStatus !== "none"
+                          ? mapCellStatus
+                          : "") ||
                         (colViolations.length > 0 ? "quarantined" : "") ||
                         (colFixes.length > 0 ? "fixed" : "")
 
@@ -111,35 +124,51 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                           ? "bg-emerald-500/5 text-emerald-800 dark:text-emerald-400"
                           : ""
 
-                      // ── Tooltip ────────────────────────────────────────────
+                      // ── Tooltip (only for non-clean cells) ─────────────────
                       const tooltipLines: string[] = []
-                      if (resolvedStatus) tooltipLines.push(`Status: ${resolvedStatus}`)
-                      if (colViolations.length > 0) tooltipLines.push(`Issues: ${colViolations.join(", ")}`)
-                      else if (violationsRaw && resolvedStatus === "quarantined") tooltipLines.push(`Issues: ${violationsRaw}`)
-                      if (colFixes.length > 0) tooltipLines.push(`Fixes: ${colFixes.join(", ")}`)
-                      if (tooltipLines.length === 0) tooltipLines.push("Clean")
+                      if (resolvedStatus && resolvedStatus !== "clean") {
+                        tooltipLines.push(`Status: ${resolvedStatus}`)
+                        if (colViolations.length > 0) {
+                          tooltipLines.push(`Issues: ${colViolations.join("; ")}`)
+                        }
+                        if (colFixes.length > 0) {
+                          tooltipLines.push(`Fixes: ${colFixes.join("; ")}`)
+                        }
+                        if (resolvedStatus === "fixed" && colFixes.length === 0) {
+                          tooltipLines.push("Auto-fixed by DQ engine")
+                        }
+                      }
 
-                      return (
-                        <UiTooltip key={header}>
-                          <TooltipTrigger asChild>
-                            <td
-                              className={cn(
-                                "px-4 py-2.5 whitespace-nowrap border-r last:border-r-0 max-w-[260px] truncate",
-                                cellClass
-                              )}
-                            >
-                              {value !== undefined ? String(value ?? "") : ""}
-                            </td>
-                          </TooltipTrigger>
-                          <TooltipContent align="start" className="max-w-xs break-words text-xs">
-                            <div className="space-y-1">
-                              {tooltipLines.map((line, i) => (
-                                <div key={i}>{line}</div>
-                              ))}
-                            </div>
-                          </TooltipContent>
-                        </UiTooltip>
+                      const cellContent = (
+                        <td
+                          className={cn(
+                            "px-4 py-2.5 whitespace-nowrap border-r last:border-r-0 max-w-[260px] truncate",
+                            cellClass
+                          )}
+                        >
+                          {value !== undefined ? String(value ?? "") : ""}
+                        </td>
                       )
+
+                      // Only wrap in tooltip for cells that have DQ info
+                      if (tooltipLines.length > 0) {
+                        return (
+                          <UiTooltip key={header}>
+                            <TooltipTrigger asChild>
+                              {cellContent}
+                            </TooltipTrigger>
+                            <TooltipContent align="start" className="max-w-xs break-words text-xs">
+                              <div className="space-y-1">
+                                {tooltipLines.map((line, i) => (
+                                  <div key={i}>{line}</div>
+                                ))}
+                              </div>
+                            </TooltipContent>
+                          </UiTooltip>
+                        )
+                      }
+
+                      return <td key={header} className="px-4 py-2.5 whitespace-nowrap border-r last:border-r-0 max-w-[260px] truncate">{value !== undefined ? String(value ?? "") : ""}</td>
                     })}
                   </tr>
                 ))}

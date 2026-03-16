@@ -45,9 +45,15 @@ export async function downloadDqReport(uploadId: string, authToken: string): Pro
         }
     }
 
-    // Case 1: JSON envelope
+    // Case 0: presigned URL redirect for large reports
     try {
         const payload = JSON.parse(text)
+        if (payload.download_url) {
+            const reportResp = await fetch(payload.download_url)
+            if (!reportResp.ok) throw new Error(`DQ report download failed: ${reportResp.statusText}`)
+            return await reportResp.json()
+        }
+        // Case 1: JSON envelope with base64 body
         const base64Body = payload.body || payload.data || ''
         if (base64Body) {
             const decoded = tryDecodeBase64(base64Body)
@@ -55,8 +61,9 @@ export async function downloadDqReport(uploadId: string, authToken: string): Pro
         }
         // If there's no body field, treat payload itself as report JSON
         return payload as DqReportResponse
-    } catch {
-        // Not JSON – fall through
+    } catch (e) {
+        // Not JSON or fetch failed – fall through
+        if (e instanceof Error && e.message.includes('DQ report download failed')) throw e
     }
 
     // Case 2: plain base64 string

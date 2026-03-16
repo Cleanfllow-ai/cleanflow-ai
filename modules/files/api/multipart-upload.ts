@@ -1,14 +1,40 @@
 /**
  * multipart-upload.ts
  *
- * Upload client — always uses a single presigned-POST upload via the /uploads
- * route. S3 presigned POST supports files up to 5 GB, which covers all
- * practical use-cases. Supports AbortSignal for upload cancellation.
+ * Upload client with two strategies:
+ *   - Files ≤ 100 MB → single presigned-POST upload (existing path)
+ *   - Files > 100 MB → true S3 multipart upload via backend API
+ *
+ * The multipart path uses the backend endpoints:
+ *   POST /uploads/multipart/init          → { upload_id, s3_upload_id, key }
+ *   POST /uploads/multipart/{id}/presign-batch → { urls: [{part_number, url}] }
+ *   POST /uploads/multipart/{id}/presign-part  → { url, part_number }
+ *   POST /uploads/multipart/{id}/complete  → { upload_id }
+ *   POST /uploads/multipart/{id}/abort     → { upload_id }
+ *
+ * Supports AbortSignal for cancellation, per-part progress, and retry.
  */
 
 import { AWS_CONFIG } from '@/shared/config/aws-config'
 
 const API_BASE_URL = AWS_CONFIG.API_BASE_URL
+
+// ── Configuration ─────────────────────────────────────────────────────────────
+
+/** Files above this threshold use true S3 multipart upload. */
+const MULTIPART_THRESHOLD = 100 * 1024 * 1024 // 100 MB
+
+/** Minimum part size — S3 requires ≥ 5 MB for all parts except the last. */
+const MIN_PART_SIZE = 100 * 1024 * 1024 // 100 MB
+
+/** Maximum concurrent part uploads. */
+const MAX_CONCURRENCY = 5
+
+/** Maximum retry attempts per part. */
+const MAX_RETRIES = 3
+
+/** How many presigned URLs to request at once. */
+const PRESIGN_BATCH_SIZE = 50
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -25,9 +51,10 @@ export type GetToken = () => Promise<string>
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Kept for backward compat — returns a chunk size but single-upload doesn't use it. */
 export function getChunkSize(fileSize: number): number {
-  return fileSize // single upload — one "chunk" = whole file
+  if (fileSize <= MULTIPART_THRESHOLD) return fileSize
+  // Stay under S3's 10,000 parts limit
+  return Math.max(MIN_PART_SIZE, Math.ceil(fileSize / 9999))
 }
 
 async function apiPost(
@@ -54,7 +81,7 @@ async function apiPost(
   return res.json()
 }
 
-// ── Single presigned-POST upload ─────────────────────────────────────────────
+// ── Single presigned-POST upload (files ≤ 100 MB) ────────────────────────────
 
 async function singleUpload(
   file: File,
@@ -135,11 +162,270 @@ async function singleUpload(
   return uploadId
 }
 
+// ── True S3 multipart upload (files > 100 MB) ────────────────────────────────
+
+interface PartResult {
+  PartNumber: number
+  ETag: string
+}
+
+/**
+ * Upload a single part to S3 using a presigned PUT URL.
+ * Uses XHR for progress tracking. Retries up to MAX_RETRIES on failure.
+ */
+function uploadPart(
+  url: string,
+  blob: Blob,
+  partNumber: number,
+  onPartProgress: (loaded: number) => void,
+  signal?: AbortSignal,
+): Promise<PartResult> {
+  return new Promise((resolve, reject) => {
+    let attempt = 0
+
+    function tryUpload() {
+      attempt++
+      const xhr = new XMLHttpRequest()
+
+      if (signal) {
+        if (signal.aborted) {
+          reject(new Error('Upload cancelled'))
+          return
+        }
+        signal.addEventListener('abort', () => xhr.abort(), { once: true })
+      }
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) onPartProgress(e.loaded)
+      })
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const etag = xhr.getResponseHeader('ETag')
+          if (!etag) {
+            reject(new Error(`Part ${partNumber}: no ETag in response`))
+            return
+          }
+          onPartProgress(blob.size)
+          resolve({ PartNumber: partNumber, ETag: etag })
+        } else if (attempt < MAX_RETRIES) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000)
+          setTimeout(tryUpload, delay)
+        } else {
+          reject(new Error(`Part ${partNumber} failed after ${MAX_RETRIES} attempts: HTTP ${xhr.status}`))
+        }
+      })
+
+      xhr.addEventListener('error', () => {
+        if (attempt < MAX_RETRIES) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000)
+          setTimeout(tryUpload, delay)
+        } else {
+          reject(new Error(`Part ${partNumber} network error after ${MAX_RETRIES} attempts`))
+        }
+      })
+
+      xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')))
+
+      xhr.open('PUT', url)
+      xhr.send(blob)
+    }
+
+    tryUpload()
+  })
+}
+
+/**
+ * Get presigned URLs for multiple parts in one batch call, falling back to
+ * individual presign-part calls if the batch endpoint is unavailable.
+ */
+async function presignParts(
+  uploadId: string,
+  partNumbers: number[],
+  token: string,
+  getToken?: GetToken,
+  signal?: AbortSignal,
+): Promise<Map<number, string>> {
+  const urlMap = new Map<number, string>()
+
+  try {
+    // Try batch endpoint first
+    const res = await apiPost(
+      `/uploads/multipart/${uploadId}/presign-batch`,
+      { part_numbers: partNumbers },
+      token,
+      getToken,
+      signal,
+    )
+    for (const item of (res.urls || [])) {
+      urlMap.set(item.part_number, item.url)
+    }
+    return urlMap
+  } catch {
+    // Fallback: individual presign calls
+    const results = await Promise.all(
+      partNumbers.map(async (pn) => {
+        const res = await apiPost(
+          `/uploads/multipart/${uploadId}/presign-part`,
+          { part_number: pn },
+          token,
+          getToken,
+          signal,
+        )
+        return { part_number: pn, url: res.url as string }
+      })
+    )
+    for (const r of results) {
+      urlMap.set(r.part_number, r.url)
+    }
+    return urlMap
+  }
+}
+
+async function s3MultipartUpload(
+  file: File,
+  token: string,
+  onProgress?: (p: MultipartProgress) => void,
+  getToken?: GetToken,
+  signal?: AbortSignal,
+): Promise<string> {
+  const fileSize = file.size
+  const partSize = getChunkSize(fileSize)
+  const totalParts = Math.ceil(fileSize / partSize)
+
+  // 1. Initiate multipart upload
+  const initRes = await apiPost(
+    '/uploads/multipart/init',
+    { filename: file.name, content_type: file.type || 'application/octet-stream' },
+    token,
+    getToken,
+    signal,
+  )
+
+  const uploadId: string = initRes.upload_id
+
+  // Track per-part progress for accurate overall percentage
+  const partLoaded = new Float64Array(totalParts) // bytes uploaded per part
+  let partsComplete = 0
+
+  function reportProgress() {
+    let loaded = 0
+    for (let i = 0; i < totalParts; i++) loaded += partLoaded[i]
+    onProgress?.({
+      loaded,
+      total: fileSize,
+      percent: Math.round((loaded / fileSize) * 100),
+      partsComplete,
+      partsTotal: totalParts,
+    })
+  }
+
+  // 2. Upload parts with bounded concurrency
+  const completedParts: PartResult[] = []
+
+  try {
+    // Process parts in batches of PRESIGN_BATCH_SIZE for URL fetching,
+    // then upload within each batch with MAX_CONCURRENCY parallelism
+    for (let batchStart = 0; batchStart < totalParts; batchStart += PRESIGN_BATCH_SIZE) {
+      if (signal?.aborted) throw new Error('Upload cancelled')
+
+      const batchEnd = Math.min(batchStart + PRESIGN_BATCH_SIZE, totalParts)
+      const batchPartNumbers = Array.from(
+        { length: batchEnd - batchStart },
+        (_, i) => batchStart + i + 1, // S3 parts are 1-indexed
+      )
+
+      // Get presigned URLs for this batch
+      const urlMap = await presignParts(uploadId, batchPartNumbers, token, getToken, signal)
+
+      // Upload parts within this batch with concurrency limit
+      const queue = [...batchPartNumbers]
+      const uploading = new Set<Promise<void>>()
+
+      while (queue.length > 0 || uploading.size > 0) {
+        if (signal?.aborted) throw new Error('Upload cancelled')
+
+        while (queue.length > 0 && uploading.size < MAX_CONCURRENCY) {
+          const partNumber = queue.shift()!
+          const partIndex = partNumber - 1 // 0-indexed for array access
+          const start = partIndex * partSize
+          const end = Math.min(start + partSize, fileSize)
+          const blob = file.slice(start, end)
+          const url = urlMap.get(partNumber)
+
+          if (!url) throw new Error(`No presigned URL for part ${partNumber}`)
+
+          const promise = uploadPart(
+            url,
+            blob,
+            partNumber,
+            (loaded) => {
+              partLoaded[partIndex] = loaded
+              reportProgress()
+            },
+            signal,
+          ).then((result) => {
+            completedParts.push(result)
+            partsComplete++
+            reportProgress()
+            uploading.delete(promise)
+          })
+
+          uploading.add(promise)
+        }
+
+        if (uploading.size > 0) {
+          // Wait for at least one to finish before continuing
+          await Promise.race(uploading)
+        }
+      }
+    }
+
+    // Sort by part number (S3 requires ascending order)
+    completedParts.sort((a, b) => a.PartNumber - b.PartNumber)
+
+    // 3. Complete multipart upload
+    await apiPost(
+      `/uploads/multipart/${uploadId}/complete`,
+      { parts: completedParts, total_size: fileSize },
+      token,
+      getToken,
+      signal,
+    )
+
+    onProgress?.({
+      loaded: fileSize,
+      total: fileSize,
+      percent: 100,
+      partsComplete: totalParts,
+      partsTotal: totalParts,
+    })
+
+    return uploadId
+  } catch (err) {
+    // Abort the multipart upload on failure
+    try {
+      await apiPost(
+        `/uploads/multipart/${uploadId}/abort`,
+        {},
+        token,
+        getToken,
+      )
+    } catch {
+      // Best effort abort — ignore errors
+    }
+    throw err
+  }
+}
+
 // ── Public entry point ────────────────────────────────────────────────────────
 
 /**
  * Upload a file to the pipeline.
- * Uses a single presigned-POST upload with XHR progress tracking.
+ *
+ * - Files ≤ 100 MB use a single presigned-POST upload.
+ * - Files > 100 MB use true S3 multipart upload with concurrent parts.
+ *
  * Returns the upload_id.
  *
  * @param getToken  Optional async function that returns a fresh auth token.
@@ -153,5 +439,8 @@ export async function multipartUpload(
   getToken?: GetToken,
   signal?: AbortSignal,
 ): Promise<string> {
-  return singleUpload(file, token, onProgress, getToken, signal)
+  if (file.size <= MULTIPART_THRESHOLD) {
+    return singleUpload(file, token, onProgress, getToken, signal)
+  }
+  return s3MultipartUpload(file, token, onProgress, getToken, signal)
 }

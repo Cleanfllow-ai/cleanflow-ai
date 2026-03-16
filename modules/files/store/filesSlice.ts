@@ -34,8 +34,10 @@ export const enrichFiles = createAsyncThunk(
     const CHUNK_SIZE = 5
     const updates: { id: string; seconds: number }[] = []
 
-    for (let i = 0; i < files.length; i += CHUNK_SIZE) {
-      const chunk = files.slice(i, i + CHUNK_SIZE)
+    const _DQ_DONE_STATUSES = new Set(["DQ_FIXED", "COMPLETED", "DQ_COMPLETE"])
+    const processedFiles = files.filter(f => _DQ_DONE_STATUSES.has(f.status))
+    for (let i = 0; i < processedFiles.length; i += CHUNK_SIZE) {
+      const chunk = processedFiles.slice(i, i + CHUNK_SIZE)
       await Promise.all(
         chunk.map(async (file) => {
           try {

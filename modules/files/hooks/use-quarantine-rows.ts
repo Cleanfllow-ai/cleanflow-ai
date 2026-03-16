@@ -145,6 +145,43 @@ export function useQuarantineRows(config: QuarantineEditorConfig) {
   }, [])
 
   /**
+   * Merge remotely loaded rows into the local sample cache.
+   * Used by the AG Grid datasource so preview tooling can reuse already-fetched
+   * rows without forcing a duplicate page-1 request on dialog open.
+   */
+  const mergeRows = useCallback(
+    (incomingRows: QuarantineRow[]) => {
+      if (!incomingRows.length) return
+
+      setState((prev) => {
+        const merged = [...prev.rows]
+        const indexById = new Map(
+          merged.map((row, idx) => [String(row.row_id), idx] as const)
+        )
+
+        for (const row of incomingRows) {
+          const rowId = String(row.row_id)
+          const existingIndex = indexById.get(rowId)
+          if (existingIndex === undefined) {
+            indexById.set(rowId, merged.length)
+            merged.push(row)
+            continue
+          }
+          merged[existingIndex] = { ...merged[existingIndex], ...row }
+        }
+
+        const trimmedRows =
+          merged.length > config.maxRowsInMemory
+            ? merged.slice(merged.length - config.maxRowsInMemory)
+            : merged
+
+        return { ...prev, rows: trimmedRows }
+      })
+    },
+    [config.maxRowsInMemory]
+  )
+
+  /**
    * Update a single row (optimistic update)
    * @param rowId - Row ID to update
    * @param updates - Partial row updates
@@ -170,6 +207,7 @@ export function useQuarantineRows(config: QuarantineEditorConfig) {
     fetchNext,
     initialize,
     setRows,
+    mergeRows,
     updateRow,
     reset,
   }

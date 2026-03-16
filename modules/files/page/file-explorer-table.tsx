@@ -390,10 +390,20 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                 variant="outline"
                                                 className={cn(
                                                     "text-xs font-medium whitespace-nowrap px-2 py-0.5",
-                                                    getStatusBadgeColor(file.status),
+                                                    getStatusBadgeColor(
+                                                        file.remediation_state === "REPROCESS_SUBMITTED" && file.status === "DQ_FIXED"
+                                                            ? "REPROCESSING"
+                                                            : file.remediation_state === "REPROCESS_FAILED" && file.status === "DQ_FIXED"
+                                                            ? "DQ_FAILED"
+                                                            : file.status
+                                                    ),
                                                 )}
                                             >
-                                                {file.status || "UNKNOWN"}
+                                                {file.remediation_state === "REPROCESS_SUBMITTED" && file.status === "DQ_FIXED"
+                                                    ? "REPROCESSING"
+                                                    : file.remediation_state === "REPROCESS_FAILED" && file.status === "DQ_FIXED"
+                                                    ? "REPROCESS FAILED"
+                                                    : file.status || "UNKNOWN"}
                                             </Badge>
                                         </TableCell>
                                     )}

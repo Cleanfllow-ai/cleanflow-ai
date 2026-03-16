@@ -50,8 +50,8 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
   // Reprocess handler
   const handleReprocess = async () => {
     const result = await editor.submitReprocess()
-    if (result?.new_upload_id && onReprocessSubmitted) {
-      onReprocessSubmitted(result.new_upload_id)
+    if (result && onReprocessSubmitted) {
+      onReprocessSubmitted(result)
     }
     if (result) handleClose()
   }
@@ -61,6 +61,14 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
     editor.refreshSession()
   }
 
+  const isGridReady = editor.compatibilityMode || Boolean(editor.manifest)
+  const gridInstanceKey = [
+    file?.upload_id ?? 'none',
+    editor.compatibilityMode ? 'legacy' : editor.sessionInfo?.session_id ?? 'pending',
+    String(editor.dataVersion),
+    String(editor.totalRows),
+  ].join(':')
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,7 +77,7 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
          * flex-1 on the table wrapper reliably fills all remaining height.
          */}
         <DialogContent
-          className="w-[98vw] max-w-[1700px] h-[90vh] p-0 gap-0 overflow-hidden"
+          className="w-[98vw] max-w-[1800px] h-[92vh] p-0 gap-0 overflow-hidden rounded-lg border border-slate-200 shadow-2xl"
           style={{ display: 'flex', flexDirection: 'column' }}
         >
           {/* Row 1 — header */}
@@ -94,18 +102,35 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
             definite pixel height regardless of flex/percentage quirks. */}
         <div className="relative overflow-hidden min-h-0" style={{ flex: 1 }}>
           <div className="absolute inset-0">
-            <QuarantineAgGridTable
-              rows={editor.rows}
-              columns={editor.columns}
-              editableColumns={editor.manifest?.editable_columns || []}
-              isCellEdited={editor.isCellEdited}
-              isCellSaved={editor.isCellSaved}
-              onCellEdit={editor.handleCellEdit}
-              loading={editor.loading || editor.rowsLoading}
-              onBodyScrollEnd={editor.handleBodyScrollEnd}
-              uploadId={file?.upload_id ?? ''}
-              authToken={idToken}
-            />
+            {isGridReady ? (
+              <QuarantineAgGridTable
+                key={gridInstanceKey}
+                columns={editor.columns}
+                editableColumns={editor.manifest?.editable_columns || []}
+                totalRows={editor.totalRows}
+                fetchRows={editor.fetchRows}
+                isCellEdited={editor.isCellEdited}
+                isCellSaved={editor.isCellSaved}
+                onCellEdit={editor.handleCellEdit}
+                loading={editor.loading}
+                uploadId={file?.upload_id ?? ''}
+                reloadToken={editor.dataVersion}
+              />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500" />
+                  </span>
+                  <span className="text-sm font-medium text-slate-500"
+                    style={{ fontFamily: "'DM Sans', var(--font-sans, system-ui, sans-serif)" }}
+                  >
+                    Loading quarantine data...
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>

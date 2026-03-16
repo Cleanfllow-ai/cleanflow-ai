@@ -14,11 +14,7 @@ export function FilesPageHeader({ files }: FilesPageHeaderProps) {
         const failed = visible.filter((f) =>
             ["DQ_FAILED", "UPLOAD_FAILED", "FAILED", "REJECTED"].includes(f.status)
         ).length
-        const quarantined = visible.reduce(
-            (sum, f) => sum + (f.rows_quarantined || 0),
-            0
-        )
-        return { total: visible.length, processed, failed, quarantined }
+        return { total: visible.length, processed, failed }
     }, [files])
 
     if (stats.total === 0) {
@@ -52,14 +48,6 @@ export function FilesPageHeader({ files }: FilesPageHeaderProps) {
                         <span className="text-border">·</span>
                         <span className="tabular-nums text-destructive">
                             <span className="font-medium">{stats.failed}</span> failed
-                        </span>
-                    </>
-                )}
-                {stats.quarantined > 0 && (
-                    <>
-                        <span className="text-border">·</span>
-                        <span className="tabular-nums text-amber-600 dark:text-amber-400">
-                            <span className="font-medium">{stats.quarantined.toLocaleString()}</span> quarantined rows
                         </span>
                     </>
                 )}

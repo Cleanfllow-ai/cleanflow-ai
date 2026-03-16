@@ -46,13 +46,15 @@ export async function makeRequest(endpoint: string, authToken: string, options: 
             const errorData = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {}
             const fallbackMsg = typeof raw === "string" ? raw : `HTTP ${response.status}`
             const error = new Error(errorData.error || errorData.message || fallbackMsg)
+            ;(error as any).status = response.status
 
             // Don't log expected/handled errors to reduce console noise.
             const isSettingsNotFound = url.includes('/settings/presets') && response.status === 404
             const errorMessage = (errorData.error || errorData.message || fallbackMsg || '').toLowerCase()
             const isPermissionDenied = response.status === 403
             const isMembershipRequired = errorMessage.includes('organization membership required')
-            if (!isSettingsNotFound && !isPermissionDenied && !isMembershipRequired) {
+            const isStaleEtagConflict = response.status === 409 && url.includes('/quarantine')
+            if (!isSettingsNotFound && !isPermissionDenied && !isMembershipRequired && !isStaleEtagConflict) {
                 console.error('❌ API Error:', error)
             }
 

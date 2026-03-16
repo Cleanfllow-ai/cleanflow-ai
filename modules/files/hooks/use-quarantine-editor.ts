@@ -5,20 +5,21 @@
  * Composes all sub-hooks and provides unified interface
  */
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef, startTransition } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
 import {
   saveQuarantineEditsBatch,
   submitQuarantineReprocess,
   reprocessQuarantinedLegacy,
   submitCompatibilityReprocessViaUpload,
+  queryQuarantinedRows,
 } from '@/modules/files/api'
 import { useQuarantineConfig } from './use-quarantine-config'
 import { useQuarantineSession } from './use-quarantine-session'
 import { useQuarantineRows } from './use-quarantine-rows'
 import { useQuarantineEdits } from './use-quarantine-edits'
 import { useQuarantineAutosave } from './use-quarantine-autosave'
-import type { SaveSummary, FileStatusResponse } from '@/modules/files/types'
+import type { SaveSummary, FileStatusResponse, QuarantineRow } from '@/modules/files/types'
 
 interface UseQuarantineEditorParams {
   file: Pick<FileStatusResponse, 'upload_id' | 'filename' | 'original_filename'> | null
@@ -48,6 +49,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
   const [lastSaveSummary, setLastSaveSummary] = useState<SaveSummary | null>(null)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [showLineage, setShowLineage] = useState(false)
+  const [dataVersion, setDataVersion] = useState(0)
 
   // Derived state
   const columns = useMemo(() => {
@@ -73,13 +75,16 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
     if (!lineage.length) return null
     return lineage.find((v) => v.is_latest) || lineage[lineage.length - 1]
   }, [lineage])
+  const activeUploadId = session.manifest?.upload_id || file?.upload_id || ''
 
   // Full reset when file changes — clears savedEditsMap so green indicators
   // from a previous file don't bleed into a different file's editor.
   const prevUploadIdRef = useRef<string | null>(null)
+  const staleEtagRetryCountRef = useRef(0)
   useEffect(() => {
     if (file?.upload_id && file.upload_id !== prevUploadIdRef.current) {
       edits.reset()
+      staleEtagRetryCountRef.current = 0
       prevUploadIdRef.current = file.upload_id
     }
   }, [file?.upload_id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -96,6 +101,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
       edits.clearPending()
       setLastSaveSummary(null)
       setShowLineage(false)
+      setDataVersion(0)
 
       try {
         // Initialize session
@@ -106,13 +112,10 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
           // Compatibility mode: rows already loaded
           rows.setRows(sessionResult.rows as any)
         } else if ('session' in sessionResult && sessionResult.session) {
-          // Modern mode: fetch first page
-          await rows.initialize(
-            file.upload_id,
-            authToken,
-            sessionResult.session.session_id,
-            sessionResult.manifest.upload_id
-          )
+          // Modern mode: let AG Grid request the first block on demand.
+          startTransition(() => {
+            setDataVersion((prev) => prev + 1)
+          })
         }
       } catch (error) {
         // Error already toasted in sub-hooks
@@ -126,7 +129,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
 
   // Autosave edits
   const saveEdits = useCallback(async () => {
-    if (!file || !authToken || !session.session || edits.pendingCount === 0) return
+    if (!file || !authToken || !session.session || edits.pendingCount === 0 || !activeUploadId) return
 
     // Compatibility mode: edits are saved locally
     if (session.compatibilityMode) {
@@ -150,7 +153,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
       for (let i = 0; i < editEntries.length; i += config.maxEditsPerBatch) {
         const chunk = editEntries.slice(i, i + config.maxEditsPerBatch)
 
-        const response = await saveQuarantineEditsBatch(file.upload_id, authToken, {
+        const response = await saveQuarantineEditsBatch(activeUploadId, authToken, {
           session_id: session.session.session_id,
           if_match_etag: nextEtag,
           edits: chunk,
@@ -170,7 +173,42 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
       // Update summary + timestamp
       setLastSaveSummary({ accepted: acceptedTotal, rejected: rejectedTotal })
       setLastSavedAt(new Date())
+      staleEtagRetryCountRef.current = 0
     } catch (error: any) {
+      const isStaleEtag =
+        error?.status === 409 && error?.message?.toLowerCase().includes('stale etag')
+
+      if (isStaleEtag) {
+        staleEtagRetryCountRef.current += 1
+
+        if (staleEtagRetryCountRef.current > 3) {
+          staleEtagRetryCountRef.current = 0
+          toast({
+            title: 'Save failed',
+            description: 'Could not resolve edit conflict after multiple retries.',
+            variant: 'destructive',
+          })
+          return
+        }
+
+        if (staleEtagRetryCountRef.current === 1) {
+          toast({
+            title: 'Edit conflict',
+            description: 'Session etag was stale. Refreshing — your edits will retry automatically.',
+          })
+        }
+
+        try {
+          await session.refreshEtag(activeUploadId, authToken!)
+        } catch {
+          // If refresh fails the next autosave will also fail; the retry
+          // counter will eventually surface a terminal error.
+        }
+        // Pending edits stay in state so autosave retries with fresh etag.
+        return
+      }
+
+      staleEtagRetryCountRef.current = 0
       toast({
         title: 'Save failed',
         description: error?.message || 'Unable to save edits',
@@ -179,7 +217,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
     } finally {
       setSaving(false)
     }
-  }, [file, authToken, session, edits, config.maxEditsPerBatch, toast])
+  }, [activeUploadId, file, authToken, session, edits, config.maxEditsPerBatch, toast])
 
   // Autosave hook
   useQuarantineAutosave(
@@ -192,7 +230,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
   // Submit reprocess
   const submitReprocess = useCallback(
     async (patchNotes?: string) => {
-      if (!file || !authToken) return
+      if (!file || !authToken || !activeUploadId) return
 
       setSubmitting(true)
       try {
@@ -211,7 +249,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
               return copy
             })
 
-            const result = await reprocessQuarantinedLegacy(file.upload_id, authToken, {
+            const result = await reprocessQuarantinedLegacy(activeUploadId, authToken, {
               edited_rows: editedRows,
               patch_notes: patchNotes || 'Quarantine remediation from editor (legacy mode)',
             })
@@ -243,17 +281,23 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
           throw new Error('Session not initialized')
         }
 
-        const result = await submitQuarantineReprocess(file.upload_id, authToken, {
+        const result = await submitQuarantineReprocess(activeUploadId, authToken, {
           session_id: session.session.session_id,
           if_match_base_upload_id: session.manifest.upload_id,
           patch_notes: patchNotes || 'Quarantine remediation from editor',
           submit_token: `${session.session.session_id}:${session.manifest.upload_id}`,
+          mode: 'auto',
         })
 
         toast({
           title: 'Reprocess submitted',
           description: result.execution_arn || result.new_upload_id || result.status,
         })
+
+        // Clear saved-edit indicators — patches are consumed by the new version.
+        // Stale green cells on re-open would show server values (possibly empty)
+        // as green, confusing the user.
+        edits.reset()
 
         return result
       } catch (error: any) {
@@ -267,7 +311,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
         setSubmitting(false)
       }
     },
-    [file, authToken, session, edits, rows, saveEdits, toast]
+    [activeUploadId, file, authToken, session, edits, rows, saveEdits, toast]
   )
 
   // Refresh session + rows after a server-side operation (e.g. AI Fix Apply to All)
@@ -280,30 +324,51 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
       if ('compatibilityMode' in sessionResult && sessionResult.compatibilityMode && 'rows' in sessionResult) {
         rows.setRows(sessionResult.rows as any)
       } else if ('session' in sessionResult && sessionResult.session) {
-        await rows.initialize(
-          file.upload_id,
-          authToken,
-          sessionResult.session.session_id,
-          (sessionResult as any).manifest?.upload_id || file.upload_id
-        )
+        startTransition(() => {
+          setDataVersion((prev) => prev + 1)
+        })
       }
     } catch (error) {
       console.error('Failed to refresh quarantine session:', error)
     }
   }, [file, authToken, session, rows, edits]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // AG Grid scroll-end callback — fires when user scrolls near the bottom
-  const handleBodyScrollEnd = useCallback(() => {
-    if (!open || rows.loading || !rows.hasMore || session.compatibilityMode) return
-    if (!file || !authToken || !session.session || !session.manifest) return
+  // AG Grid Infinite Row Model datasource — called by AG Grid when it needs a block
+  const fetchRows = useCallback(
+    async (startRow: number, endRow: number): Promise<{ rows: QuarantineRow[]; lastRow: number }> => {
+      if (!file || !authToken || !session.manifest || !activeUploadId) {
+        return { rows: [], lastRow: 0 }
+      }
 
-    void rows.fetchNext(
-      file.upload_id,
-      authToken,
-      session.session.session_id,
-      session.manifest.upload_id
-    )
-  }, [open, rows, session, file, authToken])
+      // Compatibility mode: return pre-loaded rows slice
+      if (session.compatibilityMode) {
+        const slice = rows.rows.slice(startRow, endRow)
+        return { rows: slice, lastRow: rows.rows.length }
+      }
+
+      try {
+        const response = await queryQuarantinedRows(activeUploadId, authToken, {
+          version: session.manifest.upload_id,
+          session_id: session.session?.session_id,
+          cursor: String(startRow),
+          limit: endRow - startRow,
+        })
+        rows.mergeRows(response.rows || [])
+
+        const totalRows = response.total_rows ?? session.manifest.row_count_quarantined ?? 0
+        const lastRow = response.next_cursor ? -1 : startRow + (response.rows?.length ?? 0)
+
+        return {
+          rows: response.rows || [],
+          lastRow: lastRow === -1 ? -1 : Math.min(lastRow, totalRows),
+        }
+      } catch (error: any) {
+        console.error('[QuarantineEditor] fetchRows failed:', error)
+        return { rows: [], lastRow: 0 }
+      }
+    },
+    [activeUploadId, file, authToken, session.manifest, session.session, session.compatibilityMode, rows.rows, rows.mergeRows]
+  )
 
   // Cell edit handler
   const handleCellEdit = useCallback(
@@ -332,6 +397,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
     columns,
     hasMore: rows.hasMore,
     rowsLoading: rows.loading,
+    totalRows: session.manifest?.row_count_quarantined ?? 0,
 
     // Edit state
     editsMap: edits.editsMap,
@@ -358,8 +424,9 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
     setShowLineage,
     lineage,
     latestVersion,
+    dataVersion,
 
-    // AG Grid infinite scroll callback
-    handleBodyScrollEnd,
+    // AG Grid Infinite Row Model datasource
+    fetchRows,
   }
 }

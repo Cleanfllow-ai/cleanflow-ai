@@ -48,6 +48,10 @@ export function useFilesPage() {
     // Track previous file statuses for processing completion toast
     const prevStatusesRef = useRef<Map<string, string>>(new Map());
 
+    // Ref to latest files for polling callbacks
+    const filesRef = useRef(files);
+    useEffect(() => { filesRef.current = files; }, [files]);
+
     useEffect(() => {
         setLoading(filesStatus === "loading");
     }, [filesStatus]);
@@ -523,6 +527,40 @@ export function useFilesPage() {
         setQuarantineEditorFile(file);
         setQuarantineEditorOpen(true);
     };
+
+    const reprocessPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const handleReprocessSubmitted = useCallback((result: any) => {
+        // Immediately refresh to pick up remediation_state=REPROCESS_SUBMITTED
+        loadFiles();
+
+        // Start polling every 15s until the reprocessed version completes
+        if (reprocessPollRef.current) clearInterval(reprocessPollRef.current);
+        let pollCount = 0;
+        const maxPolls = 120; // 30 minutes max
+        reprocessPollRef.current = setInterval(async () => {
+            pollCount++;
+            await loadFiles();
+            // Check if any file still has REPROCESS_SUBMITTED — if not, stop polling
+            const currentFiles = filesRef.current ?? [];
+            const stillReprocessing = currentFiles.some(
+                (f: any) => f.remediation_state === "REPROCESS_SUBMITTED"
+            );
+            if (!stillReprocessing || pollCount >= maxPolls) {
+                if (reprocessPollRef.current) {
+                    clearInterval(reprocessPollRef.current);
+                    reprocessPollRef.current = null;
+                }
+            }
+        }, 15000);
+    }, [loadFiles]);
+
+    // Clean up reprocess polling on unmount
+    useEffect(() => {
+        return () => {
+            if (reprocessPollRef.current) clearInterval(reprocessPollRef.current);
+        };
+    }, []);
 
     const handleQuarantineEditorComplete = () => {
         // Reload files to reflect new version
@@ -1245,7 +1283,7 @@ export function useFilesPage() {
         // Quarantine editor
         quarantineEditorOpen, setQuarantineEditorOpen,
         quarantineEditorFile, setQuarantineEditorFile,
-        handleOpenQuarantineEditor, handleQuarantineEditorComplete,
+        handleOpenQuarantineEditor, handleQuarantineEditorComplete, handleReprocessSubmitted,
         // Push to ERP
         pushQBModalOpen, setPushQBModalOpen, fileToPush, setFileToPush,
         handlePushToQuickBooks, handleQuickBooksImportComplete,

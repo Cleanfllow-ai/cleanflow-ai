@@ -71,7 +71,8 @@ export async function getQuarantinedExportUrl(
 // ========== Session & Manifest Operations ==========
 
 /**
- * Get quarantine manifest containing metadata about quarantined rows
+ * Get quarantine manifest containing metadata about quarantined rows.
+ * If the read model is still building (202), polls quickly until ready.
  * @param uploadId - File upload ID
  * @param authToken - JWT authentication token
  * @param version - Version to query (default: "latest")
@@ -83,11 +84,20 @@ export async function getQuarantineManifest(
     version: string = 'latest'
 ): Promise<QuarantineManifestResponse> {
     const params = new URLSearchParams({ version })
-    return makeRequest(
-        `${ENDPOINTS.MANIFEST(uploadId)}?${params.toString()}`,
-        authToken,
-        { method: 'GET' }
-    )
+    const endpoint = `${ENDPOINTS.MANIFEST(uploadId)}?${params.toString()}`
+
+    const POLL_INTERVAL_MS = 750
+    const MAX_POLLS = 80 // ~60s max wait
+    for (let i = 0; i < MAX_POLLS; i++) {
+        const result = await makeRequest(endpoint, authToken, { method: 'GET' })
+        if (result.status !== 'building') {
+            return result
+        }
+        console.log(`[QuarantineManifest] Read model building… poll ${i + 1}/${MAX_POLLS}`)
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
+    }
+
+    throw new Error('Quarantine read model build timed out. Please try again.')
 }
 
 /**
@@ -407,7 +417,7 @@ export async function downloadQuarantineFile(
     dataType: 'quarantine' | 'clean' | 'raw',
     authToken: string
 ): Promise<Blob> {
-    const endpoint = `${ENDPOINTS.DOWNLOAD(uploadId)}?type=${fileType}&data=${dataType}&_ts=${Date.now()}`
+    const endpoint = `${ENDPOINTS.DOWNLOAD(uploadId)}?type=${dataType}&_ts=${Date.now()}`
     const url = `${API_BASE_URL}${endpoint}`
 
     const response = await fetch(url, {
@@ -416,7 +426,12 @@ export async function downloadQuarantineFile(
     })
 
     if (!response.ok) {
-        throw new Error(`Download failed: ${response.statusText}`)
+        let detail = response.statusText || `HTTP ${response.status}`
+        try {
+            const errBody = await response.json()
+            detail = errBody?.error || errBody?.message || detail
+        } catch { /* not JSON */ }
+        throw new Error(`Download failed: ${detail}`)
     }
 
     const contentType = response.headers.get('Content-Type') || ''

@@ -129,7 +129,7 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         // Quarantine editor
         quarantineEditorOpen, setQuarantineEditorOpen,
         quarantineEditorFile, setQuarantineEditorFile,
-        handleOpenQuarantineEditor, handleQuarantineEditorComplete,
+        handleOpenQuarantineEditor, handleQuarantineEditorComplete, handleReprocessSubmitted,
         // Rename on duplicate
         showRenameDialog, setShowRenameDialog,
         pendingUploadFile, renameValue, setRenameValue,
@@ -657,6 +657,7 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                         handleQuarantineEditorComplete();
                     }
                 }}
+                onReprocessSubmitted={handleReprocessSubmitted}
             />
 
             {/* Rename on duplicate filename dialog */}

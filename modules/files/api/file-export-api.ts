@@ -175,8 +175,9 @@ export async function getFilePreview(uploadId: string, authToken: string): Promi
         }
     } catch (error) {
         console.error('❌ Failed to fetch preview data:', error)
-        // Fallback to S3 method if new endpoint fails
-        return getFilePreviewFromS3(uploadId, authToken, 20)
+        // Re-throw so the caller sets previewError and the UI shows
+        // "Preview Unavailable" instead of an invisible empty table.
+        throw error
     }
 }
 

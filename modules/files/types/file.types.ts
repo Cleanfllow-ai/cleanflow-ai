@@ -46,6 +46,10 @@ export interface FileStatusResponse {
   dq_report_s3?: string
   dq_rules_version?: string
   processing_time_seconds?: number
+  remediation_state?: string
+  remediation_mode?: string
+  current_reprocess_snapshot_id?: string
+  current_reprocess_passed_rows_key?: string
   // Version management fields
   version_number?: number
   parent_upload_id?: string | null

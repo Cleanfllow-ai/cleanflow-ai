@@ -96,6 +96,7 @@ export interface QuarantineReprocessRequest {
   if_match_base_upload_id: string
   patch_notes?: string
   submit_token: string
+  mode?: 'auto' | 'delta' | 'bulk' | 'full'
 }
 
 /**
@@ -131,6 +132,7 @@ export interface QuarantineSessionStartResponse extends QuarantineSession {}
 export interface QuarantineQueryResponse {
   rows: QuarantineRow[]
   next_cursor?: string | null
+  total_rows?: number
   etag?: string
 }
 
@@ -149,8 +151,15 @@ export interface QuarantineSaveBatchResponse {
 export interface QuarantineReprocessResponse {
   execution_arn?: string
   new_upload_id?: string
+  base_upload_id?: string
   status: string
   version_number?: number
+  requested_mode?: 'auto' | 'delta' | 'bulk' | 'full'
+  effective_mode?: 'delta' | 'bulk' | 'full'
+  fallback_reason?: string | null
+  reprocess_snapshot_id?: string
+  rows_passed?: number
+  rows_still_quarantined?: number
 }
 
 /**
@@ -228,8 +237,8 @@ export interface QuarantineEditorDialogProps {
   } | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Called after reprocess is successfully submitted, with the new version's upload_id */
-  onReprocessSubmitted?: (newUploadId: string) => void
+  /** Called after reprocess is successfully submitted. */
+  onReprocessSubmitted?: (result: QuarantineReprocessResponse) => void
 }
 
 /**

@@ -1,94 +1,197 @@
 /**
  * quarantine-ag-grid-theme.css
  *
- * CSS variable overrides for the AG Grid Quartz theme to align with the
- * shadcn/neutral design system used throughout CleanFlowAI.
+ * Refined AG Grid theme for the quarantine editor — "Data Command Center" aesthetic.
+ * Precision typography, crisp borders, and vivid cell-status indicators.
  *
- * These values are derived from Tailwind's neutral palette — the same values
- * used in the rest of the frontend. The --font-sans CSS variable is set by
- * the Geist font in the root layout.
- *
- * Note: This file is scoped to .quarantine-ag-grid wrapper class.
- * Do NOT import AG Grid's legacy CSS files — the modern themeQuartz API
- * applies styling via the `theme` prop on AgGridReact.
+ * Scoped to .quarantine-ag-grid wrapper class.
  */
 
+/* ─── Google Fonts import ──────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+/* ─── AG Grid variable overrides ───────────────────────────────────────────── */
 .quarantine-ag-grid {
-  /* Background and text */
   --ag-background-color: hsl(0 0% 100%);
-  --ag-foreground-color: hsl(0 0% 3.9%);
+  --ag-foreground-color: hsl(220 15% 15%);
 
-  /* Header */
-  --ag-header-background-color: hsl(0 0% 96.1%);
-  --ag-header-foreground-color: hsl(0 0% 45.1%);
+  /* Header: dark slate bar */
+  --ag-header-background-color: hsl(220 20% 97%);
+  --ag-header-foreground-color: hsl(220 10% 40%);
 
-  /* Borders */
-  --ag-border-color: hsl(0 0% 89.8%);
+  /* Borders: crisp and subtle */
+  --ag-border-color: hsl(220 15% 90%);
+  --ag-row-border-color: hsl(220 10% 93%);
 
   /* Row states */
-  --ag-row-hover-color: hsl(0 0% 96.1% / 0.25);
-  --ag-selected-row-background-color: hsl(0 0% 96.1% / 0.5);
+  --ag-row-hover-color: hsl(220 30% 97%);
+  --ag-selected-row-background-color: hsl(220 40% 95%);
 
-  /* Selection / range */
-  --ag-range-selection-border-color: hsl(0 0% 9%);
+  /* Selection */
+  --ag-range-selection-border-color: hsl(220 70% 55%);
+  --ag-range-selection-background-color: hsl(220 70% 55% / 0.08);
 
-  /* Typography */
-  --ag-font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
-  --ag-font-size: 13px;
-  --ag-header-font-size: 12px;
+  /* Typography — monospace for data cells */
+  --ag-font-family: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  --ag-font-size: 12.5px;
+  --ag-header-font-family: 'DM Sans', var(--font-sans, system-ui, sans-serif);
+  --ag-header-font-size: 11px;
   --ag-header-font-weight: 600;
 
-  /* Sizing */
-  --ag-row-height: 32px;
-  --ag-header-height: 34px;
-  --ag-cell-horizontal-padding: 8px;
+  /* Sizing: compact data-dense rows */
+  --ag-row-height: 30px;
+  --ag-header-height: 32px;
+  --ag-cell-horizontal-padding: 10px;
+
+  /* Subtle grid lines */
+  --ag-cell-horizontal-border: solid 1px hsl(220 10% 94%);
 }
 
-/**
- * Edited cell — amber left border + warm tint.
- * Visible pending-edit indicator, similar to a "dirty" line gutter.
- */
-.quarantine-ag-grid .ag-cell-edited {
-  background-color: hsl(45 96% 92%);
-  color: hsl(30 90% 28%);
-  font-weight: 600;
-  box-shadow: inset 3px 0 0 hsl(38 92% 50%);
+/* Header cells: uppercase tracking for a terminal feel */
+.quarantine-ag-grid .ag-header-cell-text {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10.5px;
 }
 
-/**
- * Saved cell — green left border + mint tint.
- * Shows the edit was persisted to the backend this session.
- */
-.quarantine-ag-grid .ag-cell-saved {
-  background-color: hsl(142 60% 92%);
-  color: hsl(142 50% 25%);
+/* Header border bottom accent */
+.quarantine-ag-grid .ag-header {
+  border-bottom: 2px solid hsl(220 15% 88%);
+}
+
+/* Row ID column: muted monospace */
+.quarantine-ag-grid .ag-cell[col-id="row_id"] {
+  color: hsl(220 10% 55%);
+  font-size: 11px;
   font-weight: 500;
-  box-shadow: inset 3px 0 0 hsl(142 60% 40%);
+  background: hsl(220 15% 98%);
+}
+
+/* ─── Cell Status Indicators ───────────────────────────────────────────────── */
+
+/**
+ * Clean — very subtle green wash.
+ * The default "all good" state; should not draw attention.
+ */
+.quarantine-ag-grid .ag-cell-clean {
+  background: linear-gradient(90deg, hsl(152 35% 96%) 0%, hsl(152 25% 97%) 100%);
+  color: hsl(155 30% 30%);
 }
 
 /**
- * Quarantined cell — red tint.
- * Applied when the corresponding {col}_dq_status value is "quarantined".
+ * Fixed — warm amber with left accent bar.
+ * "Engine auto-corrected this" — notable but not alarming.
+ */
+.quarantine-ag-grid .ag-cell-fixed {
+  background: linear-gradient(90deg, hsl(43 85% 93%) 0%, hsl(43 70% 95%) 100%);
+  color: hsl(30 65% 25%);
+  box-shadow: inset 3px 0 0 hsl(40 85% 55%);
+}
+
+/**
+ * Quarantined — red tint with strong left accent.
+ * "This cell needs your attention" — most prominent indicator.
  */
 .quarantine-ag-grid .ag-cell-quarantined {
-  background-color: hsl(0 84% 96%);
-  color: hsl(0 70% 38%);
+  background: linear-gradient(90deg, hsl(0 70% 95%) 0%, hsl(0 55% 97%) 100%);
+  color: hsl(0 60% 35%);
+  box-shadow: inset 3px 0 0 hsl(0 65% 55%);
+  font-weight: 500;
 }
 
 /**
- * Edited takes precedence over quarantined when both apply.
+ * Edited (pending) — blue-indigo accent.
+ * "You changed this, save pending."
  */
-.quarantine-ag-grid .ag-cell-quarantined.ag-cell-edited {
-  background-color: hsl(45 96% 92%);
-  color: hsl(30 90% 28%);
-  box-shadow: inset 3px 0 0 hsl(38 92% 50%);
+.quarantine-ag-grid .ag-cell-edited {
+  background: linear-gradient(90deg, hsl(225 55% 95%) 0%, hsl(225 40% 97%) 100%);
+  color: hsl(225 55% 30%);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 hsl(225 65% 55%);
 }
 
 /**
- * Saved takes precedence over quarantined when both apply.
+ * Saved — confident green accent.
+ * "Persisted to server this session."
  */
-.quarantine-ag-grid .ag-cell-quarantined.ag-cell-saved {
-  background-color: hsl(142 60% 92%);
-  color: hsl(142 50% 25%);
-  box-shadow: inset 3px 0 0 hsl(142 60% 40%);
+.quarantine-ag-grid .ag-cell-saved {
+  background: linear-gradient(90deg, hsl(152 50% 93%) 0%, hsl(152 35% 96%) 100%);
+  color: hsl(155 45% 25%);
+  font-weight: 500;
+  box-shadow: inset 3px 0 0 hsl(155 55% 42%);
+}
+
+/* ─── Precedence cascades ──────────────────────────────────────────────────── */
+
+/* Edited overrides quarantined / fixed */
+.quarantine-ag-grid .ag-cell-quarantined.ag-cell-edited,
+.quarantine-ag-grid .ag-cell-fixed.ag-cell-edited {
+  background: linear-gradient(90deg, hsl(225 55% 95%) 0%, hsl(225 40% 97%) 100%);
+  color: hsl(225 55% 30%);
+  box-shadow: inset 3px 0 0 hsl(225 65% 55%);
+}
+
+/* Saved overrides quarantined / fixed */
+.quarantine-ag-grid .ag-cell-quarantined.ag-cell-saved,
+.quarantine-ag-grid .ag-cell-fixed.ag-cell-saved {
+  background: linear-gradient(90deg, hsl(152 50% 93%) 0%, hsl(152 35% 96%) 100%);
+  color: hsl(155 45% 25%);
+  box-shadow: inset 3px 0 0 hsl(155 55% 42%);
+}
+
+/* ─── Editing state ────────────────────────────────────────────────────────── */
+
+.quarantine-ag-grid .ag-cell-inline-editing {
+  border: 2px solid hsl(225 65% 55%) !important;
+  border-radius: 2px;
+  box-shadow: 0 0 0 3px hsl(225 65% 55% / 0.12);
+  background: white !important;
+  padding: 0 8px;
+}
+
+.quarantine-ag-grid .ag-cell-inline-editing input {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12.5px;
+}
+
+/* ─── Tooltip styling ──────────────────────────────────────────────────────── */
+
+.quarantine-ag-grid .ag-tooltip {
+  background: hsl(220 20% 18%);
+  color: hsl(0 0% 92%);
+  border: 1px solid hsl(220 15% 28%);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: 'DM Sans', var(--font-sans, system-ui, sans-serif);
+  font-size: 11.5px;
+  line-height: 1.5;
+  max-width: 320px;
+  box-shadow: 0 4px 12px hsl(220 20% 10% / 0.25);
+}
+
+/* ─── Loading overlay ──────────────────────────────────────────────────────── */
+
+.quarantine-ag-grid .ag-overlay-loading-wrapper {
+  background: hsl(0 0% 100% / 0.85);
+  backdrop-filter: blur(2px);
+}
+
+/* ─── Scrollbar (Webkit) ───────────────────────────────────────────────────── */
+
+.quarantine-ag-grid ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.quarantine-ag-grid ::-webkit-scrollbar-track {
+  background: hsl(220 10% 96%);
+}
+
+.quarantine-ag-grid ::-webkit-scrollbar-thumb {
+  background: hsl(220 10% 78%);
+  border-radius: 4px;
+}
+
+.quarantine-ag-grid ::-webkit-scrollbar-thumb:hover {
+  background: hsl(220 10% 65%);
 }
