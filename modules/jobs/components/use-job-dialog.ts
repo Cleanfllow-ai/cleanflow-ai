@@ -17,6 +17,7 @@ import {
     ADVANCED_STEPS,
     DEFAULT_GLOBAL_RULES,
     ENTITY_COLUMNS,
+    ENTITY_OPTIONS,
     SOURCE_ERP_OPTIONS,
     normalizeErpForUi,
     normalizeErpForApi,
@@ -24,6 +25,8 @@ import {
 import { deriveRulesV2, CORE_TYPES, TYPE_ALIASES } from '@/shared/lib/type-catalog'
 import { getRuleLabel } from '@/shared/lib/dq-rules'
 import { orgAPI, type OrgMembership } from '@/modules/auth/api/org-api'
+import { snowflakeAPI } from '@/modules/snowflake/api/snowflake-api'
+import type { SnowflakeMetadataItem } from '@/modules/snowflake/types/snowflake.types'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -148,7 +151,47 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const [destination, setDestination] = useState<string>("quickbooks")
     const [frequency, setFrequency] = useState<JobFrequency>("1hr")
     const [cronExpression, setCronExpression] = useState("")
-    const [entity, setEntity] = useState("invoices")
+    const [sourceEntity, setSourceEntity] = useState("")
+    const [targetEntity, setTargetEntity] = useState("")
+
+    // Dynamic entity discovery
+    const [sourceEntities, setSourceEntities] = useState<Array<{ label: string; value: string }>>([])
+    const [targetEntities, setTargetEntities] = useState<Array<{ label: string; value: string }>>([])
+    const [sourceEntitiesLoading, setSourceEntitiesLoading] = useState(false)
+    const [targetEntitiesLoading, setTargetEntitiesLoading] = useState(false)
+
+    // Snowflake cascading state — source side
+    const [srcSfConnected, setSrcSfConnected] = useState(false)
+    const [srcSfConnecting, setSrcSfConnecting] = useState(false)
+    const [srcSfWarehouses, setSrcSfWarehouses] = useState<SnowflakeMetadataItem[]>([])
+    const [srcSfDatabases, setSrcSfDatabases] = useState<SnowflakeMetadataItem[]>([])
+    const [srcSfSchemas, setSrcSfSchemas] = useState<SnowflakeMetadataItem[]>([])
+    const [srcSfTables, setSrcSfTables] = useState<SnowflakeMetadataItem[]>([])
+    const [srcSfWarehouse, setSrcSfWarehouse] = useState("")
+    const [srcSfDatabase, setSrcSfDatabase] = useState("")
+    const [srcSfSchema, setSrcSfSchema] = useState("")
+    const [srcSfTable, setSrcSfTable] = useState("")
+    const [srcSfLoading, setSrcSfLoading] = useState(false)
+
+    // Snowflake cascading state — destination side
+    const [destSfConnected, setDestSfConnected] = useState(false)
+    const [destSfConnecting, setDestSfConnecting] = useState(false)
+    const [destSfWarehouses, setDestSfWarehouses] = useState<SnowflakeMetadataItem[]>([])
+    const [destSfDatabases, setDestSfDatabases] = useState<SnowflakeMetadataItem[]>([])
+    const [destSfSchemas, setDestSfSchemas] = useState<SnowflakeMetadataItem[]>([])
+    const [destSfTables, setDestSfTables] = useState<SnowflakeMetadataItem[]>([])
+    const [destSfWarehouse, setDestSfWarehouse] = useState("")
+    const [destSfDatabase, setDestSfDatabase] = useState("")
+    const [destSfSchema, setDestSfSchema] = useState("")
+    const [destSfTable, setDestSfTable] = useState("")
+    const [destSfLoading, setDestSfLoading] = useState(false)
+
+    // Column mapping state (Advanced)
+    const [sourceColumns, setSourceColumns] = useState<string[]>([])
+    const [targetColumns, setTargetColumns] = useState<string[]>([])
+    const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
+    const [mappingLoading, setMappingLoading] = useState(false)
+    const [autoMapMethod, setAutoMapMethod] = useState("")
 
     // Advanced — Columns
     const [fetchingCols, setFetchingCols] = useState(false)
@@ -215,7 +258,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             const freq = frequencyFromBackend(job.frequency_type, job.frequency_value)
             setFrequency(freq.frequency)
             setCronExpression(freq.cronExpression || job.cron_expression || "")
-            setEntity(job.entities?.[0] || "invoices")
+            setSourceEntity(job.source_entity || job.entities?.[0] || "")
+            setTargetEntity(job.target_entity || job.entities?.[0] || "")
             setSelectedColumns(job.dq_config?.columns || [])
             setSelectedPresetId(job.dq_config?.preset_id || null)
             setGlobalRules(job.dq_config?.rules?.length
@@ -224,13 +268,30 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             )
             setAdvancedOpen(job.dq_config?.mode === "custom")
             setResponsibleUserId(job.responsible_user_id || "")
+            // Restore mapping config
+            setColumnMapping(job.mapping_config?.column_mapping || {})
+            setAutoMapMethod(job.mapping_config?.mapping_method || "")
+            // Restore Snowflake configs
+            if (job.source_snowflake_config) {
+                setSrcSfWarehouse(job.source_snowflake_config.warehouse || "")
+                setSrcSfDatabase(job.source_snowflake_config.database || "")
+                setSrcSfSchema(job.source_snowflake_config.schema || "")
+                setSrcSfTable(job.source_snowflake_config.table || "")
+            }
+            if (job.dest_snowflake_config) {
+                setDestSfWarehouse(job.dest_snowflake_config.warehouse || "")
+                setDestSfDatabase(job.dest_snowflake_config.database || "")
+                setDestSfSchema(job.dest_snowflake_config.schema || "")
+                setDestSfTable(job.dest_snowflake_config.table || "")
+            }
         } else {
             setName("")
             setSource("quickbooks")
             setDestination("quickbooks")
             setFrequency("1hr")
             setCronExpression("")
-            setEntity("invoices")
+            setSourceEntity("")
+            setTargetEntity("")
             setSelectedColumns([])
             setAllColumns([])
             setSelectedPresetId(null)
@@ -248,8 +309,250 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             setExpandedRuleColumns([])
             setColumnRulesSeeded(false)
             setResponsibleUserId("")
+            // Reset new state
+            setSourceEntities([])
+            setTargetEntities([])
+            setColumnMapping({})
+            setAutoMapMethod("")
+            setSourceColumns([])
+            setTargetColumns([])
+            // Reset Snowflake state
+            setSrcSfWarehouses([]); setSrcSfDatabases([]); setSrcSfSchemas([]); setSrcSfTables([])
+            setSrcSfWarehouse(""); setSrcSfDatabase(""); setSrcSfSchema(""); setSrcSfTable("")
+            setDestSfWarehouses([]); setDestSfDatabases([]); setDestSfSchemas([]); setDestSfTables([])
+            setDestSfWarehouse(""); setDestSfDatabase(""); setDestSfSchema(""); setDestSfTable("")
         }
     }, [job, open])
+
+    // ─── Dynamic Entity Discovery ────────────────────────────────────────────
+
+    useEffect(() => {
+        if (!open || source === "snowflake") return
+        let cancelled = false
+        setSourceEntitiesLoading(true)
+        const apiSource = normalizeErpForApi(source)
+        jobsAPI.discoverEntities(apiSource).then(res => {
+            if (cancelled) return
+            const raw = res.entities || []
+            const entities = raw.map((e: any) => ({
+                label: (e.label || e.entity || e.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                value: e.entity || e.name || e.value || "",
+            })).filter((e: any) => e.value)
+            setSourceEntities(entities.length > 0 ? entities : ENTITY_OPTIONS)
+        }).catch(() => {
+            if (!cancelled) setSourceEntities(ENTITY_OPTIONS)
+        }).finally(() => {
+            if (!cancelled) setSourceEntitiesLoading(false)
+        })
+        return () => { cancelled = true }
+    }, [source, open])
+
+    useEffect(() => {
+        if (!open || destination === "snowflake") return
+        let cancelled = false
+        setTargetEntitiesLoading(true)
+        const apiDest = normalizeErpForApi(destination)
+        jobsAPI.discoverEntities(apiDest).then(res => {
+            if (cancelled) return
+            const raw = res.entities || []
+            const entities = raw.map((e: any) => ({
+                label: (e.label || e.entity || e.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                value: e.entity || e.name || e.value || "",
+            })).filter((e: any) => e.value)
+            setTargetEntities(entities.length > 0 ? entities : ENTITY_OPTIONS)
+        }).catch(() => {
+            if (!cancelled) setTargetEntities(ENTITY_OPTIONS)
+        }).finally(() => {
+            if (!cancelled) setTargetEntitiesLoading(false)
+        })
+        return () => { cancelled = true }
+    }, [destination, open])
+
+    // ─── Snowflake Cascade — Source ────────────────────────────────────────
+
+    useEffect(() => {
+        if (!open || source !== "snowflake") return
+        let cancelled = false
+        setSrcSfLoading(true)
+        snowflakeAPI.getConnectionStatus().then(status => {
+            if (cancelled) return
+            setSrcSfConnected(!!status?.connected)
+            if (!status?.connected) { setSrcSfLoading(false); return }
+            Promise.all([
+                snowflakeAPI.listWarehouses().catch(() => []),
+                snowflakeAPI.listDatabases().catch(() => []),
+            ]).then(([warehouses, databases]) => {
+                if (cancelled) return
+                setSrcSfWarehouses(warehouses)
+                setSrcSfDatabases(databases)
+            }).finally(() => { if (!cancelled) setSrcSfLoading(false) })
+        }).catch(() => {
+            if (!cancelled) { setSrcSfConnected(false); setSrcSfLoading(false) }
+        })
+        return () => { cancelled = true }
+    }, [source, open])
+
+    useEffect(() => {
+        if (source !== "snowflake" || !srcSfDatabase) { setSrcSfSchemas([]); return }
+        let cancelled = false
+        snowflakeAPI.listSchemas(srcSfDatabase).then((schemas) => {
+            if (!cancelled) setSrcSfSchemas(schemas)
+        }).catch(() => { if (!cancelled) setSrcSfSchemas([]) })
+        setSrcSfSchema(""); setSrcSfTable("")
+        return () => { cancelled = true }
+    }, [source, srcSfDatabase])
+
+    useEffect(() => {
+        if (source !== "snowflake" || !srcSfDatabase || !srcSfSchema) { setSrcSfTables([]); return }
+        let cancelled = false
+        snowflakeAPI.listTables(srcSfDatabase, srcSfSchema).then((tables) => {
+            if (!cancelled) setSrcSfTables(tables)
+        }).catch(() => { if (!cancelled) setSrcSfTables([]) })
+        setSrcSfTable("")
+        return () => { cancelled = true }
+    }, [source, srcSfDatabase, srcSfSchema])
+
+    // ─── Snowflake Cascade — Destination ───────────────────────────────────
+
+    useEffect(() => {
+        if (!open || destination !== "snowflake") return
+        let cancelled = false
+        setDestSfLoading(true)
+        snowflakeAPI.getConnectionStatus().then(status => {
+            if (cancelled) return
+            setDestSfConnected(!!status?.connected)
+            if (!status?.connected) { setDestSfLoading(false); return }
+            Promise.all([
+                snowflakeAPI.listWarehouses().catch(() => []),
+                snowflakeAPI.listDatabases().catch(() => []),
+            ]).then(([warehouses, databases]) => {
+                if (cancelled) return
+                setDestSfWarehouses(warehouses)
+                setDestSfDatabases(databases)
+            }).finally(() => { if (!cancelled) setDestSfLoading(false) })
+        }).catch(() => {
+            if (!cancelled) { setDestSfConnected(false); setDestSfLoading(false) }
+        })
+        return () => { cancelled = true }
+    }, [destination, open])
+
+    useEffect(() => {
+        if (destination !== "snowflake" || !destSfDatabase) { setDestSfSchemas([]); return }
+        let cancelled = false
+        snowflakeAPI.listSchemas(destSfDatabase).then((schemas) => {
+            if (!cancelled) setDestSfSchemas(schemas)
+        }).catch(() => { if (!cancelled) setDestSfSchemas([]) })
+        setDestSfSchema(""); setDestSfTable("")
+        return () => { cancelled = true }
+    }, [destination, destSfDatabase])
+
+    useEffect(() => {
+        if (destination !== "snowflake" || !destSfDatabase || !destSfSchema) { setDestSfTables([]); return }
+        let cancelled = false
+        snowflakeAPI.listTables(destSfDatabase, destSfSchema).then((tables) => {
+            if (!cancelled) setDestSfTables(tables)
+        }).catch(() => { if (!cancelled) setDestSfTables([]) })
+        setDestSfTable("")
+        return () => { cancelled = true }
+    }, [destination, destSfDatabase, destSfSchema])
+
+    // ─── Snowflake connect handlers ────────────────────────────────────────
+
+    const handleSrcSfConnect = async () => {
+        setSrcSfConnecting(true)
+        try {
+            const res = await snowflakeAPI.connect()
+            if (res?.auth_url) window.open(res.auth_url, "_blank")
+        } catch (err: any) {
+            toast({ title: "Connection failed", description: err?.message || "Failed to connect Snowflake", variant: "destructive" })
+        } finally {
+            setSrcSfConnecting(false)
+        }
+    }
+
+    const handleDestSfConnect = async () => {
+        setDestSfConnecting(true)
+        try {
+            const res = await snowflakeAPI.connect()
+            if (res?.auth_url) window.open(res.auth_url, "_blank")
+        } catch (err: any) {
+            toast({ title: "Connection failed", description: err?.message || "Failed to connect Snowflake", variant: "destructive" })
+        } finally {
+            setDestSfConnecting(false)
+        }
+    }
+
+    // ─── Column Mapping Handlers ───────────────────────────────────────────
+
+    const fetchSourceColumns = async () => {
+        try {
+            if (source === "snowflake" && srcSfDatabase && srcSfSchema && srcSfTable) {
+                const cols = await snowflakeAPI.getTableColumns(srcSfDatabase, srcSfSchema, srcSfTable)
+                setSourceColumns(cols.map(c => c.name))
+            } else if (sourceEntity) {
+                const res = await jobsAPI.getEntityFields(normalizeErpForApi(source), sourceEntity)
+                setSourceColumns(res.fields?.map(f => f.name) || ENTITY_COLUMNS[sourceEntity] || [])
+            }
+        } catch {
+            setSourceColumns(ENTITY_COLUMNS[sourceEntity] || [])
+        }
+    }
+
+    const fetchTargetColumns = async () => {
+        try {
+            if (destination === "snowflake" && destSfDatabase && destSfSchema && destSfTable) {
+                const cols = await snowflakeAPI.getTableColumns(destSfDatabase, destSfSchema, destSfTable)
+                setTargetColumns(cols.map(c => c.name))
+            } else if (targetEntity) {
+                const res = await jobsAPI.getEntityFields(normalizeErpForApi(destination), targetEntity)
+                setTargetColumns(res.fields?.map(f => f.name) || ENTITY_COLUMNS[targetEntity] || [])
+            }
+        } catch {
+            setTargetColumns(ENTITY_COLUMNS[targetEntity] || [])
+        }
+    }
+
+    const handleAutoMap = async () => {
+        setMappingLoading(true)
+        try {
+            // Fetch columns if not already loaded
+            if (sourceColumns.length === 0) await fetchSourceColumns()
+            if (targetColumns.length === 0) await fetchTargetColumns()
+
+            const srcEntity = source === "snowflake" ? srcSfTable : sourceEntity
+            const dstEntity = destination === "snowflake" ? destSfTable : targetEntity
+            const res = await jobsAPI.getMappingPreview({
+                source_provider: normalizeErpForApi(source),
+                source_entity: srcEntity,
+                dest_provider: normalizeErpForApi(destination),
+                dest_entity: dstEntity,
+            })
+            if (res.mapping && Object.keys(res.mapping).length > 0) {
+                setColumnMapping(res.mapping)
+                setAutoMapMethod(res.method || "template")
+                toast({ title: "Mapping Complete", description: `Mapped ${Object.keys(res.mapping).length} columns via ${res.method || "template"}` })
+            } else {
+                toast({ title: "No mappings found", description: "Could not auto-map columns. Please map manually.", variant: "destructive" })
+            }
+        } catch (err: any) {
+            toast({ title: "Auto-map failed", description: err?.message || "Failed to generate mapping", variant: "destructive" })
+        } finally {
+            setMappingLoading(false)
+        }
+    }
+
+    const handleManualMapChange = (targetCol: string, sourceCol: string) => {
+        setColumnMapping(prev => {
+            const next = { ...prev }
+            if (sourceCol) {
+                next[targetCol] = sourceCol
+            } else {
+                delete next[targetCol]
+            }
+            return next
+        })
+        setAutoMapMethod("")
+    }
 
     // ─── Fetch Columns ────────────────────────────────────────────────────────
 
@@ -257,10 +560,11 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const handleFetchColumns = async () => {
         setFetchingCols(true)
         try {
-            const cols = ENTITY_COLUMNS[entity] || ["Column1", "Column2", "Column3"]
+            const effectiveEntity = source === "snowflake" ? srcSfTable : sourceEntity
+            const cols = ENTITY_COLUMNS[effectiveEntity] || ["Column1", "Column2", "Column3"]
             setAllColumns(cols)
             setSelectedColumns(cols)
-            toast({ title: "Columns Loaded", description: `${cols.length} columns available for ${entity}` })
+            toast({ title: "Columns Loaded", description: `${cols.length} columns available for ${effectiveEntity}` })
         } catch (err: any) {
             toast({ title: "Error", description: err?.message || "Failed to fetch columns", variant: "destructive" })
         } finally {
@@ -277,10 +581,11 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         setImportingData(true)
         try {
             const apiSource = normalizeErpForApi(source)
-            const result = await jobsAPI.importPreview(apiSource, entity)
+            const effectiveEntity = source === "snowflake" ? srcSfTable : sourceEntity
+            const result = await jobsAPI.importPreview(apiSource, effectiveEntity)
             const cols = result.columns?.length > 0
                 ? result.columns
-                : (ENTITY_COLUMNS[entity] || ["Column1", "Column2", "Column3"])
+                : (ENTITY_COLUMNS[effectiveEntity] || ["Column1", "Column2", "Column3"])
             setAllColumns(cols)
             setSelectedColumns(cols)
             setPreviewUploadId(result.upload_id || "")
@@ -288,18 +593,19 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             setCurrentAdvancedStep("columns")
             toast({
                 title: "Data Imported",
-                description: `Imported ${result.records_imported || 0} sample records from ${SOURCE_ERP_OPTIONS.find(e => e.value === source)?.label}. ${cols.length} columns discovered.`
+                description: `Imported ${result.records_imported || 0} sample records from ${SOURCE_ERP_OPTIONS.find(e => e.value === source)?.label || source}. ${cols.length} columns discovered.`
             })
         } catch (err: any) {
             // Fallback to static columns if API not available
-            const cols = ENTITY_COLUMNS[entity] || ["Column1", "Column2", "Column3"]
+            const effectiveEntityFallback = source === "snowflake" ? srcSfTable : sourceEntity
+            const cols = ENTITY_COLUMNS[effectiveEntityFallback] || ["Column1", "Column2", "Column3"]
             setAllColumns(cols)
             setSelectedColumns(cols)
             setDataImported(true)
             setCurrentAdvancedStep("columns")
             toast({
                 title: "Data Imported (Fallback)",
-                description: `Using default columns for ${entity}. ${err?.message || ""}`,
+                description: `Using default columns for ${effectiveEntityFallback}. ${err?.message || ""}`,
             })
         } finally {
             setImportingData(false)
@@ -814,6 +1120,18 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             return
         }
 
+        const effectiveSourceEntity = source === "snowflake" ? srcSfTable : sourceEntity
+        const effectiveTargetEntity = destination === "snowflake" ? destSfTable : targetEntity
+
+        if (!effectiveSourceEntity) {
+            toast({ title: "Source entity required", description: "Please select a source entity", variant: "destructive" })
+            return
+        }
+        if (!effectiveTargetEntity) {
+            toast({ title: "Target entity required", description: "Please select a target entity", variant: "destructive" })
+            return
+        }
+
         setSaving(true)
         try {
             const hasCustomConfig = advancedOpen && (
@@ -822,34 +1140,76 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 globalRules.some(r => !r.selected)
             )
 
-            const dq_config = hasCustomConfig
-                ? {
-                    mode: "custom" as const,
-                    ...(selectedColumns.length > 0 && { columns: selectedColumns }),
-                    ...(selectedPresetId && { preset_id: selectedPresetId }),
-                    rules: globalRules,
-                }
-                : { mode: "default" as const }
+            const dq_config = (frequency === "batch")
+                ? { mode: "default" as const }
+                : hasCustomConfig
+                    ? {
+                        mode: "custom" as const,
+                        ...(selectedColumns.length > 0 && { columns: selectedColumns }),
+                        ...(selectedPresetId && { preset_id: selectedPresetId }),
+                        rules: globalRules,
+                    }
+                    : { mode: "default" as const }
 
             const freqBackend = frequencyToBackend(frequency, cronExpression.trim())
 
             const normalizedSource = normalizeErpForApi(source)
-            const base = {
+            const base: Record<string, any> = {
                 name: name.trim(),
                 source: normalizedSource,
                 destination: normalizeErpForApi(destination),
-                entities: [entity],
+                source_entity: effectiveSourceEntity,
+                target_entity: effectiveTargetEntity,
+                entities: [effectiveSourceEntity],
                 ...freqBackend,
                 dq_config,
                 ...(responsibleUserId && { responsible_user_id: responsibleUserId }),
+            }
+
+            // Include mapping config if set
+            if (Object.keys(columnMapping).length > 0) {
+                base.mapping_config = {
+                    column_mapping: columnMapping,
+                    auto_mapped: !!autoMapMethod,
+                    mapping_method: autoMapMethod,
+                }
+            }
+
+            // Include Snowflake configs
+            if (source === "snowflake") {
+                base.source_snowflake_config = {
+                    warehouse: srcSfWarehouse,
+                    database: srcSfDatabase,
+                    schema: srcSfSchema,
+                    table: srcSfTable,
+                }
+            }
+            if (destination === "snowflake") {
+                base.dest_snowflake_config = {
+                    warehouse: destSfWarehouse,
+                    database: destSfDatabase,
+                    schema: destSfSchema,
+                    table: destSfTable,
+                }
             }
 
             if (isEdit && job) {
                 await jobsAPI.updateJob(job.job_id, base as UpdateJobPayload)
                 toast({ title: "Job Updated", description: `${name} has been updated` })
             } else {
-                await jobsAPI.createJob(base as CreateJobPayload)
-                toast({ title: "Job Created", description: `${name} has been created and scheduled` })
+                const created = await jobsAPI.createJob(base as CreateJobPayload)
+                if (frequency === "batch" && created?.job_id) {
+                    // Batch mode: create job + immediately trigger
+                    toast({ title: "Batch Job Created", description: `${name} — triggering transfer now...` })
+                    try {
+                        await jobsAPI.triggerJob(created.job_id)
+                        toast({ title: "Batch Transfer Started", description: `${name} is now running` })
+                    } catch (triggerErr: any) {
+                        toast({ title: "Trigger failed", description: triggerErr?.message || "Job created but trigger failed", variant: "destructive" })
+                    }
+                } else {
+                    toast({ title: "Job Created", description: `${name} has been created and scheduled` })
+                }
             }
             onSuccess()
         } catch (err: any) {
@@ -880,7 +1240,32 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         destination, setDestination,
         frequency, setFrequency,
         cronExpression, setCronExpression,
-        entity, setEntity,
+        sourceEntity, setSourceEntity,
+        targetEntity, setTargetEntity,
+        // Dynamic entity discovery
+        sourceEntities, targetEntities,
+        sourceEntitiesLoading, targetEntitiesLoading,
+        // Snowflake — source
+        srcSfConnected, srcSfConnecting, handleSrcSfConnect,
+        srcSfWarehouses, srcSfDatabases, srcSfSchemas, srcSfTables,
+        srcSfWarehouse, setSrcSfWarehouse,
+        srcSfDatabase, setSrcSfDatabase,
+        srcSfSchema, setSrcSfSchema,
+        srcSfTable, setSrcSfTable,
+        srcSfLoading,
+        // Snowflake — destination
+        destSfConnected, destSfConnecting, handleDestSfConnect,
+        destSfWarehouses, destSfDatabases, destSfSchemas, destSfTables,
+        destSfWarehouse, setDestSfWarehouse,
+        destSfDatabase, setDestSfDatabase,
+        destSfSchema, setDestSfSchema,
+        destSfTable, setDestSfTable,
+        destSfLoading,
+        // Column mapping
+        sourceColumns, targetColumns, columnMapping,
+        mappingLoading, autoMapMethod,
+        handleAutoMap, handleManualMapChange, setColumnMapping,
+        fetchSourceColumns, fetchTargetColumns,
         // Columns
         fetchingCols,
         allColumns,

@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, ChevronDown, ChevronRight, Sparkles, Star, Plus, Upload, Settings, Edit, Download, Shield, ToggleLeft, ToggleRight, Trash2, X } from "lucide-react"
+import { Loader2, ChevronDown, ChevronRight, Sparkles, Star, Plus, Upload, Settings, Edit, Download, Shield, ToggleLeft, ToggleRight, Trash2, X, ArrowRight, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,7 +22,8 @@ import { getRuleLabel } from "@/shared/lib/dq-rules"
 import type { Job, JobFrequency } from "@/modules/jobs/api/jobs-api"
 
 import { useJobDialog } from "./use-job-dialog"
-import { ENTITY_OPTIONS, ERP_OPTIONS, SOURCE_ERP_OPTIONS } from "./job-dialog-constants"
+import { ERP_OPTIONS, SOURCE_ERP_OPTIONS, FREQUENCY_OPTIONS } from "./job-dialog-constants"
+import { SnowflakeEntitySelector } from "./snowflake-entity-selector"
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
     return (
     <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[580px] max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-lg">{d.isEdit ? "Edit Job" : "Create Job"}</DialogTitle>
                     <DialogDescription>
@@ -89,31 +90,111 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                         </div>
                     </div>
 
-                    {/* Entity & Frequency */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Source Entity */}
+                    {d.source === "snowflake" ? (
+                        <SnowflakeEntitySelector
+                            label="Source"
+                            connected={d.srcSfConnected}
+                            isConnecting={d.srcSfConnecting}
+                            onConnect={d.handleSrcSfConnect}
+                            warehouses={d.srcSfWarehouses}
+                            databases={d.srcSfDatabases}
+                            schemas={d.srcSfSchemas}
+                            tables={d.srcSfTables}
+                            selectedWarehouse={d.srcSfWarehouse}
+                            selectedDatabase={d.srcSfDatabase}
+                            selectedSchema={d.srcSfSchema}
+                            selectedTable={d.srcSfTable}
+                            onWarehouseChange={d.setSrcSfWarehouse}
+                            onDatabaseChange={d.setSrcSfDatabase}
+                            onSchemaChange={d.setSrcSfSchema}
+                            onTableChange={d.setSrcSfTable}
+                            loading={d.srcSfLoading}
+                        />
+                    ) : (
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium">Entity</Label>
-                            <Select value={d.entity} onValueChange={d.setEntity}>
-                                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {ENTITY_OPTIONS.map(e => (
-                                        <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label className="text-sm font-medium">Source Entity</Label>
+                            {d.sourceEntitiesLoading ? (
+                                <div className="flex items-center gap-2 h-10 px-3 border rounded-md text-muted-foreground text-sm">
+                                    <Loader2 className="h-3 w-3 animate-spin" /> Loading entities...
+                                </div>
+                            ) : (
+                                <Select
+                                    key={`src-entity-${d.source}`}
+                                    {...(d.sourceEntity ? { value: d.sourceEntity } : {})}
+                                    onValueChange={d.setSourceEntity}
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="Select source entity" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {d.sourceEntities.map(e => (
+                                            <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
                         </div>
+                    )}
+
+                    {/* Target Entity */}
+                    {d.destination === "snowflake" ? (
+                        <SnowflakeEntitySelector
+                            label="Target"
+                            connected={d.destSfConnected}
+                            isConnecting={d.destSfConnecting}
+                            onConnect={d.handleDestSfConnect}
+                            warehouses={d.destSfWarehouses}
+                            databases={d.destSfDatabases}
+                            schemas={d.destSfSchemas}
+                            tables={d.destSfTables}
+                            selectedWarehouse={d.destSfWarehouse}
+                            selectedDatabase={d.destSfDatabase}
+                            selectedSchema={d.destSfSchema}
+                            selectedTable={d.destSfTable}
+                            onWarehouseChange={d.setDestSfWarehouse}
+                            onDatabaseChange={d.setDestSfDatabase}
+                            onSchemaChange={d.setDestSfSchema}
+                            onTableChange={d.setDestSfTable}
+                            loading={d.destSfLoading}
+                        />
+                    ) : (
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium">Frequency</Label>
-                            <Select value={d.frequency} onValueChange={(v) => d.setFrequency(v as JobFrequency)}>
-                                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="15min">Every 15 min</SelectItem>
-                                    <SelectItem value="1hr">Every hour</SelectItem>
-                                    <SelectItem value="daily">Daily</SelectItem>
-                                    <SelectItem value="cron">Custom (Cron)</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Label className="text-sm font-medium">Target Entity</Label>
+                            {d.targetEntitiesLoading ? (
+                                <div className="flex items-center gap-2 h-10 px-3 border rounded-md text-muted-foreground text-sm">
+                                    <Loader2 className="h-3 w-3 animate-spin" /> Loading entities...
+                                </div>
+                            ) : (
+                                <Select
+                                    key={`tgt-entity-${d.destination}`}
+                                    {...(d.targetEntity ? { value: d.targetEntity } : {})}
+                                    onValueChange={d.setTargetEntity}
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="Select target entity" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {d.targetEntities.map(e => (
+                                            <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
                         </div>
+                    )}
+
+                    {/* Frequency */}
+                    <div className="space-y-2">
+                        <Label className="text-sm font-medium">Frequency</Label>
+                        <Select value={d.frequency} onValueChange={(v) => d.setFrequency(v as JobFrequency)}>
+                            <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {FREQUENCY_OPTIONS.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     {d.frequency === "cron" && (
@@ -123,6 +204,15 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                             onChange={(e) => d.setCronExpression(e.target.value)}
                             className="h-9 font-mono text-sm"
                         />
+                    )}
+
+                    {d.frequency === "batch" && (
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+                            <Zap className="h-4 w-4 flex-shrink-0" />
+                            <p className="text-xs">
+                                One-time transfer with auto-mapping and default DQ settings. Data will be transferred immediately.
+                            </p>
+                        </div>
                     )}
 
                     {/* Assigned To */}
@@ -156,12 +246,87 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                         <CollapsibleTrigger className="flex items-center gap-2 w-full text-left py-2 border-t border-border/50">
                             {d.advancedOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                             <span className="text-sm font-medium text-muted-foreground">Advanced (Optional)</span>
-                            {d.advancedOpen && (d.selectedColumns.length > 0 || d.selectedPresetId) && (
+                            {d.advancedOpen && (d.selectedColumns.length > 0 || d.selectedPresetId || Object.keys(d.columnMapping).length > 0) && (
                                 <Badge variant="outline" className="ml-auto text-[10px]">Configured</Badge>
                             )}
                         </CollapsibleTrigger>
 
                         <CollapsibleContent className="pt-3 space-y-4">
+                            {/* ─── Column Mapping Sub-section ─── */}
+                            <Collapsible>
+                                <CollapsibleTrigger className="flex items-center gap-2 w-full text-left py-1.5">
+                                    <ChevronRight className="h-3.5 w-3.5" />
+                                    <span className="text-xs font-medium">Column Mapping</span>
+                                    {Object.keys(d.columnMapping).length > 0 && (
+                                        <Badge variant="secondary" className="ml-auto text-[9px]">
+                                            {Object.keys(d.columnMapping).length} mapped
+                                            {d.autoMapMethod && ` (${d.autoMapMethod})`}
+                                        </Badge>
+                                    )}
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="pt-2 space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={d.handleAutoMap}
+                                            disabled={d.mappingLoading}
+                                            className="h-7 text-xs gap-1.5"
+                                        >
+                                            {d.mappingLoading ? (
+                                                <><Loader2 className="h-3 w-3 animate-spin" /> Mapping...</>
+                                            ) : (
+                                                <><Sparkles className="h-3 w-3" /> Auto Map</>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={d.fetchSourceColumns}
+                                            className="h-7 text-xs"
+                                        >
+                                            Fetch Columns
+                                        </Button>
+                                    </div>
+                                    {d.targetColumns.length > 0 && (
+                                        <div className="max-h-[200px] overflow-y-auto border rounded-md">
+                                            <div className="grid grid-cols-[1fr,auto,1fr] gap-1 p-2 text-[10px] font-medium text-muted-foreground border-b">
+                                                <span>Target Column</span>
+                                                <span></span>
+                                                <span>Source Column</span>
+                                            </div>
+                                            {d.targetColumns.map(tc => (
+                                                <div key={tc} className="grid grid-cols-[1fr,auto,1fr] gap-1 items-center px-2 py-1 text-xs border-b last:border-b-0">
+                                                    <span className="truncate font-mono text-[11px]">{tc}</span>
+                                                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                                                    <Select
+                                                        value={d.columnMapping[tc] || "__unmapped__"}
+                                                        onValueChange={(v) => d.handleManualMapChange(tc, v === "__unmapped__" ? "" : v)}
+                                                    >
+                                                        <SelectTrigger className="h-7 text-[11px]">
+                                                            <SelectValue placeholder="— unmapped —" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="__unmapped__">— unmapped —</SelectItem>
+                                                            {d.sourceColumns.map(sc => (
+                                                                <SelectItem key={sc} value={sc} className="text-[11px]">{sc}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {d.targetColumns.length === 0 && d.sourceColumns.length === 0 && (
+                                        <p className="text-xs text-muted-foreground italic">
+                                            Click "Auto Map" or "Fetch Columns" to load source and target columns for mapping.
+                                        </p>
+                                    )}
+                                </CollapsibleContent>
+                            </Collapsible>
+
+                            {/* ─── DQ Wizard (hidden in batch mode) ─── */}
+                            {d.frequency !== "batch" && (<>
                             {/* Data Import Section */}
                             {!d.dataImported && d.advancedMode ? (
                                 <div className="flex flex-col gap-3 p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5">
@@ -696,6 +861,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                                     </Collapsible>
                                 </div>
                             ) : null}
+                            </>)}
                         </CollapsibleContent>
                     </Collapsible>
                 </div>
@@ -704,7 +870,10 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                     <Button variant="outline" onClick={onCancel} disabled={d.saving}>Cancel</Button>
                     <Button onClick={d.handleSubmit} disabled={d.saving || !d.name.trim()}>
                         {d.saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-                        {d.isEdit ? "Update Job" : "Create Job"}
+                        {d.frequency === "batch"
+                            ? (d.saving ? "Running..." : "Run Batch Transfer")
+                            : d.isEdit ? "Update Job" : "Create Job"
+                        }
                     </Button>
                 </DialogFooter>
             </DialogContent>

@@ -7,6 +7,7 @@ import type {
     DQConfig, Job, JobRun, CreateJobPayload, UpdateJobPayload,
     EntityResult, ProcessingMetadata, ImportPreviewResult,
     ProfilingResult, Preset, DQRule, ColumnProfile,
+    SnowflakeEntityConfig, MappingConfig,
 } from "@/modules/jobs/types/jobs.types"
 
 export type {
@@ -14,6 +15,7 @@ export type {
     DQConfig, Job, JobRun, CreateJobPayload, UpdateJobPayload,
     EntityResult, ProcessingMetadata, ImportPreviewResult,
     ProfilingResult, Preset, DQRule, ColumnProfile,
+    SnowflakeEntityConfig, MappingConfig,
 } from "@/modules/jobs/types/jobs.types"
 
 const API_BASE_URL = AWS_CONFIG.API_BASE_URL || ""
@@ -24,11 +26,13 @@ export function frequencyToBackend(freq: JobFrequency, cronExpr?: string): { fre
         case "1hr": return { frequency_type: "rate", frequency_value: "1 hour" }
         case "daily": return { frequency_type: "rate", frequency_value: "1 day" }
         case "cron": return { frequency_type: "cron", frequency_value: cronExpr || "0 * * * ? *" }
+        case "batch": return { frequency_type: "batch", frequency_value: "once" }
         default: return { frequency_type: "rate", frequency_value: "1 hour" }
     }
 }
 
 export function frequencyFromBackend(freqType?: string, freqValue?: string): { frequency: JobFrequency; cronExpression: string } {
+    if (freqType === "batch") return { frequency: "batch", cronExpression: "" }
     if (freqType === "cron") {
         return { frequency: "cron", cronExpression: freqValue || "" }
     }
@@ -50,6 +54,9 @@ const ENDPOINTS = {
     PROFILING: "/jobs/profiling",
     PRESETS: "/jobs/presets",
     RULES: "/jobs/rules",
+    DISCOVER_ENTITIES: "/erp/discover-entities",
+    ENTITY_FIELDS: "/erp/entity-fields",
+    MAPPING_PREVIEW: "/erp/mapping/preview",
 }
 
 class JobsAPI {
@@ -222,6 +229,44 @@ class JobsAPI {
         } catch {
             return { rules: [] }
         }
+    }
+
+    // ─── Entity Discovery & Mapping ──────────────────────────────────────────
+
+    async discoverEntities(provider: string): Promise<{ entities: Array<{ entity?: string; name?: string; label?: string; record_count?: number; value?: string }> }> {
+        const token = this.getAuth()
+        let endpoint: string
+        if (provider === "quickbooks") {
+            endpoint = "/quickbooks/discover-entities"
+        } else if (provider === "zohobooks") {
+            endpoint = "/zoho-books/discover-entities"
+        } else {
+            endpoint = `${ENDPOINTS.DISCOVER_ENTITIES}?provider=${encodeURIComponent(provider)}`
+        }
+        try {
+            return await this.makeRequest(endpoint, token, { method: "GET" })
+        } catch {
+            return { entities: [] }
+        }
+    }
+
+    async getEntityFields(provider: string, entity: string): Promise<{ fields: Array<{ name: string; label?: string; type?: string; required?: boolean }> }> {
+        const token = this.getAuth()
+        const params = new URLSearchParams({ provider, entity })
+        return this.makeRequest(`${ENDPOINTS.ENTITY_FIELDS}?${params}`, token, { method: "GET" })
+    }
+
+    async getMappingPreview(body: {
+        source_provider: string
+        source_entity: string
+        dest_provider: string
+        dest_entity: string
+    }): Promise<{ mapping: Record<string, string>; method?: string; cdf_entity?: string }> {
+        const token = this.getAuth()
+        return this.makeRequest(ENDPOINTS.MAPPING_PREVIEW, token, {
+            method: "POST",
+            body: JSON.stringify(body),
+        })
     }
 }
 

@@ -1,9 +1,22 @@
 // ─── Jobs types ───────────────────────────────────────────────────────────────
 
 export type JobStatus = 'ACTIVE' | 'PAUSED' | 'FAILED' | 'AUTO_PAUSED'
-export type JobFrequency = '15min' | '1hr' | 'daily' | 'cron'
+export type JobFrequency = '15min' | '1hr' | 'daily' | 'cron' | 'batch'
 export type ERPType = 'quickbooks' | 'zoho_books' | 'snowflake'
 export type DQMode = 'default' | 'custom'
+
+export interface SnowflakeEntityConfig {
+    warehouse?: string
+    database?: string
+    schema?: string
+    table?: string
+}
+
+export interface MappingConfig {
+    column_mapping?: Record<string, string>
+    auto_mapped?: boolean
+    mapping_method?: string
+}
 
 export interface DQConfig {
     mode: DQMode
@@ -19,13 +32,18 @@ export interface Job {
     source: ERPType
     destination: ERPType
     entities?: string[]
+    source_entity?: string
+    target_entity?: string
     // Backend stores these two fields (not a single 'frequency')
-    frequency_type?: string   // 'rate' | 'cron'
-    frequency_value?: string  // e.g. '15 minutes', '1 hour', '1 day', or cron expr
+    frequency_type?: string   // 'rate' | 'cron' | 'batch'
+    frequency_value?: string  // e.g. '15 minutes', '1 hour', '1 day', 'once', or cron expr
     // Convenience field (computed by frontend)
     frequency?: JobFrequency
     cron_expression?: string
     dq_config: DQConfig
+    mapping_config?: MappingConfig
+    source_snowflake_config?: SnowflakeEntityConfig
+    dest_snowflake_config?: SnowflakeEntityConfig
     status: JobStatus
     max_records?: number
     created_at?: string
@@ -93,9 +111,14 @@ export interface CreateJobPayload {
     source: ERPType
     destination: ERPType
     entities?: string[]
+    source_entity?: string
+    target_entity?: string
     frequency_type: string
     frequency_value: string
     dq_config?: Partial<DQConfig>
+    mapping_config?: MappingConfig
+    source_snowflake_config?: SnowflakeEntityConfig
+    dest_snowflake_config?: SnowflakeEntityConfig
     max_records?: number
     responsible_user_id?: string
 }
@@ -105,9 +128,14 @@ export interface UpdateJobPayload {
     source?: ERPType
     destination?: ERPType
     entities?: string[]
+    source_entity?: string
+    target_entity?: string
     frequency_type?: string
     frequency_value?: string
     dq_config?: Partial<DQConfig>
+    mapping_config?: MappingConfig
+    source_snowflake_config?: SnowflakeEntityConfig
+    dest_snowflake_config?: SnowflakeEntityConfig
     max_records?: number
     responsible_user_id?: string
 }

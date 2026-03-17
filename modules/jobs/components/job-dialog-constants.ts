@@ -27,6 +27,16 @@ export const ERP_OPTIONS = [
 
 export const SOURCE_ERP_OPTIONS = ERP_OPTIONS
 
+export const FREQUENCY_OPTIONS = [
+    { label: "Every 15 min", value: "15min" },
+    { label: "Every hour", value: "1hr" },
+    { label: "Daily", value: "daily" },
+    { label: "Custom (Cron)", value: "cron" },
+    { label: "Batch (One-time)", value: "batch" },
+]
+
+export const DISCOVERABLE_ERPS = ["quickbooks", "zoho-books", "snowflake"]
+
 export const DEFAULT_GLOBAL_RULES = [
     { rule_id: "R4", rule_name: "Whitespace Cleanup", selected: true, description: "Trim leading/trailing whitespace" },
     { rule_id: "R5", rule_name: "Case Normalization", selected: true, description: "Standardize text casing" },
