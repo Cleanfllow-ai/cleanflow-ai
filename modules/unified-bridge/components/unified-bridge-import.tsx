@@ -21,6 +21,8 @@ import ErpSourceForm from "./erp-source-form"
 interface UnifiedBridgeImportProps {
   mode?: "source" | "destination"
   uploadId?: string
+  file?: any             // FileStatusResponse — passed to ErpSourceForm for schema export
+  columns?: string[]     // file columns — passed to ErpSourceForm for schema export
   onImportComplete?: (uploadId: string) => void
   onNotification?: (message: string, type: "success" | "error") => void
   onPermissionDenied?: () => void
@@ -31,6 +33,8 @@ type IngestionSource = "ftp" | "tcp" | "http" | "other"
 export default function UnifiedBridgeImport({
   mode = "source",
   uploadId,
+  file,
+  columns,
   onImportComplete,
   onNotification,
   onPermissionDenied,
@@ -218,6 +222,8 @@ export default function UnifiedBridgeImport({
             <ErpSourceForm
               mode={mode}
               uploadId={uploadId}
+              file={file}
+              columns={columns}
               token={idToken || ""}
               onIngestionStart={handleIngestionStart}
               onIngestionComplete={handleIngestionComplete}

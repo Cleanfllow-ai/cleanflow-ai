@@ -108,6 +108,8 @@ export function ExportDialog({
             <UnifiedBridgeImport
               mode="destination"
               uploadId={file?.upload_id}
+              file={file}
+              columns={columns}
               onNotification={() => {}}
             />
           </TabsContent>

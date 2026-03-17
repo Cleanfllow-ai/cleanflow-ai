@@ -17,10 +17,13 @@ import { ZohoBooksImport } from '@/modules/zoho'
 import { SnowflakeImport } from '@/modules/snowflake'
 import { GoogleDriveImport } from '@/modules/googledrive'
 import SchemaDropForm from './schema-drop-form'
+import SchemaExportForm from './schema-export-form'
 
 interface ErpSourceFormProps {
   mode?: "source" | "destination"
   uploadId?: string  // Required for export/destination mode
+  file?: any         // FileStatusResponse — for schema export in destination mode
+  columns?: string[] // file columns — for schema export in destination mode
   token: string
   onIngestionStart: () => void
   onIngestionComplete: (result: { success: boolean; message: string; uploadId?: string }) => void
@@ -60,6 +63,8 @@ const PROVIDER_MAP: Record<string, string> = {
 export default function ErpSourceForm({
   mode = "source",
   uploadId,
+  file,
+  columns,
   token,
   onIngestionStart,
   onIngestionComplete,
@@ -192,8 +197,35 @@ export default function ErpSourceForm({
         </Tabs>
       )}
 
-      {/* Destination mode: no schema drop, just entity-based export */}
-      {selectedErp !== "googledrive" && mode === "destination" && renderErpContent()}
+      {/* Destination mode: By Entity / Custom Schema tabs */}
+      {selectedErp !== "googledrive" && mode === "destination" && (
+        <Tabs value={importMode} onValueChange={(v) => setImportMode(v as "entity" | "schema")} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="entity" className="text-xs sm:text-sm">
+              <Network className="h-3.5 w-3.5 mr-1.5" />
+              By Entity
+            </TabsTrigger>
+            <TabsTrigger value="schema" className="text-xs sm:text-sm">
+              <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+              Custom Schema
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="entity" className="mt-3">
+            {renderErpContent()}
+          </TabsContent>
+
+          <TabsContent value="schema" className="mt-3">
+            <SchemaExportForm
+              provider={PROVIDER_MAP[selectedErp] || selectedErp}
+              file={file}
+              columns={columns || []}
+              token={token}
+              onNotification={handleNotification}
+            />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   )
 }
