@@ -282,7 +282,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={d.fetchSourceColumns}
+                                            onClick={d.handleFetchColumns}
                                             className="h-7 text-xs"
                                         >
                                             Fetch Columns
@@ -295,8 +295,8 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                                                 <span></span>
                                                 <span>Source Column</span>
                                             </div>
-                                            {d.targetColumns.map(tc => (
-                                                <div key={tc} className="grid grid-cols-[1fr,auto,1fr] gap-1 items-center px-2 py-1 text-xs border-b last:border-b-0">
+                                            {d.targetColumns.map((tc, idx) => (
+                                                <div key={`${tc}-${idx}`} className="grid grid-cols-[1fr,auto,1fr] gap-1 items-center px-2 py-1 text-xs border-b last:border-b-0">
                                                     <span className="truncate font-mono text-[11px]">{tc}</span>
                                                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
                                                     <Select
@@ -308,8 +308,8 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                                                         </SelectTrigger>
                                                         <SelectContent>
                                                             <SelectItem value="__unmapped__">— unmapped —</SelectItem>
-                                                            {d.sourceColumns.map(sc => (
-                                                                <SelectItem key={sc} value={sc} className="text-[11px]">{sc}</SelectItem>
+                                                            {d.sourceColumns.map((sc, scIdx) => (
+                                                                <SelectItem key={`${sc}-${scIdx}`} value={sc} className="text-[11px]">{sc}</SelectItem>
                                                             ))}
                                                         </SelectContent>
                                                     </Select>
@@ -325,8 +325,8 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                                 </CollapsibleContent>
                             </Collapsible>
 
-                            {/* ─── DQ Wizard (hidden in batch mode) ─── */}
-                            {d.frequency !== "batch" && (<>
+                            {/* ─── DQ Wizard ─── */}
+                            {(<>
                             {/* Data Import Section */}
                             {!d.dataImported && d.advancedMode ? (
                                 <div className="flex flex-col gap-3 p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5">

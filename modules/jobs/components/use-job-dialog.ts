@@ -328,8 +328,11 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
 
     useEffect(() => {
         if (!open || source === "snowflake") return
+        // Show static entities immediately so the user doesn't wait
+        setSourceEntities(ENTITY_OPTIONS)
+        setSourceEntitiesLoading(false)
+        // Enrich with discovered entities in the background
         let cancelled = false
-        setSourceEntitiesLoading(true)
         const apiSource = normalizeErpForApi(source)
         jobsAPI.discoverEntities(apiSource).then(res => {
             if (cancelled) return
@@ -338,19 +341,18 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 label: (e.label || e.entity || e.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
                 value: e.entity || e.name || e.value || "",
             })).filter((e: any) => e.value)
-            setSourceEntities(entities.length > 0 ? entities : ENTITY_OPTIONS)
-        }).catch(() => {
-            if (!cancelled) setSourceEntities(ENTITY_OPTIONS)
-        }).finally(() => {
-            if (!cancelled) setSourceEntitiesLoading(false)
-        })
+            if (entities.length > 0) setSourceEntities(entities)
+        }).catch(() => { /* static fallback already set */ })
         return () => { cancelled = true }
     }, [source, open])
 
     useEffect(() => {
         if (!open || destination === "snowflake") return
+        // Show static entities immediately so the user doesn't wait
+        setTargetEntities(ENTITY_OPTIONS)
+        setTargetEntitiesLoading(false)
+        // Enrich with discovered entities in the background
         let cancelled = false
-        setTargetEntitiesLoading(true)
         const apiDest = normalizeErpForApi(destination)
         jobsAPI.discoverEntities(apiDest).then(res => {
             if (cancelled) return
@@ -359,12 +361,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 label: (e.label || e.entity || e.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
                 value: e.entity || e.name || e.value || "",
             })).filter((e: any) => e.value)
-            setTargetEntities(entities.length > 0 ? entities : ENTITY_OPTIONS)
-        }).catch(() => {
-            if (!cancelled) setTargetEntities(ENTITY_OPTIONS)
-        }).finally(() => {
-            if (!cancelled) setTargetEntitiesLoading(false)
-        })
+            if (entities.length > 0) setTargetEntities(entities)
+        }).catch(() => { /* static fallback already set */ })
         return () => { cancelled = true }
     }, [destination, open])
 
@@ -491,7 +489,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 setSourceColumns(cols.map(c => c.name))
             } else if (sourceEntity) {
                 const res = await jobsAPI.getEntityFields(normalizeErpForApi(source), sourceEntity)
-                setSourceColumns(res.fields?.map(f => f.name) || ENTITY_COLUMNS[sourceEntity] || [])
+                const fields = res.fields?.map(f => f.name).filter(Boolean)
+                setSourceColumns(fields && fields.length > 0 ? fields : ENTITY_COLUMNS[sourceEntity] || [])
             }
         } catch {
             setSourceColumns(ENTITY_COLUMNS[sourceEntity] || [])
@@ -505,7 +504,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 setTargetColumns(cols.map(c => c.name))
             } else if (targetEntity) {
                 const res = await jobsAPI.getEntityFields(normalizeErpForApi(destination), targetEntity)
-                setTargetColumns(res.fields?.map(f => f.name) || ENTITY_COLUMNS[targetEntity] || [])
+                const fields = res.fields?.map(f => f.name).filter(Boolean)
+                setTargetColumns(fields && fields.length > 0 ? fields : ENTITY_COLUMNS[targetEntity] || [])
             }
         } catch {
             setTargetColumns(ENTITY_COLUMNS[targetEntity] || [])
@@ -556,7 +556,6 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
 
     // ─── Fetch Columns ────────────────────────────────────────────────────────
 
-    // TODO: Wire to real API — currently uses static template columns
     const handleFetchColumns = async () => {
         setFetchingCols(true)
         try {
@@ -564,6 +563,10 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             const cols = ENTITY_COLUMNS[effectiveEntity] || ["Column1", "Column2", "Column3"]
             setAllColumns(cols)
             setSelectedColumns(cols)
+
+            // Also fetch source + target columns for column mapping
+            await Promise.all([fetchSourceColumns(), fetchTargetColumns()])
+
             toast({ title: "Columns Loaded", description: `${cols.length} columns available for ${effectiveEntity}` })
         } catch (err: any) {
             toast({ title: "Error", description: err?.message || "Failed to fetch columns", variant: "destructive" })
@@ -1140,16 +1143,14 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 globalRules.some(r => !r.selected)
             )
 
-            const dq_config = (frequency === "batch")
-                ? { mode: "default" as const }
-                : hasCustomConfig
-                    ? {
-                        mode: "custom" as const,
-                        ...(selectedColumns.length > 0 && { columns: selectedColumns }),
-                        ...(selectedPresetId && { preset_id: selectedPresetId }),
-                        rules: globalRules,
-                    }
-                    : { mode: "default" as const }
+            const dq_config = hasCustomConfig
+                ? {
+                    mode: "custom" as const,
+                    ...(selectedColumns.length > 0 && { columns: selectedColumns }),
+                    ...(selectedPresetId && { preset_id: selectedPresetId }),
+                    rules: globalRules,
+                }
+                : { mode: "default" as const }
 
             const freqBackend = frequencyToBackend(frequency, cronExpression.trim())
 
