@@ -140,10 +140,26 @@ export default function ZohoBooksImport(props: UseZohoImportProps) {
                   <>
                     <SelectItem value="customers">Customers</SelectItem>
                     <SelectItem value="vendors">Vendors</SelectItem>
-                    <SelectItem value="items">Items</SelectItem>
+                    <SelectItem value="items">Items / Products</SelectItem>
+                    <SelectItem value="inventory_items">Inventory Items</SelectItem>
+                    <SelectItem value="chart_of_accounts">Chart of Accounts</SelectItem>
                     <SelectItem value="invoices">Invoices</SelectItem>
+                    <SelectItem value="estimates">Estimates</SelectItem>
                     <SelectItem value="sales_orders">Sales Orders</SelectItem>
+                    <SelectItem value="credit_notes">Credit Notes</SelectItem>
+                    <SelectItem value="retainer_invoices">Retainer Invoices</SelectItem>
+                    <SelectItem value="recurring_invoices">Recurring Invoices</SelectItem>
+                    <SelectItem value="customer_payments">Customer Payments</SelectItem>
+                    <SelectItem value="sales_receipts">Sales Receipts</SelectItem>
+                    <SelectItem value="bills">Bills</SelectItem>
                     <SelectItem value="purchase_orders">Purchase Orders</SelectItem>
+                    <SelectItem value="vendor_payments">Vendor Payments</SelectItem>
+                    <SelectItem value="expenses">Expenses</SelectItem>
+                    <SelectItem value="vendor_credits">Vendor Credits</SelectItem>
+                    <SelectItem value="bank_transactions">Bank Transactions</SelectItem>
+                    <SelectItem value="journals">Journals</SelectItem>
+                    <SelectItem value="projects">Projects</SelectItem>
+                    <SelectItem value="delivery_challans">Delivery Challans</SelectItem>
                   </>
                 )}
               </SelectContent>
