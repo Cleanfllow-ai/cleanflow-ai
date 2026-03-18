@@ -523,23 +523,22 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         <TooltipContent>Details</TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                {(file.rows_quarantined ?? 0) > 0 && (
+                                                {(file.status === "DQ_FIXED" || file.status === "COMPLETED") && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10"
                                                                 onClick={() => handleOpenQuarantineEditor(file)}
-                                                                disabled={!(file.status === "DQ_FIXED" || file.status === "COMPLETED")}
                                                             >
                                                                 <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                             </Button>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
-                                                            {file.status === "DQ_FIXED" || file.status === "COMPLETED"
+                                                            {(file.rows_quarantined ?? 0) > 0
                                                                 ? `Edit Quarantined Rows (${file.rows_quarantined})`
-                                                                : "Run DQ first to edit quarantined rows"}
+                                                                : "Reprocess File"}
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}

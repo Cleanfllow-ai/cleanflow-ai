@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { MainLayout } from "@/shared/layout/main-layout"
 import { DashboardHeader, ActivityFeed, TopIssuesChart, DqCharts, ProcessingSummary } from "@/modules/dashboard"
 import { DashboardKpiCards } from "@/modules/dashboard/components/dashboard-kpi-cards"
-import { OnboardingChecklist } from "@/modules/dashboard/components/onboarding-checklist"
+
 import { ActionRequiredPanel } from "@/modules/dashboard/components/action-required-panel"
 import { AuthGuard, useAuth } from "@/modules/auth"
 import { fileManagementAPI, type FileStatusResponse, type OverallDqReportResponse, type TopIssue } from "@/modules/files"
@@ -143,20 +143,11 @@ export default function DashboardPage() {
     loadOverall()
   }, [loadFiles, loadOverall])
 
-  // Check if this is a first-time user (no files at all)
-  const isNewUser = !isLoading && files.filter((f) => !f.parent_upload_id).length === 0
-
   return (
     <AuthGuard>
       <MainLayout>
         {isLoading ? (
           <DashboardSkeleton />
-        ) : isNewUser ? (
-          /* ─── UX Improvement: Onboarding checklist for empty dashboard ────── */
-          <div className="space-y-6">
-            <DashboardHeader onRefresh={handleRefresh} />
-            <OnboardingChecklist files={files} />
-          </div>
         ) : (
           <div className="space-y-5">
             <DashboardHeader onRefresh={handleRefresh} />

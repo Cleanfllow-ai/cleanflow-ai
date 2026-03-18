@@ -177,7 +177,7 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
           </div>
           <div className="p-4 border-t bg-muted/10 shrink-0">
             <div className="text-sm text-muted-foreground text-center">
-              Showing 1-{Math.min(20, previewData.total_rows)} of {previewData.total_rows} total records
+              Showing 1-{Math.min(50, previewData.total_rows)} of {previewData.total_rows} total records
             </div>
           </div>
         </TooltipProvider>

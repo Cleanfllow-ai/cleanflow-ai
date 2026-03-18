@@ -214,32 +214,30 @@ export function useGoogleDriveImport({
                 )
 
                 setImportStatus("Importing...")
+                setImportProgress(1)
 
-                // Animate progress: fast to 80%, then slow crawl to 99%
-                let progress = 10
-                const startTime = Date.now()
-                progressRef.current = setInterval(() => {
-                    const elapsed = (Date.now() - startTime) / 1000
-                    if (progress < 80) {
-                        progress += Math.random() * 8 + 2
-                    } else {
-                        // Slow crawl — never fully stalls
-                        progress += 0.3
-                    }
-                    setImportProgress(Math.min(progress, 99))
+                // Known file size from Google Drive metadata (bytes)
+                const expectedSize = file.size ?? 0
 
-                    // Safety: after 90s assume success (poll endpoint may not be deployed)
-                    if (elapsed > 90) {
-                        finishImport(result, file.name)
-                    }
-                }, 300)
-
-                // Poll for completion — fast interval for snappy UX
+                // Poll for real progress from backend
                 let pollFailures = 0
                 pollRef.current = setInterval(async () => {
                     try {
                         const status = await googleDriveAPI.getImportStatus(result.upload_id)
                         pollFailures = 0
+
+                        // Real progress from bytes_transferred
+                        if (status.bytes_transferred && expectedSize > 0) {
+                            const pct = Math.min((status.bytes_transferred / expectedSize) * 100, 99)
+                            setImportProgress(pct)
+                            const mb = (status.bytes_transferred / (1024 * 1024)).toFixed(0)
+                            const totalMb = (expectedSize / (1024 * 1024)).toFixed(0)
+                            setImportStatus(`Importing... ${mb} MB / ${totalMb} MB`)
+                        } else if (status.bytes_transferred) {
+                            // No expected size — show bytes only
+                            const mb = (status.bytes_transferred / (1024 * 1024)).toFixed(0)
+                            setImportStatus(`Importing... ${mb} MB transferred`)
+                        }
 
                         if (status.status === "UPLOADED") {
                             finishImport(result, file.name, status.file_size ?? undefined)
@@ -261,12 +259,11 @@ export function useGoogleDriveImport({
                         }
                     } catch {
                         pollFailures++
-                        // If polling keeps failing (endpoint not deployed), finish after a few tries
-                        if (pollFailures >= 8) {
+                        if (pollFailures >= 20) {
                             finishImport(result, file.name)
                         }
                     }
-                }, 1500)
+                }, 2000)
 
             } catch (error) {
                 stopPolling()

@@ -208,9 +208,10 @@ export function LoginForm() {
               <div className="rounded-full bg-primary/10 p-3"><Shield className="w-8 h-8 text-primary" /></div>
             </div>
             <DialogTitle className="text-center text-2xl">Two-Factor Authentication</DialogTitle>
-            <DialogDescription className="text-center">
-              Enter the 6-digit code from your authenticator app for{' '}
-              <span className="font-medium text-foreground">{f.maskEmail(f.email)}</span>
+            <DialogDescription className="text-center leading-relaxed">
+              Enter the 6-digit code from your authenticator app
+              <br />
+              <span className="font-medium text-foreground break-all">{f.maskEmail(f.email)}</span>
             </DialogDescription>
           </DialogHeader>
 
@@ -239,7 +240,11 @@ export function LoginForm() {
                 'Verify Code'
               )}
             </Button>
-            <p className="text-center text-sm text-muted-foreground">Open your authenticator app (Google Authenticator, Authy, etc.) to get the code</p>
+            <p className="text-center text-xs text-muted-foreground leading-relaxed px-4">
+              Open your authenticator app
+              <br />
+              (Google Authenticator, Authy, etc.) to get the code
+            </p>
           </div>
         </DialogContent>
       </Dialog>

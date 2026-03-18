@@ -32,6 +32,12 @@ export function ProfilingStep() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeColumn, setActiveColumn] = useState<string | null>(null)
+  const pollRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => { if (pollRef.current) clearTimeout(pollRef.current) }
+  }, [])
 
   useEffect(() => {
     if (selectedColumns.length > 0 && Object.keys(columnProfiles).length === 0 && authToken) {
@@ -43,35 +49,63 @@ export function ProfilingStep() {
     if (!authToken) return
     setLoading(true)
     setError(null)
+    if (pollRef.current) clearTimeout(pollRef.current)
     try {
       const response = await fileManagementAPI.getColumnProfilingPreview(uploadId, authToken, selectedColumns, 200)
       const profiles = (response as any)?.profiles || (response as any)?.column_profiles || {}
       if (profiles && Object.keys(profiles).length > 0) {
         setColumnProfiles(profiles)
+        setLoading(false)
+      } else {
+        // Backend may still be computing (LLM calls for many columns).
+        // Poll every 5s until profiles arrive, up to 2 minutes.
+        setLoading(true)
+        let attempts = 0
+        const poll = async () => {
+          attempts++
+          if (attempts > 300) { // 300 × 2s = 10 min
+            setError("Profiling is taking too long. Click Refresh to retry.")
+            setLoading(false)
+            return
+          }
+          try {
+            const retry = await fileManagementAPI.getColumnProfilingPreview(uploadId, authToken!, selectedColumns, 200)
+            const retryProfiles = (retry as any)?.profiles || (retry as any)?.column_profiles || {}
+            if (retryProfiles && Object.keys(retryProfiles).length > 0) {
+              applyProfilingResponse(retry)
+              setLoading(false)
+              return
+            }
+          } catch { /* ignore, retry */ }
+          pollRef.current = setTimeout(poll, 2000)
+        }
+        pollRef.current = setTimeout(poll, 2000)
+        return
       }
-      const inferredRequired = (response as any)?.required_columns
-      if (Array.isArray(inferredRequired) && inferredRequired.length > 0) {
-        setRequiredColumns(inferredRequired)
-      }
-
-      // Store backend version
-      const summary = (response as any)?.summary || {}
-      setBackendVersion(summary.backend_version)
-
-      // Store cross-field rules from CleanAI
-      const cfr = (response as any)?.cross_field_rules || []
-      setCrossFieldRules(cfr.map((r: any) => ({ ...r, enabled: true })))
-
-      // Store key_type and nullable into wizard state
-      Object.entries(profiles).forEach(([col, p]: [string, any]) => {
-        if (p.key_type) setColumnKeyType(col, p.key_type)
-        if (p.nullable_suggested !== undefined) setColumnNullable(col, p.nullable_suggested)
-      })
+      applyProfilingResponse(response)
     } catch (err: any) {
       setError(err.message || "Failed to fetch profiling data")
-    } finally {
       setLoading(false)
     }
+  }
+
+  const applyProfilingResponse = (response: any) => {
+    const profiles = response?.profiles || response?.column_profiles || {}
+    if (profiles && Object.keys(profiles).length > 0) {
+      setColumnProfiles(profiles)
+    }
+    const inferredRequired = response?.required_columns
+    if (Array.isArray(inferredRequired) && inferredRequired.length > 0) {
+      setRequiredColumns(inferredRequired)
+    }
+    const summary = response?.summary || {}
+    setBackendVersion(summary.backend_version)
+    const cfr = response?.cross_field_rules || []
+    setCrossFieldRules(cfr.map((r: any) => ({ ...r, enabled: true })))
+    Object.entries(profiles).forEach(([col, p]: [string, any]) => {
+      if (p.key_type) setColumnKeyType(col, p.key_type)
+      if (p.nullable_suggested !== undefined) setColumnNullable(col, p.nullable_suggested)
+    })
   }
 
   const toggleColumnSelection = (col: string) => {

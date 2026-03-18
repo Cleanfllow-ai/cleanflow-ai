@@ -553,25 +553,33 @@ export function useFilesPage() {
         // Immediately refresh to pick up remediation_state=REPROCESS_SUBMITTED
         loadFiles();
 
-        // Start polling every 15s until the reprocessed version completes
+        // Poll until both the reprocess AND the new DQ processing complete.
+        // The reprocess worker creates a new version that goes through
+        // DQ_DISPATCHED → DQ_RUNNING → DQ_FIXED. We need to keep polling
+        // until no file is in any active/transitional state.
         if (reprocessPollRef.current) clearInterval(reprocessPollRef.current);
         let pollCount = 0;
         const maxPolls = 120; // 30 minutes max
+        const ACTIVE_STATES = new Set([
+            "DQ_DISPATCHED", "DQ_RUNNING", "QUEUED", "PROCESSING",
+            "REPROCESS_SUBMITTED", "REPROCESSING",
+        ]);
         reprocessPollRef.current = setInterval(async () => {
             pollCount++;
             await loadFiles();
-            // Check if any file still has REPROCESS_SUBMITTED — if not, stop polling
             const currentFiles = filesRef.current ?? [];
-            const stillReprocessing = currentFiles.some(
-                (f: any) => f.remediation_state === "REPROCESS_SUBMITTED"
+            const stillActive = currentFiles.some(
+                (f: any) =>
+                    ACTIVE_STATES.has(f.status) ||
+                    f.remediation_state === "REPROCESS_SUBMITTED"
             );
-            if (!stillReprocessing || pollCount >= maxPolls) {
+            if (!stillActive || pollCount >= maxPolls) {
                 if (reprocessPollRef.current) {
                     clearInterval(reprocessPollRef.current);
                     reprocessPollRef.current = null;
                 }
             }
-        }, 15000);
+        }, 5000); // poll every 5s for snappier UX
     }, [loadFiles]);
 
     // Clean up reprocess polling on unmount

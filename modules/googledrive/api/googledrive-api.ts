@@ -165,6 +165,7 @@ class GoogleDriveService {
         status: string
         filename?: string
         file_size?: number
+        bytes_transferred?: number
         error_message?: string
     }> {
         return await this.makeRequest(

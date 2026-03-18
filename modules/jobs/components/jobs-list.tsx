@@ -69,6 +69,13 @@ const statusBadge = (status: string) => {
                     Failed
                 </Badge>
             )
+        case "AUTO_PAUSED":
+            return (
+                <Badge className="bg-orange-500/10 text-orange-400 border border-orange-500/25 hover:bg-orange-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                    <Pause className="h-3 w-3" />
+                    Auto-Paused
+                </Badge>
+            )
         default:
             return (
                 <Badge variant="outline" className="text-[11px] tracking-wide uppercase px-2.5 py-0.5">
@@ -84,6 +91,10 @@ const runStatusIcon = (status: string) => {
             return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
         case "FAILED":
             return <XCircle className="h-3.5 w-3.5 text-red-500" />
+        case "PARTIAL":
+            return <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+        case "NO_CHANGES":
+            return <Clock className="h-3.5 w-3.5 text-slate-400" />
         case "RUNNING":
             return <Loader2 className="h-3.5 w-3.5 text-blue-500 animate-spin" />
         default:

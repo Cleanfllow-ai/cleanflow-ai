@@ -13,6 +13,7 @@ import { QuarantineEditorHeader } from './quarantine-editor-header'
 import { QuarantineEditorToolbar } from './quarantine-editor-toolbar'
 import { QuarantineAgGridTable } from './quarantine-ag-grid-table'
 import { QuarantineCustomRuleDialog } from './quarantine-custom-rule-dialog'
+import { QuarantineVersionLineage } from './quarantine-version-lineage'
 import type { QuarantineEditorDialogProps } from '@/modules/files/types'
 /**
  * Quarantine Editor Dialog
@@ -84,6 +85,13 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
             savedAt={editor.lastSavedAt}
             onReprocess={handleReprocess}
           />
+          {/* Row 3 — version lineage (only when versions available) */}
+          {editor.lineage.length > 0 && (
+            <QuarantineVersionLineage
+              lineage={editor.lineage}
+              baseUploadId={editor.manifest?.upload_id}
+            />
+          )}
         {/* Table section — flex: 1 consumes remaining height, position: relative
             establishes a containing block so the absolute inner div gets a
             definite pixel height regardless of flex/percentage quirks. */}
@@ -103,6 +111,16 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
                 uploadId={file?.upload_id ?? ''}
                 reloadToken={editor.dataVersion}
               />
+            ) : !editor.loading ? (
+              <div className="flex h-full flex-col items-center justify-center gap-4 px-8">
+                <span className="text-sm font-medium text-destructive">
+                  Failed to load quarantine data
+                </span>
+                <span className="text-xs text-muted-foreground text-center max-w-md">
+                  The DQ result may not be available yet. For large files, the quarantine index
+                  can take several minutes to build. Try closing and reopening, or reprocess the file.
+                </span>
+              </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3">
                 <div className="flex items-center gap-2">
@@ -110,8 +128,7 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500" />
                   </span>
-                  <span className="text-sm font-medium text-slate-500"
-                  >
+                  <span className="text-sm font-medium text-slate-500">
                     Loading quarantine data...
                   </span>
                 </div>

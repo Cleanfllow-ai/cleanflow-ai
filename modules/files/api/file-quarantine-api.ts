@@ -86,15 +86,16 @@ export async function getQuarantineManifest(
     const params = new URLSearchParams({ version })
     const endpoint = `${ENDPOINTS.MANIFEST(uploadId)}?${params.toString()}`
 
-    const POLL_INTERVAL_MS = 750
-    const MAX_POLLS = 80 // ~60s max wait
+    // Progressive backoff: 1s → 2s → 3s → 5s (cap), ~8 min total budget
+    const MAX_POLLS = 160
     for (let i = 0; i < MAX_POLLS; i++) {
         const result = await makeRequest(endpoint, authToken, { method: 'GET' })
         if (result.status !== 'building') {
             return result
         }
-        console.log(`[QuarantineManifest] Read model building… poll ${i + 1}/${MAX_POLLS}`)
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
+        const delay = Math.min(1000 + i * 500, 5000)
+        console.log(`[QuarantineManifest] Read model building… poll ${i + 1}/${MAX_POLLS} (next in ${delay}ms)`)
+        await new Promise((resolve) => setTimeout(resolve, delay))
     }
 
     throw new Error('Quarantine read model build timed out. Please try again.')
