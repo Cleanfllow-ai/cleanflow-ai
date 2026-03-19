@@ -25,8 +25,8 @@ import {
 import { deriveRulesV2, CORE_TYPES, TYPE_ALIASES } from '@/shared/lib/type-catalog'
 import { getRuleLabel } from '@/shared/lib/dq-rules'
 import { orgAPI, type OrgMembership } from '@/modules/auth/api/org-api'
-import { snowflakeAPI } from '@/modules/snowflake/api/snowflake-api'
-import type { SnowflakeMetadataItem } from '@/modules/snowflake/types/snowflake.types'
+import { connectorsAPI, warehouseConnectorsAPI } from '@/modules/connectors'
+import type { WarehouseMetadataItem } from '@/modules/connectors/types'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -163,10 +163,10 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     // Snowflake cascading state — source side
     const [srcSfConnected, setSrcSfConnected] = useState(false)
     const [srcSfConnecting, setSrcSfConnecting] = useState(false)
-    const [srcSfWarehouses, setSrcSfWarehouses] = useState<SnowflakeMetadataItem[]>([])
-    const [srcSfDatabases, setSrcSfDatabases] = useState<SnowflakeMetadataItem[]>([])
-    const [srcSfSchemas, setSrcSfSchemas] = useState<SnowflakeMetadataItem[]>([])
-    const [srcSfTables, setSrcSfTables] = useState<SnowflakeMetadataItem[]>([])
+    const [srcSfWarehouses, setSrcSfWarehouses] = useState<WarehouseMetadataItem[]>([])
+    const [srcSfDatabases, setSrcSfDatabases] = useState<WarehouseMetadataItem[]>([])
+    const [srcSfSchemas, setSrcSfSchemas] = useState<WarehouseMetadataItem[]>([])
+    const [srcSfTables, setSrcSfTables] = useState<WarehouseMetadataItem[]>([])
     const [srcSfWarehouse, setSrcSfWarehouse] = useState("")
     const [srcSfDatabase, setSrcSfDatabase] = useState("")
     const [srcSfSchema, setSrcSfSchema] = useState("")
@@ -176,10 +176,10 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     // Snowflake cascading state — destination side
     const [destSfConnected, setDestSfConnected] = useState(false)
     const [destSfConnecting, setDestSfConnecting] = useState(false)
-    const [destSfWarehouses, setDestSfWarehouses] = useState<SnowflakeMetadataItem[]>([])
-    const [destSfDatabases, setDestSfDatabases] = useState<SnowflakeMetadataItem[]>([])
-    const [destSfSchemas, setDestSfSchemas] = useState<SnowflakeMetadataItem[]>([])
-    const [destSfTables, setDestSfTables] = useState<SnowflakeMetadataItem[]>([])
+    const [destSfWarehouses, setDestSfWarehouses] = useState<WarehouseMetadataItem[]>([])
+    const [destSfDatabases, setDestSfDatabases] = useState<WarehouseMetadataItem[]>([])
+    const [destSfSchemas, setDestSfSchemas] = useState<WarehouseMetadataItem[]>([])
+    const [destSfTables, setDestSfTables] = useState<WarehouseMetadataItem[]>([])
     const [destSfWarehouse, setDestSfWarehouse] = useState("")
     const [destSfDatabase, setDestSfDatabase] = useState("")
     const [destSfSchema, setDestSfSchema] = useState("")
@@ -372,13 +372,13 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         if (!open || source !== "snowflake") return
         let cancelled = false
         setSrcSfLoading(true)
-        snowflakeAPI.getConnectionStatus().then(status => {
+        connectorsAPI.getConnectionStatus('snowflake').then(status => {
             if (cancelled) return
             setSrcSfConnected(!!status?.connected)
             if (!status?.connected) { setSrcSfLoading(false); return }
             Promise.all([
-                snowflakeAPI.listWarehouses().catch(() => []),
-                snowflakeAPI.listDatabases().catch(() => []),
+                warehouseConnectorsAPI.listWarehouses('snowflake').catch(() => []),
+                warehouseConnectorsAPI.listDatabases('snowflake').catch(() => []),
             ]).then(([warehouses, databases]) => {
                 if (cancelled) return
                 setSrcSfWarehouses(warehouses)
@@ -393,7 +393,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     useEffect(() => {
         if (source !== "snowflake" || !srcSfDatabase) { setSrcSfSchemas([]); return }
         let cancelled = false
-        snowflakeAPI.listSchemas(srcSfDatabase).then((schemas) => {
+        warehouseConnectorsAPI.listSchemas('snowflake', srcSfDatabase).then((schemas) => {
             if (!cancelled) setSrcSfSchemas(schemas)
         }).catch(() => { if (!cancelled) setSrcSfSchemas([]) })
         setSrcSfSchema(""); setSrcSfTable("")
@@ -403,7 +403,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     useEffect(() => {
         if (source !== "snowflake" || !srcSfDatabase || !srcSfSchema) { setSrcSfTables([]); return }
         let cancelled = false
-        snowflakeAPI.listTables(srcSfDatabase, srcSfSchema).then((tables) => {
+        warehouseConnectorsAPI.listTables('snowflake', srcSfDatabase, srcSfSchema).then((tables) => {
             if (!cancelled) setSrcSfTables(tables)
         }).catch(() => { if (!cancelled) setSrcSfTables([]) })
         setSrcSfTable("")
@@ -416,13 +416,13 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         if (!open || destination !== "snowflake") return
         let cancelled = false
         setDestSfLoading(true)
-        snowflakeAPI.getConnectionStatus().then(status => {
+        connectorsAPI.getConnectionStatus('snowflake').then(status => {
             if (cancelled) return
             setDestSfConnected(!!status?.connected)
             if (!status?.connected) { setDestSfLoading(false); return }
             Promise.all([
-                snowflakeAPI.listWarehouses().catch(() => []),
-                snowflakeAPI.listDatabases().catch(() => []),
+                warehouseConnectorsAPI.listWarehouses('snowflake').catch(() => []),
+                warehouseConnectorsAPI.listDatabases('snowflake').catch(() => []),
             ]).then(([warehouses, databases]) => {
                 if (cancelled) return
                 setDestSfWarehouses(warehouses)
@@ -437,7 +437,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     useEffect(() => {
         if (destination !== "snowflake" || !destSfDatabase) { setDestSfSchemas([]); return }
         let cancelled = false
-        snowflakeAPI.listSchemas(destSfDatabase).then((schemas) => {
+        warehouseConnectorsAPI.listSchemas('snowflake', destSfDatabase).then((schemas) => {
             if (!cancelled) setDestSfSchemas(schemas)
         }).catch(() => { if (!cancelled) setDestSfSchemas([]) })
         setDestSfSchema(""); setDestSfTable("")
@@ -447,7 +447,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     useEffect(() => {
         if (destination !== "snowflake" || !destSfDatabase || !destSfSchema) { setDestSfTables([]); return }
         let cancelled = false
-        snowflakeAPI.listTables(destSfDatabase, destSfSchema).then((tables) => {
+        warehouseConnectorsAPI.listTables('snowflake', destSfDatabase, destSfSchema).then((tables) => {
             if (!cancelled) setDestSfTables(tables)
         }).catch(() => { if (!cancelled) setDestSfTables([]) })
         setDestSfTable("")
@@ -459,7 +459,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const handleSrcSfConnect = async () => {
         setSrcSfConnecting(true)
         try {
-            const res = await snowflakeAPI.connect()
+            const res = await connectorsAPI.connect('snowflake')
             if (res?.auth_url) window.open(res.auth_url, "_blank")
         } catch (err: any) {
             toast({ title: "Connection failed", description: err?.message || "Failed to connect Snowflake", variant: "destructive" })
@@ -471,7 +471,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const handleDestSfConnect = async () => {
         setDestSfConnecting(true)
         try {
-            const res = await snowflakeAPI.connect()
+            const res = await connectorsAPI.connect('snowflake')
             if (res?.auth_url) window.open(res.auth_url, "_blank")
         } catch (err: any) {
             toast({ title: "Connection failed", description: err?.message || "Failed to connect Snowflake", variant: "destructive" })
@@ -485,7 +485,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const fetchSourceColumns = async () => {
         try {
             if (source === "snowflake" && srcSfDatabase && srcSfSchema && srcSfTable) {
-                const cols = await snowflakeAPI.getTableColumns(srcSfDatabase, srcSfSchema, srcSfTable)
+                const cols = await warehouseConnectorsAPI.getTableColumns('snowflake', srcSfDatabase, srcSfSchema, srcSfTable)
                 setSourceColumns(cols.map(c => c.name))
             } else if (sourceEntity) {
                 const res = await jobsAPI.getEntityFields(normalizeErpForApi(source), sourceEntity)
@@ -500,7 +500,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const fetchTargetColumns = async () => {
         try {
             if (destination === "snowflake" && destSfDatabase && destSfSchema && destSfTable) {
-                const cols = await snowflakeAPI.getTableColumns(destSfDatabase, destSfSchema, destSfTable)
+                const cols = await warehouseConnectorsAPI.getTableColumns('snowflake', destSfDatabase, destSfSchema, destSfTable)
                 setTargetColumns(cols.map(c => c.name))
             } else if (targetEntity) {
                 const res = await jobsAPI.getEntityFields(normalizeErpForApi(destination), targetEntity)

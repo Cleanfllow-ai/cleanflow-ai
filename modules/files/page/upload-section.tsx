@@ -16,8 +16,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/shared/lib/utils";
-import { QuickBooksImport } from "@/modules/quickbooks";
-import { ZohoBooksImport } from "@/modules/zoho";
+import { ERPImport } from "@/modules/connectors";
 import { UnifiedBridgeImport } from "@/modules/unified-bridge";
 import { CustomDestinationExport } from "@/modules/files";
 import {
@@ -231,7 +230,8 @@ function ImportSection({ state }: { state: FilesPageState }) {
             ) : selectedSource === "erp" && selectedErp === "quickbooks" ? (
                 renderRestrictedFilesPanel(
                     <div className="min-h-[300px] sm:min-h-[400px] lg:min-h-[500px]">
-                        <QuickBooksImport
+                        <ERPImport
+                            provider="quickbooks"
                             mode="source"
                             onImportComplete={handleQuickBooksImportComplete}
                             onPermissionDenied={showFilesPermissionDenied}
@@ -242,7 +242,8 @@ function ImportSection({ state }: { state: FilesPageState }) {
             ) : selectedSource === "erp" && selectedErp === "zoho-books" ? (
                 renderRestrictedFilesPanel(
                     <div className="min-h-[300px] sm:min-h-[400px] lg:min-h-[500px]">
-                        <ZohoBooksImport
+                        <ERPImport
+                            provider="zohobooks"
                             mode="source"
                             onImportComplete={handleQuickBooksImportComplete}
                             onPermissionDenied={showFilesPermissionDenied}
@@ -327,7 +328,8 @@ function ExportSection({ state }: { state: FilesPageState }) {
             ) : selectedDestination === "erp" && selectedDestinationErp === "quickbooks" ? (
                 renderRestrictedFilesPanel(
                     <div className="min-h-[300px] sm:min-h-[400px] lg:min-h-[500px] rounded-xl border bg-card p-4">
-                        <QuickBooksImport
+                        <ERPImport
+                            provider="quickbooks"
                             mode="destination"
                             onPermissionDenied={showFilesPermissionDenied}
                             onNotification={(message, type) => { }}
@@ -337,7 +339,8 @@ function ExportSection({ state }: { state: FilesPageState }) {
             ) : selectedDestination === "erp" && selectedDestinationErp === "zoho-books" ? (
                 renderRestrictedFilesPanel(
                     <div className="min-h-[300px] sm:min-h-[400px] lg:min-h-[500px] rounded-xl border bg-card p-4">
-                        <ZohoBooksImport
+                        <ERPImport
+                            provider="zohobooks"
                             mode="destination"
                             onPermissionDenied={showFilesPermissionDenied}
                             onNotification={(message, type) => { }}

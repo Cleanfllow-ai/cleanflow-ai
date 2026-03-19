@@ -1,29 +1,29 @@
 "use client"
 
-import { useState } from 'react'
-import { Network, FileSpreadsheet } from 'lucide-react'
+import { useState } from "react"
+import { Network, FileSpreadsheet, Loader2 } from "lucide-react"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { QuickBooksImport } from '@/modules/quickbooks'
-import { ZohoBooksImport } from '@/modules/zoho'
-import { SnowflakeImport } from '@/modules/snowflake'
-import { GoogleDriveImport } from '@/modules/googledrive'
-import SchemaDropForm from './schema-drop-form'
-import SchemaExportForm from './schema-export-form'
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ERPImport, WarehouseImport, StorageImport } from "@/modules/connectors"
+import { useConnectedProviders } from "@/modules/connectors/hooks/use-connected-providers"
+import SchemaDropForm from "./schema-drop-form"
+import SchemaExportForm from "./schema-export-form"
 
 interface ErpSourceFormProps {
   mode?: "source" | "destination"
-  uploadId?: string  // Required for export/destination mode
-  file?: any         // FileStatusResponse — for schema export in destination mode
-  columns?: string[] // file columns — for schema export in destination mode
+  uploadId?: string
+  file?: any
+  columns?: string[]
   token: string
   onIngestionStart: () => void
   onIngestionComplete: (result: { success: boolean; message: string; uploadId?: string }) => void
@@ -31,33 +31,10 @@ interface ErpSourceFormProps {
   disabled?: boolean
 }
 
-const ERP_OPTIONS = [
-  { label: "GOOGLE DRIVE", value: "googledrive" },
-  { label: "QUICKBOOKS ONLINE", value: "quickbooks" },
-  { label: "ZOHO BOOKS", value: "zoho-books" },
-  { label: "SNOWFLAKE", value: "snowflake" },
-  { label: "ORACLE FUSION", value: "oracle" },
-  { label: "SAP", value: "sap" },
-  { label: "MICROSOFT DYNAMICS", value: "dynamics" },
-  { label: "NETSUITE", value: "netsuite" },
-  { label: "WORKDAY", value: "workday" },
-  { label: "INFOR M3", value: "infor-m3" },
-  { label: "INFOR LN", value: "infor-ln" },
-  { label: "EPICOR KINETIC", value: "epicor" },
-  { label: "QAD", value: "qad" },
-  { label: "IFS CLOUD", value: "ifs" },
-  { label: "SAGE INTACCT", value: "sage" },
-]
-
-/** Map ERP selector values to provider keys used by the backend API */
-const PROVIDER_MAP: Record<string, string> = {
-  "googledrive": "googledrive",
-  "quickbooks": "quickbooks",
-  "zoho-books": "zohobooks",
-  "snowflake": "snowflake",
-  "netsuite": "netsuite",
-  "dynamics": "dynamics",
-  "sap": "sap",
+const CATEGORY_LABELS: Record<string, string> = {
+  erp: "ERP Systems",
+  warehouse: "Data Warehouses",
+  storage: "Cloud Storage",
 }
 
 export default function ErpSourceForm({
@@ -71,58 +48,55 @@ export default function ErpSourceForm({
   onError,
   disabled,
 }: ErpSourceFormProps) {
-  const [selectedErp, setSelectedErp] = useState("googledrive")
+  const { providers, grouped, loading } = useConnectedProviders()
+  const [selectedProvider, setSelectedProvider] = useState("")
   const [importMode, setImportMode] = useState<"entity" | "schema">("entity")
 
+  // Derive category from selection
+  const selectedInfo = providers.find((p) => p.provider_id === selectedProvider)
+  const category = selectedInfo?.category || ""
+  const displayName = selectedInfo?.display_name || selectedProvider
+
   const handleNotification = (message: string, type: "success" | "error") => {
-    if (type === 'error') {
+    if (type === "error") {
       onError(message)
     } else {
       onIngestionComplete({ success: true, message })
     }
   }
 
-  const handleImportComplete = (uploadId: string) => {
+  const handleImportComplete = (importUploadId: string) => {
     onIngestionComplete({
       success: true,
-      message: `Successfully imported data from ${ERP_OPTIONS.find((e) => e.value === selectedErp)?.label}`,
-      uploadId,
+      message: `Successfully imported data from ${displayName}`,
+      uploadId: importUploadId,
     })
   }
 
-  const renderErpContent = () => {
-    if (selectedErp === "googledrive") {
+  const renderConnectorContent = () => {
+    if (!selectedProvider) {
       return (
-        <GoogleDriveImport
-          mode={mode}
+        <div className="flex items-center justify-center min-h-[250px] text-sm text-muted-foreground">
+          Select a connector above to get started.
+        </div>
+      )
+    }
+
+    // Route to the correct component based on category
+    if (category === "storage") {
+      return (
+        <StorageImport
+          provider={selectedProvider}
           onImportComplete={handleImportComplete}
           onNotification={handleNotification}
         />
       )
     }
-    if (selectedErp === "quickbooks") {
+
+    if (category === "warehouse") {
       return (
-        <QuickBooksImport
-          mode={mode}
-          uploadId={uploadId}
-          onImportComplete={handleImportComplete}
-          onNotification={handleNotification}
-        />
-      )
-    }
-    if (selectedErp === "zoho-books") {
-      return (
-        <ZohoBooksImport
-          mode={mode}
-          uploadId={uploadId}
-          onImportComplete={handleImportComplete}
-          onNotification={handleNotification}
-        />
-      )
-    }
-    if (selectedErp === "snowflake") {
-      return (
-        <SnowflakeImport
+        <WarehouseImport
+          provider={selectedProvider}
           mode={mode}
           uploadId={uploadId}
           onImportComplete={handleImportComplete}
@@ -130,47 +104,99 @@ export default function ErpSourceForm({
         />
       )
     }
+
+    if (category === "erp") {
+      return (
+        <ERPImport
+          provider={selectedProvider}
+          mode={mode}
+          hideAuth
+          uploadId={uploadId}
+          onImportComplete={handleImportComplete}
+          onNotification={handleNotification}
+        />
+      )
+    }
+
+    // Unknown category — show placeholder
     return (
       <div className="flex flex-col items-center justify-center min-h-[250px] p-8 border-2 border-dashed rounded-lg bg-muted/5">
         <div className="rounded-full bg-muted p-6 mb-4">
           <Network className="h-10 w-10 text-muted-foreground" />
         </div>
-        <h3 className="text-lg font-medium mb-2 text-center">
-          {ERP_OPTIONS.find((e) => e.value === selectedErp)?.label}
-        </h3>
+        <h3 className="text-lg font-medium mb-2 text-center">{displayName}</h3>
         <p className="text-sm text-muted-foreground mb-6 max-w-md text-center">
-          Connect your {ERP_OPTIONS.find((e) => e.value === selectedErp)?.label} account to {mode === "source" ? "import" : "export"} data directly.
+          Connect your {displayName} account to{" "}
+          {mode === "source" ? "import" : "export"} data directly.
         </p>
-        <Button disabled size="lg">Connect</Button>
+        <Button disabled size="lg">
+          Connect
+        </Button>
       </div>
     )
   }
 
+  const isStorageProvider = category === "storage"
+  const showTabs = selectedProvider && !isStorageProvider
+
   return (
     <div className="space-y-4">
-      {/* ERP System Selector */}
+      {/* Connector Selector — grouped by category */}
       <div className="space-y-2">
-        <Label htmlFor="erp-system">{mode === "source" ? "Select Source System" : "Select Destination System"}</Label>
-        <Select value={selectedErp} onValueChange={setSelectedErp}>
-          <SelectTrigger id="erp-system" disabled={disabled} className="focus:ring-0 focus:ring-offset-0 hover:bg-background hover:text-foreground active:scale-100 transition-none">
-            <SelectValue placeholder="Select ERP system" />
+        <Label htmlFor="erp-system">
+          {mode === "source" ? "Select Source System" : "Select Destination System"}
+        </Label>
+        <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+          <SelectTrigger
+            id="erp-system"
+            disabled={disabled || loading}
+            className="focus:ring-0 focus:ring-offset-0 hover:bg-background hover:text-foreground active:scale-100 transition-none"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Loading connectors...
+              </span>
+            ) : (
+              <SelectValue placeholder="Select connector" />
+            )}
           </SelectTrigger>
           <SelectContent className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-            {ERP_OPTIONS.map((erp) => (
-              <SelectItem key={erp.value} value={erp.value}>
-                {erp.label}
-              </SelectItem>
-            ))}
+            {Object.entries(CATEGORY_LABELS).map(([catKey, catLabel]) => {
+              const catList = grouped[catKey]
+              if (!catList || catList.length === 0) return null
+              return (
+                <SelectGroup key={catKey}>
+                  <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold">
+                    {catLabel}
+                  </SelectLabel>
+                  {catList.map((p) => (
+                    <SelectItem key={p.provider_id} value={p.provider_id}>
+                      {p.display_name.toUpperCase()}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )
+            })}
+            {providers.length === 0 && !loading && (
+              <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                No connectors active. Go to <span className="font-medium">Connectors</span> to connect.
+              </div>
+            )}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Google Drive: no Entity/Schema tabs — render file browser directly */}
-      {selectedErp === "googledrive" && renderErpContent()}
+      {/* Storage providers: no tabs, render file browser directly */}
+      {isStorageProvider && renderConnectorContent()}
 
-      {/* Import Mode: Entity vs Schema Drop (source mode only, non-file-source connectors) */}
-      {selectedErp !== "googledrive" && mode === "source" && (
-        <Tabs value={importMode} onValueChange={(v) => setImportMode(v as "entity" | "schema")} className="w-full">
+      {/* Source mode: Entity vs Schema Drop tabs */}
+      {showTabs && mode === "source" && (
+        <Tabs
+          value={importMode}
+          onValueChange={(v) => setImportMode(v as "entity" | "schema")}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="entity" className="text-xs sm:text-sm">
               <Network className="h-3.5 w-3.5 mr-1.5" />
@@ -181,14 +207,12 @@ export default function ErpSourceForm({
               Schema Drop
             </TabsTrigger>
           </TabsList>
-
           <TabsContent value="entity" className="mt-3">
-            {renderErpContent()}
+            {renderConnectorContent()}
           </TabsContent>
-
           <TabsContent value="schema" className="mt-3">
             <SchemaDropForm
-              provider={PROVIDER_MAP[selectedErp] || selectedErp}
+              provider={selectedProvider}
               token={token}
               onImportComplete={handleImportComplete}
               onNotification={handleNotification}
@@ -198,8 +222,12 @@ export default function ErpSourceForm({
       )}
 
       {/* Destination mode: By Entity / Custom Schema tabs */}
-      {selectedErp !== "googledrive" && mode === "destination" && (
-        <Tabs value={importMode} onValueChange={(v) => setImportMode(v as "entity" | "schema")} className="w-full">
+      {showTabs && mode === "destination" && (
+        <Tabs
+          value={importMode}
+          onValueChange={(v) => setImportMode(v as "entity" | "schema")}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="entity" className="text-xs sm:text-sm">
               <Network className="h-3.5 w-3.5 mr-1.5" />
@@ -210,14 +238,12 @@ export default function ErpSourceForm({
               Custom Schema
             </TabsTrigger>
           </TabsList>
-
           <TabsContent value="entity" className="mt-3">
-            {renderErpContent()}
+            {renderConnectorContent()}
           </TabsContent>
-
           <TabsContent value="schema" className="mt-3">
             <SchemaExportForm
-              provider={PROVIDER_MAP[selectedErp] || selectedErp}
+              provider={selectedProvider}
               file={file}
               columns={columns || []}
               token={token}
@@ -226,6 +252,9 @@ export default function ErpSourceForm({
           </TabsContent>
         </Tabs>
       )}
+
+      {/* No provider selected yet */}
+      {!selectedProvider && !loading && renderConnectorContent()}
     </div>
   )
 }

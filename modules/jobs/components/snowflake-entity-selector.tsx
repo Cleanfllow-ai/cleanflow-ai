@@ -7,19 +7,20 @@ import { Badge } from "@/components/ui/badge"
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import type { SnowflakeMetadataItem } from "@/modules/snowflake/types/snowflake.types"
+import type { WarehouseMetadataItem } from "@/modules/connectors/types"
 
-export type { SnowflakeMetadataItem }
+/** @deprecated Use WarehouseMetadataItem */
+export type { WarehouseMetadataItem as SnowflakeMetadataItem }
 
 export interface SnowflakeEntitySelectorProps {
     label: string
     connected: boolean
     isConnecting?: boolean
     onConnect?: () => void
-    warehouses: SnowflakeMetadataItem[]
-    databases: SnowflakeMetadataItem[]
-    schemas: SnowflakeMetadataItem[]
-    tables: SnowflakeMetadataItem[]
+    warehouses: WarehouseMetadataItem[]
+    databases: WarehouseMetadataItem[]
+    schemas: WarehouseMetadataItem[]
+    tables: WarehouseMetadataItem[]
     selectedWarehouse: string
     selectedDatabase: string
     selectedSchema: string

@@ -54,9 +54,9 @@ const ENDPOINTS = {
     PROFILING: "/jobs/profiling",
     PRESETS: "/jobs/presets",
     RULES: "/jobs/rules",
-    DISCOVER_ENTITIES: "/erp/discover-entities",
-    ENTITY_FIELDS: "/erp/entity-fields",
-    MAPPING_PREVIEW: "/erp/mapping/preview",
+    DISCOVER_ENTITIES: "/connectors/erp/discover-entities",
+    ENTITY_FIELDS: "/connectors/erp/entity-fields",
+    MAPPING_PREVIEW: "/connectors/erp/mapping/preview",
 }
 
 class JobsAPI {
@@ -235,14 +235,7 @@ class JobsAPI {
 
     async discoverEntities(provider: string): Promise<{ entities: Array<{ entity?: string; name?: string; label?: string; record_count?: number; value?: string }> }> {
         const token = this.getAuth()
-        let endpoint: string
-        if (provider === "quickbooks") {
-            endpoint = "/quickbooks/discover-entities"
-        } else if (provider === "zohobooks") {
-            endpoint = "/zoho-books/discover-entities"
-        } else {
-            endpoint = `${ENDPOINTS.DISCOVER_ENTITIES}?provider=${encodeURIComponent(provider)}`
-        }
+        const endpoint = `/connectors/erp/${encodeURIComponent(provider)}/entities`
         try {
             return await this.makeRequest(endpoint, token, { method: "GET" })
         } catch {

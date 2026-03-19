@@ -136,7 +136,7 @@ class ERPConnectorService {
    * List all available ERPs (from template + registered connectors).
    */
   async listERPs(): Promise<ConnectorERPListResponse> {
-    return await this.makeRequest<ConnectorERPListResponse>('/erp/mapping/erps', {
+    return await this.makeRequest<ConnectorERPListResponse>('/connectors/erp/mapping/erps', {
       method: 'GET',
     })
   }
@@ -146,9 +146,8 @@ class ERPConnectorService {
    */
   async getConnectionStatus(provider: string): Promise<ConnectorConnectionStatus> {
     try {
-      const params = new URLSearchParams({ provider })
       return await this.makeRequest<ConnectorConnectionStatus>(
-        `/erp/connector/connections?${params.toString()}`,
+        `/connectors/${provider}/connections`,
         { method: 'GET' }
       )
     } catch {
@@ -160,9 +159,9 @@ class ERPConnectorService {
    * Initiate OAuth connection for any provider.
    */
   async connect(provider: string): Promise<{ auth_url: string }> {
-    return await this.makeRequest<{ auth_url: string }>('/erp/connector/connect', {
+    return await this.makeRequest<{ auth_url: string }>(`/connectors/${provider}/connect`, {
       method: 'POST',
-      body: JSON.stringify({ provider }),
+      body: JSON.stringify({}),
     })
   }
 
@@ -177,12 +176,11 @@ class ERPConnectorService {
     orgId?: string,
     columnMapping?: Record<string, string>
   ): Promise<ConnectorExportResponse> {
-    return await this.makeRequest<ConnectorExportResponse>('/erp/connector/export', {
+    return await this.makeRequest<ConnectorExportResponse>(`/connectors/erp/${provider}/export`, {
       method: 'POST',
       body: JSON.stringify({
-        provider,
         upload_id: uploadId,
-        entity,
+        entity_type: entity,
         org_id: orgId,
         column_mapping: columnMapping,
       }),
@@ -198,11 +196,10 @@ class ERPConnectorService {
     filters: Record<string, unknown> = {},
     orgId?: string
   ): Promise<unknown> {
-    return await this.makeRequest('/erp/connector/import', {
+    return await this.makeRequest(`/connectors/erp/${provider}/import`, {
       method: 'POST',
       body: JSON.stringify({
-        provider,
-        entity,
+        entity_type: entity,
         filters,
         org_id: orgId,
       }),
@@ -213,9 +210,8 @@ class ERPConnectorService {
    * Disconnect any provider.
    */
   async disconnect(provider: string): Promise<void> {
-    await this.makeRequest('/erp/connector/disconnect', {
+    await this.makeRequest(`/connectors/${provider}/disconnect`, {
       method: 'DELETE',
-      body: JSON.stringify({ provider }),
     })
   }
 
@@ -226,7 +222,7 @@ class ERPConnectorService {
     provider: string,
     columns: string[]
   ): Promise<SchemaResolveResponse> {
-    return await this.makeRequest<SchemaResolveResponse>('/erp/schema-resolve', {
+    return await this.makeRequest<SchemaResolveResponse>('/connectors/erp/schema-resolve', {
       method: 'POST',
       body: JSON.stringify({ provider, columns }),
     })
@@ -241,7 +237,7 @@ class ERPConnectorService {
     columnResolutions: ColumnResolution[],
     orgId?: string
   ): Promise<MultiExportResponse> {
-    return await this.makeRequest<MultiExportResponse>('/erp/multi-export', {
+    return await this.makeRequest<MultiExportResponse>('/connectors/erp/multi-export', {
       method: 'POST',
       body: JSON.stringify({
         provider,
@@ -261,7 +257,7 @@ class ERPConnectorService {
   ): Promise<MultiExportProgress> {
     const params = new URLSearchParams({ provider, upload_id: uploadId })
     return await this.makeRequest<MultiExportProgress>(
-      `/erp/multi-export/status?${params.toString()}`,
+      `/connectors/erp/multi-export/status?${params.toString()}`,
       { method: 'GET' }
     )
   }

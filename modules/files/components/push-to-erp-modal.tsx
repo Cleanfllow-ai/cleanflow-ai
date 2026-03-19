@@ -27,9 +27,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import quickBooksAPI from '@/modules/quickbooks/api/quickbooks-api'
-import zohoBooksAPI from '@/modules/zoho/api/zoho-books-api'
-import erpConnectorAPI from '@/modules/files/api/erp-connector-api'
+import { connectorsAPI, erpConnectorsAPI } from '@/modules/connectors'
 import { useMultiEntityExport } from '@/modules/files/hooks/use-multi-entity-export'
 import type { FileStatusResponse } from '@/modules/files/api/file-management-api'
 
@@ -234,13 +232,8 @@ function useERPPushCore({
     const check = async () => {
       try {
         let connected = false
-        if (selectedERP === 'quickbooks') {
-          connected = (await quickBooksAPI.getConnectionStatus()).connected
-        } else if (selectedERP === 'zoho-books') {
-          connected = (await zohoBooksAPI.getConnectionStatus()).connected
-        } else if (selectedOption?.provider) {
-          connected = (await erpConnectorAPI.getConnectionStatus(selectedOption.provider)).connected
-        }
+        const provider = selectedOption?.provider || selectedERP
+        connected = (await connectorsAPI.getConnectionStatus(provider)).connected
         setConnectionChecked(prev => ({ ...prev, [selectedERP]: connected }))
       } catch {
         setConnectionChecked(prev => ({ ...prev, [selectedERP]: false }))
@@ -262,8 +255,9 @@ function useERPPushCore({
     setLegacyError(null)
     setLegacyResult(null)
     try {
+      const provider = selectedOption.provider || selectedERP
       setLegacyStatus(`Checking ${selectedOption.label} connection...`)
-      const connStatus = await erpConnectorAPI.getConnectionStatus(selectedOption.provider)
+      const connStatus = await connectorsAPI.getConnectionStatus(provider)
       if (!connStatus.connected) {
         const msg = `${selectedOption.label} is not connected.`
         setLegacyError(msg)
@@ -271,7 +265,7 @@ function useERPPushCore({
         return
       }
       setLegacyStatus(`Exporting to ${selectedOption.label}...`)
-      const resp = await erpConnectorAPI.exportToERP(selectedOption.provider, file.upload_id, file.detected_entity)
+      const resp = await erpConnectorsAPI.exportData(provider, file.upload_id, file.detected_entity)
       const exported = (resp.records_created || 0) + (resp.records_updated || 0)
       setLegacyResult({
         success: exported > 0 || resp.success === true,

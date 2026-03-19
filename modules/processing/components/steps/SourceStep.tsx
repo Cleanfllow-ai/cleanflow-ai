@@ -17,8 +17,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/shared/lib/utils"
-import { QuickBooksImport } from "@/modules/quickbooks"
-import { ZohoBooksImport } from "@/modules/zoho"
+import { ERPImport } from "@/modules/connectors"
 import { UnifiedBridgeImport } from "@/modules/unified-bridge"
 import { fileManagementAPI } from "@/modules/files"
 import { useProcessingWizard } from "../WizardContext"
@@ -263,7 +262,8 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
                     </div>
                 ) : selectedSource === "erp" && selectedErp === "quickbooks" ? (
                     <div className="min-h-[320px]">
-                        <QuickBooksImport
+                        <ERPImport
+                            provider="quickbooks"
                             mode="source"
                             onImportComplete={handleImportComplete}
                             onPermissionDenied={() => setUploadError("You do not have permission for this action.")}
@@ -272,7 +272,8 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
                     </div>
                 ) : selectedSource === "erp" && selectedErp === "zoho-books" ? (
                     <div className="min-h-[320px]">
-                        <ZohoBooksImport
+                        <ERPImport
+                            provider="zohobooks"
                             mode="source"
                             onImportComplete={handleImportComplete}
                             onPermissionDenied={() => setUploadError("You do not have permission for this action.")}
