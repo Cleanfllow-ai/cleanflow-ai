@@ -47,8 +47,9 @@ export interface MultiExportEntityResult {
 }
 
 export interface MultiExportResponse {
-  status: 'done' | 'failed'
-  results: MultiExportEntityResult[]
+  status: 'done' | 'failed' | 'processing'
+  results?: MultiExportEntityResult[]
+  message?: string
 }
 
 export interface MultiExportProgress {

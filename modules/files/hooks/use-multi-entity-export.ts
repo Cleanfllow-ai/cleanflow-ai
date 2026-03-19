@@ -129,8 +129,50 @@ export function useMultiEntityExport({
             })),
           }))
         }
-        if (progress?.status === 'done' || progress?.status === 'failed') {
+        // Polling drives state to completion (async path)
+        if (progress?.status === 'done') {
           stopPolling()
+          const entities = progress.entities ?? []
+          const totalExported = entities.reduce((sum, e) => sum + (e.success ?? 0), 0)
+          setState(s => ({
+            ...s,
+            exportState: 'done',
+            finalResults: entities.map(e => ({
+              entity: e.entity,
+              success_count: e.success ?? 0,
+              failed_count: e.failed ?? 0,
+              errors: [],
+            })),
+            entityProgress: entities.map(e => ({
+              entity: e.entity,
+              status: (e.failed ?? 0) > 0 ? 'failed' as const : 'done' as const,
+              success: e.success ?? 0,
+              failed: e.failed ?? 0,
+            })),
+          }))
+        } else if (progress?.status === 'failed') {
+          stopPolling()
+          const entities = progress.entities ?? []
+          const failedEntity = entities.find(e => e.status === 'failed')
+          setState(s => ({
+            ...s,
+            exportState: 'error',
+            error: failedEntity
+              ? `${failedEntity.entity} failed — ${failedEntity.failed ?? 0} records rejected`
+              : 'Export failed',
+            finalResults: entities.map(e => ({
+              entity: e.entity,
+              success_count: e.success ?? 0,
+              failed_count: e.failed ?? 0,
+              errors: [],
+            })),
+            entityProgress: entities.map(e => ({
+              entity: e.entity,
+              status: (e.failed ?? 0) > 0 ? 'failed' as const : e.status === 'done' ? 'done' as const : 'pending' as const,
+              success: e.success ?? 0,
+              failed: e.failed ?? 0,
+            })),
+          }))
         }
       } catch {
         // polling failures are non-fatal
@@ -144,38 +186,48 @@ export function useMultiEntityExport({
         state.resolutions,
         orgId
       )
+
+      // Async path: backend returns {"status": "processing"} — let polling handle it
+      if (result.status === 'processing') {
+        return
+      }
+
+      // Sync path (backward compat): backend returned final result directly
       stopPolling()
+      const results = result.results ?? []
 
       if (result.status === 'done') {
         setState(s => ({
           ...s,
           exportState: 'done',
-          finalResults: result.results,
-          entityProgress: result.results.map(r => ({
+          finalResults: results,
+          entityProgress: results.map(r => ({
             entity: r.entity,
-            status: r.failed_count > 0 ? 'failed' : 'done',
+            status: r.failed_count > 0 ? 'failed' as const : 'done' as const,
             success: r.success_count,
             failed: r.failed_count,
           })),
         }))
       } else {
-        const failedEntity = result.results.find(r => r.failed_count > 0)
+        const failedEntity = results.find(r => r.failed_count > 0)
         setState(s => ({
           ...s,
           exportState: 'error',
-          finalResults: result.results,
+          finalResults: results,
           error: failedEntity
             ? `${failedEntity.entity} failed — ${failedEntity.failed_count} records rejected`
             : 'Export failed',
-          entityProgress: result.results.map(r => ({
+          entityProgress: results.map(r => ({
             entity: r.entity,
-            status: r.failed_count > 0 ? 'failed' : 'done',
+            status: r.failed_count > 0 ? 'failed' as const : 'done' as const,
             success: r.success_count,
             failed: r.failed_count,
           })),
         }))
       }
     } catch (err) {
+      // Don't kill the export if polling is still active (async path)
+      if (pollRef.current) return
       stopPolling()
       setState(s => ({
         ...s,

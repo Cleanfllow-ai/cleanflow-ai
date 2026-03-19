@@ -43,7 +43,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
     return (
     <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[580px] max-h-[85vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[580px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle className="text-lg">{d.isEdit ? "Edit Job" : "Create Job"}</DialogTitle>
                     <DialogDescription>
@@ -121,7 +121,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                             ) : (
                                 <Select
                                     key={`src-entity-${d.source}`}
-                                    {...(d.sourceEntity ? { value: d.sourceEntity } : {})}
+                                    value={d.sourceEntity}
                                     onValueChange={d.setSourceEntity}
                                 >
                                     <SelectTrigger className="h-10">
@@ -168,7 +168,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                             ) : (
                                 <Select
                                     key={`tgt-entity-${d.destination}`}
-                                    {...(d.targetEntity ? { value: d.targetEntity } : {})}
+                                    value={d.targetEntity}
                                     onValueChange={d.setTargetEntity}
                                 >
                                     <SelectTrigger className="h-10">

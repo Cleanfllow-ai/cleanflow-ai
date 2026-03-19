@@ -58,6 +58,15 @@ interface PushToERPModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   file: FileStatusResponse | null
+  columns?: string[]
+  onSuccess?: () => void
+  onError?: (error: string) => void
+}
+
+/** Standalone content (no Dialog wrapper) for embedding in ExportDialog */
+export interface PushToERPContentProps {
+  file: FileStatusResponse | null
+  columns?: string[]
   onSuccess?: () => void
   onError?: (error: string) => void
 }
@@ -178,20 +187,24 @@ function ViewMappingDrawer({
   )
 }
 
-// ─── Main component ─────────────────────────────────────────────────────────
+// ─── Shared core logic hook ─────────────────────────────────────────────────
 
-export function PushToERPModal({
-  open,
-  onOpenChange,
+function useERPPushCore({
   file,
+  columns,
+  active,
   onSuccess,
   onError,
-}: PushToERPModalProps) {
+}: {
+  file: FileStatusResponse | null
+  columns?: string[]
+  active: boolean
+  onSuccess?: () => void
+  onError?: (error: string) => void
+}) {
   const [selectedERP, setSelectedERP] = useState<string>('quickbooks')
   const [connectionChecked, setConnectionChecked] = useState<Record<string, boolean | null>>({})
   const [mappingOpen, setMappingOpen] = useState(false)
-
-  // Legacy single-entity path for non-multi-entity ERPs
   const [legacyPushing, setLegacyPushing] = useState(false)
   const [legacyResult, setLegacyResult] = useState<{ success: boolean; message: string } | null>(null)
   const [legacyError, setLegacyError] = useState<string | null>(null)
@@ -199,9 +212,7 @@ export function PushToERPModal({
 
   const selectedOption = ERP_OPTIONS.find(o => o.value === selectedERP)
   const isMultiEntity = selectedOption?.multiEntity === true
-
-  // File columns — ideally from file.columns, else empty
-  const fileColumns: string[] = (file as any)?.columns || []
+  const fileColumns: string[] = columns || []
 
   const multiExport = useMultiEntityExport({
     uploadId: file?.upload_id ?? null,
@@ -209,20 +220,17 @@ export function PushToERPModal({
     provider: selectedERP,
   })
 
-  // Detect entities when ERP changes and modal is open (multi-entity path only)
   useEffect(() => {
-    if (!open || !isMultiEntity || !fileColumns.length) return
+    if (!active || !isMultiEntity || !fileColumns.length) return
     if (multiExport.exportState === 'idle') {
       multiExport.detectEntities()
     }
-  }, [open, selectedERP, isMultiEntity]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active, selectedERP, isMultiEntity]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Check connection when ERP changes
   useEffect(() => {
-    if (!open) return
+    if (!active) return
     if (!selectedOption?.available) return
     if (connectionChecked[selectedERP] !== undefined) return
-
     const check = async () => {
       try {
         let connected = false
@@ -239,7 +247,7 @@ export function PushToERPModal({
       }
     }
     check()
-  }, [open, selectedERP]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active, selectedERP]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleERPChange = (value: string) => {
     setSelectedERP(value)
@@ -248,7 +256,6 @@ export function PushToERPModal({
     setLegacyError(null)
   }
 
-  // Legacy push for non-multi-entity ERPs
   const handleLegacyPush = async () => {
     if (!file || !selectedOption?.provider) return
     setLegacyPushing(true)
@@ -281,37 +288,250 @@ export function PushToERPModal({
     }
   }
 
-  const handleClose = () => {
+  const resetAll = () => {
     multiExport.reset()
     setLegacyResult(null)
     setLegacyError(null)
     setLegacyStatus('')
     setConnectionChecked({})
-    onOpenChange(false)
   }
 
-  const filename = file?.original_filename || file?.filename || 'selected file'
   const isConnected = connectionChecked[selectedERP] === true
-  const isExporting =
-    isMultiEntity
-      ? multiExport.exportState === 'exporting'
-      : legacyPushing
-  const isDone =
-    isMultiEntity
-      ? multiExport.exportState === 'done'
-      : legacyResult?.success === true
+  const isExporting = isMultiEntity ? multiExport.exportState === 'exporting' : legacyPushing
+  const isDone = isMultiEntity ? multiExport.exportState === 'done' : legacyResult?.success === true
 
-  const getConnectionBadge = (opt: ERPOption) => {
-    if (!opt.available) {
-      return <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">Coming Soon</span>
-    }
-    const checked = connectionChecked[opt.value]
-    if (checked === undefined) {
-      return <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">Available</span>
-    }
-    return checked
-      ? <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Connected</span>
-      : <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">Not Connected</span>
+  return {
+    selectedERP, selectedOption, isMultiEntity, fileColumns,
+    connectionChecked, mappingOpen, setMappingOpen,
+    multiExport, legacyPushing, legacyResult, legacyError, legacyStatus,
+    isConnected, isExporting, isDone,
+    handleERPChange, handleLegacyPush, resetAll,
+  }
+}
+
+// ─── Connection badge ───────────────────────────────────────────────────────
+
+function ConnectionBadge({ opt, checked }: { opt: ERPOption; checked: boolean | null | undefined }) {
+  if (!opt.available) {
+    return <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">Coming Soon</span>
+  }
+  if (checked === undefined) {
+    return <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">Available</span>
+  }
+  return checked
+    ? <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Connected</span>
+    : <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">Not Connected</span>
+}
+
+// ─── Shared ERP push UI (used by both modal and inline content) ─────────────
+
+function ERPPushBody({
+  file,
+  core,
+}: {
+  file: FileStatusResponse | null
+  core: ReturnType<typeof useERPPushCore>
+}) {
+  const {
+    selectedERP, selectedOption, isMultiEntity, fileColumns,
+    connectionChecked, multiExport, legacyStatus, legacyError, legacyResult,
+    isExporting, isDone, handleERPChange, handleLegacyPush,
+  } = core
+
+  const filename = file?.original_filename || file?.filename || 'selected file'
+
+  return (
+    <div className="space-y-4">
+      {/* File Info */}
+      <div className="rounded-lg border p-3 bg-muted/50">
+        <p className="text-sm font-medium">{filename}</p>
+        {file && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {file.rows_clean || file.rows_out || 0} clean rows ready to export
+          </p>
+        )}
+      </div>
+
+      {/* ERP Selection */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Select ERP Tool</Label>
+        <RadioGroup
+          value={selectedERP}
+          onValueChange={handleERPChange}
+          disabled={isExporting || isDone}
+          className="space-y-2 max-h-[200px] overflow-y-auto pr-2"
+        >
+          {ERP_OPTIONS.map((option) => (
+            <div
+              key={option.value}
+              className={`flex items-center space-x-3 rounded-lg border p-3 transition-colors ${
+                selectedERP === option.value ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
+              } ${option.available ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}
+            >
+              <RadioGroupItem value={option.value} id={`erp-${option.value}`} disabled={!option.available} />
+              <Label htmlFor={`erp-${option.value}`} className={`flex-1 ${option.available ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">{option.label}</p>
+                  <ConnectionBadge opt={option} checked={connectionChecked[option.value]} />
+                </div>
+                <p className="text-xs text-muted-foreground">{option.description}</p>
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
+      </div>
+
+      {/* ── Multi-entity flow (QB + Zoho) ── */}
+      {isMultiEntity && (
+        <div className="space-y-3">
+          {multiExport.exportState === 'detecting' && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Detecting entities from file…
+            </div>
+          )}
+
+          {(multiExport.exportState === 'detected' || multiExport.exportState === 'exporting' || multiExport.exportState === 'done' || multiExport.exportState === 'error') && multiExport.entities.length > 0 && (
+            <MultiEntitySummaryCard
+              entities={multiExport.entities}
+              mappedCount={multiExport.mappedCount}
+              unmappedColumns={multiExport.unmappedColumns}
+              onViewMapping={() => core.setMappingOpen(true)}
+            />
+          )}
+
+          {(multiExport.exportState === 'exporting' || multiExport.exportState === 'done' || multiExport.exportState === 'error') && (
+            <div className="space-y-1 rounded-lg border p-3 bg-muted/20">
+              {multiExport.entityProgress.map(ep => (
+                <EntityProgressRow key={ep.entity} {...ep} />
+              ))}
+            </div>
+          )}
+
+          {multiExport.exportState === 'idle' && !fileColumns.length && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                Column information not available for this file. Select a file that has been processed.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {multiExport.exportState === 'error' && multiExport.error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{multiExport.error}</AlertDescription>
+            </Alert>
+          )}
+
+          {multiExport.exportState === 'done' && (
+            <Alert className="border-green-200 bg-green-50">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-900">
+                Export complete —{' '}
+                {multiExport.finalResults.reduce((sum, r) => sum + r.success_count, 0)} records exported
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
+
+      {/* ── Legacy single-entity flow (other ERPs) ── */}
+      {!isMultiEntity && (
+        <>
+          {legacyStatus && (
+            <Alert className="border-blue-200 bg-blue-50">
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+              <AlertDescription className="text-blue-900 ml-2">{legacyStatus}</AlertDescription>
+            </Alert>
+          )}
+          {legacyError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{legacyError}</AlertDescription>
+            </Alert>
+          )}
+          {legacyResult && (
+            <Alert className={legacyResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+              {legacyResult.success
+                ? <CheckCircle2 className="h-4 w-4 text-green-600" />
+                : <AlertCircle className="h-4 w-4 text-red-600" />}
+              <AlertDescription className={legacyResult.success ? 'text-green-900' : 'text-red-900'}>
+                {legacyResult.message}
+              </AlertDescription>
+            </Alert>
+          )}
+        </>
+      )}
+
+      {/* Action button */}
+      {!isDone && (
+        <Button
+          onClick={isMultiEntity ? multiExport.startExport : handleLegacyPush}
+          disabled={
+            isExporting ||
+            !file ||
+            !selectedOption?.available ||
+            (isMultiEntity && (multiExport.exportState === 'detecting' || multiExport.exportState === 'idle')) ||
+            (!isMultiEntity && !core.isConnected)
+          }
+          className="gap-2 w-full"
+        >
+          {isExporting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Exporting…
+            </>
+          ) : (
+            <>
+              <CloudUpload className="h-4 w-4" />
+              Export to {selectedOption?.label || 'ERP'}
+            </>
+          )}
+        </Button>
+      )}
+    </div>
+  )
+}
+
+// ─── Standalone content component (for embedding in ExportDialog) ───────────
+
+export function PushToERPContent({
+  file,
+  columns,
+  onSuccess,
+  onError,
+}: PushToERPContentProps) {
+  const core = useERPPushCore({ file, columns, active: true, onSuccess, onError })
+
+  return (
+    <>
+      <ERPPushBody file={file} core={core} />
+      <ViewMappingDrawer
+        open={core.mappingOpen}
+        onOpenChange={core.setMappingOpen}
+        resolutions={core.multiExport.resolutions}
+        unmappedColumns={core.multiExport.unmappedColumns}
+      />
+    </>
+  )
+}
+
+// ─── Modal wrapper (standalone dialog, used in files-page-dialogs) ──────────
+
+export function PushToERPModal({
+  open,
+  onOpenChange,
+  file,
+  columns,
+  onSuccess,
+  onError,
+}: PushToERPModalProps) {
+  const core = useERPPushCore({ file, columns, active: open, onSuccess, onError })
+
+  const handleClose = () => {
+    core.resetAll()
+    onOpenChange(false)
   }
 
   return (
@@ -328,175 +548,23 @@ export function PushToERPModal({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-4 space-y-4">
-            {/* File Info */}
-            <div className="rounded-lg border p-3 bg-muted/50">
-              <p className="text-sm font-medium">{filename}</p>
-              {file && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {file.rows_clean || file.rows_out || 0} clean rows ready to export
-                </p>
-              )}
-            </div>
-
-            {/* ERP Selection */}
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Select ERP Tool</Label>
-              <RadioGroup
-                value={selectedERP}
-                onValueChange={handleERPChange}
-                disabled={isExporting || isDone}
-                className="space-y-2 max-h-[200px] overflow-y-auto pr-2"
-              >
-                {ERP_OPTIONS.map((option) => (
-                  <div
-                    key={option.value}
-                    className={`flex items-center space-x-3 rounded-lg border p-3 transition-colors ${
-                      selectedERP === option.value ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
-                    } ${option.available ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}
-                  >
-                    <RadioGroupItem value={option.value} id={option.value} disabled={!option.available} />
-                    <Label htmlFor={option.value} className={`flex-1 ${option.available ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{option.label}</p>
-                        {getConnectionBadge(option)}
-                      </div>
-                      <p className="text-xs text-muted-foreground">{option.description}</p>
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-
-            {/* ── Multi-entity flow (QB + Zoho) ── */}
-            {isMultiEntity && (
-              <div className="space-y-3">
-                {/* Detecting spinner */}
-                {multiExport.exportState === 'detecting' && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Detecting entities from file…
-                  </div>
-                )}
-
-                {/* Detected — summary card */}
-                {(multiExport.exportState === 'detected' || multiExport.exportState === 'exporting' || multiExport.exportState === 'done' || multiExport.exportState === 'error') && multiExport.entities.length > 0 && (
-                  <MultiEntitySummaryCard
-                    entities={multiExport.entities}
-                    mappedCount={multiExport.mappedCount}
-                    unmappedColumns={multiExport.unmappedColumns}
-                    onViewMapping={() => setMappingOpen(true)}
-                  />
-                )}
-
-                {/* Per-entity progress */}
-                {(multiExport.exportState === 'exporting' || multiExport.exportState === 'done' || multiExport.exportState === 'error') && (
-                  <div className="space-y-1 rounded-lg border p-3 bg-muted/20">
-                    {multiExport.entityProgress.map(ep => (
-                      <EntityProgressRow key={ep.entity} {...ep} />
-                    ))}
-                  </div>
-                )}
-
-                {/* No columns warning */}
-                {multiExport.exportState === 'idle' && !fileColumns.length && (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-sm">
-                      Column information not available for this file. Select a file that has been processed.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Error */}
-                {multiExport.exportState === 'error' && multiExport.error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{multiExport.error}</AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Done success */}
-                {multiExport.exportState === 'done' && (
-                  <Alert className="border-green-200 bg-green-50">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <AlertDescription className="text-green-900">
-                      Export complete —{' '}
-                      {multiExport.finalResults.reduce((sum, r) => sum + r.success_count, 0)} records exported
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            )}
-
-            {/* ── Legacy single-entity flow (other ERPs) ── */}
-            {!isMultiEntity && (
-              <>
-                {legacyStatus && (
-                  <Alert className="border-blue-200 bg-blue-50">
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                    <AlertDescription className="text-blue-900 ml-2">{legacyStatus}</AlertDescription>
-                  </Alert>
-                )}
-                {legacyError && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{legacyError}</AlertDescription>
-                  </Alert>
-                )}
-                {legacyResult && (
-                  <Alert className={legacyResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-                    {legacyResult.success
-                      ? <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      : <AlertCircle className="h-4 w-4 text-red-600" />}
-                    <AlertDescription className={legacyResult.success ? 'text-green-900' : 'text-red-900'}>
-                      {legacyResult.message}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </>
-            )}
+          <div className="py-4">
+            <ERPPushBody file={file} core={core} />
           </div>
 
-          <DialogFooter className="gap-3">
+          <DialogFooter>
             <Button variant="outline" onClick={handleClose}>
-              {isDone ? 'Close' : 'Cancel'}
+              {core.isDone ? 'Close' : 'Cancel'}
             </Button>
-            {!isDone && (
-              <Button
-                onClick={isMultiEntity ? multiExport.startExport : handleLegacyPush}
-                disabled={
-                  isExporting ||
-                  !file ||
-                  !selectedOption?.available ||
-                  (isMultiEntity && (multiExport.exportState === 'detecting' || multiExport.exportState === 'idle')) ||
-                  (!isMultiEntity && !isConnected)
-                }
-                className="gap-2"
-              >
-                {isExporting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Exporting…
-                  </>
-                ) : (
-                  <>
-                    <CloudUpload className="h-4 w-4" />
-                    Export to {selectedOption?.label || 'ERP'}
-                  </>
-                )}
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* View Mapping drawer */}
       <ViewMappingDrawer
-        open={mappingOpen}
-        onOpenChange={setMappingOpen}
-        resolutions={multiExport.resolutions}
-        unmappedColumns={multiExport.unmappedColumns}
+        open={core.mappingOpen}
+        onOpenChange={core.setMappingOpen}
+        resolutions={core.multiExport.resolutions}
+        unmappedColumns={core.multiExport.unmappedColumns}
       />
     </>
   )

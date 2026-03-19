@@ -90,7 +90,7 @@ export function SnowflakeEntitySelector({
                 {warehouses.length > 0 && (
                     <div>
                         <Label className="text-[10px] text-muted-foreground mb-1 block">Warehouse</Label>
-                        <Select {...(selectedWarehouse ? { value: selectedWarehouse } : {})} onValueChange={onWarehouseChange}>
+                        <Select value={selectedWarehouse} onValueChange={onWarehouseChange}>
                             <SelectTrigger className="h-8 text-xs">
                                 <SelectValue placeholder="Warehouse" />
                             </SelectTrigger>
@@ -106,7 +106,7 @@ export function SnowflakeEntitySelector({
                 )}
                 <div>
                     <Label className="text-[10px] text-muted-foreground mb-1 block">Database</Label>
-                    <Select {...(selectedDatabase ? { value: selectedDatabase } : {})} onValueChange={onDatabaseChange}>
+                    <Select value={selectedDatabase} onValueChange={onDatabaseChange}>
                         <SelectTrigger className="h-8 text-xs">
                             <SelectValue placeholder="Database" />
                         </SelectTrigger>
@@ -124,7 +124,7 @@ export function SnowflakeEntitySelector({
                 <div>
                     <Label className="text-[10px] text-muted-foreground mb-1 block">Schema</Label>
                     <Select
-                        {...(selectedSchema ? { value: selectedSchema } : {})}
+                        value={selectedSchema}
                         onValueChange={onSchemaChange}
                         disabled={!selectedDatabase}
                     >
@@ -143,7 +143,7 @@ export function SnowflakeEntitySelector({
                 <div>
                     <Label className="text-[10px] text-muted-foreground mb-1 block">Table</Label>
                     <Select
-                        {...(selectedTable ? { value: selectedTable } : {})}
+                        value={selectedTable}
                         onValueChange={onTableChange}
                         disabled={!selectedSchema}
                     >

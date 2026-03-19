@@ -15,7 +15,7 @@ export {
 export { DownloadFormatModal } from "./components/download-format-modal"
 export { ERPTransformationModal } from "./components/erp-transformation-modal"
 export { FileDetailsDialog } from "./components/file-details-dialog"
-export { PushToERPModal } from "./components/push-to-erp-modal"
+export { PushToERPModal, PushToERPContent } from "./components/push-to-erp-modal"
 export { ColumnProfilingPanel } from "./components/column-profiling-panel"
 export { ColumnExportDialog, ColumnExportContent } from "./components/column-export-dialog"
 export { ExportDialog } from "./components/export-dialog"

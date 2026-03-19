@@ -581,6 +581,7 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                 open={pushQBModalOpen}
                 onOpenChange={setPushQBModalOpen}
                 file={fileToPush}
+                columns={columnExportColumns}
                 onSuccess={() => {
                     setPushQBModalOpen(false);
                     setFileToPush(null);
