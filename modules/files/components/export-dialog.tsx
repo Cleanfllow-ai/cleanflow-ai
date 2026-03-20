@@ -5,7 +5,7 @@
  *
  * Unified Export dialog — two tabs:
  *   1. Download       — select columns/format and save locally (CSV, Excel, JSON)
- *   2. Unified Bridge — push data to any destination via FTP/SFTP, TCP, HTTP, or ERP systems
+ *   2. Connectors — push data to any destination via FTP/SFTP, TCP, HTTP, or ERP systems
  */
 
 import {
@@ -60,7 +60,7 @@ export function ExportDialog({
             Export Data
           </DialogTitle>
           <DialogDescription>
-            Extract a local copy or deliver to any destination via the Unified Bridge.
+            Extract a local copy or deliver to any destination via Connectors.
           </DialogDescription>
           {file && (
             <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
@@ -79,7 +79,7 @@ export function ExportDialog({
             </TabsTrigger>
             <TabsTrigger value="bridge" className="gap-1.5">
               <Server className="h-3.5 w-3.5" />
-              Unified Bridge
+              Connectors
             </TabsTrigger>
           </TabsList>
 
@@ -103,7 +103,7 @@ export function ExportDialog({
             )}
           </TabsContent>
 
-          {/* ── Unified Bridge tab ── */}
+          {/* ── Connectors tab ── */}
           <TabsContent value="bridge" className="flex-1 min-h-0 overflow-y-auto mt-0 px-6 pb-6 pt-4">
             <UnifiedBridgeImport
               mode="destination"

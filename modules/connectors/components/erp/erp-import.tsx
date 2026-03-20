@@ -65,10 +65,10 @@ export default function ERPImport(props: UseERPImportProps) {
       )}
 
       {/* Success Alert */}
-      {q.importResult && mode !== "destination" && (
+      {q.importResult && (
         <Alert className="border-green-200 bg-green-50 py-2 sm:py-3">
           <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-          <AlertDescription className="text-sm sm:text-base text-green-900">
+          <AlertDescription className="text-sm sm:text-base text-green-900 whitespace-pre-line">
             {q.importResult.message || `Imported ${q.importResult.records_imported || 0} records`}
           </AlertDescription>
         </Alert>

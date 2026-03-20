@@ -435,16 +435,20 @@ export function useERPImport({
         return
       }
 
+      const created = (result as any).records_created || 0
+      const updated = (result as any).records_updated || 0
+      const failed = (result as any).records_failed || 0
+      const total = created + updated
       setImportResult({
         success: true,
-        message: `Successfully exported to ${providerDisplayName}`,
-        records_imported: (result as any).records_exported || (result as any).success_count || 0,
+        message: `Export complete: ${total} succeeded${failed ? `, ${failed} failed` : ""}`,
+        records_imported: total,
         filename: "",
         upload_id: fileId,
         entity: config.entity,
       })
       setColumnModalOpen(false)
-      onNotification?.(`Successfully exported to ${providerDisplayName}!`, "success")
+      onNotification?.(`Export to ${providerDisplayName} complete: ${total} succeeded${failed ? `, ${failed} failed` : ""}`, "success")
     } catch (err) {
       const errorMsg = (err as Error).message || "Failed to export data"
       let userMessage = "Export failed: " + errorMsg
@@ -472,15 +476,34 @@ export function useERPImport({
         if (status.status === "completed" || status.status === "pushed") {
           setExportPolling(false)
           setIsExporting(false)
+          const created = (status as any).created || 0
+          const updated = (status as any).updated || 0
+          const skipped = (status as any).skipped || 0
+          const succeeded = status.success_count || 0
+          const failed = status.failed_count || 0
+          const errors = (status as any).errors || []
+
+          // Build detailed breakdown
+          const parts: string[] = [`Export complete: ${succeeded} succeeded, ${failed} failed`]
+          const details: string[] = []
+          if (created > 0) details.push(`${created} created`)
+          if (updated > 0) details.push(`${updated} updated`)
+          if (skipped > 0) details.push(`${skipped} skipped`)
+          if (details.length > 0) parts.push(details.join(", "))
+          if (errors.length > 0) {
+            parts.push(...errors.slice(0, 5).map((e: any) => `Row ${e.row}: ${e.error}`))
+            if (errors.length > 5) parts.push(`...and ${errors.length - 5} more errors`)
+          }
+
           setImportResult({
             success: true,
-            message: `Export complete: ${status.success_count || 0} succeeded, ${status.failed_count || 0} failed`,
-            records_imported: status.success_count || 0,
+            message: parts.join("\n"),
+            records_imported: succeeded,
             filename: "",
             upload_id: fileId,
             entity: config.entity,
           })
-          onNotification?.(`Export to ${providerDisplayName} complete!`, "success")
+          onNotification?.(`Export to ${providerDisplayName} complete: ${succeeded} succeeded, ${failed} failed`, "success")
           return
         }
         if (status.status === "failed") {
