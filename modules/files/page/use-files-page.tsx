@@ -1139,12 +1139,6 @@ export function useFilesPage() {
         }
     };
 
-    /** Quick Export: one-click download in specified format (clean data) */
-    const handleQuickExport = (file: FileStatusResponse, format: "csv" | "excel" | "json") => {
-        if (!ensureFilesPermission()) return;
-        handleDirectDownload(file, format, "clean");
-    };
-
     const handleFormatSelected = (
         format: "csv" | "excel" | "json",
         dataType: "original" | "clean",
@@ -1316,7 +1310,7 @@ export function useFilesPage() {
         columnExportFile, setColumnExportFile,
         columnExportColumns, setColumnExportColumns, columnExportLoading,
         handleColumnExportClick, handleColumnExport, handleColumnExportWithErp,
-        openActionsDialog, handleQuickExport,
+        openActionsDialog,
         actionsDialogOpen, setActionsDialogOpen,
         actionsDialogFile, setActionsDialogFile,
         actionsErpMode, setActionsErpMode, actionsErpTarget, setActionsErpTarget,

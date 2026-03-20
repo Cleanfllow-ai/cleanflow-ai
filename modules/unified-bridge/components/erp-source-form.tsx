@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Network, FileSpreadsheet, Loader2 } from "lucide-react"
+import { Network, Loader2 } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -13,17 +13,12 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ERPImport, WarehouseImport, StorageImport } from "@/modules/connectors"
 import { useConnectedProviders } from "@/modules/connectors/hooks/use-connected-providers"
-import SchemaDropForm from "./schema-drop-form"
-import SchemaExportForm from "./schema-export-form"
 
 interface ErpSourceFormProps {
   mode?: "source" | "destination"
   uploadId?: string
-  file?: any
-  columns?: string[]
   token: string
   onIngestionStart: () => void
   onIngestionComplete: (result: { success: boolean; message: string; uploadId?: string }) => void
@@ -40,8 +35,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function ErpSourceForm({
   mode = "source",
   uploadId,
-  file,
-  columns,
   token,
   onIngestionStart,
   onIngestionComplete,
@@ -50,7 +43,6 @@ export default function ErpSourceForm({
 }: ErpSourceFormProps) {
   const { providers, grouped, loading } = useConnectedProviders()
   const [selectedProvider, setSelectedProvider] = useState("")
-  const [importMode, setImportMode] = useState<"entity" | "schema">("entity")
 
   // Derive category from selection
   const selectedInfo = providers.find((p) => p.provider_id === selectedProvider)
@@ -135,9 +127,6 @@ export default function ErpSourceForm({
     )
   }
 
-  const isStorageProvider = category === "storage"
-  const showTabs = selectedProvider && !isStorageProvider
-
   return (
     <div className="space-y-4">
       {/* Connector Selector — grouped by category */}
@@ -152,9 +141,9 @@ export default function ErpSourceForm({
             className="focus:ring-0 focus:ring-offset-0 hover:bg-background hover:text-foreground active:scale-100 transition-none"
           >
             {loading ? (
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Loading connectors...
+              <span className="inline-flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                <span>Loading connectors...</span>
               </span>
             ) : (
               <SelectValue placeholder="Select connector" />
@@ -179,81 +168,14 @@ export default function ErpSourceForm({
             })}
             {providers.length === 0 && !loading && (
               <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-                No connectors active. Go to <span className="font-medium">Connectors</span> to connect.
+                No connectors active. Go to <span className="font-medium">Admin &gt; Connectors</span> to connect.
               </div>
             )}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Storage providers: no tabs, render file browser directly */}
-      {isStorageProvider && renderConnectorContent()}
-
-      {/* Source mode: Entity vs Schema Drop tabs */}
-      {showTabs && mode === "source" && (
-        <Tabs
-          value={importMode}
-          onValueChange={(v) => setImportMode(v as "entity" | "schema")}
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="entity" className="text-xs sm:text-sm">
-              <Network className="h-3.5 w-3.5 mr-1.5" />
-              By Entity
-            </TabsTrigger>
-            <TabsTrigger value="schema" className="text-xs sm:text-sm">
-              <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
-              Schema Drop
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="entity" className="mt-3">
-            {renderConnectorContent()}
-          </TabsContent>
-          <TabsContent value="schema" className="mt-3">
-            <SchemaDropForm
-              provider={selectedProvider}
-              token={token}
-              onImportComplete={handleImportComplete}
-              onNotification={handleNotification}
-            />
-          </TabsContent>
-        </Tabs>
-      )}
-
-      {/* Destination mode: By Entity / Custom Schema tabs */}
-      {showTabs && mode === "destination" && (
-        <Tabs
-          value={importMode}
-          onValueChange={(v) => setImportMode(v as "entity" | "schema")}
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="entity" className="text-xs sm:text-sm">
-              <Network className="h-3.5 w-3.5 mr-1.5" />
-              By Entity
-            </TabsTrigger>
-            <TabsTrigger value="schema" className="text-xs sm:text-sm">
-              <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
-              Custom Schema
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="entity" className="mt-3">
-            {renderConnectorContent()}
-          </TabsContent>
-          <TabsContent value="schema" className="mt-3">
-            <SchemaExportForm
-              provider={selectedProvider}
-              file={file}
-              columns={columns || []}
-              token={token}
-              onNotification={handleNotification}
-            />
-          </TabsContent>
-        </Tabs>
-      )}
-
-      {/* No provider selected yet */}
-      {!selectedProvider && !loading && renderConnectorContent()}
+      {renderConnectorContent()}
     </div>
   )
 }
