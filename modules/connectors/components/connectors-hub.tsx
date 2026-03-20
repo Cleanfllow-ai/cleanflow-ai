@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { connectorsAPI } from "@/modules/connectors/api/connectors-api"
-import type { ConnectionStatus, ProviderInfo } from "@/modules/connectors/api/connectors-api"
+import type { ConnectionStatus, ProviderInfo, PostAuthConfigField } from "@/modules/connectors/api/connectors-api"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +78,7 @@ export function ConnectorsHub() {
   const [error, setError] = useState<string | null>(null)
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null)
   const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null)
+  const [savingConfig, setSavingConfig] = useState<string | null>(null)
 
   // ─── Load providers from backend ────────────────────────────────
   const loadProviders = useCallback(async () => {
@@ -163,6 +164,27 @@ export function ConnectorsHub() {
       // ignore
     } finally {
       setDisconnectingProvider(null)
+    }
+  }
+
+  // ─── Save post-auth config ─────────────────────────────────────
+  const handleSaveConfig = async (providerId: string, key: string, value: string) => {
+    setSavingConfig(providerId)
+    try {
+      await connectorsAPI.saveConfig(providerId, { [key]: value })
+      // Refresh connection status to get updated current_value
+      const status = await connectorsAPI.getConnectionStatus(providerId)
+      setProviders((prev) =>
+        prev.map((p) =>
+          p.provider_id === providerId
+            ? { ...p, connectionStatus: status }
+            : p,
+        ),
+      )
+    } catch {
+      // ignore
+    } finally {
+      setSavingConfig(null)
     }
   }
 
@@ -295,26 +317,62 @@ export function ConnectorsHub() {
                         ) : null}
                       </div>
 
-                      {/* Connection info */}
+                      {/* Connection info & post-auth config */}
                       {isConnected && provider.connectionStatus && (
-                        <div className="mb-3 px-2.5 py-1.5 rounded-md bg-muted/50 text-[11px] text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
-                          {(provider.connectionStatus as any).realm_id && (
-                            <span>Realm: {(provider.connectionStatus as any).realm_id}</span>
-                          )}
-                          {(provider.connectionStatus as any).org_id && (
-                            <span>Org: {(provider.connectionStatus as any).org_id}</span>
-                          )}
-                          {(provider.connectionStatus as any).email && (
-                            <span>{(provider.connectionStatus as any).email}</span>
-                          )}
-                          {(provider.connectionStatus as any).linked_at && (
-                            <span>
-                              Since{" "}
-                              {new Date(
-                                (provider.connectionStatus as any).linked_at,
-                              ).toLocaleDateString()}
-                            </span>
-                          )}
+                        <div className="mb-3 space-y-2">
+                          {/* Connection metadata */}
+                          <div className="px-2.5 py-1.5 rounded-md bg-muted/50 text-[11px] text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                            {provider.connectionStatus.connection?.email ? (
+                              <span>{String(provider.connectionStatus.connection.email)}</span>
+                            ) : null}
+                            {provider.connectionStatus.connection?.linked_at ? (
+                              <span>
+                                Since{" "}
+                                {new Date(
+                                  String(provider.connectionStatus.connection.linked_at),
+                                ).toLocaleDateString()}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* Dynamic post-auth config fields */}
+                          {provider.connectionStatus.post_auth_config?.map((field: PostAuthConfigField) => (
+                            <div key={field.key} className="px-2.5">
+                              <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+                                {field.label}
+                                {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                              </label>
+                              {field.type === "select" && field.options ? (
+                                <select
+                                  className="w-full h-7 text-xs rounded-md border border-border bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                                  value={field.current_value || ""}
+                                  disabled={savingConfig === pid}
+                                  onChange={(e) => handleSaveConfig(pid, field.key, e.target.value)}
+                                >
+                                  {!field.current_value && (
+                                    <option value="">Select {field.label}...</option>
+                                  )}
+                                  {field.options.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : field.type === "text" ? (
+                                <input
+                                  type="text"
+                                  className="w-full h-7 text-xs rounded-md border border-border bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                                  defaultValue={field.current_value || ""}
+                                  placeholder={`Enter ${field.label}...`}
+                                  onBlur={(e) => {
+                                    if (e.target.value !== (field.current_value || "")) {
+                                      handleSaveConfig(pid, field.key, e.target.value)
+                                    }
+                                  }}
+                                />
+                              ) : null}
+                            </div>
+                          ))}
                         </div>
                       )}
 

@@ -1,13 +1,10 @@
 "use client"
 
 import {
-  Network,
   Download,
-  Trash2,
   AlertCircle,
   CheckCircle2,
   Loader2,
-  ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -46,7 +43,7 @@ import { validateMapping } from "./erp-mapping-utils"
 // ─── Component ────────────────────────────────────────────────────
 
 export default function ERPImport(props: UseERPImportProps) {
-  const { mode, hideAuth } = props
+  const { mode } = props
   const q = useERPImport(props)
 
   if (q.loading) {
@@ -87,54 +84,8 @@ export default function ERPImport(props: UseERPImportProps) {
         </Alert>
       )}
 
-      {/* Not Connected State (only shown when auth UI is visible) */}
-      {!q.connected && !hideAuth ? (
-        <div className="flex flex-col items-center justify-center py-8 sm:py-12 lg:py-16 text-center">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-green-100 rounded-full flex items-center justify-center mb-4 sm:mb-5 lg:mb-6">
-            <Network className="h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-green-600" />
-          </div>
-          <h3 className="text-lg sm:text-xl font-medium mb-2">{q.providerDisplayName}</h3>
-          <p className="text-sm sm:text-base lg:text-lg text-muted-foreground mb-4 sm:mb-5 lg:mb-6 max-w-md px-4">
-            Connect your {q.providerDisplayName} account to{" "}
-            {mode === "source" ? "import" : "export"} data directly
-          </p>
-          <Button
-            onClick={q.connectProvider}
-            size="lg"
-            className="bg-green-600 hover:bg-green-700 px-6 sm:px-8 py-4 sm:py-6 text-sm sm:text-base"
-          >
-            <ExternalLink className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-            Connect {q.providerDisplayName}
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-4 sm:space-y-6">
-          {/* Connected Status — hidden when hideAuth is true */}
-          {!hideAuth && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-              <span className="text-sm sm:text-base font-medium text-green-900">Connected</span>
-              {q.connectionInfo?.realm_id && (
-                <span className="text-xs sm:text-sm text-green-700 truncate max-w-[120px] sm:max-w-none">
-                  ({q.connectionInfo.realm_id})
-                </span>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={q.disconnectProvider}
-              className="h-7 sm:h-8 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 self-end sm:self-auto"
-            >
-              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
-              Disconnect
-            </Button>
-          </div>
-          )}
-
-          {/* Import Form — Source Mode */}
-          {mode === "source" && (
+      {/* Import Form — Source Mode */}
+      {mode === "source" && (
             <div className="grid gap-3 sm:gap-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
@@ -159,11 +110,7 @@ export default function ERPImport(props: UseERPImportProps) {
                         q.discoveredEntities.map((e) => (
                           <SelectItem key={e.entity} value={e.entity} disabled={!e.available}>
                             {e.label}
-                            {e.has_data
-                              ? ` (${e.record_count.toLocaleString()})`
-                              : e.available
-                                ? " (empty)"
-                                : " — not available"}
+                            {!e.available && " — not available"}
                           </SelectItem>
                         ))
                       )}
@@ -307,11 +254,7 @@ export default function ERPImport(props: UseERPImportProps) {
                       q.discoveredEntities.map((e) => (
                         <SelectItem key={e.entity} value={e.entity} disabled={!e.available}>
                           {e.label}
-                          {e.has_data
-                            ? ` (${e.record_count.toLocaleString()})`
-                            : e.available
-                              ? " (empty)"
-                              : " — not available"}
+                          {!e.available && " — not available"}
                         </SelectItem>
                       ))
                     )}
@@ -348,8 +291,6 @@ export default function ERPImport(props: UseERPImportProps) {
               </div>
             </div>
           )}
-        </div>
-      )}
 
       {/* Column Selection Dialog */}
       <AlertDialog open={q.columnModalOpen} onOpenChange={q.setColumnModalOpen}>

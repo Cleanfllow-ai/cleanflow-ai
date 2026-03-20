@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react"
 
 /**
@@ -13,17 +13,33 @@ import { Loader2, CheckCircle2, AlertCircle } from "lucide-react"
  * This page sends a postMessage to the opener window so the
  * ConnectorsHub / ERPImport popup flow completes correctly.
  */
-function CallbackContent() {
+export default function ConnectorCallbackPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [status, setStatus] = useState<"processing" | "success" | "error">("processing")
   const [message, setMessage] = useState("Completing connection...")
 
   useEffect(() => {
-    const provider = searchParams.get("provider") || "unknown"
-    const success = searchParams.get("success")
-    const error = searchParams.get("error")
-    const errorDesc = searchParams.get("error_description")
+    const params = new URLSearchParams(window.location.search)
+    const provider = params.get("provider") || "unknown"
+    const success = params.get("success")
+    const error = params.get("error")
+    const errorDesc = params.get("error_description")
+
+    function notifyOpener(type: string, data: Record<string, unknown>) {
+      if (window.opener) {
+        window.opener.postMessage({ type, ...data }, window.location.origin)
+      }
+    }
+
+    function autoClose(delay: number) {
+      setTimeout(() => {
+        if (window.opener) {
+          window.close()
+        } else {
+          router.push("/admin")
+        }
+      }, delay)
+    }
 
     if (error) {
       setStatus("error")
@@ -39,7 +55,7 @@ function CallbackContent() {
       setStatus("success")
       setMessage("Connected successfully!")
       notifyOpener(`${provider}-auth-success`, {
-        realmId: searchParams.get("realmId") || undefined,
+        realmId: params.get("realmId") || undefined,
       })
       autoClose(1500)
       return
@@ -50,23 +66,7 @@ function CallbackContent() {
     setMessage("Connected successfully!")
     notifyOpener(`${provider}-auth-success`, {})
     autoClose(1500)
-  }, [])
-
-  function notifyOpener(type: string, data: Record<string, unknown>) {
-    if (window.opener) {
-      window.opener.postMessage({ type, ...data }, window.location.origin)
-    }
-  }
-
-  function autoClose(delay: number) {
-    setTimeout(() => {
-      if (window.opener) {
-        window.close()
-      } else {
-        router.push("/connectors")
-      }
-    }, delay)
-  }
+  }, [router])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -100,22 +100,5 @@ function CallbackContent() {
         )}
       </div>
     </div>
-  )
-}
-
-export default function ConnectorCallbackPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-          <div className="bg-card border rounded-xl shadow-lg p-8 max-w-sm w-full text-center">
-            <Loader2 className="h-12 w-12 text-primary mx-auto animate-spin mb-5" />
-            <h2 className="text-lg font-semibold mb-1">Loading...</h2>
-          </div>
-        </div>
-      }
-    >
-      <CallbackContent />
-    </Suspense>
   )
 }

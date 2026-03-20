@@ -73,7 +73,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         visibleColumns, setDisplayColumnModalOpen,
         isManualRefresh, handleManualRefresh,
         handleViewDetails, handleStartProcessing, handleQuickProcess,
-        openActionsDialog, handleQuickExport, handleDeleteClick,
+        openActionsDialog, handleDeleteClick,
         downloading, deleting,
         handleOpenQuarantineEditor, highlightedFileId,
         recentlyUploaded, setRecentlyUploaded,
@@ -542,40 +542,26 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                {/* Export dropdown — UX: 1-click download instead of 3-dialog chain */}
+                                                {/* Export button */}
                                                 {!isProcessing && !isUploading && (
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
                                                             <Button
                                                                 variant="ghost"
-                                                                size="sm"
-                                                                className="h-7 sm:h-8 gap-1 px-2 text-xs font-medium text-primary hover:text-primary hover:bg-primary/10"
+                                                                size="icon"
+                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-primary hover:text-primary hover:bg-primary/10"
                                                                 disabled={downloading === file.upload_id}
+                                                                onClick={() => openActionsDialog(file)}
                                                             >
                                                                 {downloading === file.upload_id ? (
-                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                                                                 ) : (
-                                                                    <Upload className="h-3.5 w-3.5" />
+                                                                    <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                                 )}
-                                                                <span className="hidden sm:inline">Export</span>
                                                             </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-44">
-                                                            <DropdownMenuItem onClick={() => handleQuickExport(file, "csv")}>
-                                                                Download as CSV
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleQuickExport(file, "excel")}>
-                                                                Download as Excel
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleQuickExport(file, "json")}>
-                                                                Download as JSON
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem onClick={() => openActionsDialog(file)} className="text-primary">
-                                                                Advanced export...
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Export</TooltipContent>
+                                                    </Tooltip>
                                                 )}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>

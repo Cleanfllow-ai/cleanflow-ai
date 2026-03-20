@@ -84,44 +84,6 @@ export interface AutoMapResponse {
   method?: string
 }
 
-export interface ColumnResolution {
-  column: string
-  entity: string
-  cdf_field: string
-  confidence?: number
-  method?: string
-}
-
-export interface SchemaResolveResponse {
-  resolutions: ColumnResolution[]
-  entities_needed: string[]
-  unmapped: string[]
-  total: number
-  mapped: number
-}
-
-export interface MultiExportResponse {
-  status: "done" | "failed" | "processing"
-  results?: Array<{
-    entity: string
-    success_count: number
-    failed_count: number
-    errors: string[]
-  }>
-  message?: string
-}
-
-export interface MultiExportProgress {
-  provider: string
-  status: "running" | "done" | "failed"
-  entities: Array<{
-    entity: string
-    status: "pending" | "running" | "done" | "failed"
-    success: number
-    failed: number
-  }>
-}
-
 export interface MappingPreviewResponse {
   mapping: Record<string, string>
   source?: Record<string, unknown>
@@ -244,77 +206,6 @@ class ERPConnectorsAPI extends ConnectorAPIBase {
   async listERPs(): Promise<{ erps: string[]; connectors: string[] }> {
     return await this.makeRequest<{ erps: string[]; connectors: string[] }>(
       "/connectors/erp/mapping/erps",
-      { method: "GET" },
-    )
-  }
-
-  /** Resolve CSV columns to entity.field pairs via AI + template matching. */
-  async schemaResolve(
-    provider: string,
-    columns: string[],
-    options?: { database?: string; schema?: string },
-  ): Promise<SchemaResolveResponse> {
-    return await this.makeRequest<SchemaResolveResponse>(
-      "/connectors/erp/schema-resolve",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          provider,
-          columns,
-          ...(options?.database ? { database: options.database } : {}),
-          ...(options?.schema ? { schema: options.schema } : {}),
-        }),
-      },
-    )
-  }
-
-  /** Cross-entity schema import. */
-  async schemaImport(
-    provider: string,
-    resolutions: ColumnResolution[],
-    filters?: Record<string, unknown>,
-    orgId?: string,
-    options?: { database?: string; schema?: string },
-  ): Promise<Record<string, unknown>> {
-    return await this.makeRequest("/connectors/erp/schema-import", {
-      method: "POST",
-      body: JSON.stringify({
-        provider,
-        resolutions,
-        filters: filters ?? {},
-        ...(orgId ? { org_id: orgId } : {}),
-        ...(options?.database ? { database: options.database } : {}),
-        ...(options?.schema ? { schema: options.schema } : {}),
-      }),
-    })
-  }
-
-  /** Start a multi-entity export. */
-  async multiExport(
-    provider: string,
-    uploadId: string,
-    columnResolutions: ColumnResolution[],
-    orgId?: string,
-  ): Promise<MultiExportResponse> {
-    return await this.makeRequest<MultiExportResponse>(
-      "/connectors/erp/multi-export",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          provider,
-          upload_id: uploadId,
-          column_resolutions: columnResolutions,
-          ...(orgId ? { org_id: orgId } : {}),
-        }),
-      },
-    )
-  }
-
-  /** Poll multi-entity export progress. */
-  async multiExportStatus(uploadId: string): Promise<MultiExportProgress> {
-    const params = new URLSearchParams({ upload_id: uploadId })
-    return await this.makeRequest<MultiExportProgress>(
-      `/connectors/erp/multi-export/status?${params.toString()}`,
       { method: "GET" },
     )
   }

@@ -80,30 +80,3 @@ export interface ERPEntityInfo {
   reason?: string
 }
 
-// ─── Legacy re-exports for backwards compatibility ──────────────────────────
-
-/** @deprecated Use ERPConnectResponse */
-export type QuickBooksConnectResponse = ERPConnectResponse
-/** @deprecated Use ERPConnectionStatus */
-export type QuickBooksConnectionStatus = ERPConnectionStatus
-/** @deprecated Use ERPImportResponse */
-export type QuickBooksImportResponse = ERPImportResponse
-/** @deprecated Use ERPExportResponse */
-export type QuickBooksExportResponse = ERPExportResponse
-/** @deprecated Use ERPImportFilters */
-export type QuickBooksImportFilters = ERPImportFilters
-
-/** @deprecated Use ERPConnectResponse */
-export type ZohoBooksConnectResponse = ERPConnectResponse
-/** @deprecated Use ERPConnectionStatus */
-export type ZohoBooksConnectionStatus = ERPConnectionStatus
-/** @deprecated Use ERPImportResponse */
-export type ZohoBooksImportResponse = ERPImportResponse
-/** @deprecated Use ERPExportResponse */
-export type ZohoBooksExportResponse = ERPExportResponse
-/** @deprecated Use ERPExportStatusResponse */
-export type ZohoBooksExportStatusResponse = ERPExportStatusResponse
-/** @deprecated Use ERPImportFilters */
-export type ZohoBooksImportFilters = ERPImportFilters
-/** @deprecated Use ERPEntityInfo */
-export type EntityInfo = ERPEntityInfo

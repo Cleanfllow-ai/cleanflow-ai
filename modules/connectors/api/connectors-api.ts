@@ -12,10 +12,25 @@
 
 import { ConnectorAPIBase } from "./base"
 
+export interface PostAuthConfigOption {
+  value: string
+  label: string
+}
+
+export interface PostAuthConfigField {
+  key: string
+  label: string
+  type: "select" | "text" | "toggle"
+  required: boolean
+  options?: PostAuthConfigOption[]
+  current_value?: string
+}
+
 export interface ConnectionStatus {
   connected: boolean
   status?: string
   connection?: Record<string, unknown>
+  post_auth_config?: PostAuthConfigField[]
 }
 
 export interface ProviderInfo {
@@ -83,6 +98,20 @@ class ConnectorsAPI extends ConnectorAPIBase {
     await this.makeRequest(`/connectors/${provider}/disconnect`, {
       method: "DELETE",
     })
+  }
+
+  /** Save post-auth configuration (e.g. org selection). */
+  async saveConfig(
+    provider: string,
+    config: Record<string, string>,
+  ): Promise<{ message: string }> {
+    return await this.makeRequest<{ message: string }>(
+      `/connectors/${provider}/configure`,
+      {
+        method: "POST",
+        body: JSON.stringify(config),
+      },
+    )
   }
 
   /** List all registered providers. */

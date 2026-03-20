@@ -43,19 +43,3 @@ export interface StorageImportResponse {
   message: string
 }
 
-// ─── Legacy re-exports for backwards compatibility ──────────────────────────
-
-/** @deprecated Use StorageConnectResponse */
-export type GoogleDriveConnectResponse = StorageConnectResponse
-/** @deprecated Use StorageConnectionStatus */
-export type GoogleDriveConnectionStatus = StorageConnectionStatus
-/** @deprecated Use StorageFile */
-export type GoogleDriveFile = StorageFile
-/** @deprecated Use StorageFileListResponse */
-export type GoogleDriveListResponse = StorageFileListResponse
-/** @deprecated Use StorageFolder */
-export type GoogleDriveFolder = StorageFolder
-/** @deprecated Use StorageFoldersResponse */
-export type GoogleDriveFoldersResponse = StorageFoldersResponse
-/** @deprecated Use StorageImportResponse */
-export type GoogleDriveImportResponse = StorageImportResponse

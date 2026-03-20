@@ -9,9 +9,6 @@ import {
 } from "@/components/ui/select"
 import type { WarehouseMetadataItem } from "@/modules/connectors/types"
 
-/** @deprecated Use WarehouseMetadataItem */
-export type { WarehouseMetadataItem as SnowflakeMetadataItem }
-
 export interface SnowflakeEntitySelectorProps {
     label: string
     connected: boolean

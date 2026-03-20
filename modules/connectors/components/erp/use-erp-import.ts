@@ -46,8 +46,6 @@ export interface UseERPImportProps {
   provider: string
   mode?: "source" | "destination"
   uploadId?: string
-  /** Hide connect/disconnect UI — used when embedded in Unified Bridge (auth managed on Connectors page) */
-  hideAuth?: boolean
   onImportComplete?: (uploadId: string) => void
   onNotification?: (message: string, type: "success" | "error") => void
   onPermissionDenied?: () => void

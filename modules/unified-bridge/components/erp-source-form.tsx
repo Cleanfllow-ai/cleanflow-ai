@@ -110,7 +110,6 @@ export default function ErpSourceForm({
         <ERPImport
           provider={selectedProvider}
           mode={mode}
-          hideAuth
           uploadId={uploadId}
           onImportComplete={handleImportComplete}
           onNotification={handleNotification}

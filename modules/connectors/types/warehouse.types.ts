@@ -66,23 +66,3 @@ export interface WarehouseExportResponse {
   error?: string
 }
 
-// ─── Legacy re-exports for backwards compatibility ──────────────────────────
-
-/** @deprecated Use WarehouseConnectResponse */
-export type SnowflakeConnectResponse = WarehouseConnectResponse
-/** @deprecated Use WarehouseConnectionStatus */
-export type SnowflakeConnectionStatus = WarehouseConnectionStatus
-/** @deprecated Use WarehouseMetadataItem */
-export type SnowflakeMetadataItem = WarehouseMetadataItem
-/** @deprecated Use WarehouseMetadataResponse */
-export type SnowflakeMetadataResponse = WarehouseMetadataResponse
-/** @deprecated Use WarehouseImportRequest */
-export type SnowflakeImportRequest = WarehouseImportRequest
-/** @deprecated Use WarehouseImportResponse */
-export type SnowflakeImportResponse = WarehouseImportResponse
-/** @deprecated Use WarehouseWriteMode */
-export type SnowflakeWriteMode = WarehouseWriteMode
-/** @deprecated Use WarehouseExportRequest */
-export type SnowflakeExportRequest = WarehouseExportRequest
-/** @deprecated Use WarehouseExportResponse */
-export type SnowflakeExportResponse = WarehouseExportResponse

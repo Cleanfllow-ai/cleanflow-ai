@@ -2,9 +2,6 @@
 
 import {
     Loader2,
-    HardDrive,
-    Link2,
-    Unlink,
     Download,
     Search,
     FolderOpen,
@@ -18,16 +15,6 @@ import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { useState } from "react"
 import { useStorageImport } from "./use-storage-import"
 import type { StorageFile } from "@/modules/connectors/types"
@@ -91,7 +78,6 @@ export default function StorageImport({
     onNotification,
 }: StorageImportProps) {
     const g = useStorageImport({ provider, onImportComplete, onNotification })
-    const [confirmDisconnect, setConfirmDisconnect] = useState(false)
     const [localSearch, setLocalSearch] = useState("")
 
     // ── Not connected ─────────────────────────────────────────────────
@@ -104,64 +90,9 @@ export default function StorageImport({
         )
     }
 
-    if (!g.connectionStatus.connected) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[250px] p-8 border-2 border-dashed rounded-lg bg-muted/5">
-                <div className="rounded-full bg-muted p-6 mb-4">
-                    <HardDrive className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">{g.providerDisplayName}</h3>
-                <p className="text-sm text-muted-foreground mb-6 max-w-md text-center">
-                    Connect your account to browse and import CSV, Excel, and spreadsheet files directly from your {g.providerDisplayName}.
-                </p>
-                <Button
-                    onClick={g.connectOAuth}
-                    disabled={g.isConnecting}
-                    size="lg"
-                >
-                    {g.isConnecting ? (
-                        <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Connecting...
-                        </>
-                    ) : (
-                        <>
-                            <Link2 className="h-4 w-4 mr-2" />
-                            Connect {g.providerDisplayName}
-                        </>
-                    )}
-                </Button>
-            </div>
-        )
-    }
-
-    // ── Connected ─────────────────────────────────────────────────────
+    // ── File browser ─────────────────────────────────────────────────────
     return (
         <div className="space-y-4">
-            {/* Connection status bar */}
-            <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg px-4 py-2.5">
-                <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                        Connected
-                    </span>
-                    {g.connectionStatus.email && (
-                        <span className="text-xs text-green-600 dark:text-green-400">
-                            ({g.connectionStatus.email})
-                        </span>
-                    )}
-                </div>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setConfirmDisconnect(true)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 px-2"
-                >
-                    <Unlink className="h-3.5 w-3.5 mr-1" />
-                    Disconnect
-                </Button>
-            </div>
-
             {/* Search bar */}
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -327,29 +258,6 @@ export default function StorageImport({
                 </div>
             )}
 
-            {/* Disconnect confirmation */}
-            <AlertDialog open={confirmDisconnect} onOpenChange={setConfirmDisconnect}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Disconnect {g.providerDisplayName}?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will revoke access to your {g.providerDisplayName}. You can reconnect anytime.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => {
-                                g.disconnect()
-                                setConfirmDisconnect(false)
-                            }}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            Disconnect
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </div>
     )
 }

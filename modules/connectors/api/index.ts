@@ -9,10 +9,6 @@ export type {
   ERPExportResponse,
   ERPExportStatusResponse,
   AutoMapResponse as ERPAutoMapResponse,
-  ColumnResolution,
-  SchemaResolveResponse,
-  MultiExportResponse,
-  MultiExportProgress,
   MappingPreviewResponse,
 } from "./erp-connectors-api"
 

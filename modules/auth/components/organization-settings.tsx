@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Building2, Cable, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { OrgGeneralTab } from "./org-settings/org-general-tab";
 import { OrgMembersTab } from "./org-settings/org-members-tab";
 import { OrgPermissionsTab } from "./org-settings/org-permissions-tab";
 import { OrgServicesTab } from "./org-settings/org-services-tab";
+import { ConnectorsHub } from "@/modules/connectors/components/connectors-hub";
 
 export function OrganizationSettings() {
   const hookData = useOrgSettings();
@@ -163,6 +164,13 @@ export function OrganizationSettings() {
             <Cog className="w-3.5 h-3.5" />
             Services
           </TabsTrigger>
+          <TabsTrigger
+            value="connectors"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Cable className="w-3.5 h-3.5" />
+            Connectors
+          </TabsTrigger>
         </TabsList>
       </div>
 
@@ -245,6 +253,10 @@ export function OrganizationSettings() {
           setPresetToDelete={hookData.setPresetToDelete}
           setIsDeletePresetOpen={hookData.setIsDeletePresetOpen}
         />
+      </TabsContent>
+
+      <TabsContent value="connectors" className="space-y-6">
+        <ConnectorsHub />
       </TabsContent>
     </Tabs>
   );

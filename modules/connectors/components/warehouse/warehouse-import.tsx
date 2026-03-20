@@ -2,9 +2,6 @@
 
 import {
     Loader2,
-    Snowflake,
-    Link2,
-    Unlink,
     Download,
     Upload,
     CheckCircle2,
@@ -133,64 +130,7 @@ export default function WarehouseImport({
                 </Alert>
             )}
 
-            {/* Not Connected State */}
-            {!s.connectionStatus.connected ? (
-                <div className="flex flex-col items-center justify-center py-8 sm:py-12 lg:py-16 text-center">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4 sm:mb-5 lg:mb-6">
-                        <Snowflake className="h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-blue-600" />
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-medium mb-2">{providerDisplayName}</h3>
-                    <p className="text-sm sm:text-base lg:text-lg text-muted-foreground mb-4 sm:mb-5 lg:mb-6 max-w-md px-4">
-                        Connect your {providerDisplayName} account to {mode === "source" ? "import" : "export"} data directly
-                    </p>
-                    <Button
-                        onClick={s.connectOAuth}
-                        disabled={s.isConnecting}
-                        size="lg"
-                        className="bg-blue-600 hover:bg-blue-700 px-6 sm:px-8 py-4 sm:py-6 text-sm sm:text-base"
-                    >
-                        {s.isConnecting ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-                                Connecting...
-                            </>
-                        ) : (
-                            <>
-                                <Link2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                                Connect {providerDisplayName}
-                            </>
-                        )}
-                    </Button>
-                </div>
-            ) : (
-                <div className="space-y-4 sm:space-y-6">
-                    {/* Connected Status */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                            <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-                            <span className="text-sm sm:text-base font-medium text-blue-900">Connected</span>
-                            {s.connectionStatus.account_identifier && (
-                                <span className="text-xs sm:text-sm text-blue-700 truncate max-w-[120px] sm:max-w-none">
-                                    ({s.connectionStatus.account_identifier})
-                                </span>
-                            )}
-                            {s.connectionStatus.sf_provisioned && s.connectionStatus.sf_user_schema && (
-                                <Badge variant="secondary" className="text-xs">
-                                    {s.connectionStatus.sf_user_database}.{s.connectionStatus.sf_user_schema}
-                                </Badge>
-                            )}
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={s.disconnect}
-                            className="h-7 sm:h-8 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 self-end sm:self-auto"
-                        >
-                            <Unlink className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
-                            Disconnect
-                        </Button>
-                    </div>
-
+            <div className="space-y-4 sm:space-y-6">
                     {/* Import Form - Source Mode */}
                     {mode === "source" && (
                         <div className="grid gap-3 sm:gap-4">
@@ -555,7 +495,6 @@ export default function WarehouseImport({
                         </div>
                     )}
                 </div>
-            )}
 
             {/* Column Selection Dialog */}
             <AlertDialog open={s.columnModalOpen} onOpenChange={s.setColumnModalOpen}>
