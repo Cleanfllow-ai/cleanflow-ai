@@ -11,9 +11,8 @@ import {
     getProviderDisplayName,
     CATEGORY_LABELS,
 } from './job-dialog-constants'
-import { connectorsAPI, erpConnectorsAPI, warehouseConnectorsAPI } from '@/modules/connectors'
+import { connectorsAPI, warehouseConnectorsAPI } from '@/modules/connectors'
 import type { ProviderInfo } from '@/modules/connectors/api/connectors-api'
-import type { EntityInfo } from '@/modules/connectors/api/erp-connectors-api'
 import type { WarehouseMetadataItem } from '@/modules/connectors/api/warehouse-connectors-api'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -180,32 +179,22 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
 
         const fetchEntities = async () => {
             try {
-                if (sourceCategory === 'erp') {
-                    const res = await erpConnectorsAPI.discoverEntities(sourceProvider)
-                    if (cancelled) return
-                    const opts = (res.entities || []).map((e: EntityInfo) => ({
-                        label: e.label || e.name || e.entity || "",
-                        value: e.entity || e.value || e.name || "",
-                    })).filter((e: EntityOption) => e.value)
-                    setAvailableEntities(opts)
-                } else if (sourceCategory === 'warehouse') {
-                    // For warehouses, entities are tables — user selects via source_config
-                    // We can list tables if config has database + schema
-                    const db = sourceConfig.database
-                    const schema = sourceConfig.schema
-                    if (db && schema) {
-                        const tables = await warehouseConnectorsAPI.listTables(sourceProvider, db, schema)
-                        if (cancelled) return
-                        const opts = tables.map((t: WarehouseMetadataItem) => ({
-                            label: t.name,
-                            value: t.name,
-                        }))
-                        setAvailableEntities(opts)
-                    }
-                }
-                // Storage category: entities not applicable
-            } catch {
-                // Silently fail — user sees empty list
+                // Build params from sourceConfig for warehouse providers
+                const params: Record<string, string> = {}
+                if (sourceConfig.database) params.database = sourceConfig.database
+                if (sourceConfig.schema) params.schema = sourceConfig.schema
+                if (sourceConfig.warehouse) params.warehouse = sourceConfig.warehouse
+
+                const res = await connectorsAPI.discoverEntities(sourceProvider, Object.keys(params).length > 0 ? params : undefined)
+                console.log("[job-dialog] discoverEntities response:", JSON.stringify(res))
+                if (cancelled) return
+                const opts = (res.entities || []).map((e: any) => ({
+                    label: e.label || e.key || e.name || "",
+                    value: e.key || e.name || e.entity || e.value || "",
+                })).filter((e: EntityOption) => e.value)
+                setAvailableEntities(opts)
+            } catch (err) {
+                console.error("[job-dialog] Entity discovery failed:", err)
             } finally {
                 if (!cancelled) setEntitiesLoading(false)
             }
@@ -314,67 +303,53 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     // ── Auto-map column mapping ──────────────────────────────────────────────
 
     const handleAutoMap = useCallback(async () => {
-        if (!sourceProvider || entities.length === 0) {
-            toast({ title: "Select source and entities first", variant: "destructive" })
+        if (!sourceProvider || entities.length === 0 || !destinationProvider) {
+            toast({ title: "Select source, destination and entities first", variant: "destructive" })
             return
         }
         setMappingLoading(true)
         try {
-            if (sourceCategory === 'erp' && destinationCategory === 'erp') {
-                // ERP-to-ERP: fetch source entity fields, then AI auto-map to destination
-                const sourceFields = await erpConnectorsAPI.getEntityFields(sourceProvider, entities[0])
-                const sourceFieldNames = (sourceFields.fields || []).map((f: any) => f.key || f.name || f.field_name || "")
-                    .filter(Boolean)
-                if (sourceFieldNames.length === 0) {
-                    toast({ title: "No source fields found", description: "Could not fetch fields for source entity.", variant: "destructive" })
-                    setMappingLoading(false)
-                    return
+            // Build params from source/destination config for warehouse providers
+            const params: Record<string, string> = {}
+            if (sourceConfig.database) params.database = sourceConfig.database
+            if (sourceConfig.schema) params.schema = sourceConfig.schema
+            if (sourceConfig.warehouse) params.warehouse = sourceConfig.warehouse
+
+            const res = await connectorsAPI.autoMap(
+                sourceProvider,
+                destinationProvider,
+                entities[0],
+                [],  // Let backend fetch source fields
+                Object.keys(params).length > 0 ? params : undefined,
+            )
+
+            if (res.mappings && res.mappings.length > 0) {
+                // Accept medium+ confidence mappings (>=70)
+                const newMapping: Record<string, string> = {}
+                let acceptedCount = 0
+                for (const m of res.mappings) {
+                    if (m.confidence >= 70) {
+                        newMapping[m.source] = m.destination
+                        acceptedCount++
+                    }
                 }
-                const res = await erpConnectorsAPI.aiAutoMap(
-                    destinationProvider,
-                    sourceFieldNames,
-                    entities[0],
-                    sourceProvider,
-                )
-                if (res.mapping && Object.keys(res.mapping).length > 0) {
-                    setColumnMapping(res.mapping)
-                    setAutoMapMethod(res.method || "ai")
-                    toast({
-                        title: "Mapping Complete",
-                        description: `Mapped ${res.columns_mapped || Object.keys(res.mapping).length} columns via ${res.method || "ai"}`,
-                    })
-                } else {
-                    toast({ title: "No mappings found", description: "Could not auto-map columns.", variant: "destructive" })
-                }
-            } else if (sourceCategory === 'warehouse' || destinationCategory === 'warehouse') {
-                // Warehouse mapping: fetch source fields, then auto-map
-                const whProvider = sourceCategory === 'warehouse' ? sourceProvider : destinationProvider
-                const srcProvider = sourceCategory === 'erp' ? sourceProvider : sourceProvider
-                let sourceFieldNames: string[] = []
-                if (sourceCategory === 'erp') {
-                    const srcFields = await erpConnectorsAPI.getEntityFields(srcProvider, entities[0])
-                    sourceFieldNames = (srcFields.fields || []).map((f: any) => f.key || f.name || f.field_name || "").filter(Boolean)
-                }
-                const res = await warehouseConnectorsAPI.aiAutoMap(whProvider, sourceFieldNames, [])
-                if (res.mapping && Object.keys(res.mapping).length > 0) {
-                    setColumnMapping(res.mapping)
-                    setAutoMapMethod(res.method || "ai")
-                    toast({
-                        title: "Mapping Complete",
-                        description: `Mapped ${res.columns_mapped || Object.keys(res.mapping).length} columns`,
-                    })
-                } else {
-                    toast({ title: "No mappings found", variant: "destructive" })
-                }
+                setColumnMapping(newMapping)
+                // Use the highest-confidence method as the label
+                const topMethod = res.mappings[0]?.method || "auto"
+                setAutoMapMethod(topMethod)
+                toast({
+                    title: "Mapping Complete",
+                    description: `Mapped ${acceptedCount} columns (${res.mappings.length} total matches found)`,
+                })
             } else {
-                toast({ title: "Auto-map not supported for this combination", variant: "destructive" })
+                toast({ title: "No mappings found", description: "Could not auto-map columns.", variant: "destructive" })
             }
         } catch (err: any) {
             toast({ title: "Auto-map failed", description: err?.message || "Failed to generate mapping", variant: "destructive" })
         } finally {
             setMappingLoading(false)
         }
-    }, [sourceProvider, destinationProvider, sourceCategory, destinationCategory, entities, toast])
+    }, [sourceProvider, destinationProvider, sourceConfig, entities, toast])
 
     // ── Manual mapping editor ────────────────────────────────────────────────
 
@@ -387,9 +362,20 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         // Fetch fields if not cached
         if (cachedSourceFields.length === 0 || cachedDestFields.length === 0) {
             try {
+                // Build params for source/destination (warehouse config)
+                const srcParams: Record<string, string> = {}
+                if (sourceConfig.database) srcParams.database = sourceConfig.database
+                if (sourceConfig.schema) srcParams.schema = sourceConfig.schema
+                if (sourceConfig.warehouse) srcParams.warehouse = sourceConfig.warehouse
+
+                const dstParams: Record<string, string> = {}
+                if (destinationConfig.database) dstParams.database = destinationConfig.database
+                if (destinationConfig.schema) dstParams.schema = destinationConfig.schema
+                if (destinationConfig.warehouse) dstParams.warehouse = destinationConfig.warehouse
+
                 const [srcRes, dstRes] = await Promise.all([
-                    erpConnectorsAPI.getEntityFields(sourceProvider, entities[0]),
-                    erpConnectorsAPI.getEntityFields(destinationProvider, entities[0]),
+                    connectorsAPI.getEntityFields(sourceProvider, entities[0], Object.keys(srcParams).length > 0 ? srcParams : undefined),
+                    connectorsAPI.getEntityFields(destinationProvider, entities[0], Object.keys(dstParams).length > 0 ? dstParams : undefined),
                 ])
                 const srcFields = (srcRes.fields || []).map((f: any) => ({
                     key: f.key || f.name || "",
@@ -411,7 +397,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             }
         }
         setShowMappingEditor(true)
-    }, [sourceProvider, destinationProvider, entities, cachedSourceFields.length, cachedDestFields.length, toast])
+    }, [sourceProvider, destinationProvider, entities, cachedSourceFields.length, cachedDestFields.length, sourceConfig, destinationConfig, toast])
 
     // ── Submit ────────────────────────────────────────────────────────────────
 

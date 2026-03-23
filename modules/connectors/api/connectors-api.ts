@@ -138,6 +138,78 @@ class ConnectorsAPI extends ConnectorAPIBase {
       this.connect(provider, connectOptions),
     )
   }
+
+  /** Discover entities/tables for any provider (category-agnostic). */
+  async discoverEntities(
+    provider: string,
+    params?: Record<string, string>,
+  ): Promise<{
+    provider: string
+    category: string
+    entities: Array<{ key: string; label: string }>
+  }> {
+    const qs = params ? `?${new URLSearchParams(params).toString()}` : ""
+    return await this.makeRequest(
+      `/connectors/${provider}/entities${qs}`,
+    )
+  }
+
+  /** Get field definitions for any provider/entity (category-agnostic). */
+  async getEntityFields(
+    provider: string,
+    entity: string,
+    params?: Record<string, string>,
+  ): Promise<{
+    provider: string
+    category: string
+    entity: string
+    fields: Array<{
+      key: string
+      label: string
+      data_type: string
+      required: boolean
+    }>
+  }> {
+    const qs = new URLSearchParams({
+      entity,
+      ...(params || {}),
+    }).toString()
+    return await this.makeRequest(
+      `/connectors/${provider}/fields?${qs}`,
+    )
+  }
+
+  /** Auto-map source fields to destination fields with confidence scoring. */
+  async autoMap(
+    sourceProvider: string,
+    destinationProvider: string,
+    entity: string,
+    sourceFields?: string[],
+    params?: Record<string, string>,
+  ): Promise<{
+    mappings: Array<{
+      source: string
+      destination: string
+      confidence: number
+      method: string
+    }>
+    unmapped_source: string[]
+    unmapped_destination: string[]
+  }> {
+    return await this.makeRequest(
+      `/connectors/${sourceProvider}/automap`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          source_provider: sourceProvider,
+          destination_provider: destinationProvider,
+          entity,
+          source_fields: sourceFields || [],
+          params: params || {},
+        }),
+      },
+    )
+  }
 }
 
 export const connectorsAPI = new ConnectorsAPI()
