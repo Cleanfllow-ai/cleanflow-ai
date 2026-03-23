@@ -1,32 +1,20 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
-import { fileManagementAPI } from '@/modules/files'
 import {
     jobsAPI, type Job, type JobFrequency, type CreateJobPayload, type UpdateJobPayload,
     frequencyToBackend, frequencyFromBackend
 } from '@/modules/jobs/api/jobs-api'
 import {
-    type AdvancedStep,
-    type RuleState,
-    type SettingsPreset,
-    type ColumnProfile,
-    type ColumnRuleState,
-    type CrossFieldRuleState,
-    ADVANCED_STEPS,
-    DEFAULT_GLOBAL_RULES,
-    ENTITY_COLUMNS,
-    ENTITY_OPTIONS,
-    SOURCE_ERP_OPTIONS,
-    normalizeErpForUi,
-    normalizeErpForApi,
+    FREQUENCY_OPTIONS,
+    getProviderDisplayName,
+    CATEGORY_LABELS,
 } from './job-dialog-constants'
-import { deriveRulesV2, CORE_TYPES, TYPE_ALIASES } from '@/shared/lib/type-catalog'
-import { getRuleLabel } from '@/shared/lib/dq-rules'
-import { orgAPI, type OrgMembership } from '@/modules/auth/api/org-api'
-import { connectorsAPI, warehouseConnectorsAPI } from '@/modules/connectors'
-import type { WarehouseMetadataItem } from '@/modules/connectors/types'
+import { connectorsAPI, erpConnectorsAPI, warehouseConnectorsAPI } from '@/modules/connectors'
+import type { ProviderInfo } from '@/modules/connectors/api/connectors-api'
+import type { EntityInfo } from '@/modules/connectors/api/erp-connectors-api'
+import type { WarehouseMetadataItem } from '@/modules/connectors/api/warehouse-connectors-api'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -36,107 +24,20 @@ export interface UseJobDialogProps {
     onSuccess: () => void
 }
 
-const DEFAULT_SETTINGS_PRESET: SettingsPreset = {
-    preset_id: "default_dq_rules",
-    preset_name: "Default Data Quality Rules",
-    is_default: true,
-    config: {
-        ruleset_version: "dq34_v1",
-        policies: {
-            strictness: "balanced",
-            auto_fix: true,
-            unknown: "safe_cleanup_only",
-        },
-        rules_enabled: {
-            R1: true, R2: true, R3: true, R4: true, R5: true, R6: true, R7: true, R8: true, R9: true,
-            R10: true, R11: true, R12: true, R13: true, R14: true, R15: true, R16: true, R17: true,
-            R18: true, R19: true, R20: false, R21: true, R22: true, R23: true, R24: true, R25: true,
-            R26: true, R27: true, R28: true, R29: true, R30: true, R31: true, R32: true, R33: true, R34: true,
-        },
-        required_columns: [],
-        lookups: {
-            placeholders: ["", "na", "n/a", "null", "none", "-", "--", "?", "NA", "N/A", "NULL", "NONE"],
-            status_values: [
-                "DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "PENDING", "PAID", "CANCELLED",
-                "CLOSED", "OPEN", "POSTED", "REVERSED", "ACTIVE", "INACTIVE", "COMPLETED",
-                "YES", "NO", "Y", "N", "TRUE", "FALSE", "1", "0",
-            ],
-        },
-        currency_values: [
-            "USD", "INR", "EUR", "GBP", "SGD", "AED", "AUD", "CAD",
-            "CHF", "CNY", "JPY", "KWD", "SAR", "QAR", "BHD", "OMR",
-        ],
-        uom_values: [
-            "EA", "PCS", "PC", "KG", "G", "LTR", "ML", "M", "CM", "MM",
-            "FT", "IN", "YD", "SQM", "SQFT", "CBM", "CFT", "HR", "MIN", "SEC",
-            "DAY", "WK", "MON", "YR", "BOX", "CTN", "PAL", "SET", "KIT", "PR",
-            "DOZ", "GR", "UNIT", "TON", "MT",
-        ],
-        date_formats: ["ISO", "DMY", "MDY"],
-        hygiene: {
-            max_text_length: 255,
-        },
-    },
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type ProviderCategory = 'erp' | 'warehouse' | 'storage'
+
+export interface ProviderOption {
+    provider_id: string
+    display_name: string
+    category: string
+    connected: boolean
 }
 
-const parseCsvRows = (content: string): Record<string, string>[] => {
-    const lines = content.trim().split('\n').filter(Boolean)
-    if (lines.length < 2) {
-        throw new Error("CSV must have header row and at least one data row")
-    }
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
-    return lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
-        const row: Record<string, string> = {}
-        headers.forEach((header, idx) => {
-            row[header] = values[idx] || ''
-        })
-        return row
-    })
-}
-
-const normalizePresetConfig = (rawConfig: Record<string, any> | null | undefined): Record<string, any> => {
-    const config = rawConfig || {}
-
-    // Support both legacy explorer format (policy/enums/rules) and current settings format.
-    const isLegacyRulesFormat = Boolean(config.enums || config.rules || config.policy)
-    if (isLegacyRulesFormat) {
-        return {
-            policies: {
-                strictness: config.policies?.strictness || "balanced",
-                auto_fix: config.policies?.auto_fix ?? true,
-                unknown: config.policies?.unknown || "safe_cleanup_only",
-            },
-            lookups: {
-                placeholders: config.required_fields?.placeholders_treated_as_missing || [],
-                status_values: config.enums?.status?.allowed || [],
-            },
-            currency_values: config.enums?.currency?.allowed || [],
-            uom_values: config.uom_values || [],
-            date_formats: config.policy?.date_formats || config.date_formats || [],
-            hygiene: {
-                max_text_length: Number(config.policy?.max_free_text_length || 255),
-            },
-        }
-    }
-
-    return {
-        policies: {
-            strictness: config.policies?.strictness || "balanced",
-            auto_fix: config.policies?.auto_fix ?? true,
-            unknown: config.policies?.unknown || "safe_cleanup_only",
-        },
-        lookups: {
-            placeholders: config.lookups?.placeholders || [],
-            status_values: config.lookups?.status_values || [],
-        },
-        currency_values: config.currency_values || [],
-        uom_values: config.uom_values || [],
-        date_formats: config.date_formats || [],
-        hygiene: {
-            max_text_length: Number(config.hygiene?.max_text_length || 255),
-        },
-    }
+export interface EntityOption {
+    label: string
+    value: string
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -145,977 +46,390 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const isEdit = !!job
     const { toast } = useToast()
 
-    // Core fields
+    // ── Providers & connections (fetched from backend) ─────────────────────────
+    const [allProviders, setAllProviders] = useState<ProviderInfo[]>([])
+    const [connectedProviderIds, setConnectedProviderIds] = useState<Set<string>>(new Set())
+    const [providersLoading, setProvidersLoading] = useState(false)
+
+    // ── Core fields ───────────────────────────────────────────────────────────
     const [name, setName] = useState("")
-    const [source, setSource] = useState<string>("quickbooks")
-    const [destination, setDestination] = useState<string>("quickbooks")
+    const [sourceCategory, setSourceCategory] = useState<ProviderCategory>("erp")
+    const [sourceProvider, setSourceProvider] = useState("")
+    const [destinationCategory, setDestinationCategory] = useState<ProviderCategory>("erp")
+    const [destinationProvider, setDestinationProvider] = useState("")
     const [frequency, setFrequency] = useState<JobFrequency>("1hr")
     const [cronExpression, setCronExpression] = useState("")
-    const [sourceEntity, setSourceEntity] = useState("")
-    const [targetEntity, setTargetEntity] = useState("")
 
-    // Dynamic entity discovery
-    const [sourceEntities, setSourceEntities] = useState<Array<{ label: string; value: string }>>([])
-    const [targetEntities, setTargetEntities] = useState<Array<{ label: string; value: string }>>([])
-    const [sourceEntitiesLoading, setSourceEntitiesLoading] = useState(false)
-    const [targetEntitiesLoading, setTargetEntitiesLoading] = useState(false)
+    // ── Entities (multi-select for source) ────────────────────────────────────
+    const [entities, setEntities] = useState<string[]>([])
+    const [availableEntities, setAvailableEntities] = useState<EntityOption[]>([])
+    const [entitiesLoading, setEntitiesLoading] = useState(false)
 
-    // Snowflake cascading state — source side
-    const [srcSfConnected, setSrcSfConnected] = useState(false)
-    const [srcSfConnecting, setSrcSfConnecting] = useState(false)
-    const [srcSfWarehouses, setSrcSfWarehouses] = useState<WarehouseMetadataItem[]>([])
-    const [srcSfDatabases, setSrcSfDatabases] = useState<WarehouseMetadataItem[]>([])
-    const [srcSfSchemas, setSrcSfSchemas] = useState<WarehouseMetadataItem[]>([])
-    const [srcSfTables, setSrcSfTables] = useState<WarehouseMetadataItem[]>([])
-    const [srcSfWarehouse, setSrcSfWarehouse] = useState("")
-    const [srcSfDatabase, setSrcSfDatabase] = useState("")
-    const [srcSfSchema, setSrcSfSchema] = useState("")
-    const [srcSfTable, setSrcSfTable] = useState("")
-    const [srcSfLoading, setSrcSfLoading] = useState(false)
+    // ── Source config (generic) ───────────────────────────────────────────────
+    const [sourceConfig, setSourceConfig] = useState<Record<string, any>>({})
 
-    // Snowflake cascading state — destination side
-    const [destSfConnected, setDestSfConnected] = useState(false)
-    const [destSfConnecting, setDestSfConnecting] = useState(false)
-    const [destSfWarehouses, setDestSfWarehouses] = useState<WarehouseMetadataItem[]>([])
-    const [destSfDatabases, setDestSfDatabases] = useState<WarehouseMetadataItem[]>([])
-    const [destSfSchemas, setDestSfSchemas] = useState<WarehouseMetadataItem[]>([])
-    const [destSfTables, setDestSfTables] = useState<WarehouseMetadataItem[]>([])
-    const [destSfWarehouse, setDestSfWarehouse] = useState("")
-    const [destSfDatabase, setDestSfDatabase] = useState("")
-    const [destSfSchema, setDestSfSchema] = useState("")
-    const [destSfTable, setDestSfTable] = useState("")
-    const [destSfLoading, setDestSfLoading] = useState(false)
+    // ── Destination config (generic) ──────────────────────────────────────────
+    const [destinationConfig, setDestinationConfig] = useState<Record<string, any>>({})
 
-    // Column mapping state (Advanced)
-    const [sourceColumns, setSourceColumns] = useState<string[]>([])
-    const [targetColumns, setTargetColumns] = useState<string[]>([])
+    // ── Column mapping ────────────────────────────────────────────────────────
     const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
     const [mappingLoading, setMappingLoading] = useState(false)
     const [autoMapMethod, setAutoMapMethod] = useState("")
+    const [showMappingEditor, setShowMappingEditor] = useState(false)
+    const [cachedSourceFields, setCachedSourceFields] = useState<Array<{key: string; label?: string; data_type?: string; required?: boolean}>>([])
+    const [cachedDestFields, setCachedDestFields] = useState<Array<{key: string; label?: string; data_type?: string; required?: boolean}>>([])
 
-    // Advanced — Columns
-    const [fetchingCols, setFetchingCols] = useState(false)
-    const [allColumns, setAllColumns] = useState<string[]>([])
-    const [selectedColumns, setSelectedColumns] = useState<string[]>([])
-    const [colSearch, setColSearch] = useState("")
+    // ── DQ toggle ─────────────────────────────────────────────────────────────
+    const [dqEnabled, setDqEnabled] = useState(true)
 
-    // Advanced — Preset
-    const [presets, setPresets] = useState<SettingsPreset[]>([])
-    const [presetsLoading, setPresetsLoading] = useState(false)
-    const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null)
-    const [selectedPresetConfig, setSelectedPresetConfig] = useState<Record<string, any> | null>(null)
-    // Advanced — Custom Rules (legacy flat list)
-    const [globalRules, setGlobalRules] = useState<RuleState[]>(DEFAULT_GLOBAL_RULES.map(r => ({ ...r })))
-    const [rulesLoading, setRulesLoading] = useState(false)
-    const [rulesLoadedFromApi, setRulesLoadedFromApi] = useState(false)
-
-    // Advanced — Per-column Rules (derived from profiling)
-    const [columnRules, setColumnRules] = useState<Record<string, ColumnRuleState[]>>({})
-    const [crossFieldRules, setCrossFieldRules] = useState<CrossFieldRuleState[]>([])
-    const [expandedRuleColumns, setExpandedRuleColumns] = useState<string[]>([])
-    const [columnRulesSeeded, setColumnRulesSeeded] = useState(false)
-
-    // Advanced Wizard Mode
-    const [currentAdvancedStep, setCurrentAdvancedStep] = useState<AdvancedStep>("import")
-    const [advancedMode, setAdvancedMode] = useState(false)
-    const [dataImported, setDataImported] = useState(false)
-    const [importingData, setImportingData] = useState(false)
-
-    // Advanced — Profiling
-    const [profilingLoading, setProfilingLoading] = useState(false)
-    const [columnProfiles, setColumnProfiles] = useState<Record<string, ColumnProfile>>({})
-
-    // Responsible user
-    const [responsibleUserId, setResponsibleUserId] = useState("")
-    const [orgMembers, setOrgMembers] = useState<OrgMembership[]>([])
-    const [membersLoading, setMembersLoading] = useState(false)
-
-    // UI state
+    // ── UI state ──────────────────────────────────────────────────────────────
     const [saving, setSaving] = useState(false)
-    const [advancedOpen, setAdvancedOpen] = useState(false)
 
-    // Helper: current step index
-    const currentStepIndex = ADVANCED_STEPS.indexOf(currentAdvancedStep)
+    // ── Derived: providers filtered by category + connection status ────────────
 
-    // ─── Filtered columns (for search) ────────────────────────────────────────
-    const filteredCols = allColumns.filter(c => c.toLowerCase().includes(colSearch.toLowerCase()))
+    const sourceProviders: ProviderOption[] = allProviders
+        .filter(p => p.category === sourceCategory)
+        .map(p => ({
+            ...p,
+            connected: connectedProviderIds.has(p.provider_id),
+        }))
+        .filter(p => p.connected)
 
-    // ─── Populate / Reset ─────────────────────────────────────────────────────
+    const destinationProviders: ProviderOption[] = allProviders
+        .filter(p => p.category === destinationCategory)
+        .map(p => ({
+            ...p,
+            connected: connectedProviderIds.has(p.provider_id),
+        }))
+        .filter(p => p.connected)
+
+    // ── Fetch providers + connections on dialog open ──────────────────────────
+
+    useEffect(() => {
+        if (!open) return
+        let cancelled = false
+        setProvidersLoading(true)
+
+        Promise.all([
+            connectorsAPI.listProviders().catch(() => ({ providers: [] })),
+            connectorsAPI.listConnections().catch(() => ({ connections: [] })),
+        ]).then(([provResult, connResult]) => {
+            if (cancelled) return
+            setAllProviders(provResult.providers || [])
+
+            const connectedIds = new Set<string>()
+            for (const conn of (connResult.connections || [])) {
+                const pid = (conn as any).provider_id || (conn as any).provider
+                if (pid) connectedIds.add(pid)
+            }
+            setConnectedProviderIds(connectedIds)
+        }).finally(() => {
+            if (!cancelled) setProvidersLoading(false)
+        })
+
+        return () => { cancelled = true }
+    }, [open])
+
+    // ── Populate / Reset on open ─────────────────────────────────────────────
 
     useEffect(() => {
         if (!open) return
 
-        // Fetch org members for responsible user selector
-        setMembersLoading(true)
-        orgAPI.listMembers().then(res => {
-            setOrgMembers(res.members || [])
-        }).catch(() => {}).finally(() => setMembersLoading(false))
-
         if (job) {
             setName(job.name)
-            setSource(normalizeErpForUi(job.source))
-            setDestination(normalizeErpForUi(job.destination))
+            setSourceCategory((job.source_category || "erp") as ProviderCategory)
+            setSourceProvider(job.source_provider || "")
+            setDestinationCategory((job.destination_category || "erp") as ProviderCategory)
+            setDestinationProvider(job.destination_provider || "")
+            setEntities(job.entities || [])
+            setSourceConfig(job.source_config || {})
+            setDestinationConfig(job.destination_config || {})
+            setColumnMapping(job.column_mapping || {})
+            setDqEnabled(job.dq_config?.mode !== 'default' || true)
             const freq = frequencyFromBackend(job.frequency_type, job.frequency_value)
             setFrequency(freq.frequency)
-            setCronExpression(freq.cronExpression || job.cron_expression || "")
-            setSourceEntity(job.source_entity || job.entities?.[0] || "")
-            setTargetEntity(job.target_entity || job.entities?.[0] || "")
-            setSelectedColumns(job.dq_config?.columns || [])
-            setSelectedPresetId(job.dq_config?.preset_id || null)
-            setGlobalRules(job.dq_config?.rules?.length
-                ? job.dq_config.rules
-                : DEFAULT_GLOBAL_RULES.map(r => ({ ...r }))
-            )
-            setAdvancedOpen(job.dq_config?.mode === "custom")
-            setResponsibleUserId(job.responsible_user_id || "")
-            // Restore mapping config
-            setColumnMapping(job.mapping_config?.column_mapping || {})
-            setAutoMapMethod(job.mapping_config?.mapping_method || "")
-            // Restore Snowflake configs
-            if (job.source_snowflake_config) {
-                setSrcSfWarehouse(job.source_snowflake_config.warehouse || "")
-                setSrcSfDatabase(job.source_snowflake_config.database || "")
-                setSrcSfSchema(job.source_snowflake_config.schema || "")
-                setSrcSfTable(job.source_snowflake_config.table || "")
-            }
-            if (job.dest_snowflake_config) {
-                setDestSfWarehouse(job.dest_snowflake_config.warehouse || "")
-                setDestSfDatabase(job.dest_snowflake_config.database || "")
-                setDestSfSchema(job.dest_snowflake_config.schema || "")
-                setDestSfTable(job.dest_snowflake_config.table || "")
-            }
+            setCronExpression(freq.cronExpression)
         } else {
             setName("")
-            setSource("quickbooks")
-            setDestination("quickbooks")
+            setSourceCategory("erp")
+            setSourceProvider("")
+            setDestinationCategory("erp")
+            setDestinationProvider("")
             setFrequency("1hr")
             setCronExpression("")
-            setSourceEntity("")
-            setTargetEntity("")
-            setSelectedColumns([])
-            setAllColumns([])
-            setSelectedPresetId(null)
-            setSelectedPresetConfig(normalizePresetConfig(DEFAULT_SETTINGS_PRESET.config))
-            setGlobalRules(DEFAULT_GLOBAL_RULES.map(r => ({ ...r })))
-            setRulesLoadedFromApi(false)
-            setAdvancedOpen(false)
-            setAdvancedMode(false)
-            setDataImported(false)
-            setCurrentAdvancedStep("import")
-            setColumnProfiles({})
-            setPreviewUploadId("")
-            setColumnRules({})
-            setCrossFieldRules([])
-            setExpandedRuleColumns([])
-            setColumnRulesSeeded(false)
-            setResponsibleUserId("")
-            // Reset new state
-            setSourceEntities([])
-            setTargetEntities([])
+            setEntities([])
+            setAvailableEntities([])
+            setSourceConfig({})
+            setDestinationConfig({})
             setColumnMapping({})
             setAutoMapMethod("")
-            setSourceColumns([])
-            setTargetColumns([])
-            // Reset Snowflake state
-            setSrcSfWarehouses([]); setSrcSfDatabases([]); setSrcSfSchemas([]); setSrcSfTables([])
-            setSrcSfWarehouse(""); setSrcSfDatabase(""); setSrcSfSchema(""); setSrcSfTable("")
-            setDestSfWarehouses([]); setDestSfDatabases([]); setDestSfSchemas([]); setDestSfTables([])
-            setDestSfWarehouse(""); setDestSfDatabase(""); setDestSfSchema(""); setDestSfTable("")
+            setDqEnabled(true)
         }
     }, [job, open])
 
-    // ─── Dynamic Entity Discovery ────────────────────────────────────────────
+    // ── Entity discovery: fetch entities when source provider changes ─────────
 
     useEffect(() => {
-        if (!open || source === "snowflake") return
-        // Show static entities immediately so the user doesn't wait
-        setSourceEntities(ENTITY_OPTIONS)
-        setSourceEntitiesLoading(false)
-        // Enrich with discovered entities in the background
-        let cancelled = false
-        const apiSource = normalizeErpForApi(source)
-        jobsAPI.discoverEntities(apiSource).then(res => {
-            if (cancelled) return
-            const raw = res.entities || []
-            const entities = raw.map((e: any) => ({
-                label: (e.label || e.entity || e.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
-                value: e.entity || e.name || e.value || "",
-            })).filter((e: any) => e.value)
-            if (entities.length > 0) setSourceEntities(entities)
-        }).catch(() => { /* static fallback already set */ })
-        return () => { cancelled = true }
-    }, [source, open])
-
-    useEffect(() => {
-        if (!open || destination === "snowflake") return
-        // Show static entities immediately so the user doesn't wait
-        setTargetEntities(ENTITY_OPTIONS)
-        setTargetEntitiesLoading(false)
-        // Enrich with discovered entities in the background
-        let cancelled = false
-        const apiDest = normalizeErpForApi(destination)
-        jobsAPI.discoverEntities(apiDest).then(res => {
-            if (cancelled) return
-            const raw = res.entities || []
-            const entities = raw.map((e: any) => ({
-                label: (e.label || e.entity || e.name || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
-                value: e.entity || e.name || e.value || "",
-            })).filter((e: any) => e.value)
-            if (entities.length > 0) setTargetEntities(entities)
-        }).catch(() => { /* static fallback already set */ })
-        return () => { cancelled = true }
-    }, [destination, open])
-
-    // ─── Snowflake Cascade — Source ────────────────────────────────────────
-
-    useEffect(() => {
-        if (!open || source !== "snowflake") return
-        let cancelled = false
-        setSrcSfLoading(true)
-        connectorsAPI.getConnectionStatus('snowflake').then(status => {
-            if (cancelled) return
-            setSrcSfConnected(!!status?.connected)
-            if (!status?.connected) { setSrcSfLoading(false); return }
-            Promise.all([
-                warehouseConnectorsAPI.listWarehouses('snowflake').catch(() => []),
-                warehouseConnectorsAPI.listDatabases('snowflake').catch(() => []),
-            ]).then(([warehouses, databases]) => {
-                if (cancelled) return
-                setSrcSfWarehouses(warehouses)
-                setSrcSfDatabases(databases)
-            }).finally(() => { if (!cancelled) setSrcSfLoading(false) })
-        }).catch(() => {
-            if (!cancelled) { setSrcSfConnected(false); setSrcSfLoading(false) }
-        })
-        return () => { cancelled = true }
-    }, [source, open])
-
-    useEffect(() => {
-        if (source !== "snowflake" || !srcSfDatabase) { setSrcSfSchemas([]); return }
-        let cancelled = false
-        warehouseConnectorsAPI.listSchemas('snowflake', srcSfDatabase).then((schemas) => {
-            if (!cancelled) setSrcSfSchemas(schemas)
-        }).catch(() => { if (!cancelled) setSrcSfSchemas([]) })
-        setSrcSfSchema(""); setSrcSfTable("")
-        return () => { cancelled = true }
-    }, [source, srcSfDatabase])
-
-    useEffect(() => {
-        if (source !== "snowflake" || !srcSfDatabase || !srcSfSchema) { setSrcSfTables([]); return }
-        let cancelled = false
-        warehouseConnectorsAPI.listTables('snowflake', srcSfDatabase, srcSfSchema).then((tables) => {
-            if (!cancelled) setSrcSfTables(tables)
-        }).catch(() => { if (!cancelled) setSrcSfTables([]) })
-        setSrcSfTable("")
-        return () => { cancelled = true }
-    }, [source, srcSfDatabase, srcSfSchema])
-
-    // ─── Snowflake Cascade — Destination ───────────────────────────────────
-
-    useEffect(() => {
-        if (!open || destination !== "snowflake") return
-        let cancelled = false
-        setDestSfLoading(true)
-        connectorsAPI.getConnectionStatus('snowflake').then(status => {
-            if (cancelled) return
-            setDestSfConnected(!!status?.connected)
-            if (!status?.connected) { setDestSfLoading(false); return }
-            Promise.all([
-                warehouseConnectorsAPI.listWarehouses('snowflake').catch(() => []),
-                warehouseConnectorsAPI.listDatabases('snowflake').catch(() => []),
-            ]).then(([warehouses, databases]) => {
-                if (cancelled) return
-                setDestSfWarehouses(warehouses)
-                setDestSfDatabases(databases)
-            }).finally(() => { if (!cancelled) setDestSfLoading(false) })
-        }).catch(() => {
-            if (!cancelled) { setDestSfConnected(false); setDestSfLoading(false) }
-        })
-        return () => { cancelled = true }
-    }, [destination, open])
-
-    useEffect(() => {
-        if (destination !== "snowflake" || !destSfDatabase) { setDestSfSchemas([]); return }
-        let cancelled = false
-        warehouseConnectorsAPI.listSchemas('snowflake', destSfDatabase).then((schemas) => {
-            if (!cancelled) setDestSfSchemas(schemas)
-        }).catch(() => { if (!cancelled) setDestSfSchemas([]) })
-        setDestSfSchema(""); setDestSfTable("")
-        return () => { cancelled = true }
-    }, [destination, destSfDatabase])
-
-    useEffect(() => {
-        if (destination !== "snowflake" || !destSfDatabase || !destSfSchema) { setDestSfTables([]); return }
-        let cancelled = false
-        warehouseConnectorsAPI.listTables('snowflake', destSfDatabase, destSfSchema).then((tables) => {
-            if (!cancelled) setDestSfTables(tables)
-        }).catch(() => { if (!cancelled) setDestSfTables([]) })
-        setDestSfTable("")
-        return () => { cancelled = true }
-    }, [destination, destSfDatabase, destSfSchema])
-
-    // ─── Snowflake connect handlers ────────────────────────────────────────
-
-    const handleSrcSfConnect = async () => {
-        setSrcSfConnecting(true)
-        try {
-            const res = await connectorsAPI.connect('snowflake')
-            if (res?.auth_url) window.open(res.auth_url, "_blank")
-        } catch (err: any) {
-            toast({ title: "Connection failed", description: err?.message || "Failed to connect Snowflake", variant: "destructive" })
-        } finally {
-            setSrcSfConnecting(false)
+        if (!open || !sourceProvider) {
+            setAvailableEntities([])
+            return
         }
-    }
+        let cancelled = false
+        setEntitiesLoading(true)
+        setAvailableEntities([])
 
-    const handleDestSfConnect = async () => {
-        setDestSfConnecting(true)
-        try {
-            const res = await connectorsAPI.connect('snowflake')
-            if (res?.auth_url) window.open(res.auth_url, "_blank")
-        } catch (err: any) {
-            toast({ title: "Connection failed", description: err?.message || "Failed to connect Snowflake", variant: "destructive" })
-        } finally {
-            setDestSfConnecting(false)
-        }
-    }
-
-    // ─── Column Mapping Handlers ───────────────────────────────────────────
-
-    const fetchSourceColumns = async () => {
-        try {
-            if (source === "snowflake" && srcSfDatabase && srcSfSchema && srcSfTable) {
-                const cols = await warehouseConnectorsAPI.getTableColumns('snowflake', srcSfDatabase, srcSfSchema, srcSfTable)
-                setSourceColumns(cols.map(c => c.name))
-            } else if (sourceEntity) {
-                const res = await jobsAPI.getEntityFields(normalizeErpForApi(source), sourceEntity)
-                const fields = res.fields?.map(f => f.name).filter(Boolean)
-                setSourceColumns(fields && fields.length > 0 ? fields : ENTITY_COLUMNS[sourceEntity] || [])
+        const fetchEntities = async () => {
+            try {
+                if (sourceCategory === 'erp') {
+                    const res = await erpConnectorsAPI.discoverEntities(sourceProvider)
+                    if (cancelled) return
+                    const opts = (res.entities || []).map((e: EntityInfo) => ({
+                        label: e.label || e.name || e.entity || "",
+                        value: e.entity || e.value || e.name || "",
+                    })).filter((e: EntityOption) => e.value)
+                    setAvailableEntities(opts)
+                } else if (sourceCategory === 'warehouse') {
+                    // For warehouses, entities are tables — user selects via source_config
+                    // We can list tables if config has database + schema
+                    const db = sourceConfig.database
+                    const schema = sourceConfig.schema
+                    if (db && schema) {
+                        const tables = await warehouseConnectorsAPI.listTables(sourceProvider, db, schema)
+                        if (cancelled) return
+                        const opts = tables.map((t: WarehouseMetadataItem) => ({
+                            label: t.name,
+                            value: t.name,
+                        }))
+                        setAvailableEntities(opts)
+                    }
+                }
+                // Storage category: entities not applicable
+            } catch {
+                // Silently fail — user sees empty list
+            } finally {
+                if (!cancelled) setEntitiesLoading(false)
             }
-        } catch {
-            setSourceColumns(ENTITY_COLUMNS[sourceEntity] || [])
         }
-    }
 
-    const fetchTargetColumns = async () => {
-        try {
-            if (destination === "snowflake" && destSfDatabase && destSfSchema && destSfTable) {
-                const cols = await warehouseConnectorsAPI.getTableColumns('snowflake', destSfDatabase, destSfSchema, destSfTable)
-                setTargetColumns(cols.map(c => c.name))
-            } else if (targetEntity) {
-                const res = await jobsAPI.getEntityFields(normalizeErpForApi(destination), targetEntity)
-                const fields = res.fields?.map(f => f.name).filter(Boolean)
-                setTargetColumns(fields && fields.length > 0 ? fields : ENTITY_COLUMNS[targetEntity] || [])
+        fetchEntities()
+        return () => { cancelled = true }
+    }, [open, sourceProvider, sourceCategory, sourceConfig.database, sourceConfig.schema])
+
+    // ── Reset source provider when category changes ──────────────────────────
+
+    useEffect(() => {
+        setSourceProvider("")
+        setEntities([])
+        setAvailableEntities([])
+        setSourceConfig({})
+    }, [sourceCategory])
+
+    useEffect(() => {
+        setDestinationProvider("")
+        setDestinationConfig({})
+    }, [destinationCategory])
+
+    // ── Reset entities when source provider changes ──────────────────────────
+
+    useEffect(() => {
+        setEntities([])
+        setSourceConfig({})
+    }, [sourceProvider])
+
+    // ── Warehouse metadata helpers (for source_config cascading) ─────────────
+
+    const [warehouseList, setWarehouseList] = useState<WarehouseMetadataItem[]>([])
+    const [databaseList, setDatabaseList] = useState<WarehouseMetadataItem[]>([])
+    const [schemaList, setSchemaList] = useState<WarehouseMetadataItem[]>([])
+    const [warehouseMetaLoading, setWarehouseMetaLoading] = useState(false)
+
+    // Fetch warehouses + databases when warehouse provider selected
+    useEffect(() => {
+        if (sourceCategory !== 'warehouse' || !sourceProvider) return
+        let cancelled = false
+        setWarehouseMetaLoading(true)
+        Promise.all([
+            warehouseConnectorsAPI.listWarehouses(sourceProvider).catch(() => []),
+            warehouseConnectorsAPI.listDatabases(sourceProvider).catch(() => []),
+        ]).then(([wh, db]) => {
+            if (cancelled) return
+            setWarehouseList(wh)
+            setDatabaseList(db)
+        }).finally(() => { if (!cancelled) setWarehouseMetaLoading(false) })
+        return () => { cancelled = true }
+    }, [sourceCategory, sourceProvider])
+
+    // Fetch schemas when database selected
+    useEffect(() => {
+        if (sourceCategory !== 'warehouse' || !sourceProvider || !sourceConfig.database) {
+            setSchemaList([])
+            return
+        }
+        let cancelled = false
+        warehouseConnectorsAPI.listSchemas(sourceProvider, sourceConfig.database).then(schemas => {
+            if (!cancelled) setSchemaList(schemas)
+        }).catch(() => { if (!cancelled) setSchemaList([]) })
+        return () => { cancelled = true }
+    }, [sourceCategory, sourceProvider, sourceConfig.database])
+
+    // ── Entity toggle helper ─────────────────────────────────────────────────
+
+    const toggleEntity = useCallback((entityValue: string) => {
+        setEntities(prev =>
+            prev.includes(entityValue)
+                ? prev.filter(e => e !== entityValue)
+                : [...prev, entityValue]
+        )
+    }, [])
+
+    const selectAllEntities = useCallback(() => {
+        setEntities(availableEntities.map(e => e.value))
+    }, [availableEntities])
+
+    const clearAllEntities = useCallback(() => {
+        setEntities([])
+    }, [])
+
+    // ── Source config setter helpers ──────────────────────────────────────────
+
+    const updateSourceConfig = useCallback((key: string, value: any) => {
+        setSourceConfig(prev => {
+            const next = { ...prev, [key]: value }
+            // Clear downstream when parent changes
+            if (key === 'database') {
+                delete next.schema
+                delete next.table
             }
-        } catch {
-            setTargetColumns(ENTITY_COLUMNS[targetEntity] || [])
-        }
-    }
+            if (key === 'schema') {
+                delete next.table
+            }
+            return next
+        })
+    }, [])
 
-    const handleAutoMap = async () => {
+    const updateDestinationConfig = useCallback((key: string, value: any) => {
+        setDestinationConfig(prev => ({ ...prev, [key]: value }))
+    }, [])
+
+    // ── Auto-map column mapping ──────────────────────────────────────────────
+
+    const handleAutoMap = useCallback(async () => {
+        if (!sourceProvider || entities.length === 0) {
+            toast({ title: "Select source and entities first", variant: "destructive" })
+            return
+        }
         setMappingLoading(true)
         try {
-            // Fetch columns if not already loaded
-            if (sourceColumns.length === 0) await fetchSourceColumns()
-            if (targetColumns.length === 0) await fetchTargetColumns()
-
-            const srcEntity = source === "snowflake" ? srcSfTable : sourceEntity
-            const dstEntity = destination === "snowflake" ? destSfTable : targetEntity
-            const res = await jobsAPI.getMappingPreview({
-                source_provider: normalizeErpForApi(source),
-                source_entity: srcEntity,
-                dest_provider: normalizeErpForApi(destination),
-                dest_entity: dstEntity,
-            })
-            if (res.mapping && Object.keys(res.mapping).length > 0) {
-                setColumnMapping(res.mapping)
-                setAutoMapMethod(res.method || "template")
-                toast({ title: "Mapping Complete", description: `Mapped ${Object.keys(res.mapping).length} columns via ${res.method || "template"}` })
+            if (sourceCategory === 'erp' && destinationCategory === 'erp') {
+                // ERP-to-ERP: fetch source entity fields, then AI auto-map to destination
+                const sourceFields = await erpConnectorsAPI.getEntityFields(sourceProvider, entities[0])
+                const sourceFieldNames = (sourceFields.fields || []).map((f: any) => f.key || f.name || f.field_name || "")
+                    .filter(Boolean)
+                if (sourceFieldNames.length === 0) {
+                    toast({ title: "No source fields found", description: "Could not fetch fields for source entity.", variant: "destructive" })
+                    setMappingLoading(false)
+                    return
+                }
+                const res = await erpConnectorsAPI.aiAutoMap(
+                    destinationProvider,
+                    sourceFieldNames,
+                    entities[0],
+                    sourceProvider,
+                )
+                if (res.mapping && Object.keys(res.mapping).length > 0) {
+                    setColumnMapping(res.mapping)
+                    setAutoMapMethod(res.method || "ai")
+                    toast({
+                        title: "Mapping Complete",
+                        description: `Mapped ${res.columns_mapped || Object.keys(res.mapping).length} columns via ${res.method || "ai"}`,
+                    })
+                } else {
+                    toast({ title: "No mappings found", description: "Could not auto-map columns.", variant: "destructive" })
+                }
+            } else if (sourceCategory === 'warehouse' || destinationCategory === 'warehouse') {
+                // Warehouse mapping: fetch source fields, then auto-map
+                const whProvider = sourceCategory === 'warehouse' ? sourceProvider : destinationProvider
+                const srcProvider = sourceCategory === 'erp' ? sourceProvider : sourceProvider
+                let sourceFieldNames: string[] = []
+                if (sourceCategory === 'erp') {
+                    const srcFields = await erpConnectorsAPI.getEntityFields(srcProvider, entities[0])
+                    sourceFieldNames = (srcFields.fields || []).map((f: any) => f.key || f.name || f.field_name || "").filter(Boolean)
+                }
+                const res = await warehouseConnectorsAPI.aiAutoMap(whProvider, sourceFieldNames, [])
+                if (res.mapping && Object.keys(res.mapping).length > 0) {
+                    setColumnMapping(res.mapping)
+                    setAutoMapMethod(res.method || "ai")
+                    toast({
+                        title: "Mapping Complete",
+                        description: `Mapped ${res.columns_mapped || Object.keys(res.mapping).length} columns`,
+                    })
+                } else {
+                    toast({ title: "No mappings found", variant: "destructive" })
+                }
             } else {
-                toast({ title: "No mappings found", description: "Could not auto-map columns. Please map manually.", variant: "destructive" })
+                toast({ title: "Auto-map not supported for this combination", variant: "destructive" })
             }
         } catch (err: any) {
             toast({ title: "Auto-map failed", description: err?.message || "Failed to generate mapping", variant: "destructive" })
         } finally {
             setMappingLoading(false)
         }
-    }
+    }, [sourceProvider, destinationProvider, sourceCategory, destinationCategory, entities, toast])
 
-    const handleManualMapChange = (targetCol: string, sourceCol: string) => {
-        setColumnMapping(prev => {
-            const next = { ...prev }
-            if (sourceCol) {
-                next[targetCol] = sourceCol
-            } else {
-                delete next[targetCol]
-            }
-            return next
-        })
-        setAutoMapMethod("")
-    }
+    // ── Manual mapping editor ────────────────────────────────────────────────
 
-    // ─── Fetch Columns ────────────────────────────────────────────────────────
-
-    const handleFetchColumns = async () => {
-        setFetchingCols(true)
-        try {
-            const effectiveEntity = source === "snowflake" ? srcSfTable : sourceEntity
-            const cols = ENTITY_COLUMNS[effectiveEntity] || ["Column1", "Column2", "Column3"]
-            setAllColumns(cols)
-            setSelectedColumns(cols)
-
-            // Also fetch source + target columns for column mapping
-            await Promise.all([fetchSourceColumns(), fetchTargetColumns()])
-
-            toast({ title: "Columns Loaded", description: `${cols.length} columns available for ${effectiveEntity}` })
-        } catch (err: any) {
-            toast({ title: "Error", description: err?.message || "Failed to fetch columns", variant: "destructive" })
-        } finally {
-            setFetchingCols(false)
-        }
-    }
-
-    // ─── Import Data from Source (Advanced Mode) ──────────────────────────────
-
-    // Track the upload_id from import preview for profiling
-    const [previewUploadId, setPreviewUploadId] = useState("")
-
-    const handleImportDataFromSource = async () => {
-        setImportingData(true)
-        try {
-            const apiSource = normalizeErpForApi(source)
-            const effectiveEntity = source === "snowflake" ? srcSfTable : sourceEntity
-            const result = await jobsAPI.importPreview(apiSource, effectiveEntity)
-            const cols = result.columns?.length > 0
-                ? result.columns
-                : (ENTITY_COLUMNS[effectiveEntity] || ["Column1", "Column2", "Column3"])
-            setAllColumns(cols)
-            setSelectedColumns(cols)
-            setPreviewUploadId(result.upload_id || "")
-            setDataImported(true)
-            setCurrentAdvancedStep("columns")
-            toast({
-                title: "Data Imported",
-                description: `Imported ${result.records_imported || 0} sample records from ${SOURCE_ERP_OPTIONS.find(e => e.value === source)?.label || source}. ${cols.length} columns discovered.`
-            })
-        } catch (err: any) {
-            // Fallback to static columns if API not available
-            const effectiveEntityFallback = source === "snowflake" ? srcSfTable : sourceEntity
-            const cols = ENTITY_COLUMNS[effectiveEntityFallback] || ["Column1", "Column2", "Column3"]
-            setAllColumns(cols)
-            setSelectedColumns(cols)
-            setDataImported(true)
-            setCurrentAdvancedStep("columns")
-            toast({
-                title: "Data Imported (Fallback)",
-                description: `Using default columns for ${effectiveEntityFallback}. ${err?.message || ""}`,
-            })
-        } finally {
-            setImportingData(false)
-        }
-    }
-
-    // ─── Fetch Profiling Data ─────────────────────────────────────────────────
-
-    const handleFetchProfiling = async () => {
-        if (selectedColumns.length === 0) {
-            toast({ title: "Select columns first", description: "Please select at least one column", variant: "destructive" })
+    const handleOpenMappingEditor = useCallback(async () => {
+        if (!sourceProvider || entities.length === 0 || !destinationProvider) {
+            toast({ title: "Select source, destination and entities first", variant: "destructive" })
             return
         }
-        if (!previewUploadId) {
-            toast({
-                title: "No import data",
-                description: "Please import data from source first (step 1)",
-                variant: "destructive"
-            })
-            return
-        }
-        setProfilingLoading(true)
-        try {
-            console.log('[Profiling] Calling API with upload_id:', previewUploadId, 'columns:', selectedColumns.length)
-            const result = await jobsAPI.fetchProfiling(previewUploadId, selectedColumns)
-            console.log('[Profiling] API response:', result)
 
-            // Check for backend error response
-            const apiError =
-                (result as unknown as { error?: string; message?: string })?.error ||
-                (result as unknown as { error?: string; message?: string })?.message
-            if (apiError) {
-                console.error('[Profiling] Backend returned error:', apiError)
-                toast({
-                    title: "Profiling Failed",
-                    description: apiError,
-                    variant: "destructive"
-                })
-                return
-            }
-
-            const rawProfiles = (result.profiles || {}) as Record<string, Partial<ColumnProfile>>
-            const profiles: Record<string, ColumnProfile> = Object.fromEntries(
-                Object.entries(rawProfiles).map(([col, profile]) => [
-                    col,
-                    { column_name: col, ...(profile || {}) } as ColumnProfile,
+        // Fetch fields if not cached
+        if (cachedSourceFields.length === 0 || cachedDestFields.length === 0) {
+            try {
+                const [srcRes, dstRes] = await Promise.all([
+                    erpConnectorsAPI.getEntityFields(sourceProvider, entities[0]),
+                    erpConnectorsAPI.getEntityFields(destinationProvider, entities[0]),
                 ])
-            )
-
-            if (Object.keys(profiles).length === 0) {
-                console.warn('[Profiling] No profiles returned')
-                toast({
-                    title: "No profiling data",
-                    description: "Profiling returned no results. Check CloudWatch logs for details.",
-                    variant: "destructive"
-                })
-            } else {
-                console.log('[Profiling] Success:', Object.keys(profiles).length, 'column profiles')
-                setColumnProfiles(profiles)
-                // Seed cross-field rules if returned
-                if ((result as any).cross_field_rules?.length) {
-                    seedCrossFieldRules((result as any).cross_field_rules)
-                }
-                // Reset column rules seeded flag so they get re-derived with new profiling data
-                setColumnRulesSeeded(false)
-                // Don't auto-advance - let users review the profiling results
-                toast({
-                    title: "Profiling Complete",
-                    description: `Analyzed ${Object.keys(profiles).length} columns. Review results below.`
-                })
-            }
-        } catch (err: any) {
-            console.error('[Profiling] Exception:', err)
-            toast({
-                title: "Profiling Failed",
-                description: err?.message || "Failed to profile columns. Check CloudWatch logs.",
-                variant: "destructive"
-            })
-        } finally {
-            setProfilingLoading(false)
-        }
-    }
-
-    // ─── Step Navigation ──────────────────────────────────────────────────────
-
-    const goToNextStep = () => {
-        const nextIndex = currentStepIndex + 1
-        if (nextIndex < ADVANCED_STEPS.length) {
-            const nextStep = ADVANCED_STEPS[nextIndex]
-
-            if (currentAdvancedStep === "columns" && selectedColumns.length === 0) {
-                toast({ title: "Select columns", description: "Please select at least one column", variant: "destructive" })
-                return
-            }
-            if (currentAdvancedStep === "profiling" && Object.keys(columnProfiles).length === 0) {
-                toast({ title: "Run profiling first", description: "Click the Profiling section to analyze columns", variant: "destructive" })
-                return
-            }
-
-            setCurrentAdvancedStep(nextStep)
-        }
-    }
-
-    const goToPreviousStep = () => {
-        const prevIndex = currentStepIndex - 1
-        if (prevIndex >= 0) {
-            setCurrentAdvancedStep(ADVANCED_STEPS[prevIndex])
-        }
-    }
-
-    const toggleColumn = (col: string) => {
-        setSelectedColumns(prev =>
-            prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
-        )
-    }
-
-    // ─── Load Presets ─────────────────────────────────────────────────────────
-
-    const applyPresetConfigToEditor = (config: Record<string, any>) => {
-        const normalized = normalizePresetConfig(config)
-        setSelectedPresetConfig(normalized)
-        setEditCurrencyValues((normalized.currency_values || []).join(", "))
-        setEditUomValues((normalized.uom_values || []).join(", "))
-        setEditDateFormats((normalized.date_formats || []).join(", "))
-        setEditStrictness(normalized.policies?.strictness || "balanced")
-        setEditAutoFix(normalized.policies?.auto_fix ?? true)
-        setEditUnknownBehavior(normalized.policies?.unknown || "safe_cleanup_only")
-        setEditPlaceholders((normalized.lookups?.placeholders || []).join(", "))
-        setEditStatusEnums((normalized.lookups?.status_values || []).join(", "))
-        setEditMaxTextLen(normalized.hygiene?.max_text_length ?? 255)
-    }
-
-    const handleSelectPreset = useCallback(async (presetId: string, presetList?: SettingsPreset[]) => {
-        if (presetId === "none") {
-            setSelectedPresetId(null)
-            applyPresetConfigToEditor(DEFAULT_SETTINGS_PRESET.config || {})
-            return
-        }
-        setSelectedPresetId(presetId)
-
-        const list = presetList || presets
-        const localPreset = list.find(p => p.preset_id === presetId)
-        if (localPreset?.config) {
-            applyPresetConfigToEditor(localPreset.config)
-            if (presetId === DEFAULT_SETTINGS_PRESET.preset_id) return
-        }
-
-        // Fetch full preset details using fileManagementAPI
-        try {
-            const preset = await fileManagementAPI.getSettingsPreset(presetId)
-            if (preset?.config) applyPresetConfigToEditor(preset.config)
-        } catch (err) {
-            console.error('Failed to load preset details:', err)
-            // Keep local fallback already applied above.
-        }
-    }, [presets])
-
-    useEffect(() => {
-        if (currentAdvancedStep !== "settings" || !dataImported) return
-        let cancelled = false
-
-        const loadPresets = async () => {
-            setPresetsLoading(true)
-            try {
-                const res = await fileManagementAPI.getSettingsPresets()
-                const serverPresets = (res?.presets || []) as SettingsPreset[]
-                const hasDefault = serverPresets.some(p => p.is_default)
-                const finalPresets = serverPresets.length === 0
-                    ? [DEFAULT_SETTINGS_PRESET]
-                    : hasDefault
-                        ? serverPresets
-                        : [...serverPresets, DEFAULT_SETTINGS_PRESET]
-
-                if (cancelled) return
-                setPresets(finalPresets)
-
-                if (selectedPresetId) {
-                    await handleSelectPreset(selectedPresetId, finalPresets)
-                } else {
-                    applyPresetConfigToEditor(DEFAULT_SETTINGS_PRESET.config || {})
-                }
-            } catch (err) {
-                console.error('Failed to load presets:', err)
-                if (cancelled) return
-                setPresets([DEFAULT_SETTINGS_PRESET])
-                if (!selectedPresetId) {
-                    applyPresetConfigToEditor(DEFAULT_SETTINGS_PRESET.config || {})
-                }
-            } finally {
-                if (!cancelled) setPresetsLoading(false)
-            }
-        }
-
-        loadPresets()
-        return () => { cancelled = true }
-    }, [currentAdvancedStep, dataImported, handleSelectPreset, selectedPresetId])
-
-    // ─── Preset Editing ───────────────────────────────────────────────────────
-    const [presetEditMode, setPresetEditMode] = useState(false)
-    const [editCurrencyValues, setEditCurrencyValues] = useState("")
-    const [editUomValues, setEditUomValues] = useState("")
-    const [editDateFormats, setEditDateFormats] = useState("")
-    const [editStrictness, setEditStrictness] = useState("balanced")
-    const [editAutoFix, setEditAutoFix] = useState(true)
-    const [editUnknownBehavior, setEditUnknownBehavior] = useState("safe_cleanup_only")
-    const [editPlaceholders, setEditPlaceholders] = useState("")
-    const [editStatusEnums, setEditStatusEnums] = useState("")
-    const [editMaxTextLen, setEditMaxTextLen] = useState<number | string>(255)
-    const [activePresetTab, setActivePresetTab] = useState("policies")
-    const presetFileInputRef = useRef<HTMLInputElement>(null)
-
-    // ─── New Preset Dialog ───────────────────────────────────────────────────
-    const [showNewPresetDialog, setShowNewPresetDialog] = useState(false)
-    const [newPresetName, setNewPresetName] = useState("")
-    const [uploadedConfig, setUploadedConfig] = useState<any>(null)
-
-    const handleEditPreset = () => {
-        setPresetEditMode(true)
-        setActivePresetTab("policies")
-        if (selectedPresetConfig) {
-            setEditCurrencyValues((selectedPresetConfig.currency_values || []).join(", "))
-            setEditUomValues((selectedPresetConfig.uom_values || []).join(", "))
-            setEditDateFormats((selectedPresetConfig.date_formats || []).join(", "))
-            setEditStrictness(selectedPresetConfig.policies?.strictness || "balanced")
-            setEditAutoFix(selectedPresetConfig.policies?.auto_fix ?? true)
-            setEditUnknownBehavior(selectedPresetConfig.policies?.unknown || "safe_cleanup_only")
-            setEditPlaceholders((selectedPresetConfig.lookups?.placeholders || []).join(", "))
-            setEditStatusEnums((selectedPresetConfig.lookups?.status_values || []).join(", "))
-            setEditMaxTextLen(selectedPresetConfig.hygiene?.max_text_length ?? 255)
-        }
-    }
-
-    const handleCancelPresetEdit = () => {
-        setPresetEditMode(false)
-    }
-
-    const buildConfigFromState = (): Record<string, any> => ({
-        policies: {
-            strictness: editStrictness,
-            auto_fix: editAutoFix,
-            unknown: editUnknownBehavior,
-        },
-        lookups: {
-            placeholders: editPlaceholders.split(",").map(s => s.trim()).filter(Boolean),
-            status_values: editStatusEnums.split(",").map(s => s.trim()).filter(Boolean),
-        },
-        currency_values: editCurrencyValues.split(",").map(s => s.trim()).filter(Boolean),
-        uom_values: editUomValues.split(",").map(s => s.trim()).filter(Boolean),
-        date_formats: editDateFormats.split(",").map(s => s.trim()).filter(Boolean),
-        hygiene: {
-            max_text_length: Number(editMaxTextLen) || 255,
-        },
-    })
-
-    const handleSavePresetEdit = async () => {
-        const newConfig = buildConfigFromState()
-        try {
-            if (selectedPresetId && selectedPresetId !== DEFAULT_SETTINGS_PRESET.preset_id) {
-                const presetName = presets.find(p => p.preset_id === selectedPresetId)?.preset_name || "Updated Preset"
-                await fileManagementAPI.updateSettingsPreset(selectedPresetId, {
-                    preset_name: presetName,
-                    config: newConfig,
-                })
-                toast({ title: "Preset updated", description: `${presetName} saved successfully.` })
-            }
-
-            const res = await fileManagementAPI.getSettingsPresets()
-            const list = (res?.presets || []) as SettingsPreset[]
-            const hasDefault = list.some(p => p.is_default)
-            const finalList = list.length === 0
-                ? [DEFAULT_SETTINGS_PRESET]
-                : hasDefault
-                    ? list
-                    : [...list, DEFAULT_SETTINGS_PRESET]
-            setPresets(finalList)
-
-            if (selectedPresetId) {
-                await handleSelectPreset(selectedPresetId, finalList)
-            } else {
-                applyPresetConfigToEditor(newConfig)
-            }
-            setPresetEditMode(false)
-        } catch (err: any) {
-            toast({ title: "Save failed", description: err?.message || "Could not save preset.", variant: "destructive" })
-        }
-    }
-
-    const handleNewPreset = () => {
-        setNewPresetName("")
-        setUploadedConfig(null)
-        setShowNewPresetDialog(true)
-    }
-
-    const handleCreatePreset = async () => {
-        if (!newPresetName.trim()) {
-            toast({ title: "Name required", description: "Please enter a preset name.", variant: "destructive" })
-            return
-        }
-        try {
-            const config = uploadedConfig || buildConfigFromState()
-            const created = await fileManagementAPI.createSettingsPreset({
-                preset_name: newPresetName.trim(),
-                config,
-                is_default: false,
-            })
-            const res = await fileManagementAPI.getSettingsPresets()
-            const list = (res?.presets || []) as SettingsPreset[]
-            const hasDefault = list.some(p => p.is_default)
-            const finalList = list.length === 0
-                ? [DEFAULT_SETTINGS_PRESET]
-                : hasDefault
-                    ? list
-                    : [...list, DEFAULT_SETTINGS_PRESET]
-            setPresets(finalList)
-            if (created?.preset_id) {
-                await handleSelectPreset(created.preset_id, finalList)
-            }
-            setShowNewPresetDialog(false)
-            setNewPresetName("")
-            setUploadedConfig(null)
-            toast({ title: "Preset created", description: `${newPresetName.trim()} created successfully.` })
-        } catch (err: any) {
-            toast({ title: "Create failed", description: err?.message || "Could not create preset.", variant: "destructive" })
-        }
-    }
-
-    const handleDeletePreset = async () => {
-        if (!selectedPresetId || selectedPresetId === DEFAULT_SETTINGS_PRESET.preset_id) return
-        try {
-            await fileManagementAPI.deleteSettingsPreset(selectedPresetId)
-            const res = await fileManagementAPI.getSettingsPresets()
-            const list = (res?.presets || []) as SettingsPreset[]
-            const hasDefault = list.some(p => p.is_default)
-            const finalList = list.length === 0
-                ? [DEFAULT_SETTINGS_PRESET]
-                : hasDefault
-                    ? list
-                    : [...list, DEFAULT_SETTINGS_PRESET]
-            setPresets(finalList)
-            setSelectedPresetId(null)
-            applyPresetConfigToEditor(DEFAULT_SETTINGS_PRESET.config || {})
-            toast({ title: "Preset deleted" })
-        } catch (err: any) {
-            toast({ title: "Delete failed", description: err?.message || "Could not delete preset.", variant: "destructive" })
-        }
-    }
-
-    const handleExportPreset = () => {
-        if (!selectedPresetConfig) return
-        const preset = presets.find(p => p.preset_id === selectedPresetId)
-        const exportData = {
-            preset_name: preset?.preset_name || "Custom Preset",
-            config: selectedPresetConfig,
-        }
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = `${preset?.preset_name || "preset"}.json`
-        a.click()
-        URL.revokeObjectURL(url)
-        toast({ title: "Preset exported", description: `Downloaded ${preset?.preset_name}.json` })
-    }
-
-    const handlePresetFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]
-        if (!file) return
-
-        const reader = new FileReader()
-        reader.onload = (e) => {
-            try {
-                const content = e.target?.result as string
-                let rawConfig: Record<string, any> = {}
-
-                if (file.name.toLowerCase().endsWith(".json")) {
-                    const parsed = JSON.parse(content)
-                    rawConfig = parsed?.config || parsed
-                } else if (file.name.endsWith(".csv")) {
-                    const rows = parseCsvRows(content)
-                    rawConfig = { imported_data: rows, source: "csv_upload", headers: Object.keys(rows[0] || {}) }
-                } else {
-                    throw new Error("Please upload a .json or .csv file")
-                }
-
-                setUploadedConfig(rawConfig)
-                const defaultName = file.name.replace(/\.(json|csv)$/i, "")
-                setNewPresetName(defaultName)
-                setShowNewPresetDialog(true)
+                const srcFields = (srcRes.fields || []).map((f: any) => ({
+                    key: f.key || f.name || "",
+                    label: f.label || f.key || f.name || "",
+                    data_type: f.data_type || f.type || "string",
+                    required: f.required || false,
+                })).filter((f: any) => f.key)
+                const dstFields = (dstRes.fields || []).map((f: any) => ({
+                    key: f.key || f.name || "",
+                    label: f.label || f.key || f.name || "",
+                    data_type: f.data_type || f.type || "string",
+                    required: f.required || false,
+                })).filter((f: any) => f.key)
+                setCachedSourceFields(srcFields)
+                setCachedDestFields(dstFields)
             } catch (err: any) {
-                toast({ title: "Import failed", description: err?.message || "Invalid file format", variant: "destructive" })
+                toast({ title: "Failed to load fields", description: err?.message, variant: "destructive" })
+                return
             }
         }
-        reader.readAsText(file)
-        event.target.value = ""
-    }
+        setShowMappingEditor(true)
+    }, [sourceProvider, destinationProvider, entities, cachedSourceFields.length, cachedDestFields.length, toast])
 
-    // ─── Seed Column Rules from Profiling (like file explorer RulesStep) ────
-
-    useEffect(() => {
-        if (currentAdvancedStep !== "rules" || !dataImported || columnRulesSeeded) return
-        if (selectedColumns.length === 0 || Object.keys(columnProfiles).length === 0) return
-
-        setRulesLoading(true)
-
-        // Derive per-column rules using the type catalog (same as file explorer)
-        const derived: Record<string, ColumnRuleState[]> = {}
-        selectedColumns.forEach(col => {
-            const profile = columnProfiles[col]
-            if (!profile) return
-
-            const coreType = profile.type_guess || "string"
-            const rawType = (CORE_TYPES as any)[coreType] || (TYPE_ALIASES as any)[coreType] ? coreType : "string"
-            const keyType = (profile.key_type as "none" | "primary_key" | "unique") || "none"
-            const nullable = profile.nullable_suggested !== undefined ? !!profile.nullable_suggested : true
-
-            const result = deriveRulesV2(rawType, keyType, nullable)
-            derived[col] = result.rules.map(id => ({
-                rule_id: id,
-                rule_name: getRuleLabel(id),
-                category: "auto" as const,
-                selected: true,
-                column: col,
-                source: result.ruleSources[id],
-            }))
-
-            // Also merge any rules that came from the profiling API (human-decision rules)
-            if (profile.rules?.length) {
-                profile.rules.forEach(r => {
-                    if (!derived[col].some(dr => dr.rule_id === r.rule_id)) {
-                        derived[col].push({
-                            rule_id: r.rule_id,
-                            rule_name: getRuleLabel(r.rule_id),
-                            category: (r.decision === "human" ? "human" : "auto") as "auto" | "human",
-                            selected: true,
-                            column: col,
-                            source: r.decision || "profiling",
-                        })
-                    }
-                })
-            }
-        })
-
-        setColumnRules(derived)
-        setGlobalRules([]) // Clear legacy flat rules — column rules replace them
-        setColumnRulesSeeded(true)
-        setRulesLoading(false)
-    }, [currentAdvancedStep, dataImported, columnRulesSeeded, selectedColumns, columnProfiles])
-
-    // ─── Seed cross-field rules from profiling result ────────────────────────
-
-    const seedCrossFieldRules = (crossRules: Array<{
-        rule_id: string; cols: string[]; relationship?: string;
-        condition?: string; confidence?: number; reasoning?: string;
-    }>) => {
-        setCrossFieldRules(crossRules.map(r => ({ ...r, enabled: true })))
-    }
-
-    // ─── Toggle Rules ─────────────────────────────────────────────────────────
-
-    const toggleRule = (ruleId: string) => {
-        setGlobalRules(prev =>
-            prev.map(r => r.rule_id === ruleId ? { ...r, selected: !r.selected } : r)
-        )
-    }
-
-    const toggleColumnRule = (column: string, ruleId: string) => {
-        setColumnRules(prev => ({
-            ...prev,
-            [column]: (prev[column] || []).map(r =>
-                r.rule_id === ruleId ? { ...r, selected: !r.selected } : r
-            ),
-        }))
-    }
-
-    const toggleRuleColumnExpand = (col: string) => {
-        setExpandedRuleColumns(prev =>
-            prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
-        )
-    }
-
-    const toggleCrossFieldRule = (ruleId: string, cols: string[]) => {
-        setCrossFieldRules(prev =>
-            prev.map(r =>
-                r.rule_id === ruleId && r.cols.join(".") === cols.join(".")
-                    ? { ...r, enabled: !r.enabled }
-                    : r
-            )
-        )
-    }
-
-    // ─── Rule Statistics ─────────────────────────────────────────────────────
-
-    const allColumnRulesFlat = Object.values(columnRules).flat()
-    const ruleStats = {
-        totalAuto: allColumnRulesFlat.filter(r => r.category === "auto").length,
-        totalHuman: allColumnRulesFlat.filter(r => r.category === "human").length,
-        totalCustom: allColumnRulesFlat.filter(r => r.category === "custom").length,
-        totalSelected: allColumnRulesFlat.filter(r => r.selected).length,
-        totalCross: crossFieldRules.length,
-        totalCrossEnabled: crossFieldRules.filter(r => r.enabled).length,
-    }
-
-    // ─── Submit ───────────────────────────────────────────────────────────────
+    // ── Submit ────────────────────────────────────────────────────────────────
 
     const handleSubmit = async () => {
         if (!name.trim()) {
             toast({ title: "Name required", description: "Please enter a job name", variant: "destructive" })
+            return
+        }
+        if (!sourceProvider) {
+            toast({ title: "Source required", description: "Please select a source provider", variant: "destructive" })
+            return
+        }
+        if (!destinationProvider) {
+            toast({ title: "Destination required", description: "Please select a destination provider", variant: "destructive" })
+            return
+        }
+        if (entities.length === 0) {
+            toast({ title: "Entities required", description: "Please select at least one entity", variant: "destructive" })
             return
         }
         if (frequency === "cron" && !cronExpression.trim()) {
@@ -1123,85 +437,42 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             return
         }
 
-        const effectiveSourceEntity = source === "snowflake" ? srcSfTable : sourceEntity
-        const effectiveTargetEntity = destination === "snowflake" ? destSfTable : targetEntity
-
-        if (!effectiveSourceEntity) {
-            toast({ title: "Source entity required", description: "Please select a source entity", variant: "destructive" })
-            return
-        }
-        if (!effectiveTargetEntity) {
-            toast({ title: "Target entity required", description: "Please select a target entity", variant: "destructive" })
-            return
-        }
-
         setSaving(true)
         try {
-            const hasCustomConfig = advancedOpen && (
-                selectedColumns.length > 0 ||
-                selectedPresetId ||
-                globalRules.some(r => !r.selected)
-            )
-
-            const dq_config = hasCustomConfig
-                ? {
-                    mode: "custom" as const,
-                    ...(selectedColumns.length > 0 && { columns: selectedColumns }),
-                    ...(selectedPresetId && { preset_id: selectedPresetId }),
-                    rules: globalRules,
-                }
-                : { mode: "default" as const }
-
             const freqBackend = frequencyToBackend(frequency, cronExpression.trim())
 
-            const normalizedSource = normalizeErpForApi(source)
-            const base: Record<string, any> = {
+            const dq_config = dqEnabled
+                ? { mode: "default" as const }
+                : { mode: "default" as const }
+
+            const payload: Record<string, any> = {
                 name: name.trim(),
-                source: normalizedSource,
-                destination: normalizeErpForApi(destination),
-                source_entity: effectiveSourceEntity,
-                target_entity: effectiveTargetEntity,
-                entities: [effectiveSourceEntity],
+                source_provider: sourceProvider,
+                source_category: sourceCategory,
+                destination_provider: destinationProvider,
+                destination_category: destinationCategory,
+                entities,
                 ...freqBackend,
                 dq_config,
-                ...(responsibleUserId && { responsible_user_id: responsibleUserId }),
             }
 
-            // Include mapping config if set
+            if (Object.keys(sourceConfig).length > 0) {
+                payload.source_config = sourceConfig
+            }
+            if (Object.keys(destinationConfig).length > 0) {
+                payload.destination_config = destinationConfig
+            }
             if (Object.keys(columnMapping).length > 0) {
-                base.mapping_config = {
-                    column_mapping: columnMapping,
-                    auto_mapped: !!autoMapMethod,
-                    mapping_method: autoMapMethod,
-                }
-            }
-
-            // Include Snowflake configs
-            if (source === "snowflake") {
-                base.source_snowflake_config = {
-                    warehouse: srcSfWarehouse,
-                    database: srcSfDatabase,
-                    schema: srcSfSchema,
-                    table: srcSfTable,
-                }
-            }
-            if (destination === "snowflake") {
-                base.dest_snowflake_config = {
-                    warehouse: destSfWarehouse,
-                    database: destSfDatabase,
-                    schema: destSfSchema,
-                    table: destSfTable,
-                }
+                payload.column_mapping = columnMapping
             }
 
             if (isEdit && job) {
-                await jobsAPI.updateJob(job.job_id, base as UpdateJobPayload)
+                await jobsAPI.updateJob(job.job_id, payload as UpdateJobPayload)
                 toast({ title: "Job Updated", description: `${name} has been updated` })
             } else {
-                const created = await jobsAPI.createJob(base as CreateJobPayload)
+                const created = await jobsAPI.createJob(payload as CreateJobPayload)
                 if (frequency === "batch" && created?.job_id) {
-                    // Batch mode: create job + immediately trigger
-                    toast({ title: "Batch Job Created", description: `${name} — triggering transfer now...` })
+                    toast({ title: "Batch Job Created", description: `${name} -- triggering transfer now...` })
                     try {
                         await jobsAPI.triggerJob(created.job_id)
                         toast({ title: "Batch Transfer Started", description: `${name} is now running` })
@@ -1224,117 +495,48 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         }
     }
 
-    // ─── Advanced open handler ────────────────────────────────────────────────
-
-    const handleAdvancedOpenChange = (nextOpen: boolean) => {
-        if (nextOpen && !advancedMode) {
-            setAdvancedMode(true)
-        }
-        setAdvancedOpen(nextOpen)
-    }
-
     return {
         isEdit,
+        // Providers
+        allProviders,
+        connectedProviderIds,
+        providersLoading,
+        sourceProviders,
+        destinationProviders,
         // Core fields
         name, setName,
-        source, setSource,
-        destination, setDestination,
+        sourceCategory, setSourceCategory,
+        sourceProvider, setSourceProvider,
+        destinationCategory, setDestinationCategory,
+        destinationProvider, setDestinationProvider,
         frequency, setFrequency,
         cronExpression, setCronExpression,
-        sourceEntity, setSourceEntity,
-        targetEntity, setTargetEntity,
-        // Dynamic entity discovery
-        sourceEntities, targetEntities,
-        sourceEntitiesLoading, targetEntitiesLoading,
-        // Snowflake — source
-        srcSfConnected, srcSfConnecting, handleSrcSfConnect,
-        srcSfWarehouses, srcSfDatabases, srcSfSchemas, srcSfTables,
-        srcSfWarehouse, setSrcSfWarehouse,
-        srcSfDatabase, setSrcSfDatabase,
-        srcSfSchema, setSrcSfSchema,
-        srcSfTable, setSrcSfTable,
-        srcSfLoading,
-        // Snowflake — destination
-        destSfConnected, destSfConnecting, handleDestSfConnect,
-        destSfWarehouses, destSfDatabases, destSfSchemas, destSfTables,
-        destSfWarehouse, setDestSfWarehouse,
-        destSfDatabase, setDestSfDatabase,
-        destSfSchema, setDestSfSchema,
-        destSfTable, setDestSfTable,
-        destSfLoading,
+        // Entities
+        entities,
+        availableEntities,
+        entitiesLoading,
+        toggleEntity,
+        selectAllEntities,
+        clearAllEntities,
+        // Source / destination config
+        sourceConfig, updateSourceConfig,
+        destinationConfig, updateDestinationConfig,
+        // Warehouse metadata (for cascading selects)
+        warehouseList,
+        databaseList,
+        schemaList,
+        warehouseMetaLoading,
         // Column mapping
-        sourceColumns, targetColumns, columnMapping,
-        mappingLoading, autoMapMethod,
-        handleAutoMap, handleManualMapChange, setColumnMapping,
-        fetchSourceColumns, fetchTargetColumns,
-        // Columns
-        fetchingCols,
-        allColumns,
-        selectedColumns, setSelectedColumns,
-        colSearch, setColSearch,
-        filteredCols,
-        toggleColumn,
-        handleFetchColumns,
-        // Presets
-        presets,
-        presetsLoading,
-        selectedPresetId,
-        selectedPresetConfig,
-        handleSelectPreset,
-        // Preset editing
-        presetEditMode,
-        editCurrencyValues, setEditCurrencyValues,
-        editUomValues, setEditUomValues,
-        editDateFormats, setEditDateFormats,
-        editStrictness, setEditStrictness,
-        editAutoFix, setEditAutoFix,
-        editUnknownBehavior, setEditUnknownBehavior,
-        editPlaceholders, setEditPlaceholders,
-        editStatusEnums, setEditStatusEnums,
-        editMaxTextLen, setEditMaxTextLen,
-        activePresetTab, setActivePresetTab,
-        presetFileInputRef,
-        handleEditPreset,
-        handleCancelPresetEdit,
-        handleSavePresetEdit,
-        handleNewPreset,
-        handleCreatePreset,
-        handleDeletePreset,
-        handleExportPreset,
-        handlePresetFileUpload,
-        // New Preset Dialog
-        showNewPresetDialog, setShowNewPresetDialog,
-        newPresetName, setNewPresetName,
-        uploadedConfig, setUploadedConfig,
-        // Rules (legacy)
-        globalRules,
-        rulesLoading,
-        toggleRule,
-        // Per-column Rules
-        columnRules,
-        crossFieldRules,
-        expandedRuleColumns,
-        toggleColumnRule,
-        toggleRuleColumnExpand,
-        toggleCrossFieldRule,
-        ruleStats,
-        // Advanced wizard
-        advancedOpen, handleAdvancedOpenChange,
-        advancedMode,
-        dataImported,
-        importingData,
-        handleImportDataFromSource,
-        currentAdvancedStep, setCurrentAdvancedStep,
-        currentStepIndex,
-        goToNextStep,
-        goToPreviousStep,
-        // Profiling
-        profilingLoading,
-        columnProfiles,
-        handleFetchProfiling,
-        // Responsible user
-        responsibleUserId, setResponsibleUserId,
-        orgMembers, membersLoading,
+        columnMapping, setColumnMapping,
+        mappingLoading,
+        autoMapMethod,
+        handleAutoMap,
+        showMappingEditor, setShowMappingEditor,
+        cachedSourceFields,
+        cachedDestFields,
+        handleOpenMappingEditor,
+        // DQ
+        dqEnabled, setDqEnabled,
         // Submit / UI
         saving,
         handleSubmit,

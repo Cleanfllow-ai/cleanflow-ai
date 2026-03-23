@@ -222,7 +222,7 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                     {state.exporting && (
                         <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
                             <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            <span className="text-primary font-medium">Exporting cleaned rows to {run?.destination_erp || "destination"}...</span>
+                            <span className="text-primary font-medium">Exporting cleaned rows to {run?.job_id || "destination"}...</span>
                         </div>
                     )}
                 </DialogContent>

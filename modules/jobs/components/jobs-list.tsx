@@ -29,12 +29,7 @@ import { JobRunsExplorer } from "./job-runs-explorer"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const ERP_LABELS: Record<string, string> = {
-    quickbooks: "QuickBooks",
-    zoho_books: "Zoho Books",
-    "zoho-books": "Zoho Books",
-    zohobooks: "Zoho Books",
-}
+import { getProviderDisplayName } from "./job-dialog-constants"
 
 const FREQ_LABELS: Record<string, string> = {
     "15min": "Every 15 min",
@@ -146,6 +141,17 @@ export function JobsList() {
         loadJobs()
     }, [loadJobs])
 
+    // Auto-poll every 10s when any job was recently triggered or is running
+    useEffect(() => {
+        const hasActiveRun = jobs.some(j =>
+            j.last_run_status === "RUNNING" ||
+            (j.last_run_at && Date.now() - new Date(j.last_run_at).getTime() < 2 * 60 * 1000)
+        )
+        if (!hasActiveRun) return
+        const interval = setInterval(() => { loadJobs() }, 10_000)
+        return () => clearInterval(interval)
+    }, [jobs, loadJobs])
+
     // ─── Filtering ──────────────────────────────────────────────────────────
 
     const filteredJobs = jobs
@@ -154,8 +160,8 @@ export function JobsList() {
             const q = searchQuery.toLowerCase()
             return (
                 job.name.toLowerCase().includes(q) ||
-                (ERP_LABELS[job.source] || job.source).toLowerCase().includes(q) ||
-                (ERP_LABELS[job.destination] || job.destination).toLowerCase().includes(q)
+                (getProviderDisplayName(job.source_provider || "")).toLowerCase().includes(q) ||
+                (getProviderDisplayName(job.destination_provider || "")).toLowerCase().includes(q)
             )
         })
         .sort((a, b) => {
@@ -506,11 +512,11 @@ export function JobsList() {
                                             <TableCell>
                                                 <div className="flex items-center gap-1.5 text-[13px]">
                                                     <span className="font-medium text-primary">
-                                                        {ERP_LABELS[job.source] || job.source}
+                                                        {getProviderDisplayName(job.source_provider || "")}
                                                     </span>
                                                     <ArrowRight className="h-3 w-3 text-muted-foreground/40" />
                                                     <span className="font-medium text-accent dark:text-accent">
-                                                        {ERP_LABELS[job.destination] || job.destination}
+                                                        {getProviderDisplayName(job.destination_provider || "")}
                                                     </span>
                                                 </div>
                                             </TableCell>

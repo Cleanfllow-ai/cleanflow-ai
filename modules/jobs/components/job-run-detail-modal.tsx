@@ -102,7 +102,7 @@ export function JobRunDetailModal({ run, open, onOpenChange }: JobRunDetailModal
                         <p className="text-xs text-muted-foreground">Duration</p>
                         <p className="flex items-center gap-1">
                             <Timer className="h-3.5 w-3.5 text-muted-foreground" />
-                            {formatDuration(run.duration_seconds)}
+                            {formatDuration(run.duration_ms ? run.duration_ms / 1000 : undefined)}
                         </p>
                     </div>
                     <div className="space-y-1">
@@ -117,14 +117,10 @@ export function JobRunDetailModal({ run, open, onOpenChange }: JobRunDetailModal
                             {run.completed_at ? (() => { try { return format(new Date(run.completed_at), "MMM d, yyyy HH:mm:ss") } catch { return "\u2014" } })() : "\u2014"}
                         </p>
                     </div>
-                    {run.source_erp && (
+                    {run.correlation_id && (
                         <div className="col-span-2 space-y-1">
-                            <p className="text-xs text-muted-foreground">Pipeline</p>
-                            <p className="flex items-center gap-1.5 text-sm">
-                                <span className="font-medium text-primary">{run.source_erp}</span>
-                                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                                <span className="font-medium">{run.destination_erp}</span>
-                            </p>
+                            <p className="text-xs text-muted-foreground">Correlation ID</p>
+                            <p className="font-mono text-xs">{run.correlation_id}</p>
                         </div>
                     )}
                 </div>
@@ -136,14 +132,14 @@ export function JobRunDetailModal({ run, open, onOpenChange }: JobRunDetailModal
                             <Download className="h-3.5 w-3.5" />
                             Imported
                         </div>
-                        <p className="text-lg font-semibold tabular-nums">{run.total_records_imported}</p>
+                        <p className="text-lg font-semibold tabular-nums">{run.total_imported}</p>
                     </div>
                     <div className="rounded-lg border p-3 space-y-1">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Upload className="h-3.5 w-3.5" />
                             Exported
                         </div>
-                        <p className="text-lg font-semibold tabular-nums">{run.total_records_exported}</p>
+                        <p className="text-lg font-semibold tabular-nums">{run.total_exported}</p>
                     </div>
                     <div className="rounded-lg border p-3 space-y-1">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -160,74 +156,77 @@ export function JobRunDetailModal({ run, open, onOpenChange }: JobRunDetailModal
                     </div>
                 </div>
 
-                {/* ── Processing Metadata ──────────────────────────────── */}
-                {meta && (meta.total_new_records > 0 || meta.total_skipped_duplicates > 0) && (
-                    <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
-                        <p className="font-medium text-sm">Dedup Summary</p>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <span className="text-muted-foreground">New Records: </span>
-                                <strong>{meta.total_new_records}</strong>
-                            </div>
-                            <div>
-                                <span className="text-muted-foreground">Skipped (Duplicates): </span>
-                                <strong>{meta.total_skipped_duplicates}</strong>
-                            </div>
+                {/* ── Pipeline Logs Timeline ────────────────────────────── */}
+                {run.pipeline_logs && run.pipeline_logs.length > 0 && (
+                    <div className="space-y-2">
+                        <p className="text-sm font-semibold flex items-center gap-1.5">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            Pipeline Timeline
+                        </p>
+                        <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5 max-h-[250px] overflow-y-auto">
+                            {run.pipeline_logs.map((log, i) => (
+                                <div key={i} className="flex items-start gap-2 text-xs font-mono">
+                                    <span className="text-muted-foreground shrink-0 w-[70px]">
+                                        {log.timestamp ? (() => { try { return format(new Date(log.timestamp), "HH:mm:ss") } catch { return "" } })() : ""}
+                                    </span>
+                                    <Badge variant="outline" className={cn("text-[10px] shrink-0 w-[50px] justify-center", {
+                                        "text-blue-600 border-blue-500/25": log.phase === "import",
+                                        "text-purple-600 border-purple-500/25": log.phase === "dq",
+                                        "text-emerald-600 border-emerald-500/25": log.phase === "export",
+                                        "text-red-600 border-red-500/25": log.phase === "error",
+                                        "text-amber-600 border-amber-500/25": log.phase === "retry",
+                                        "text-slate-500 border-slate-500/25": log.phase === "skip",
+                                    })}>
+                                        {log.phase}
+                                    </Badge>
+                                    <span className="text-muted-foreground shrink-0">{formatEntityName(log.entity)}</span>
+                                    <span className="text-foreground">{log.message}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
 
-                {/* ── DQ Processing Summary ─────────────────────────────── */}
-                {(() => {
-                    // Aggregate DQ stats across all entities
-                    const dqStats = entityEntries.reduce((acc, [, result]) => ({
-                        rows_in: acc.rows_in + Number(result.rows_in || 0),
-                        rows_clean: acc.rows_clean + Number(result.rows_clean || 0),
-                        rows_fixed: acc.rows_fixed + Number(result.rows_fixed || 0),
-                        rows_quarantined: acc.rows_quarantined + Number(result.rows_quarantined || 0),
-                    }), { rows_in: 0, rows_clean: 0, rows_fixed: 0, rows_quarantined: 0 })
-
-                    if (dqStats.rows_in === 0) return null
-
-                    return (
-                        <div className="rounded-lg border border-dashed border-blue-500/30 bg-blue-500/5 p-3 text-xs space-y-2">
-                            <p className="font-medium text-sm flex items-center gap-1.5">
-                                <BarChart3 className="h-4 w-4 text-blue-600" />
-                                Data Quality Processing
-                            </p>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                <div>
-                                    <span className="text-muted-foreground block">Rows In:</span>
-                                    <strong className="text-base">{dqStats.rows_in}</strong>
+                {/* ── Per-Entity Results ────────────────────────────────── */}
+                {entityEntries.length > 0 && (
+                    <div className="space-y-2">
+                        <p className="text-sm font-semibold flex items-center gap-1.5">
+                            <BarChart3 className="h-4 w-4 text-blue-600" />
+                            Entity Results
+                        </p>
+                        <div className="rounded-lg border p-3 space-y-2">
+                            {entityEntries.map(([entity, result]) => (
+                                <div key={entity} className="flex items-center justify-between text-xs border-b last:border-0 pb-2 last:pb-0">
+                                    <div className="flex items-center gap-2">
+                                        {getStatusIcon(result.status)}
+                                        <span className="font-medium">{formatEntityName(entity)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-muted-foreground">
+                                        <span>{result.imported ?? 0} in</span>
+                                        <span>{result.exported ?? 0} out</span>
+                                        {(result.quarantined ?? 0) > 0 && (
+                                            <span className="text-red-500">{result.quarantined} quarantined</span>
+                                        )}
+                                        {result.dq_score != null && (
+                                            <Badge variant="outline" className={cn("text-[10px]", getScoreColor(Number(result.dq_score)))}>
+                                                {Number(result.dq_score).toFixed(1)}%
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
-                                <div>
-                                    <span className="text-muted-foreground block">Clean:</span>
-                                    <strong className="text-base text-emerald-600">{dqStats.rows_clean}</strong>
-                                </div>
-                                <div>
-                                    <span className="text-muted-foreground block">Fixed:</span>
-                                    <strong className="text-base text-amber-600">{dqStats.rows_fixed}</strong>
-                                </div>
-                                <div>
-                                    <span className="text-muted-foreground block">Quarantined:</span>
-                                    <strong className="text-base text-red-600">{dqStats.rows_quarantined}</strong>
-                                </div>
-                            </div>
+                            ))}
                         </div>
-                    )
-                })()}
+                    </div>
+                )}
 
                 {/* ── Errors ───────────────────────────────────────────── */}
-                {(run.error || entityEntries.some(([, r]) => r.error)) && (
+                {entityEntries.some(([, r]) => r.error) && (
                     <div className="space-y-2">
                         <p className="text-sm font-semibold text-red-600 flex items-center gap-1.5">
                             <AlertTriangle className="h-4 w-4" />
                             Errors
                         </p>
                         <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-2 text-xs">
-                            {run.error && (
-                                <p className="text-red-600">{run.error}</p>
-                            )}
                             {entityEntries.map(([entity, result]) =>
                                 result.error ? (
                                     <div key={entity}>

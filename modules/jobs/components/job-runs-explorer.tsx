@@ -222,13 +222,13 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                             }
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground tabular-nums text-right">
-                                            {formatDuration(run.duration_seconds)}
+                                            {formatDuration(run.duration_ms ? run.duration_ms / 1000 : undefined)}
                                         </TableCell>
                                         <TableCell className="text-xs tabular-nums text-right font-medium">
-                                            {run.total_records_imported || 0}
+                                            {run.total_imported || 0}
                                         </TableCell>
                                         <TableCell className="text-xs tabular-nums text-right font-medium">
-                                            {run.total_records_exported || 0}
+                                            {run.total_exported || 0}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {avgScore != null ? (

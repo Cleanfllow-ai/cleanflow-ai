@@ -173,6 +173,7 @@ class ERPConnectorsAPI extends ConnectorAPIBase {
     provider: string,
     fileColumns: string[],
     entityType: string,
+    sourceProvider?: string,
     uploadId?: string,
   ): Promise<AutoMapResponse> {
     return await this.makeRequest<AutoMapResponse>(
@@ -182,6 +183,7 @@ class ERPConnectorsAPI extends ConnectorAPIBase {
         body: JSON.stringify({
           file_columns: fileColumns,
           entity_type: entityType,
+          ...(sourceProvider ? { source_provider: sourceProvider } : {}),
           ...(uploadId ? { upload_id: uploadId } : {}),
         }),
       },

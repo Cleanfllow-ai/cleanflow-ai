@@ -110,13 +110,13 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
                     cmp = (a.started_at || "").localeCompare(b.started_at || "")
                     break
                 case "duration":
-                    cmp = (a.duration_seconds || 0) - (b.duration_seconds || 0)
+                    cmp = (a.duration_ms || 0) - (b.duration_ms || 0)
                     break
                 case "imported":
-                    cmp = (a.total_records_imported || 0) - (b.total_records_imported || 0)
+                    cmp = (a.total_imported || 0) - (b.total_imported || 0)
                     break
                 case "exported":
-                    cmp = (a.total_records_exported || 0) - (b.total_records_exported || 0)
+                    cmp = (a.total_exported || 0) - (b.total_exported || 0)
                     break
                 case "status":
                     cmp = (a.status || "").localeCompare(b.status || "")
