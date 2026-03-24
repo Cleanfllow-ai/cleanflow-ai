@@ -208,7 +208,7 @@ export async function uploadToS3Post(presignedUrl: string, fields: Record<string
 // ─── Polling ───
 
 export async function pollFileStatus(uploadId: string, authToken: string, onStatusUpdate: (status: FileStatusResponse) => void, maxAttempts: number = 60, intervalMs: number = 2000): Promise<FileStatusResponse> {
-    const terminalStatuses = ['DQ_FIXED', 'FAILED', 'COMPLETED', 'DQ_FAILED']
+    const terminalStatuses = ['DQ_FIXED', 'FAILED', 'COMPLETED', 'DQ_FAILED', 'SHARD_FAILED', 'REJECTED']
     let attempts = 0
 
     while (attempts < maxAttempts) {
@@ -228,7 +228,7 @@ export async function pollFileStatus(uploadId: string, authToken: string, onStat
 
 // Enhanced smart polling with multiple fallback detection methods - 30 minute timeout
 export async function pollFileStatusSmart(uploadId: string, authToken: string, onStatusUpdate: (status: FileStatusResponse) => void, maxAttempts: number = 180): Promise<FileStatusResponse> {
-    const terminalStatuses = ['DQ_FIXED', 'COMPLETED', 'DQ_FAILED', 'FAILED']
+    const terminalStatuses = ['DQ_FIXED', 'COMPLETED', 'DQ_FAILED', 'FAILED', 'SHARD_FAILED', 'REJECTED']
     let attempts = 0
     let consecutiveSameStatus = 0
     let lastStatus: FileStatusResponse | null = null

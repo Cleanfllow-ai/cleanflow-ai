@@ -10,7 +10,7 @@ import type { ActiveCell } from '@/modules/files/types'
 
 interface EditsState {
   editsMap: Record<string, Record<string, any>>
-  savedEditsMap: Record<string, Record<string, true>>
+  savedEditsMap: Record<string, Record<string, any>>
   activeCell: ActiveCell | null
 }
 
@@ -67,9 +67,9 @@ export function useQuarantineEdits() {
    */
   const markAsSaved = useCallback(() => {
     setState((prev) => {
-      const next: Record<string, Record<string, true>> = { ...prev.savedEditsMap }
+      const next: Record<string, Record<string, any>> = { ...prev.savedEditsMap }
       for (const [rowId, cols] of Object.entries(prev.editsMap)) {
-        next[rowId] = { ...(next[rowId] || {}), ...Object.keys(cols).reduce<Record<string, true>>((acc, col) => { acc[col] = true; return acc }, {}) }
+        next[rowId] = { ...(next[rowId] || {}), ...cols }
       }
       return { ...prev, editsMap: {}, savedEditsMap: next }
     })
@@ -80,23 +80,20 @@ export function useQuarantineEdits() {
    */
   const isCellSaved = useCallback(
     (rowId: string, column: string): boolean => {
-      return !!state.savedEditsMap[rowId]?.[column]
+      return state.savedEditsMap[rowId]?.[column] !== undefined
     },
     [state.savedEditsMap]
   )
 
   /**
    * Get cell value (with edit overlay)
-   * Returns edited value if exists, otherwise original
-   * @param rowId - Row ID
-   * @param column - Column name
-   * @param originalRow - Original row data
+   * Priority: pending edit > saved edit > original server value
    */
   const getCellValue = useCallback(
     (rowId: string, column: string, originalRow: Record<string, any>) => {
-      return state.editsMap[rowId]?.[column] ?? originalRow[column] ?? ''
+      return state.editsMap[rowId]?.[column] ?? state.savedEditsMap[rowId]?.[column] ?? originalRow[column] ?? ''
     },
-    [state.editsMap]
+    [state.editsMap, state.savedEditsMap]
   )
 
   /**

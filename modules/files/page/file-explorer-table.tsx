@@ -523,7 +523,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         <TooltipContent>Details</TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                {(file.status === "DQ_FIXED" || file.status === "COMPLETED") && (
+                                                {(file.status === "DQ_FIXED" || file.status === "COMPLETED") && (file.rows_quarantined ?? 0) > 0 && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button
@@ -536,9 +536,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                             </Button>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
-                                                            {(file.rows_quarantined ?? 0) > 0
-                                                                ? `Edit Quarantined Rows (${file.rows_quarantined})`
-                                                                : "Reprocess File"}
+                                                            {`Edit Quarantined Rows (${file.rows_quarantined})`}
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
