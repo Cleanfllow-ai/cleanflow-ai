@@ -2,21 +2,33 @@
 
 import { useEffect, useState, useCallback } from "react"
 import {
-  Cable,
   CheckCircle2,
-  ChevronRight,
   ExternalLink,
   Loader2,
   Power,
   RefreshCw,
   Database,
   HardDrive,
-  FolderOpen,
+  Cloud,
+  Unplug,
+  LinkIcon,
+  Clock,
+  Mail,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  MotionDiv,
+  MotionSection,
+  staggerContainer,
+  fadeInUp,
+} from "@/components/ui/motion"
 import { connectorsAPI } from "@/modules/connectors/api/connectors-api"
-import type { ConnectionStatus, ProviderInfo, PostAuthConfigField } from "@/modules/connectors/api/connectors-api"
+import type {
+  ConnectionStatus,
+  ProviderInfo,
+  PostAuthConfigField,
+} from "@/modules/connectors/api/connectors-api"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -25,49 +37,107 @@ interface ProviderWithStatus extends ProviderInfo {
   statusLoading: boolean
 }
 
-// Category display metadata
-const CATEGORIES: Record<string, { label: string; description: string; icon: typeof Database }> = {
+// ─── Provider brand system ──────────────────────────────────────────────────
+
+const PROVIDER_BRANDS: Record<
+  string,
+  {
+    accent: string       // left bar + icon bg
+    accentText: string   // icon fg
+    glow: string         // connected card shadow
+    connectedBg: string  // connected card background tint
+    connectedBorder: string
+  }
+> = {
+  quickbooks: {
+    accent: "bg-emerald-500",
+    accentText: "text-emerald-600 dark:text-emerald-400",
+    glow: "shadow-emerald-500/8",
+    connectedBg: "bg-emerald-50/40 dark:bg-emerald-950/15",
+    connectedBorder: "border-emerald-200/60 dark:border-emerald-800/40",
+  },
+  zohobooks: {
+    accent: "bg-red-500",
+    accentText: "text-red-600 dark:text-red-400",
+    glow: "shadow-red-500/8",
+    connectedBg: "bg-red-50/40 dark:bg-red-950/15",
+    connectedBorder: "border-red-200/60 dark:border-red-800/40",
+  },
+  snowflake: {
+    accent: "bg-cyan-500",
+    accentText: "text-cyan-600 dark:text-cyan-400",
+    glow: "shadow-cyan-500/8",
+    connectedBg: "bg-cyan-50/40 dark:bg-cyan-950/15",
+    connectedBorder: "border-cyan-200/60 dark:border-cyan-800/40",
+  },
+  googledrive: {
+    accent: "bg-amber-500",
+    accentText: "text-amber-600 dark:text-amber-400",
+    glow: "shadow-amber-500/8",
+    connectedBg: "bg-amber-50/40 dark:bg-amber-950/15",
+    connectedBorder: "border-amber-200/60 dark:border-amber-800/40",
+  },
+}
+
+const DEFAULT_BRAND = {
+  accent: "bg-primary",
+  accentText: "text-primary",
+  glow: "shadow-primary/8",
+  connectedBg: "bg-primary/5",
+  connectedBorder: "border-primary/20",
+}
+
+function getBrand(providerId: string) {
+  return PROVIDER_BRANDS[providerId] || DEFAULT_BRAND
+}
+
+// ─── Category metadata ──────────────────────────────────────────────────────
+
+const CATEGORIES: Record<
+  string,
+  { label: string; description: string; icon: typeof Database }
+> = {
   erp: {
     label: "ERP Systems",
-    description: "Accounting, invoicing, and business management platforms",
+    description: "Accounting & business management",
     icon: Database,
   },
   warehouse: {
     label: "Data Warehouses",
-    description: "Cloud data platforms for analytics and storage",
+    description: "Cloud analytics platforms",
     icon: HardDrive,
   },
   storage: {
     label: "Cloud Storage",
-    description: "File storage and document management services",
-    icon: FolderOpen,
+    description: "File storage & document management",
+    icon: Cloud,
   },
 }
 
-// Provider accent colors for visual distinction
-const PROVIDER_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
-  quickbooks: { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", ring: "ring-emerald-500/20" },
-  zohobooks: { bg: "bg-red-500/10", text: "text-red-600 dark:text-red-400", ring: "ring-red-500/20" },
-  netsuite: { bg: "bg-sky-500/10", text: "text-sky-600 dark:text-sky-400", ring: "ring-sky-500/20" },
-  dynamics: { bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", ring: "ring-blue-500/20" },
-  snowflake: { bg: "bg-cyan-500/10", text: "text-cyan-600 dark:text-cyan-400", ring: "ring-cyan-500/20" },
-  googledrive: { bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", ring: "ring-amber-500/20" },
-}
-
-const DEFAULT_COLORS = { bg: "bg-primary/10", text: "text-primary", ring: "ring-primary/20" }
-
-function getColors(providerId: string) {
-  return PROVIDER_COLORS[providerId] || DEFAULT_COLORS
-}
+// ─── Provider logo initials ─────────────────────────────────────────────────
 
 function getInitials(displayName: string): string {
-  return (displayName || "?")
-    .split(/[\s-]+/)
-    .filter(Boolean)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "?"
+  return (
+    (displayName || "?")
+      .split(/[\s-]+/)
+      .filter(Boolean)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "?"
+  )
+}
+
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  } catch {
+    return iso
+  }
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -76,8 +146,12 @@ export function ConnectorsHub() {
   const [providers, setProviders] = useState<ProviderWithStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [connectingProvider, setConnectingProvider] = useState<string | null>(null)
-  const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null)
+  const [connectingProvider, setConnectingProvider] = useState<string | null>(
+    null,
+  )
+  const [disconnectingProvider, setDisconnectingProvider] = useState<
+    string | null
+  >(null)
   const [savingConfig, setSavingConfig] = useState<string | null>(null)
 
   // ─── Load providers from backend ────────────────────────────────
@@ -95,14 +169,18 @@ export function ConnectorsHub() {
       setProviders(withStatus)
       setLoading(false)
 
-      // Fetch connection status for each provider in parallel
       const results = await Promise.all(
         list.map(async (p) => {
           try {
-            const status = await connectorsAPI.getConnectionStatus(p.provider_id)
+            const status = await connectorsAPI.getConnectionStatus(
+              p.provider_id,
+            )
             return { id: p.provider_id, status }
           } catch {
-            return { id: p.provider_id, status: { connected: false } as ConnectionStatus }
+            return {
+              id: p.provider_id,
+              status: { connected: false } as ConnectionStatus,
+            }
           }
         }),
       )
@@ -147,8 +225,12 @@ export function ConnectorsHub() {
     }
   }
 
-  const handleDisconnect = async (providerId: string, displayName: string) => {
-    if (!confirm(`Disconnect from ${displayName}? You can reconnect anytime.`)) return
+  const handleDisconnect = async (
+    providerId: string,
+    displayName: string,
+  ) => {
+    if (!confirm(`Disconnect from ${displayName}? You can reconnect anytime.`))
+      return
 
     setDisconnectingProvider(providerId)
     try {
@@ -168,11 +250,14 @@ export function ConnectorsHub() {
   }
 
   // ─── Save post-auth config ─────────────────────────────────────
-  const handleSaveConfig = async (providerId: string, key: string, value: string) => {
+  const handleSaveConfig = async (
+    providerId: string,
+    key: string,
+    value: string,
+  ) => {
     setSavingConfig(providerId)
     try {
       await connectorsAPI.saveConfig(providerId, { [key]: value })
-      // Refresh connection status to get updated current_value
       const status = await connectorsAPI.getConnectionStatus(providerId)
       setProviders((prev) =>
         prev.map((p) =>
@@ -189,59 +274,86 @@ export function ConnectorsHub() {
   }
 
   // ─── Group by category ─────────────────────────────────────────
-  const grouped = providers.reduce<Record<string, ProviderWithStatus[]>>((acc, p) => {
-    const cat = p.category || "erp"
-    if (!acc[cat]) acc[cat] = []
-    acc[cat].push(p)
-    return acc
-  }, {})
+  const grouped = providers.reduce<Record<string, ProviderWithStatus[]>>(
+    (acc, p) => {
+      const cat = p.category || "erp"
+      if (!acc[cat]) acc[cat] = []
+      acc[cat].push(p)
+      return acc
+    },
+    {},
+  )
 
-  const connectedCount = providers.filter((p) => p.connectionStatus?.connected).length
+  const connectedCount = providers.filter(
+    (p) => p.connectionStatus?.connected,
+  ).length
 
-  // ─── Render ────────────────────────────────────────────────────
+  // ─── Loading skeleton ──────────────────────────────────────────
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-10 w-56 rounded-md bg-muted" />
-        <div className="h-5 w-80 rounded bg-muted" />
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-40 rounded-xl border border-border bg-card" />
+      <div className="space-y-6">
+        {/* Summary skeleton */}
+        <div className="flex gap-3">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="h-9 w-28 rounded-lg bg-muted/60 animate-pulse"
+            />
+          ))}
+        </div>
+        {/* Card skeletons */}
+        <div className="space-y-5">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="space-y-2.5">
+              <div className="h-4 w-32 rounded bg-muted/50 animate-pulse" />
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {[...Array(i === 0 ? 2 : 1)].map((_, j) => (
+                  <div
+                    key={j}
+                    className="h-32 rounded-xl border border-border bg-card animate-pulse"
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>
     )
   }
 
+  // ─── Render ────────────────────────────────────────────────────
   return (
-    <div className="space-y-8">
-      {/* ─── Header ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <Cable className="w-5 h-5 text-primary" />
-            <h1 className="text-xl font-semibold tracking-tight">Connectors</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Manage connections to ERP systems, data warehouses, and cloud storage.
-            {connectedCount > 0 && (
-              <span className="ml-2 inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {connectedCount} active
-              </span>
-            )}
-          </p>
+    <MotionDiv
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+      className="space-y-6"
+    >
+      {/* ─── Summary bar ───────────────────────────────────────── */}
+      <MotionDiv variants={fadeInUp} className="flex items-center gap-3">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/50">
+          <LinkIcon className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">
+            {providers.length} available
+          </span>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadProviders}
-          className="self-start sm:self-auto gap-1.5"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Refresh
-        </Button>
-      </div>
+        {connectedCount > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/8 border border-emerald-200/40 dark:border-emerald-800/30">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              {connectedCount} connected
+            </span>
+          </div>
+        )}
+        {connectedCount === 0 && providers.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/8 border border-amber-200/40 dark:border-amber-800/30">
+            <Unplug className="w-3.5 h-3.5 text-amber-500" />
+            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+              No active connections
+            </span>
+          </div>
+        )}
+      </MotionDiv>
 
       {error && (
         <Alert variant="destructive">
@@ -249,207 +361,281 @@ export function ConnectorsHub() {
         </Alert>
       )}
 
-      {/* ─── Category Sections ───────────────────────────────────── */}
+      {/* ─── Category sections ─────────────────────────────────── */}
       {Object.entries(CATEGORIES).map(([catKey, catMeta]) => {
         const catProviders = grouped[catKey]
         if (!catProviders || catProviders.length === 0) return null
 
         const CatIcon = catMeta.icon
         return (
-          <section key={catKey}>
-            <div className="flex items-center gap-2 mb-3">
-              <CatIcon className="w-4 h-4 text-muted-foreground/70" />
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/80">
-                {catMeta.label}
-              </h2>
-              <span className="text-xs text-muted-foreground/50">{catMeta.description}</span>
+          <MotionSection key={catKey} variants={fadeInUp}>
+            {/* Category header */}
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-6 h-6 rounded-md bg-muted/60 flex items-center justify-center">
+                <CatIcon className="w-3.5 h-3.5 text-muted-foreground" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-foreground/80">
+                  {catMeta.label}
+                </h2>
+                <span className="text-[10px] text-muted-foreground/60">
+                  {catMeta.description}
+                </span>
+              </div>
             </div>
 
+            {/* Provider cards grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {catProviders.map((provider) => {
-                const pid = provider.provider_id
-                const displayName = provider.display_name
-                const isConnected = provider.connectionStatus?.connected
-                const isConnecting = connectingProvider === pid
-                const isDisconnecting = disconnectingProvider === pid
-                const colors = getColors(pid)
-
-                return (
-                  <div
-                    key={pid}
-                    className={`
-                      relative group rounded-xl border transition-all duration-200
-                      ${isConnected
-                        ? "border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/30 dark:bg-emerald-950/10"
-                        : "border-border bg-card hover:border-border/80 hover:shadow-sm"
-                      }
-                    `}
-                  >
-                    <div className="p-4">
-                      {/* Provider header */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`
-                              w-10 h-10 rounded-lg flex items-center justify-center
-                              text-xs font-bold tracking-tight ring-1
-                              ${colors.bg} ${colors.text} ${colors.ring}
-                            `}
-                          >
-                            {getInitials(displayName)}
-                          </div>
-                          <div>
-                            <h3 className="text-sm font-semibold leading-tight">{displayName}</h3>
-                            <span className="text-[11px] text-muted-foreground capitalize">
-                              {catMeta.label}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Status indicator */}
-                        {provider.statusLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground/40" />
-                        ) : isConnected ? (
-                          <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Connected
-                          </span>
-                        ) : null}
-                      </div>
-
-                      {/* Connection info & post-auth config */}
-                      {isConnected && provider.connectionStatus && (
-                        <div className="mb-3 space-y-2">
-                          {/* Connection metadata */}
-                          <div className="px-2.5 py-1.5 rounded-md bg-muted/50 text-[11px] text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
-                            {provider.connectionStatus.connection?.email ? (
-                              <span>{String(provider.connectionStatus.connection.email)}</span>
-                            ) : null}
-                            {provider.connectionStatus.connection?.linked_at ? (
-                              <span>
-                                Since{" "}
-                                {new Date(
-                                  String(provider.connectionStatus.connection.linked_at),
-                                ).toLocaleDateString()}
-                              </span>
-                            ) : null}
-                          </div>
-
-                          {/* Dynamic post-auth config fields */}
-                          {provider.connectionStatus.post_auth_config?.map((field: PostAuthConfigField) => (
-                            <div key={field.key} className="px-2.5">
-                              <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                                {field.label}
-                                {field.required && <span className="text-red-500 ml-0.5">*</span>}
-                              </label>
-                              {field.type === "select" && field.options ? (
-                                <select
-                                  className="w-full h-7 text-xs rounded-md border border-border bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
-                                  value={field.current_value || ""}
-                                  disabled={savingConfig === pid}
-                                  onChange={(e) => handleSaveConfig(pid, field.key, e.target.value)}
-                                >
-                                  {!field.current_value && (
-                                    <option value="">Select {field.label}...</option>
-                                  )}
-                                  {field.options.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>
-                                      {opt.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : field.type === "text" ? (
-                                <input
-                                  type="text"
-                                  className="w-full h-7 text-xs rounded-md border border-border bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
-                                  defaultValue={field.current_value || ""}
-                                  placeholder={`Enter ${field.label}...`}
-                                  onBlur={(e) => {
-                                    if (e.target.value !== (field.current_value || "")) {
-                                      handleSaveConfig(pid, field.key, e.target.value)
-                                    }
-                                  }}
-                                />
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Actions */}
-                      <div className="flex gap-2">
-                        {isConnected ? (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 h-8 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200 dark:border-red-800/40"
-                              onClick={() => handleDisconnect(pid, displayName)}
-                              disabled={isDisconnecting}
-                            >
-                              {isDisconnecting ? (
-                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                              ) : (
-                                <Power className="w-3 h-3 mr-1" />
-                              )}
-                              Disconnect
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 text-xs"
-                              onClick={() => handleConnect(pid)}
-                              disabled={isConnecting}
-                            >
-                              <RefreshCw className="w-3 h-3 mr-1" />
-                              Reconnect
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            size="sm"
-                            className="flex-1 h-8 text-xs bg-primary hover:bg-primary/90"
-                            onClick={() => handleConnect(pid)}
-                            disabled={isConnecting}
-                          >
-                            {isConnecting ? (
-                              <>
-                                <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-                                Connecting...
-                              </>
-                            ) : (
-                              <>
-                                <ExternalLink className="w-3 h-3 mr-1.5" />
-                                Connect
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Hover arrow */}
-                    {!isConnected && !isConnecting && (
-                      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/0 group-hover:text-muted-foreground/30 transition-all duration-200 group-hover:translate-x-0.5" />
-                    )}
-                  </div>
-                )
-              })}
+              {catProviders.map((provider) => (
+                <ConnectorCard
+                  key={provider.provider_id}
+                  provider={provider}
+                  isConnecting={connectingProvider === provider.provider_id}
+                  isDisconnecting={
+                    disconnectingProvider === provider.provider_id
+                  }
+                  isSavingConfig={savingConfig === provider.provider_id}
+                  onConnect={handleConnect}
+                  onDisconnect={handleDisconnect}
+                  onSaveConfig={handleSaveConfig}
+                />
+              ))}
             </div>
-          </section>
+          </MotionSection>
         )
       })}
 
       {/* Empty state */}
       {providers.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Cable className="w-12 h-12 text-muted-foreground/30 mb-4" />
-          <h3 className="text-base font-medium mb-1">No connectors available</h3>
-          <p className="text-sm text-muted-foreground">
+        <MotionDiv
+          variants={fadeInUp}
+          className="flex flex-col items-center justify-center py-16 text-center"
+        >
+          <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mb-4">
+            <Unplug className="w-6 h-6 text-muted-foreground/40" />
+          </div>
+          <h3 className="text-sm font-semibold mb-1">
+            No connectors available
+          </h3>
+          <p className="text-xs text-muted-foreground max-w-xs">
             Connectors will appear here once configured in the backend.
           </p>
-        </div>
+        </MotionDiv>
       )}
-    </div>
+    </MotionDiv>
+  )
+}
+
+// ─── Connector Card ─────────────────────────────────────────────────────────
+
+function ConnectorCard({
+  provider,
+  isConnecting,
+  isDisconnecting,
+  isSavingConfig,
+  onConnect,
+  onDisconnect,
+  onSaveConfig,
+}: {
+  provider: ProviderWithStatus
+  isConnecting: boolean
+  isDisconnecting: boolean
+  isSavingConfig: boolean
+  onConnect: (id: string) => void
+  onDisconnect: (id: string, name: string) => void
+  onSaveConfig: (id: string, key: string, value: string) => void
+}) {
+  const pid = provider.provider_id
+  const displayName = provider.display_name
+  const isConnected = provider.connectionStatus?.connected
+  const brand = getBrand(pid)
+  const conn = provider.connectionStatus?.connection
+  const email = conn?.email ? String(conn.email) : null
+  const linkedAt = conn?.linked_at ? String(conn.linked_at) : null
+
+  return (
+    <MotionDiv
+      variants={fadeInUp}
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
+      className={`
+        relative overflow-hidden rounded-xl border transition-colors duration-200
+        ${
+          isConnected
+            ? `${brand.connectedBorder} ${brand.connectedBg} shadow-md ${brand.glow}`
+            : "border-border bg-card hover:border-border/80 hover:shadow-sm"
+        }
+      `}
+    >
+      {/* Left accent bar */}
+      <div
+        className={`absolute left-0 top-0 bottom-0 w-[3px] transition-colors duration-300 ${
+          isConnected ? brand.accent : "bg-muted-foreground/15"
+        }`}
+      />
+
+      <div className="p-4 pl-5">
+        {/* ─── Header row ──────────────────────────────────────── */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            {/* Provider avatar */}
+            <div
+              className={`
+                w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-bold tracking-tight
+                ${isConnected ? `${brand.accent}/15 ${brand.accentText}` : "bg-muted/70 text-muted-foreground"}
+                transition-colors duration-300
+              `}
+            >
+              {getInitials(displayName)}
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold leading-tight">
+                {displayName}
+              </h3>
+              {provider.statusLoading ? (
+                <span className="text-[10px] text-muted-foreground/50">
+                  Checking...
+                </span>
+              ) : isConnected ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                  </span>
+                  Connected
+                </span>
+              ) : (
+                <span className="text-[10px] text-muted-foreground/60">
+                  Not connected
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Status loading spinner */}
+          {provider.statusLoading && (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground/30" />
+          )}
+        </div>
+
+        {/* ─── Connection metadata ─────────────────────────────── */}
+        {isConnected && (email || linkedAt) && (
+          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 px-2.5 py-1.5 rounded-md bg-background/60 dark:bg-background/30 border border-border/40">
+            {email && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Mail className="w-3 h-3 text-muted-foreground/50" />
+                {email}
+              </span>
+            )}
+            {linkedAt && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Clock className="w-3 h-3 text-muted-foreground/50" />
+                {formatDate(linkedAt)}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* ─── Post-auth config fields ─────────────────────────── */}
+        {isConnected &&
+          provider.connectionStatus?.post_auth_config?.map(
+            (field: PostAuthConfigField) => (
+              <div key={field.key} className="mb-3 px-0.5">
+                <label className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground block mb-1">
+                  {field.label}
+                  {field.required && (
+                    <span className="text-red-500 ml-0.5">*</span>
+                  )}
+                </label>
+                {field.type === "select" && field.options ? (
+                  <select
+                    className="w-full h-7 text-xs rounded-md border border-border bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={field.current_value || ""}
+                    disabled={isSavingConfig}
+                    onChange={(e) =>
+                      onSaveConfig(pid, field.key, e.target.value)
+                    }
+                  >
+                    {!field.current_value && (
+                      <option value="">Select {field.label}...</option>
+                    )}
+                    {field.options.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.type === "text" ? (
+                  <input
+                    type="text"
+                    className="w-full h-7 text-xs rounded-md border border-border bg-background px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                    defaultValue={field.current_value || ""}
+                    placeholder={`Enter ${field.label}...`}
+                    onBlur={(e) => {
+                      if (e.target.value !== (field.current_value || "")) {
+                        onSaveConfig(pid, field.key, e.target.value)
+                      }
+                    }}
+                  />
+                ) : null}
+              </div>
+            ),
+          )}
+
+        {/* ─── Actions ─────────────────────────────────────────── */}
+        <div className="flex gap-2">
+          {isConnected ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-7 text-[11px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200/60 dark:border-red-800/40"
+                onClick={() => onDisconnect(pid, displayName)}
+                disabled={isDisconnecting}
+              >
+                {isDisconnecting ? (
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                ) : (
+                  <Power className="w-3 h-3 mr-1" />
+                )}
+                Disconnect
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-[11px] px-2.5"
+                onClick={() => onConnect(pid)}
+                disabled={isConnecting}
+                title="Reconnect"
+              >
+                {isConnecting ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3 h-3" />
+                )}
+              </Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              className="flex-1 h-8 text-xs bg-primary hover:bg-primary/90"
+              onClick={() => onConnect(pid)}
+              disabled={isConnecting}
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="w-3 h-3 mr-1.5" />
+                  Connect
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      </div>
+    </MotionDiv>
   )
 }

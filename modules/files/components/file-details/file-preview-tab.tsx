@@ -121,7 +121,7 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                           : resolvedStatus === "fixed"
                           ? "bg-amber-500/10 text-amber-800 dark:text-amber-400"
                           : resolvedStatus === "clean"
-                          ? "bg-emerald-500/5 text-emerald-800 dark:text-emerald-400"
+                          ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400"
                           : ""
 
                       // ── Tooltip (only for non-clean cells) ─────────────────

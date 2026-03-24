@@ -39,7 +39,7 @@ export const calculateProcessingTime = (
  * Used to show a pulsing indicator next to the badge.
  */
 export const isActiveStatus = (status: string): boolean => {
-  return ["DQ_RUNNING", "NORMALIZING", "REPROCESSING", "UPLOADING", "QUEUED", "DQ_DISPATCHED"].includes(status)
+  return ["DQ_RUNNING", "NORMALIZING", "REPROCESSING", "UPLOADING", "QUEUED", "DQ_DISPATCHED", "SHARDING"].includes(status)
 }
 
 /**
@@ -63,6 +63,9 @@ export const getStatusLabel = (status: string): string => {
     case "REJECTED": return "Rejected"
     case "REPROCESSING": return "Reprocessing"
     case "REPROCESS_FAILED": return "Reprocess Failed"
+    case "SHARDING": return "Sharding..."
+    case "SHARDED": return "Ready"
+    case "SHARD_FAILED": return "Shard Failed"
     default: return status
   }
 }
@@ -94,6 +97,15 @@ export const getStatusBadgeColor = (status: string) => {
     // Upload in progress — purple
     case "UPLOADING":
       return "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-400 dark:border-violet-500/25"
+    // Sharding in progress — amber (processing indicator)
+    case "SHARDING":
+      return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/25"
+    // Sharding complete — green (file ready)
+    case "SHARDED":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/25"
+    // Sharding failed — red (error state)
+    case "SHARD_FAILED":
+      return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25"
     default:
       return "bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-500/15 dark:text-gray-400 dark:border-gray-500/25"
   }

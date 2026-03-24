@@ -159,6 +159,20 @@ export function useQuarantineRows(config: QuarantineEditorConfig) {
   }, [])
 
   /**
+   * Merge newly fetched rows into state by row_id (for AG Grid infinite model)
+   * Adds rows that haven't been seen yet; existing rows are kept as-is.
+   */
+  const mergeRows = useCallback((newRows: QuarantineRow[]) => {
+    if (!newRows.length) return
+    setState((prev) => {
+      const existingIds = new Set(prev.rows.map((r) => String(r.row_id)))
+      const toAdd = newRows.filter((r) => !existingIds.has(String(r.row_id)))
+      if (!toAdd.length) return prev
+      return { ...prev, rows: [...prev.rows, ...toAdd] }
+    })
+  }, [])
+
+  /**
    * Reset rows state
    */
   const reset = useCallback(() => {
@@ -170,6 +184,7 @@ export function useQuarantineRows(config: QuarantineEditorConfig) {
     fetchNext,
     initialize,
     setRows,
+    mergeRows,
     updateRow,
     reset,
   }

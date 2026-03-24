@@ -337,7 +337,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
   const fetchRows = useCallback(
     async (startRow: number, endRow: number): Promise<{ rows: QuarantineRow[]; lastRow: number }> => {
       if (!file || !authToken || !session.manifest || !activeUploadId) {
-        return { rows: [], lastRow: 0 }
+        throw new Error('Quarantine session not ready')
       }
 
       // Compatibility mode: return pre-loaded rows slice
@@ -364,7 +364,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
         }
       } catch (error: any) {
         console.error('[QuarantineEditor] fetchRows failed:', error)
-        return { rows: [], lastRow: 0 }
+        throw error
       }
     },
     [activeUploadId, file, authToken, session.manifest, session.session, session.compatibilityMode, rows.rows, rows.mergeRows]
