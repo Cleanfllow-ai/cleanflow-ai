@@ -1,15 +1,20 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import {
     CheckCircle2, XCircle, Clock, AlertTriangle, ArrowRight,
-    Download, Upload, Timer, Zap, BarChart3
+    Download, Upload, Timer, Zap, BarChart3, ExternalLink, Play, Loader2
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle
 } from "@/components/ui/dialog"
 import { cn } from "@/shared/lib/utils"
+import { useToast } from "@/shared/hooks/use-toast"
+import { jobsAPI } from "@/modules/jobs/api/jobs-api"
 import type { JobRun } from "@/modules/jobs/types/jobs.types"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -19,6 +24,7 @@ function getStatusColor(status: string) {
         case "SUCCESS": return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
         case "FAILED": return "bg-red-500/15 text-red-600 border-red-500/25"
         case "PARTIAL": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
+        case "AWAITING_REVIEW": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
         case "NO_CHANGES": return "bg-slate-500/15 text-slate-600 border-slate-500/25"
         case "NO_EXPORTABLE_ROWS": return "bg-slate-500/15 text-slate-600 border-slate-500/25"
         case "SKIPPED": return "bg-slate-500/15 text-slate-500 border-slate-500/25"
@@ -31,6 +37,7 @@ function getStatusIcon(status: string) {
         case "SUCCESS": return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
         case "FAILED": return <XCircle className="h-3.5 w-3.5 text-red-500" />
         case "PARTIAL": return <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+        case "AWAITING_REVIEW": return <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
         default: return <Clock className="h-3.5 w-3.5 text-muted-foreground" />
     }
 }
@@ -64,9 +71,15 @@ interface JobRunDetailModalProps {
     run: JobRun | null
     open: boolean
     onOpenChange: (open: boolean) => void
+    jobId?: string
+    onRunResumed?: () => void
 }
 
-export function JobRunDetailModal({ run, open, onOpenChange }: JobRunDetailModalProps) {
+export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed }: JobRunDetailModalProps) {
+    const router = useRouter()
+    const { toast } = useToast()
+    const [resuming, setResuming] = useState(false)
+
     if (!run) return null
 
     const entityEntries = Object.entries(run.entity_results || {})
@@ -196,26 +209,87 @@ export function JobRunDetailModal({ run, open, onOpenChange }: JobRunDetailModal
                         </p>
                         <div className="rounded-lg border p-3 space-y-2">
                             {entityEntries.map(([entity, result]) => (
-                                <div key={entity} className="flex items-center justify-between text-xs border-b last:border-0 pb-2 last:pb-0">
-                                    <div className="flex items-center gap-2">
-                                        {getStatusIcon(result.status)}
-                                        <span className="font-medium">{formatEntityName(entity)}</span>
+                                <div key={entity} className="space-y-2 border-b last:border-0 pb-2 last:pb-0">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-2">
+                                            {getStatusIcon(result.status)}
+                                            <span className="font-medium">{formatEntityName(entity)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-muted-foreground">
+                                            <span>{result.imported ?? 0} in</span>
+                                            <span>{result.exported ?? 0} out</span>
+                                            {(result.quarantined ?? 0) > 0 && (
+                                                <span className="text-red-500">{result.quarantined} quarantined</span>
+                                            )}
+                                            {result.dq_score != null && (
+                                                <Badge variant="outline" className={cn("text-[10px]", getScoreColor(Number(result.dq_score)))}>
+                                                    {Number(result.dq_score).toFixed(1)}%
+                                                </Badge>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3 text-muted-foreground">
-                                        <span>{result.imported ?? 0} in</span>
-                                        <span>{result.exported ?? 0} out</span>
-                                        {(result.quarantined ?? 0) > 0 && (
-                                            <span className="text-red-500">{result.quarantined} quarantined</span>
-                                        )}
-                                        {result.dq_score != null && (
-                                            <Badge variant="outline" className={cn("text-[10px]", getScoreColor(Number(result.dq_score)))}>
-                                                {Number(result.dq_score).toFixed(1)}%
-                                            </Badge>
-                                        )}
-                                    </div>
+                                    {/* Awaiting review actions per entity */}
+                                    {run.status === "AWAITING_REVIEW" && (result.quarantined ?? 0) > 0 && (
+                                        <div className="flex items-center gap-2 ml-5">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 text-xs gap-1.5 border-amber-500/30 text-amber-600 hover:bg-amber-50"
+                                                onClick={() => {
+                                                    const details = (result as any)
+                                                    const uploadId = details.upload_id || details.file_id || ""
+                                                    if (uploadId) {
+                                                        router.push(`/files?file=${uploadId}&quarantine=true`)
+                                                    } else {
+                                                        router.push(`/files`)
+                                                    }
+                                                }}
+                                            >
+                                                <ExternalLink className="h-3 w-3" />
+                                                Open Quarantine Editor
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
+                    </div>
+                )}
+
+                {/* ── Awaiting Review Actions ────────────────────────────── */}
+                {run.status === "AWAITING_REVIEW" && jobId && (
+                    <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                            <p className="text-sm font-semibold text-amber-600">Awaiting Review</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Records were quarantined during DQ validation. Review and fix them in the Quarantine Editor, then resume the export.
+                        </p>
+                        <Button
+                            size="sm"
+                            className="h-8 text-xs gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+                            disabled={resuming}
+                            onClick={async () => {
+                                setResuming(true)
+                                try {
+                                    await jobsAPI.resumeRun(jobId, run.run_id)
+                                    toast({ title: "Export Resumed", description: "Pipeline will re-run DQ and attempt export" })
+                                    onRunResumed?.()
+                                    onOpenChange(false)
+                                } catch (err: any) {
+                                    toast({ title: "Resume failed", description: err?.message || "Failed to resume export", variant: "destructive" })
+                                } finally {
+                                    setResuming(false)
+                                }
+                            }}
+                        >
+                            {resuming ? (
+                                <><Loader2 className="h-3 w-3 animate-spin" /> Resuming...</>
+                            ) : (
+                                <><Play className="h-3 w-3" /> Resume Export</>
+                            )}
+                        </Button>
                     </div>
                 )}
 

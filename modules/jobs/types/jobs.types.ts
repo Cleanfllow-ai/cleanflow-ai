@@ -4,12 +4,20 @@ export type JobStatus = 'ACTIVE' | 'PAUSED' | 'FAILED' | 'AUTO_PAUSED'
 export type JobFrequency = '15min' | '1hr' | 'daily' | 'cron' | 'batch'
 export type DQMode = 'default' | 'custom'
 
+export type DQPolicy = 'block_and_notify' | 'export_all'
+
 export interface DQConfig {
     mode: DQMode
+    policy?: DQPolicy
     columns?: string[] | null
     preset_id?: string | null
     rules?: any[] | null
+    rules_enabled?: Record<string, boolean> | null
     primary_key_field?: string | null
+    policies?: {
+        allow_autofix?: boolean
+        strictness?: string
+    }
 }
 
 export interface Job {
@@ -73,7 +81,7 @@ export interface JobRun {
     run_id: string
     job_id?: string
     user_id?: string
-    status: 'SUCCESS' | 'FAILED' | 'PARTIAL' | 'NO_CHANGES' | 'SKIPPED' | 'RUNNING'
+    status: 'SUCCESS' | 'FAILED' | 'PARTIAL' | 'NO_CHANGES' | 'SKIPPED' | 'RUNNING' | 'AWAITING_REVIEW'
     trigger_source?: string
     started_at: string
     completed_at?: string

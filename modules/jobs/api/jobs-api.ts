@@ -3,13 +3,14 @@
 import { AWS_CONFIG } from "@/shared/config/aws-config"
 
 import type {
-    JobStatus, JobFrequency, DQMode,
+    JobStatus, JobFrequency, DQMode, DQPolicy,
     DQConfig, Job, JobRun, CreateJobPayload, UpdateJobPayload,
     PipelineLog, EntityResult,
 } from "@/modules/jobs/types/jobs.types"
+import type { ProfilingResponse } from "@/modules/files/types"
 
 export type {
-    JobStatus, JobFrequency, DQMode,
+    JobStatus, JobFrequency, DQMode, DQPolicy,
     DQConfig, Job, JobRun, CreateJobPayload, UpdateJobPayload,
     PipelineLog, EntityResult,
 } from "@/modules/jobs/types/jobs.types"
@@ -137,6 +138,13 @@ class JobsAPI {
         return this.makeRequest(`/jobs/${jobId}/trigger`, token, { method: "POST" })
     }
 
+    // ─── Run Actions ──────────────────────────────────────────────────────────
+
+    async resumeRun(jobId: string, runId: string): Promise<{ message: string }> {
+        const token = this.getAuth()
+        return this.makeRequest(`/jobs/${jobId}/runs/${runId}/resume`, token, { method: "POST" })
+    }
+
     // ─── Job Runs ────────────────────────────────────────────────────────────
 
     async getJobRuns(jobId: string, limit: number = 50): Promise<{ runs: JobRun[] }> {
@@ -147,6 +155,21 @@ class JobsAPI {
         } catch {
             return { runs: [] }
         }
+    }
+
+    async getProfilingPreview(payload: {
+        source_provider: string
+        source_category: string
+        entity: string
+        source_config?: Record<string, string>
+        selected_columns?: string[]
+        sample_size?: number
+    }): Promise<ProfilingResponse> {
+        const token = this.getAuth()
+        return this.makeRequest("/jobs/profiling-preview", token, {
+            method: "POST",
+            body: JSON.stringify(payload),
+        })
     }
 }
 

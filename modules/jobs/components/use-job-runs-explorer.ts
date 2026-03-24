@@ -5,7 +5,7 @@ import { jobsAPI, type JobRun } from "@/modules/jobs/api/jobs-api"
 
 export type SortField = "started_at" | "duration" | "imported" | "exported" | "status"
 export type SortDirection = "asc" | "desc"
-export type StatusFilter = "all" | "SUCCESS" | "FAILED" | "PARTIAL" | "NO_CHANGES"
+export type StatusFilter = "all" | "SUCCESS" | "FAILED" | "PARTIAL" | "AWAITING_REVIEW" | "NO_CHANGES"
 
 export interface JobRunsExplorerState {
     runs: JobRun[]

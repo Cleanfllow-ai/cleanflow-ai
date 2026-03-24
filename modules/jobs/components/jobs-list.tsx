@@ -1,6 +1,7 @@
 "use client"
 
 import { Fragment, useState, useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import {
     CalendarClock, ChevronDown, ChevronRight, Clock, Edit2, Loader2, MoreHorizontal,
@@ -88,6 +89,8 @@ const runStatusIcon = (status: string) => {
             return <XCircle className="h-3.5 w-3.5 text-red-500" />
         case "PARTIAL":
             return <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+        case "AWAITING_REVIEW":
+            return <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
         case "NO_CHANGES":
             return <Clock className="h-3.5 w-3.5 text-slate-400" />
         case "RUNNING":
@@ -120,6 +123,7 @@ export function JobsList() {
     const [actionLoading, setActionLoading] = useState<string | null>(null)
 
     const { toast } = useToast()
+    const router = useRouter()
 
     // ─── Data Loading ───────────────────────────────────────────────────────
 
@@ -145,6 +149,7 @@ export function JobsList() {
     useEffect(() => {
         const hasActiveRun = jobs.some(j =>
             j.last_run_status === "RUNNING" ||
+            j.last_run_status === "AWAITING_REVIEW" ||
             (j.last_run_at && Date.now() - new Date(j.last_run_at).getTime() < 2 * 60 * 1000)
         )
         if (!hasActiveRun) return
@@ -214,8 +219,7 @@ export function JobsList() {
     }
 
     const handleCreateNew = () => {
-        setEditingJob(null)
-        setDialogOpen(true)
+        router.push("/jobs/create")
     }
 
     const handleDialogClose = () => {
