@@ -14,6 +14,10 @@ import {
 import { connectorsAPI, warehouseConnectorsAPI } from '@/modules/connectors'
 import type { ProviderInfo } from '@/modules/connectors/api/connectors-api'
 import type { WarehouseMetadataItem } from '@/modules/connectors/api/warehouse-connectors-api'
+import { getSettingsPresets } from '@/modules/files/api/file-settings-api'
+import type { SettingsPreset } from '@/modules/files/types'
+import { orgAPI, type OrgMembership } from '@/modules/auth/api/org-api'
+import type { DQPolicy } from '@/modules/jobs/types/jobs.types'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -78,8 +82,18 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const [cachedSourceFields, setCachedSourceFields] = useState<Array<{key: string; label?: string; data_type?: string; required?: boolean}>>([])
     const [cachedDestFields, setCachedDestFields] = useState<Array<{key: string; label?: string; data_type?: string; required?: boolean}>>([])
 
-    // ── DQ toggle ─────────────────────────────────────────────────────────────
-    const [dqEnabled, setDqEnabled] = useState(true)
+    // ── DQ config ─────────────────────────────────────────────────────────────
+    const [dqPolicy, setDqPolicy] = useState<DQPolicy>("block_and_notify")
+    const [presetId, setPresetId] = useState("default")
+    const [responsibleUserId, setResponsibleUserId] = useState("")
+    const [rulesEnabled, setRulesEnabled] = useState<Record<string, boolean>>({})
+    const [allowAutofix, setAllowAutofix] = useState(true)
+
+    // ── DQ presets & org members (fetched on mount) ─────────────────────────
+    const [presets, setPresets] = useState<SettingsPreset[]>([])
+    const [presetsLoading, setPresetsLoading] = useState(false)
+    const [orgMembers, setOrgMembers] = useState<OrgMembership[]>([])
+    const [orgMembersLoading, setOrgMembersLoading] = useState(false)
 
     // ── UI state ──────────────────────────────────────────────────────────────
     const [saving, setSaving] = useState(false)
@@ -129,6 +143,50 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         return () => { cancelled = true }
     }, [open])
 
+    // ── Fetch DQ presets + org members on dialog open ──────────────────────────
+
+    useEffect(() => {
+        if (!open) return
+        let cancelled = false
+
+        setPresetsLoading(true)
+        getSettingsPresets().then(res => {
+            if (!cancelled) setPresets(res.presets || [])
+        }).catch(() => {
+            if (!cancelled) setPresets([])
+        }).finally(() => {
+            if (!cancelled) setPresetsLoading(false)
+        })
+
+        setOrgMembersLoading(true)
+        orgAPI.listMembers().then(res => {
+            if (!cancelled) setOrgMembers(res.members || [])
+        }).catch(() => {
+            if (!cancelled) setOrgMembers([])
+        }).finally(() => {
+            if (!cancelled) setOrgMembersLoading(false)
+        })
+
+        return () => { cancelled = true }
+    }, [open])
+
+    // ── Load rules from preset when preset changes ─────────────────────────
+
+    useEffect(() => {
+        if (presetId === "default" || !presetId) {
+            // Reset to all rules enabled
+            setRulesEnabled({})
+            return
+        }
+        const preset = presets.find(p => p.preset_id === presetId)
+        if (preset?.config?.rules_enabled) {
+            setRulesEnabled(preset.config.rules_enabled)
+        }
+        if (preset?.config?.policies?.allow_autofix != null) {
+            setAllowAutofix(preset.config.policies.allow_autofix)
+        }
+    }, [presetId, presets])
+
     // ── Populate / Reset on open ─────────────────────────────────────────────
 
     useEffect(() => {
@@ -144,7 +202,12 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             setSourceConfig(job.source_config || {})
             setDestinationConfig(job.destination_config || {})
             setColumnMapping(job.column_mapping || {})
-            setDqEnabled(job.dq_config?.mode !== 'default' || true)
+            // Restore DQ config from existing job
+            setDqPolicy((job.dq_config?.policy as DQPolicy) || "block_and_notify")
+            setPresetId(job.dq_config?.preset_id || "default")
+            setRulesEnabled(job.dq_config?.rules_enabled || {})
+            setAllowAutofix(job.dq_config?.policies?.allow_autofix ?? true)
+            setResponsibleUserId(job.responsible_user_id || "")
             const freq = frequencyFromBackend(job.frequency_type, job.frequency_value)
             setFrequency(freq.frequency)
             setCronExpression(freq.cronExpression)
@@ -162,7 +225,12 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             setDestinationConfig({})
             setColumnMapping({})
             setAutoMapMethod("")
-            setDqEnabled(true)
+            // Reset DQ config
+            setDqPolicy("block_and_notify")
+            setPresetId("default")
+            setResponsibleUserId("")
+            setRulesEnabled({})
+            setAllowAutofix(true)
         }
     }, [job, open])
 
@@ -261,19 +329,11 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         return () => { cancelled = true }
     }, [sourceCategory, sourceProvider, sourceConfig.database])
 
-    // ── Entity toggle helper ─────────────────────────────────────────────────
+    // ── Entity select helper (single-select) ─────────────────────────────────
 
-    const toggleEntity = useCallback((entityValue: string) => {
-        setEntities(prev =>
-            prev.includes(entityValue)
-                ? prev.filter(e => e !== entityValue)
-                : [...prev, entityValue]
-        )
+    const selectEntity = useCallback((entityValue: string) => {
+        setEntities(prev => prev.includes(entityValue) ? [] : [entityValue])
     }, [])
-
-    const selectAllEntities = useCallback(() => {
-        setEntities(availableEntities.map(e => e.value))
-    }, [availableEntities])
 
     const clearAllEntities = useCallback(() => {
         setEntities([])
@@ -427,9 +487,18 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         try {
             const freqBackend = frequencyToBackend(frequency, cronExpression.trim())
 
-            const dq_config = dqEnabled
-                ? { mode: "default" as const }
-                : { mode: "default" as const }
+            const hasCustomRules = Object.keys(rulesEnabled).length > 0
+            const dq_config: Record<string, any> = {
+                mode: hasCustomRules || presetId !== "default" ? "custom" : "default",
+                policy: dqPolicy,
+                policies: { allow_autofix: allowAutofix },
+            }
+            if (presetId && presetId !== "default") {
+                dq_config.preset_id = presetId
+            }
+            if (hasCustomRules) {
+                dq_config.rules_enabled = rulesEnabled
+            }
 
             const payload: Record<string, any> = {
                 name: name.trim(),
@@ -440,6 +509,10 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 entities,
                 ...freqBackend,
                 dq_config,
+            }
+
+            if (dqPolicy === "block_and_notify" && responsibleUserId) {
+                payload.responsible_user_id = responsibleUserId
             }
 
             if (Object.keys(sourceConfig).length > 0) {
@@ -501,8 +574,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         entities,
         availableEntities,
         entitiesLoading,
-        toggleEntity,
-        selectAllEntities,
+        selectEntity,
         clearAllEntities,
         // Source / destination config
         sourceConfig, updateSourceConfig,
@@ -521,8 +593,14 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         cachedSourceFields,
         cachedDestFields,
         handleOpenMappingEditor,
-        // DQ
-        dqEnabled, setDqEnabled,
+        // DQ config
+        dqPolicy, setDqPolicy,
+        presetId, setPresetId,
+        responsibleUserId, setResponsibleUserId,
+        rulesEnabled, setRulesEnabled,
+        allowAutofix, setAllowAutofix,
+        presets, presetsLoading,
+        orgMembers, orgMembersLoading,
         // Submit / UI
         saving,
         handleSubmit,

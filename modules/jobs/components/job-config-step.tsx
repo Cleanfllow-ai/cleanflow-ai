@@ -1,33 +1,18 @@
 "use client"
 
-import { Loader2, Sparkles, Zap, Check, X, Edit2 } from "lucide-react"
+import { Loader2, Sparkles, Zap, X, Edit2 } from "lucide-react"
 import { ColumnMappingEditor } from "./column-mapping-editor"
-import { DQConfigPanel } from "./dq-config-panel"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
-} from "@/components/ui/dialog"
-import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select"
 import { cn } from "@/shared/lib/utils"
-import type { Job, JobFrequency } from "@/modules/jobs/types/jobs.types"
-
-import { useJobDialog, type ProviderCategory } from "./use-job-dialog"
+import type { JobFrequency } from "@/modules/jobs/types/jobs.types"
+import type { useJobDialog, ProviderCategory } from "./use-job-dialog"
 import { FREQUENCY_OPTIONS, getProviderDisplayName, CATEGORY_LABELS } from "./job-dialog-constants"
-
-// ─── Props ────────────────────────────────────────────────────────────────────
-
-interface JobDialogProps {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    job?: Job | null
-    onSuccess: () => void
-    onCancel: () => void
-}
 
 // ─── Category options ─────────────────────────────────────────────────────────
 
@@ -37,29 +22,27 @@ const CATEGORY_OPTIONS: { label: string; value: ProviderCategory }[] = [
     { label: "Cloud Storage", value: "storage" },
 ]
 
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+interface JobConfigStepProps {
+    d: ReturnType<typeof useJobDialog>
+    onNext: () => void
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobDialogProps) {
-    const d = useJobDialog({ open, job, onSuccess })
+export function JobConfigStep({ d, onNext }: JobConfigStepProps) {
+    const canProceed =
+        d.name.trim() !== "" &&
+        d.sourceProvider !== "" &&
+        d.destinationProvider !== "" &&
+        d.entities.length > 0 &&
+        (d.frequency !== "cron" || d.cronExpression.trim() !== "")
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent
-                className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto"
-                onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-                <DialogHeader>
-                    <DialogTitle className="text-lg">
-                        {d.isEdit ? "Edit Job" : "Create Job"}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {d.isEdit
-                            ? "Update job configuration"
-                            : "Set up a new automated data sync job"}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-5 py-1">
+        <div className="flex flex-col h-full">
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+                <div className="space-y-5 max-w-2xl mx-auto">
                     {/* ── Job Name ─────────────────────────────────────────── */}
                     <div className="space-y-2">
                         <Label htmlFor="job-name" className="text-sm font-medium">
@@ -193,7 +176,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                             </div>
                         )}
 
-                        {/* Entity multi-select */}
+                        {/* Entity selection */}
                         {d.sourceProvider && (
                             <div className="space-y-1.5">
                                 <div className="flex items-center justify-between">
@@ -437,7 +420,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => { d.setColumnMapping({}); }}
+                                                        onClick={() => { d.setColumnMapping({}) }}
                                                         className="text-[10px] text-muted-foreground hover:text-destructive"
                                                     >
                                                         Clear
@@ -448,7 +431,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                                                 {Object.entries(d.columnMapping).map(([src, dst]) => (
                                                     <div key={src} className="flex items-center gap-2 text-xs text-muted-foreground">
                                                         <span className="font-mono truncate max-w-[40%]">{src}</span>
-                                                        <span className="text-[10px]">→</span>
+                                                        <span className="text-[10px]">&rarr;</span>
                                                         <span className="font-mono truncate max-w-[40%]">{dst}</span>
                                                     </div>
                                                 ))}
@@ -464,42 +447,45 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                         </div>
                     )}
 
-                    {/* ── DQ Config Panel ─────────────────────────────────── */}
-                    <DQConfigPanel
-                        dqPolicy={d.dqPolicy}
-                        onPolicyChange={d.setDqPolicy}
-                        presetId={d.presetId}
-                        onPresetChange={d.setPresetId}
-                        responsibleUserId={d.responsibleUserId}
-                        onResponsibleUserChange={d.setResponsibleUserId}
-                        rulesEnabled={d.rulesEnabled}
-                        onRulesChange={d.setRulesEnabled}
-                        allowAutofix={d.allowAutofix}
-                        onAutofixChange={d.setAllowAutofix}
-                        presets={d.presets}
-                        presetsLoading={d.presetsLoading}
-                        orgMembers={d.orgMembers}
-                        orgMembersLoading={d.orgMembersLoading}
-                    />
-                </div>
-
-                {/* ── Footer ──────────────────────────────────────────── */}
-                <DialogFooter className="gap-2 pt-2">
-                    <Button variant="outline" onClick={onCancel}>
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={d.handleSubmit}
-                        disabled={d.saving || !d.name.trim() || !d.sourceProvider || !d.destinationProvider || d.entities.length === 0}
-                    >
-                        {d.saving ? (
-                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                    {/* ── Responsible Person ───────────────────────────────── */}
+                    <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">Responsible Person</Label>
+                        {d.orgMembersLoading ? (
+                            <div className="flex items-center gap-2 h-9 px-3 border rounded-md text-muted-foreground text-sm">
+                                <Loader2 className="h-3 w-3 animate-spin" /> Loading members...
+                            </div>
+                        ) : d.orgMembers.length === 0 ? (
+                            <div className="flex items-center h-9 px-3 border rounded-md text-muted-foreground text-xs border-dashed">
+                                No organization members found
+                            </div>
                         ) : (
-                            d.isEdit ? "Update Job" : "Create Job"
+                            <Select value={d.responsibleUserId} onValueChange={d.setResponsibleUserId}>
+                                <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Select responsible person" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {d.orgMembers.map(m => (
+                                        <SelectItem key={m.user_id} value={m.user_id}>
+                                            {m.email || m.user_id}
+                                            <span className="text-xs text-muted-foreground ml-1">({m.role})</span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         )}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    </div>
+                </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-border/50 flex justify-end">
+                <Button
+                    onClick={onNext}
+                    disabled={!canProceed}
+                >
+                    Next &rarr;
+                </Button>
+            </div>
+        </div>
     )
 }
