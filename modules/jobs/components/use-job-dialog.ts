@@ -283,6 +283,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     useEffect(() => {
         setDestinationProvider("")
         setDestinationConfig({})
+        setCachedDestFields([])
     }, [destinationCategory])
 
     // ── Reset entities when source provider changes ──────────────────────────
@@ -328,6 +329,52 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         return () => { cancelled = true }
     }, [sourceCategory, sourceProvider, sourceConfig.database])
 
+    // ── Destination warehouse metadata (for cascading selects) ─────────────────
+
+    const [destWarehouseList, setDestWarehouseList] = useState<WarehouseMetadataItem[]>([])
+    const [destDatabaseList, setDestDatabaseList] = useState<WarehouseMetadataItem[]>([])
+    const [destSchemaList, setDestSchemaList] = useState<WarehouseMetadataItem[]>([])
+    const [destTableList, setDestTableList] = useState<WarehouseMetadataItem[]>([])
+
+    useEffect(() => {
+        if (destinationCategory !== 'warehouse' || !destinationProvider) return
+        let cancelled = false
+        Promise.all([
+            warehouseConnectorsAPI.listWarehouses(destinationProvider).catch(() => []),
+            warehouseConnectorsAPI.listDatabases(destinationProvider).catch(() => []),
+        ]).then(([wh, db]) => {
+            if (cancelled) return
+            setDestWarehouseList(wh)
+            setDestDatabaseList(db)
+        })
+        return () => { cancelled = true }
+    }, [destinationCategory, destinationProvider])
+
+    useEffect(() => {
+        if (destinationCategory !== 'warehouse' || !destinationProvider || !destinationConfig.database) {
+            setDestSchemaList([])
+            setDestTableList([])
+            return
+        }
+        let cancelled = false
+        warehouseConnectorsAPI.listSchemas(destinationProvider, destinationConfig.database).then(schemas => {
+            if (!cancelled) setDestSchemaList(schemas)
+        }).catch(() => { if (!cancelled) setDestSchemaList([]) })
+        return () => { cancelled = true }
+    }, [destinationCategory, destinationProvider, destinationConfig.database])
+
+    useEffect(() => {
+        if (destinationCategory !== 'warehouse' || !destinationProvider || !destinationConfig.database || !destinationConfig.schema) {
+            setDestTableList([])
+            return
+        }
+        let cancelled = false
+        warehouseConnectorsAPI.listTables(destinationProvider, destinationConfig.database, destinationConfig.schema).then(tables => {
+            if (!cancelled) setDestTableList(tables)
+        }).catch(() => { if (!cancelled) setDestTableList([]) })
+        return () => { cancelled = true }
+    }, [destinationCategory, destinationProvider, destinationConfig.database, destinationConfig.schema])
+
     // ── Entity select helper (single-select) ─────────────────────────────────
 
     const selectEntity = useCallback((entityValue: string) => {
@@ -356,7 +403,19 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     }, [])
 
     const updateDestinationConfig = useCallback((key: string, value: any) => {
-        setDestinationConfig(prev => ({ ...prev, [key]: value }))
+        setDestinationConfig(prev => {
+            const next = { ...prev, [key]: value }
+            if (key === 'database') {
+                delete next.schema
+                delete next.table
+            }
+            if (key === 'schema') {
+                delete next.table
+            }
+            return next
+        })
+        // Clear cached dest fields so they get re-fetched for the new table/schema
+        setCachedDestFields([])
     }, [])
 
     // ── Auto-map column mapping ──────────────────────────────────────────────
@@ -447,35 +506,49 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 if (destinationConfig.schema) dstParams.schema = destinationConfig.schema
                 if (destinationConfig.warehouse) dstParams.warehouse = destinationConfig.warehouse
 
-                // Use ERP-specific endpoint for ERP providers (no connection required)
-                const srcPromise = sourceCategory === 'erp'
-                    ? erpConnectorsAPI.getEntityFields(sourceProvider, entities[0])
-                    : connectorsAPI.getEntityFields(sourceProvider, entities[0], Object.keys(srcParams).length > 0 ? srcParams : undefined)
-                const dstPromise = destinationCategory === 'erp'
-                    ? erpConnectorsAPI.getEntityFields(destinationProvider, entities[0])
-                    : connectorsAPI.getEntityFields(destinationProvider, entities[0], Object.keys(dstParams).length > 0 ? dstParams : undefined)
-                // Fetch source fields (always needed)
-                const srcRes = await srcPromise
-                const srcFields = (srcRes.fields || []).map((f: any) => ({
-                    key: f.key || f.name || "",
-                    label: f.label || f.key || f.name || "",
-                    data_type: f.data_type || f.type || "string",
-                    required: f.required || false,
-                })).filter((f: any) => f.key)
+                // ── Fetch source fields ──────────────────────────────────
+                let srcFields: Array<{key: string; label: string; data_type: string; required: boolean}> = []
+                try {
+                    if (sourceCategory === 'erp') {
+                        const srcRes = await erpConnectorsAPI.getEntityFields(sourceProvider, entities[0])
+                        srcFields = (srcRes.fields || []).map((f: any) => ({
+                            key: f.key || f.name || "", label: f.label || f.key || f.name || "",
+                            data_type: f.data_type || f.type || "string", required: f.required || false,
+                        })).filter((f: any) => f.key)
+                    } else if (sourceCategory === 'warehouse' && sourceConfig.database && sourceConfig.schema) {
+                        const cols = await warehouseConnectorsAPI.getTableColumns(sourceProvider, sourceConfig.database, sourceConfig.schema, entities[0])
+                        srcFields = cols.map(c => ({ key: c.name, label: c.name, data_type: c.type || "string", required: false }))
+                    } else {
+                        const srcRes = await connectorsAPI.getEntityFields(sourceProvider, entities[0], Object.keys(srcParams).length > 0 ? srcParams : undefined)
+                        srcFields = (srcRes.fields || []).map((f: any) => ({
+                            key: f.key || f.name || "", label: f.label || f.key || f.name || "",
+                            data_type: f.data_type || f.type || "string", required: f.required || false,
+                        })).filter((f: any) => f.key)
+                    }
+                } catch { /* source fields fetch failed */ }
 
-                // Fetch destination fields — fall back to source fields for warehouse destinations
+                // ── Fetch destination fields ────────────────────────────
                 let dstFields: typeof srcFields = []
                 try {
-                    const dstRes = await dstPromise
-                    dstFields = (dstRes.fields || []).map((f: any) => ({
-                        key: f.key || f.name || "",
-                        label: f.label || f.key || f.name || "",
-                        data_type: f.data_type || f.type || "string",
-                        required: f.required || false,
-                    })).filter((f: any) => f.key)
+                    if (destinationCategory === 'erp') {
+                        const dstRes = await erpConnectorsAPI.getEntityFields(destinationProvider, entities[0])
+                        dstFields = (dstRes.fields || []).map((f: any) => ({
+                            key: f.key || f.name || "", label: f.label || f.key || f.name || "",
+                            data_type: f.data_type || f.type || "string", required: f.required || false,
+                        })).filter((f: any) => f.key)
+                    } else if (destinationCategory === 'warehouse' && destinationConfig.database && destinationConfig.schema && destinationConfig.table) {
+                        const cols = await warehouseConnectorsAPI.getTableColumns(destinationProvider, destinationConfig.database, destinationConfig.schema, destinationConfig.table)
+                        dstFields = cols.map(c => ({ key: c.name, label: c.name, data_type: c.type || "string", required: false }))
+                    } else {
+                        const dstRes = await connectorsAPI.getEntityFields(destinationProvider, entities[0], Object.keys(dstParams).length > 0 ? dstParams : undefined)
+                        dstFields = (dstRes.fields || []).map((f: any) => ({
+                            key: f.key || f.name || "", label: f.label || f.key || f.name || "",
+                            data_type: f.data_type || f.type || "string", required: f.required || false,
+                        })).filter((f: any) => f.key)
+                    }
                 } catch { /* destination fields fetch failed */ }
 
-                // If destination has no fields (e.g. Snowflake with no table configured), mirror source
+                // If destination has no fields (new table), mirror source fields
                 if (dstFields.length === 0) {
                     dstFields = srcFields.map(f => ({ ...f }))
                 }
@@ -615,6 +688,10 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         databaseList,
         schemaList,
         warehouseMetaLoading,
+        destWarehouseList,
+        destDatabaseList,
+        destSchemaList,
+        destTableList,
         // Column mapping
         columnMapping, setColumnMapping,
         mappingLoading,

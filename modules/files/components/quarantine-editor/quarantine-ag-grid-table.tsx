@@ -1,5 +1,6 @@
 'use client'
 
+import './quarantine-ag-grid-theme.css'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {

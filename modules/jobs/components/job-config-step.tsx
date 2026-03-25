@@ -320,6 +320,96 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                                 )}
                             </div>
                         </div>
+
+                        {/* Warehouse destination config (cascading: warehouse, database, schema) */}
+                        {d.destinationCategory === "warehouse" && d.destinationProvider && (
+                            <div className="grid grid-cols-3 gap-2">
+                                {d.destWarehouseList.length > 0 && (
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted-foreground">Warehouse</Label>
+                                        <Select
+                                            value={d.destinationConfig.warehouse || ""}
+                                            onValueChange={(v) => d.updateDestinationConfig("warehouse", v)}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs">
+                                                <SelectValue placeholder="Warehouse" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {d.destWarehouseList.map(wh => (
+                                                    <SelectItem key={wh.name} value={wh.name} className="text-xs">
+                                                        {wh.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] text-muted-foreground">Database</Label>
+                                    <Select
+                                        value={d.destinationConfig.database || ""}
+                                        onValueChange={(v) => d.updateDestinationConfig("database", v)}
+                                    >
+                                        <SelectTrigger className="h-8 text-xs">
+                                            <SelectValue placeholder="Database" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {d.destDatabaseList.map(db => (
+                                                <SelectItem key={db.name} value={db.name} className="text-xs">
+                                                    {db.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] text-muted-foreground">Schema</Label>
+                                    <Select
+                                        value={d.destinationConfig.schema || ""}
+                                        onValueChange={(v) => d.updateDestinationConfig("schema", v)}
+                                        disabled={!d.destinationConfig.database}
+                                    >
+                                        <SelectTrigger className="h-8 text-xs">
+                                            <SelectValue placeholder={d.destinationConfig.database ? "Schema" : "Select DB"} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {d.destSchemaList.map(s => (
+                                                <SelectItem key={s.name} value={s.name} className="text-xs">
+                                                    {s.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Target table (shown after schema is selected) */}
+                        {d.destinationCategory === "warehouse" && d.destinationProvider && d.destinationConfig.schema && (
+                            <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Target Table</Label>
+                                <Input
+                                    placeholder="Type new table name or pick existing below"
+                                    value={d.destinationConfig.table || ""}
+                                    onChange={(e) => d.updateDestinationConfig("table", e.target.value.toUpperCase())}
+                                    className="h-8 text-xs font-mono"
+                                />
+                                {d.destTableList.length > 0 && !d.destinationConfig.table && (
+                                    <div className="border rounded-md max-h-32 overflow-y-auto p-1.5 space-y-0.5">
+                                        {d.destTableList.map(t => (
+                                            <button
+                                                type="button"
+                                                key={t.name}
+                                                onClick={() => d.updateDestinationConfig("table", t.name)}
+                                                className="flex items-center px-2 py-1 rounded text-xs hover:bg-accent/50 transition-colors w-full text-left font-mono"
+                                            >
+                                                {t.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* ── Frequency ────────────────────────────────────────── */}
