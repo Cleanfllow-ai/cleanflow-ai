@@ -37,8 +37,8 @@ export function useConnectedProviders() {
             .map((c: any) => c.provider || c.provider_id),
         )
 
+        // Show connected providers + all available providers (for sample/placeholder visibility)
         const connected = available
-          .filter((p) => connectedIds.has(p.provider_id))
           .map((p) => ({
             provider_id: p.provider_id,
             display_name: p.display_name,

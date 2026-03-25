@@ -34,12 +34,14 @@ export function JobCreationStepper() {
     const { idToken, getValidToken } = useAuth()
     const [currentStep, setCurrentStep] = useState<StepperStep>("config")
     const [isCreating, setIsCreating] = useState(false)
+    const [advancedDQ, setAdvancedDQ] = useState(false)
 
     // Reuse the existing job dialog hook for step 1 state
     // We pass open=true to trigger data fetching
     const d = useJobDialog({ open: true, job: null, onSuccess: () => {} })
 
-    const currentIndex = STEPPER_STEPS.findIndex((s) => s.key === currentStep)
+    const visibleSteps = advancedDQ ? STEPPER_STEPS : [STEPPER_STEPS[0]]
+    const currentIndex = visibleSteps.findIndex((s) => s.key === currentStep)
 
     // ── Step 1 → Step 2 ──────────────────────────────────────────────────────
 
@@ -137,6 +139,35 @@ export function JobCreationStepper() {
         }
     }, [d, router, toast])
 
+    // ── Direct creation (default DQ) ─────────────────────────────────────────
+
+    const handleCreateDirect = useCallback(async () => {
+        if (!d.name.trim()) {
+            toast({ title: "Name required", variant: "destructive" })
+            return
+        }
+        if (!d.sourceProvider || !d.destinationProvider || d.entities.length === 0) {
+            toast({ title: "Incomplete", description: "Fill in all required fields", variant: "destructive" })
+            return
+        }
+        if (d.frequency === "cron" && !d.cronExpression.trim()) {
+            toast({ title: "Cron expression required", variant: "destructive" })
+            return
+        }
+
+        const defaultDqConfig: DQConfig = {
+            mode: "default",
+            columns: null,
+            rules_enabled: null,
+            preset_id: null,
+            policies: {
+                allow_autofix: true,
+                strictness: "balanced",
+            },
+        }
+        await handleCreateJob(defaultDqConfig)
+    }, [d, toast, handleCreateJob])
+
     // ── Build source config params for DQ step ───────────────────────────────
 
     const sourceConfigParams: Record<string, string> = {}
@@ -176,7 +207,7 @@ export function JobCreationStepper() {
 
             {/* Top-level step indicator */}
             <div className="flex items-center justify-center gap-4 px-6 py-4 border-b border-border/40 bg-muted/10">
-                {STEPPER_STEPS.map((s, index) => {
+                {visibleSteps.map((s, index) => {
                     const isActive = s.key === currentStep
                     const isCompleted = index < currentIndex
 
@@ -215,7 +246,7 @@ export function JobCreationStepper() {
                                             isActive ? "text-primary" : "text-muted-foreground/60"
                                         )}
                                     >
-                                        Step {index + 1} of {STEPPER_STEPS.length}
+                                        {visibleSteps.length === 1 ? "Configuration" : `Step ${index + 1} of ${visibleSteps.length}`}
                                     </span>
                                     <span
                                         className={cn(
@@ -229,7 +260,7 @@ export function JobCreationStepper() {
                                     </span>
                                 </div>
                             </button>
-                            {index < STEPPER_STEPS.length - 1 && (
+                            {index < visibleSteps.length - 1 && (
                                 <div className={cn(
                                     "w-16 h-px ml-2",
                                     isCompleted ? "bg-green-600" : "bg-border/60"
@@ -246,6 +277,10 @@ export function JobCreationStepper() {
                     <JobConfigStep
                         d={d}
                         onNext={handleNextToStep2}
+                        advancedDQ={advancedDQ}
+                        onAdvancedDQChange={setAdvancedDQ}
+                        onCreateDirect={handleCreateDirect}
+                        isCreating={isCreating}
                     />
                 )}
                 {currentStep === "dq" && (

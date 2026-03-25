@@ -25,6 +25,9 @@ export const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
     netsuite: "NetSuite",
     dynamics: "Microsoft Dynamics",
     sap: "SAP",
+    salesforce: "Salesforce",
+    epicor: "Epicor Kinetic",
+    qad: "QAD",
     oracle: "Oracle Fusion",
 }
 

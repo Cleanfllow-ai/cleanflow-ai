@@ -49,6 +49,16 @@ export interface ProviderInfo {
   }
 }
 
+// Sample providers shown alongside real backend providers
+const SAMPLE_PROVIDERS: ProviderInfo[] = [
+  { provider_id: "sap", display_name: "SAP", category: "erp" },
+  { provider_id: "salesforce", display_name: "Salesforce", category: "erp" },
+  { provider_id: "netsuite", display_name: "NetSuite", category: "erp" },
+  { provider_id: "epicor", display_name: "Epicor Kinetic", category: "erp" },
+  { provider_id: "qad", display_name: "QAD", category: "erp" },
+  { provider_id: "dynamics", display_name: "Microsoft Dynamics", category: "erp" },
+]
+
 class ConnectorsAPI extends ConnectorAPIBase {
   /** Initiate OAuth for any provider. Returns auth_url for popup. */
   async connect(
@@ -114,12 +124,15 @@ class ConnectorsAPI extends ConnectorAPIBase {
     )
   }
 
-  /** List all registered providers. */
+  /** List all registered providers (merges backend + sample placeholders). */
   async listProviders(): Promise<{ providers: ProviderInfo[] }> {
-    return await this.makeRequest<{ providers: ProviderInfo[] }>(
+    const resp = await this.makeRequest<{ providers: ProviderInfo[] }>(
       "/connectors/available",
       { method: "GET" },
     )
+    const realIds = new Set((resp.providers || []).map((p) => p.provider_id))
+    const extras = SAMPLE_PROVIDERS.filter((s) => !realIds.has(s.provider_id))
+    return { providers: [...(resp.providers || []), ...extras] }
   }
 
   /** List all connections for the current user. */

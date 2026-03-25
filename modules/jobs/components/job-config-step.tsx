@@ -1,6 +1,7 @@
 "use client"
 
-import { Loader2, Sparkles, Zap, X, Edit2 } from "lucide-react"
+import { Loader2, Sparkles, Zap, X, Edit2, SlidersHorizontal, Shield } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { ColumnMappingEditor } from "./column-mapping-editor"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,11 +28,15 @@ const CATEGORY_OPTIONS: { label: string; value: ProviderCategory }[] = [
 interface JobConfigStepProps {
     d: ReturnType<typeof useJobDialog>
     onNext: () => void
+    advancedDQ: boolean
+    onAdvancedDQChange: (val: boolean) => void
+    onCreateDirect: () => void
+    isCreating?: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function JobConfigStep({ d, onNext }: JobConfigStepProps) {
+export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCreateDirect, isCreating }: JobConfigStepProps) {
     const canProceed =
         d.name.trim() !== "" &&
         d.sourceProvider !== "" &&
@@ -474,17 +479,73 @@ export function JobConfigStep({ d, onNext }: JobConfigStepProps) {
                             </Select>
                         )}
                     </div>
+
+                    {/* ── Advanced DQ Configuration Toggle ──────────────────── */}
+                    <div
+                        className={cn(
+                            "rounded-xl border p-4 transition-all duration-200",
+                            advancedDQ
+                                ? "border-primary/30 bg-primary/[0.03]"
+                                : "border-border/60 bg-muted/20"
+                        )}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className={cn(
+                                    "flex items-center justify-center w-9 h-9 rounded-lg transition-colors",
+                                    advancedDQ ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                                )}>
+                                    <SlidersHorizontal className="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <span className="text-sm font-medium block">Advanced DQ Configuration</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {advancedDQ
+                                            ? "Customize column selection, profiling, rules, and settings"
+                                            : "Using default DQ rules -- all columns, balanced strictness"
+                                        }
+                                    </span>
+                                </div>
+                            </div>
+                            <Switch
+                                checked={advancedDQ}
+                                onCheckedChange={onAdvancedDQChange}
+                            />
+                        </div>
+
+                        {!advancedDQ && (
+                            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-background/60 border border-border/40">
+                                <Shield className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                    All 33 universal DQ rules will be applied with balanced strictness and auto-fix enabled.
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-border/50 flex justify-end">
-                <Button
-                    onClick={onNext}
-                    disabled={!canProceed}
-                >
-                    Next &rarr;
-                </Button>
+            <div className="px-6 py-4 border-t border-border/50 flex justify-end gap-3">
+                {advancedDQ ? (
+                    <Button
+                        onClick={onNext}
+                        disabled={!canProceed}
+                    >
+                        Next &rarr;
+                    </Button>
+                ) : (
+                    <Button
+                        onClick={onCreateDirect}
+                        disabled={!canProceed || isCreating}
+                    >
+                        {isCreating ? (
+                            <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</>
+                        ) : (
+                            "Create Job"
+                        )}
+                    </Button>
+                )}
             </div>
         </div>
     )

@@ -35,7 +35,11 @@ import type {
 interface ProviderWithStatus extends ProviderInfo {
   connectionStatus: ConnectionStatus | null
   statusLoading: boolean
+  comingSoon?: boolean
 }
+
+// Sample provider IDs (defined in connectors-api.ts SAMPLE_PROVIDERS)
+const SAMPLE_PROVIDER_IDS = new Set(["sap", "salesforce", "netsuite", "epicor", "qad", "dynamics"])
 
 // ─── Provider brand system ──────────────────────────────────────────────────
 
@@ -76,6 +80,48 @@ const PROVIDER_BRANDS: Record<
     glow: "shadow-amber-500/8",
     connectedBg: "bg-amber-50/40 dark:bg-amber-950/15",
     connectedBorder: "border-amber-200/60 dark:border-amber-800/40",
+  },
+  sap: {
+    accent: "bg-blue-600",
+    accentText: "text-blue-600 dark:text-blue-400",
+    glow: "shadow-blue-500/8",
+    connectedBg: "bg-blue-50/40 dark:bg-blue-950/15",
+    connectedBorder: "border-blue-200/60 dark:border-blue-800/40",
+  },
+  salesforce: {
+    accent: "bg-sky-500",
+    accentText: "text-sky-600 dark:text-sky-400",
+    glow: "shadow-sky-500/8",
+    connectedBg: "bg-sky-50/40 dark:bg-sky-950/15",
+    connectedBorder: "border-sky-200/60 dark:border-sky-800/40",
+  },
+  netsuite: {
+    accent: "bg-orange-500",
+    accentText: "text-orange-600 dark:text-orange-400",
+    glow: "shadow-orange-500/8",
+    connectedBg: "bg-orange-50/40 dark:bg-orange-950/15",
+    connectedBorder: "border-orange-200/60 dark:border-orange-800/40",
+  },
+  epicor: {
+    accent: "bg-violet-500",
+    accentText: "text-violet-600 dark:text-violet-400",
+    glow: "shadow-violet-500/8",
+    connectedBg: "bg-violet-50/40 dark:bg-violet-950/15",
+    connectedBorder: "border-violet-200/60 dark:border-violet-800/40",
+  },
+  qad: {
+    accent: "bg-teal-500",
+    accentText: "text-teal-600 dark:text-teal-400",
+    glow: "shadow-teal-500/8",
+    connectedBg: "bg-teal-50/40 dark:bg-teal-950/15",
+    connectedBorder: "border-teal-200/60 dark:border-teal-800/40",
+  },
+  dynamics: {
+    accent: "bg-indigo-500",
+    accentText: "text-indigo-600 dark:text-indigo-400",
+    glow: "shadow-indigo-500/8",
+    connectedBg: "bg-indigo-50/40 dark:bg-indigo-950/15",
+    connectedBorder: "border-indigo-200/60 dark:border-indigo-800/40",
   },
 }
 
@@ -164,13 +210,16 @@ export function ConnectorsHub() {
       const withStatus: ProviderWithStatus[] = list.map((p) => ({
         ...p,
         connectionStatus: null,
-        statusLoading: true,
+        statusLoading: !SAMPLE_PROVIDER_IDS.has(p.provider_id),
+        comingSoon: SAMPLE_PROVIDER_IDS.has(p.provider_id),
       }))
       setProviders(withStatus)
       setLoading(false)
 
+      // Only check connection status for real providers (not samples)
+      const realProviders = list.filter((p) => !SAMPLE_PROVIDER_IDS.has(p.provider_id))
       const results = await Promise.all(
-        list.map(async (p) => {
+        realProviders.map(async (p) => {
           try {
             const status = await connectorsAPI.getConnectionStatus(
               p.provider_id,
@@ -448,6 +497,7 @@ function ConnectorCard({
   const pid = provider.provider_id
   const displayName = provider.display_name
   const isConnected = provider.connectionStatus?.connected
+  const isComingSoon = provider.comingSoon === true
   const brand = getBrand(pid)
   const conn = provider.connectionStatus?.connection
   const email = conn?.email ? String(conn.email) : null
@@ -456,13 +506,15 @@ function ConnectorCard({
   return (
     <MotionDiv
       variants={fadeInUp}
-      whileHover={{ y: -2, transition: { duration: 0.2 } }}
+      whileHover={isComingSoon ? undefined : { y: -2, transition: { duration: 0.2 } }}
       className={`
         relative overflow-hidden rounded-xl border transition-colors duration-200
         ${
-          isConnected
-            ? `${brand.connectedBorder} ${brand.connectedBg} shadow-md ${brand.glow}`
-            : "border-border bg-card hover:border-border/80 hover:shadow-sm"
+          isComingSoon
+            ? "border-border bg-card hover:border-border/80 hover:shadow-sm"
+            : isConnected
+              ? `${brand.connectedBorder} ${brand.connectedBg} shadow-md ${brand.glow}`
+              : "border-border bg-card hover:border-border/80 hover:shadow-sm"
         }
       `}
     >
@@ -491,7 +543,11 @@ function ConnectorCard({
               <h3 className="text-sm font-semibold leading-tight">
                 {displayName}
               </h3>
-              {provider.statusLoading ? (
+              {isComingSoon ? (
+                <span className="text-[10px] text-muted-foreground/60">
+                  Not connected
+                </span>
+              ) : provider.statusLoading ? (
                 <span className="text-[10px] text-muted-foreground/50">
                   Checking...
                 </span>
@@ -518,7 +574,7 @@ function ConnectorCard({
         </div>
 
         {/* ─── Connection metadata ─────────────────────────────── */}
-        {isConnected && (email || linkedAt) && (
+        {!isComingSoon && isConnected && (email || linkedAt) && (
           <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 px-2.5 py-1.5 rounded-md bg-background/60 dark:bg-background/30 border border-border/40">
             {email && (
               <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -536,7 +592,7 @@ function ConnectorCard({
         )}
 
         {/* ─── Post-auth config fields ─────────────────────────── */}
-        {isConnected &&
+        {!isComingSoon && isConnected &&
           provider.connectionStatus?.post_auth_config?.map(
             (field: PostAuthConfigField) => (
               <div key={field.key} className="mb-3 px-0.5">
@@ -582,59 +638,72 @@ function ConnectorCard({
           )}
 
         {/* ─── Actions ─────────────────────────────────────────── */}
-        <div className="flex gap-2">
-          {isConnected ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 h-7 text-[11px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200/60 dark:border-red-800/40"
-                onClick={() => onDisconnect(pid, displayName)}
-                disabled={isDisconnecting}
-              >
-                {isDisconnecting ? (
-                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                ) : (
-                  <Power className="w-3 h-3 mr-1" />
-                )}
-                Disconnect
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-[11px] px-2.5"
-                onClick={() => onConnect(pid)}
-                disabled={isConnecting}
-                title="Reconnect"
-              >
-                {isConnecting ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-3 h-3" />
-                )}
-              </Button>
-            </>
-          ) : (
+        {isComingSoon ? (
+          <div className="flex gap-2">
             <Button
               size="sm"
-              className="flex-1 h-8 text-xs bg-primary hover:bg-primary/90"
-              onClick={() => onConnect(pid)}
-              disabled={isConnecting}
+              className="flex-1 h-8 text-xs bg-primary hover:bg-primary/90 opacity-50 cursor-not-allowed"
+              disabled
             >
-              {isConnecting ? (
-                <>
-                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <ExternalLink className="w-3 h-3 mr-1.5" />
-                  Connect
-                </>
-              )}
+              <ExternalLink className="w-3 h-3 mr-1.5" />
+              Connect
             </Button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            {isConnected ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-7 text-[11px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200/60 dark:border-red-800/40"
+                  onClick={() => onDisconnect(pid, displayName)}
+                  disabled={isDisconnecting}
+                >
+                  {isDisconnecting ? (
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  ) : (
+                    <Power className="w-3 h-3 mr-1" />
+                  )}
+                  Disconnect
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-[11px] px-2.5"
+                  onClick={() => onConnect(pid)}
+                  disabled={isConnecting}
+                  title="Reconnect"
+                >
+                  {isConnecting ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3 h-3" />
+                  )}
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                className="flex-1 h-8 text-xs bg-primary hover:bg-primary/90"
+                onClick={() => onConnect(pid)}
+                disabled={isConnecting}
+              >
+                {isConnecting ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="w-3 h-3 mr-1.5" />
+                    Connect
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </MotionDiv>
   )
