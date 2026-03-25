@@ -550,6 +550,27 @@ export function useFilesPage() {
     const reprocessPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const handleReprocessSubmitted = useCallback((result: any) => {
+        const activeFile = quarantineEditorFile;
+        if (activeFile) {
+            const optimisticFile: FileStatusResponse = {
+                ...activeFile,
+                status: "QUEUED",
+                remediation_state: "REPROCESS_SUBMITTED",
+                updated_at: new Date().toISOString(),
+            };
+
+            dispatch(updateFile(optimisticFile));
+            filesRef.current = (filesRef.current ?? []).map((file) =>
+                file.upload_id === optimisticFile.upload_id ? optimisticFile : file
+            );
+            setSelectedFile((prev) =>
+                prev?.upload_id === optimisticFile.upload_id
+                    ? { ...prev, ...optimisticFile }
+                    : prev
+            );
+            setQuarantineEditorFile(optimisticFile);
+        }
+
         // Immediately refresh to pick up remediation_state=REPROCESS_SUBMITTED
         loadFiles();
 
@@ -580,7 +601,7 @@ export function useFilesPage() {
                 }
             }
         }, 5000); // poll every 5s for snappier UX
-    }, [loadFiles]);
+    }, [dispatch, loadFiles, quarantineEditorFile]);
 
     // Clean up reprocess polling on unmount
     useEffect(() => {

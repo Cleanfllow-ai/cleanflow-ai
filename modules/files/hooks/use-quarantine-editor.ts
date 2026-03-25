@@ -128,8 +128,9 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
   }, [open, file?.upload_id, authToken])
 
   // Autosave edits
-  const saveEdits = useCallback(async () => {
-    if (!file || !authToken || !session.session || edits.pendingCount === 0 || !activeUploadId) return
+  const saveEdits = useCallback(async (): Promise<boolean> => {
+    if (edits.pendingCount === 0) return true
+    if (!file || !authToken || !session.session || !activeUploadId) return false
 
     // Compatibility mode: edits are saved locally
     if (session.compatibilityMode) {
@@ -139,7 +140,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
         title: 'Edits staged locally',
         description: 'Legacy mode stores edits locally and applies them on reprocess submit.',
       })
-      return
+      return true
     }
 
     setSaving(true)
@@ -174,6 +175,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
       setLastSaveSummary({ accepted: acceptedTotal, rejected: rejectedTotal })
       setLastSavedAt(new Date())
       staleEtagRetryCountRef.current = 0
+      return true
     } catch (error: any) {
       const isStaleEtag =
         error?.status === 409 && error?.message?.toLowerCase().includes('stale etag')
@@ -188,7 +190,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
             description: 'Could not resolve edit conflict after multiple retries.',
             variant: 'destructive',
           })
-          return
+          return false
         }
 
         if (staleEtagRetryCountRef.current === 1) {
@@ -205,7 +207,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
           // counter will eventually surface a terminal error.
         }
         // Pending edits stay in state so autosave retries with fresh etag.
-        return
+        return false
       }
 
       staleEtagRetryCountRef.current = 0
@@ -214,6 +216,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
         description: error?.message || 'Unable to save edits',
         variant: 'destructive',
       })
+      return false
     } finally {
       setSaving(false)
     }
@@ -236,7 +239,15 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
       try {
         // Save any pending edits first
         if (edits.pendingCount > 0) {
-          await saveEdits()
+          const saved = await saveEdits()
+          if (!saved || edits.pendingCount > 0) {
+            toast({
+              title: 'Reprocess blocked',
+              description: 'Your latest edits were not persisted. Resolve the save error, then retry reprocess.',
+              variant: 'destructive',
+            })
+            return null
+          }
         }
 
         // Compatibility mode
@@ -333,6 +344,11 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
     }
   }, [file, authToken, session, rows, edits]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Ref keeps latest rows for compatibility-mode slice without being a dep of
+  // fetchRows — avoids rebuilding fetchRows on every cell edit or row merge.
+  const rowsRowsRef = useRef(rows.rows)
+  rowsRowsRef.current = rows.rows
+
   // AG Grid Infinite Row Model datasource — called by AG Grid when it needs a block
   const fetchRows = useCallback(
     async (startRow: number, endRow: number): Promise<{ rows: QuarantineRow[]; lastRow: number }> => {
@@ -342,8 +358,8 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
 
       // Compatibility mode: return pre-loaded rows slice
       if (session.compatibilityMode) {
-        const slice = rows.rows.slice(startRow, endRow)
-        return { rows: slice, lastRow: rows.rows.length }
+        const slice = rowsRowsRef.current.slice(startRow, endRow)
+        return { rows: slice, lastRow: rowsRowsRef.current.length }
       }
 
       try {
@@ -367,7 +383,7 @@ export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEdit
         throw error
       }
     },
-    [activeUploadId, file, authToken, session.manifest, session.session, session.compatibilityMode, rows.rows, rows.mergeRows]
+    [activeUploadId, file, authToken, session.manifest, session.session, session.compatibilityMode, rows.mergeRows]
   )
 
   // Cell edit handler

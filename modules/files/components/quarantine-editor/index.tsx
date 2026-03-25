@@ -104,6 +104,7 @@ export function QuarantineEditorDialog({ file, open, onOpenChange, onReprocessSu
                 editableColumns={editor.manifest?.editable_columns || []}
                 totalRows={editor.totalRows}
                 fetchRows={editor.fetchRows}
+                getCellValue={editor.getCellValue}
                 isCellEdited={editor.isCellEdited}
                 isCellSaved={editor.isCellSaved}
                 onCellEdit={editor.handleCellEdit}
