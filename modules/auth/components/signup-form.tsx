@@ -1,8 +1,7 @@
 "use client";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
-import { Building2, Briefcase, Eye, EyeOff, FileText, Globe, Lock, Mail, User, Phone, MapPin } from "lucide-react";
+import { Building2, Briefcase, Eye, EyeOff, FileText, Lock, Mail, User, Phone, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,6 @@ import Link from "next/link";
 import { useAuth } from "@/modules/auth/providers/auth-provider";
 import { orgAPI } from "@/modules/auth/api/org-api";
 import { useToast } from "@/shared/hooks/use-toast";
-import { Separator } from "@/components/ui/separator";
 
 export function SignUpForm() {
   const [step, setStep] = useState(1);
@@ -248,7 +246,7 @@ export function SignUpForm() {
       case 4:
         return "bg-blue-500";
       case 5:
-        return "bg-green-500";
+        return "bg-emerald-500";
       default:
         return "bg-muted";
     }
@@ -268,336 +266,265 @@ export function SignUpForm() {
 
   return (
     <div className="w-full">
-      {/* Header Section with Logo */}
-      <div className="text-center mb-8">
-        <div className="flex justify-center mb-6">
-          <div className="relative w-16 h-16">
-            <Image
-              src="/images/infiniqon-logo-light.png"
-              alt="CleanFlowAI"
-              width={64}
-              height={64}
-              className="rounded-xl object-contain"
-            />
+      {/* Header */}
+      <div className="mb-6">
+        {/* Mobile-only logo */}
+        <div className="flex justify-center mb-6 lg:hidden">
+          <div className="relative w-10 h-10">
+            <Image src="/images/infiniqon-logo-light.png" alt="CleanFlowAI" width={40} height={40} className="object-contain" />
           </div>
         </div>
-        <h1 className="font-sans text-2xl font-bold tracking-tight text-foreground mb-1.5">
-          {step === 1 ? "Create account" : "Organization Details"}
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          {step === 1 ? "Create account" : "Organization details"}
         </h1>
-        <p className="text-muted-foreground">
-          {step === 1
-            ? "Get started with your account"
-            : "Tell us about your organization"}
+        <p className="text-sm text-muted-foreground mt-1">
+          {step === 1 ? "Set up your account to get started" : "Tell us about your organization"}
         </p>
       </div>
 
       {/* Step Indicator */}
-      <div className="flex justify-center mb-8 px-4">
-        <div className="w-full max-w-[320px] space-y-2">
-          <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-            <span className={step >= 1 ? "text-foreground" : ""}>User details</span>
-            <span className={step >= 2 ? "text-foreground" : ""}>Organization details</span>
+      <div className="mb-6">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-1">
+            <div className={`h-1 flex-1 rounded-full transition-colors duration-300 ${step >= 1 ? "bg-primary" : "bg-muted"}`} />
+            <div className={`h-1 flex-1 rounded-full transition-colors duration-300 ${step >= 2 ? "bg-primary" : "bg-muted"}`} />
           </div>
-          <div className="flex items-center gap-2">
-            <div className={`h-2 flex-1 rounded-full transition-colors ${step >= 1 ? 'bg-primary' : 'bg-muted'}`} />
-            <div className={`h-2 flex-1 rounded-full transition-colors ${step >= 2 ? 'bg-primary' : 'bg-muted'}`} />
-          </div>
+          <span className="text-xs text-muted-foreground font-medium tabular-nums">Step {step} of 2</span>
         </div>
       </div>
 
-      <Card className="w-full border-0 shadow-none bg-transparent">
-        <CardContent className="space-y-6 p-0">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {step === 1 ? (
-              <>
-                {/* Step 1: User details */}
-                <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-sm font-medium text-muted-foreground">
-                    Full Name
-                  </Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      id="fullName"
-                      placeholder="Enter your full name"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                      className="pl-10 h-12"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-muted-foreground">
-                    Email
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="pl-10 h-12"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-muted-foreground">
-                    Password
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Create a password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="pl-10 pr-10 h-12"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-12 px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  {password && (
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <div className="flex-1 bg-muted rounded-full h-1.5">
-                          <div
-                            className={`h-1.5 rounded-full transition-all duration-300 ${getPasswordStrengthColor(getPasswordStrength(password))}`}
-                            style={{ width: `${(getPasswordStrength(password) / 5) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                          {getPasswordStrengthLabel(getPasswordStrength(password))}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2 pb-2">
-                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-muted-foreground">
-                    Confirm Password
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Confirm your password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      className="pl-10 pr-10 h-12"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-12 px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Step 2: Org details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="orgName">Organization Name</Label>
-                    <div className="relative">
-                      <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                      <Input
-                        id="orgName"
-                        placeholder="e.g. Acme Corp"
-                        value={orgName}
-                        onChange={(e) => setOrgName(e.target.value)}
-                        required
-                        className="pl-10 h-12"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="industry">Industry</Label>
-                    <div className="relative">
-                      <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                      <Input
-                        id="industry"
-                        placeholder="e.g. Finance, Healthcare"
-                        value={industry}
-                        onChange={(e) => setIndustry(e.target.value)}
-                        required
-                        className="pl-10 h-12"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="orgEmail">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                      <Input
-                        id="orgEmail"
-                        type="email"
-                        placeholder="contact@acme.com"
-                        value={orgEmail}
-                        onChange={(e) => setOrgEmail(e.target.value)}
-                        className="pl-10 h-12"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="orgPhone">Phone</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                      <Input
-                        id="orgPhone"
-                        placeholder="+91 000 000 0000"
-                        value={orgPhone}
-                        onChange={(e) => setOrgPhone(e.target.value)}
-                        required
-                        className="pl-10 h-12"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="orgAddress">Address</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      id="orgAddress"
-                      placeholder="Full organization address"
-                      value={orgAddress}
-                      onChange={(e) => setOrgAddress(e.target.value)}
-                      required
-                      className="pl-10 h-12"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="gst">GST Number</Label>
-                    <div className="relative">
-                      <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                        id="gst"
-                        placeholder="GSTIN"
-                        value={gst}
-                        onChange={(e) => setGst(e.target.value)}
-                        className="pl-10 h-12 uppercase"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="pan">PAN Number</Label>
-                    <div className="relative">
-                      <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                        id="pan"
-                        placeholder="ABCDE1234F"
-                        value={pan}
-                        onChange={(e) => setPan(e.target.value)}
-                        className="pl-10 h-12 uppercase"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Terms and Privacy - Only show on last step */}
-            {step === 2 && (
-              <div className="flex items-start space-x-2 py-2">
-                <input
-                  id="terms"
-                  type="checkbox"
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {step === 1 ? (
+          <>
+            {/* Full Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Full Name
+              </Label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                <Input
+                  id="fullName"
+                  placeholder="Enter your full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="h-4 w-4 mt-0.5 rounded border-input text-primary focus:ring-ring"
+                  className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors"
                 />
-                <Label htmlFor="terms" className="text-sm text-muted-foreground leading-5">
-                  I agree to the{" "}
-                  <Link href="/terms" className="text-primary hover:underline">
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" className="text-primary hover:underline">
-                    Privacy Policy
-                  </Link>
-                </Label>
               </div>
-            )}
-
-            {/* Alerts */}
-            {error && (
-              <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive">
-                <AlertDescription className="text-xs">{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {success && (
-              <Alert className="bg-green-500/10 border-green-500/20 text-green-600">
-                <AlertDescription className="text-xs">{success}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Submit Button */}
-            <div className="flex gap-3">
-              {step === 2 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={prevStep}
-                  className="h-12 px-6"
-                  disabled={isLoading}
-                >
-                  Back
-                </Button>
-              )}
-              <Button
-                type="submit"
-                className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
-                disabled={isLoading}
-              >
-                {isLoading
-                  ? "Processing..."
-                  : step === 1
-                    ? "Next: Organization Details"
-                    : "Create Account"}
-              </Button>
             </div>
-          </form>
 
-          {/* Sign in link */}
-          <p className="text-center text-sm text-muted-foreground pt-2">
-            Already have an account?{" "}
-            <Link href={`/auth/login${window.location.search}`} className="text-primary hover:underline font-bold">
-              Sign in
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+            {/* Email */}
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Email
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Password
+              </Label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Min. 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pl-10 pr-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {password && (
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="flex-1 flex gap-1">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div
+                        key={i}
+                        className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                          i <= getPasswordStrength(password) ? getPasswordStrengthColor(getPasswordStrength(password)) : "bg-muted"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider min-w-[60px] text-right">
+                    {getPasswordStrengthLabel(getPasswordStrength(password))}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Confirm Password
+              </Label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="pl-10 pr-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Step 2: Org details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="orgName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Organization Name</Label>
+                <div className="relative">
+                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                  <Input id="orgName" placeholder="e.g. Acme Corp" value={orgName} onChange={(e) => setOrgName(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="industry" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Industry</Label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                  <Input id="industry" placeholder="e.g. Finance, Healthcare" value={industry} onChange={(e) => setIndustry(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="orgEmail" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                  <Input id="orgEmail" type="email" placeholder="contact@acme.com" value={orgEmail} onChange={(e) => setOrgEmail(e.target.value)} className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="orgPhone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                  <Input id="orgPhone" placeholder="+91 000 000 0000" value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="orgAddress" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Address</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                <Input id="orgAddress" placeholder="Full organization address" value={orgAddress} onChange={(e) => setOrgAddress(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="gst" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">GST Number</Label>
+                <div className="relative">
+                  <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                  <Input id="gst" placeholder="GSTIN" value={gst} onChange={(e) => setGst(e.target.value)} className="pl-10 h-11 uppercase bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="pan" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">PAN Number</Label>
+                <div className="relative">
+                  <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                  <Input id="pan" placeholder="ABCDE1234F" value={pan} onChange={(e) => setPan(e.target.value)} className="pl-10 h-11 uppercase bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Terms - only on last step */}
+        {step === 2 && (
+          <div className="flex items-start space-x-2.5 pt-1">
+            <input id="terms" type="checkbox" required className="h-3.5 w-3.5 mt-0.5 rounded border-border text-primary focus:ring-ring" />
+            <Label htmlFor="terms" className="text-xs text-muted-foreground leading-5 cursor-pointer">
+              I agree to the{" "}
+              <Link href="/terms" className="text-primary hover:text-primary/80 transition-colors">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" className="text-primary hover:text-primary/80 transition-colors">
+                Privacy Policy
+              </Link>
+            </Label>
+          </div>
+        )}
+
+        {/* Alerts */}
+        {error && (
+          <Alert variant="destructive" className="bg-destructive/5 border-destructive/20">
+            <AlertDescription className="text-destructive text-sm">{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {success && (
+          <Alert className="bg-green-500/5 border-green-500/20">
+            <AlertDescription className="text-green-600 dark:text-green-400 text-sm">{success}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-1">
+          {step === 2 && (
+            <Button type="button" variant="outline" onClick={prevStep} className="h-11 px-5" disabled={isLoading}>
+              Back
+            </Button>
+          )}
+          <Button
+            type="submit"
+            className="flex-1 h-11 font-medium transition-all"
+            disabled={isLoading}
+          >
+            {isLoading
+              ? "Processing..."
+              : step === 1
+                ? "Continue"
+                : "Create Account"}
+          </Button>
+        </div>
+      </form>
+
+      {/* Sign in link */}
+      <p className="text-center text-sm text-muted-foreground mt-8">
+        Already have an account?{" "}
+        <Link href={`/auth/login${window.location.search}`} className="text-primary hover:text-primary/80 font-medium transition-colors">
+          Sign in
+        </Link>
+      </p>
     </div>
   );
 }

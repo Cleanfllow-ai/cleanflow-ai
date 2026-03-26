@@ -131,7 +131,7 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
           ) : (
             <Download className="w-3.5 h-3.5 mr-1.5" />
           )}
-          <span className="text-xs">Export Report</span>
+          <span className="text-xs">Download Report</span>
         </Button>
       </div>
     </div>

@@ -18,3 +18,18 @@ export { default as StorageImport } from "./components/storage/storage-import"
 
 // ─── Hooks ──────────────────────────────────────────────────────────────────
 export { useAvailableProviders, invalidateProviderCache } from "./hooks/use-available-providers"
+export {
+  useConnectorMetadataCache,
+  getCachedWarehouses,
+  getCachedDatabases,
+  getCachedSchemas,
+  getCachedTables,
+  getCachedDefaults,
+  setCachedDefaults,
+  prefetchWarehouseMetadata,
+  prefetchSchemas,
+  prefetchTables,
+  prefetchDatabaseDeep,
+  prefetchERPEntities,
+  invalidateMetadataCache,
+} from "./hooks/use-connector-metadata-cache"

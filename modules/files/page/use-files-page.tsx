@@ -64,6 +64,9 @@ export function useFilesPage() {
     const [deleting, setDeleting] = useState<string | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [fileToDelete, setFileToDelete] = useState<FileStatusResponse | null>(null);
+    const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+    const [bulkDeleting, setBulkDeleting] = useState(false);
+    const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
     const [showDownloadModal, setShowDownloadModal] = useState(false);
     const [downloadModalFile, setDownloadModalFile] = useState<FileStatusResponse | null>(null);
     const [erpModalConfig, setErpModalConfig] = useState<{
@@ -1013,6 +1016,54 @@ export function useFilesPage() {
         }
     };
 
+    // ─── Multi-select & Bulk Delete ──────────────────────────────────
+    const handleSelectFile = (uploadId: string, checked: boolean) => {
+        setSelectedFiles(prev => {
+            const next = new Set(prev);
+            if (checked) next.add(uploadId); else next.delete(uploadId);
+            return next;
+        });
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedFiles(new Set(filteredFiles.map(f => f.upload_id)));
+        } else {
+            setSelectedFiles(new Set());
+        }
+    };
+
+    const handleBulkDeleteClick = () => {
+        if (selectedFiles.size === 0) return;
+        setShowBulkDeleteModal(true);
+    };
+
+    const handleBulkDeleteConfirm = async () => {
+        if (selectedFiles.size === 0 || !idToken) return;
+        if (!ensureFilesPermission()) return;
+        setShowBulkDeleteModal(false);
+        setBulkDeleting(true);
+        const ids = Array.from(selectedFiles);
+        let successCount = 0;
+        let failCount = 0;
+        for (const id of ids) {
+            try {
+                await fileManagementAPI.deleteUpload(id, idToken);
+                successCount++;
+            } catch {
+                failCount++;
+            }
+        }
+        setSelectedFiles(new Set());
+        setBulkDeleting(false);
+        await loadFiles();
+        if (failCount === 0) {
+            toast({ title: "Files deleted", description: `${successCount} file(s) removed successfully` });
+        } else {
+            toast({ title: "Bulk delete partial", description: `${successCount} deleted, ${failCount} failed`, variant: "destructive" });
+        }
+    };
+
     // ─── Download / export ────────────────────────────────────────────
     const handleDownloadClick = (file: FileStatusResponse) => {
         if (!ensureFilesPermission()) return;
@@ -1321,6 +1372,9 @@ export function useFilesPage() {
         profilingFileId, setProfilingFileId, profilingData, loadingProfiling, handleViewProfiling,
         // Delete
         deleting, showDeleteModal, setShowDeleteModal, fileToDelete, handleDeleteClick, handleDeleteConfirm,
+        // Multi-select & Bulk Delete
+        selectedFiles, handleSelectFile, handleSelectAll, handleBulkDeleteClick,
+        showBulkDeleteModal, setShowBulkDeleteModal, handleBulkDeleteConfirm, bulkDeleting,
         // Download / export
         downloading, downloadingFormat,
         showDownloadModal, setShowDownloadModal, downloadModalFile,

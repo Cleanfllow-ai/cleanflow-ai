@@ -29,6 +29,8 @@ export interface JobRunsExplorerState {
     handleViewRunFiles: (run: JobRun) => void
     handleRefresh: () => void
     isRefreshing: boolean
+    handleRetry: () => Promise<void>
+    isRetrying: boolean
 }
 
 export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
@@ -62,6 +64,19 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         loadRuns()
     }, [loadRuns])
 
+    // Silent poll every 3s when any run is RUNNING (no loading flash)
+    useEffect(() => {
+        const hasRunning = runs.some(r => r.status === "RUNNING")
+        if (!hasRunning) return
+        const interval = setInterval(async () => {
+            try {
+                const res = await jobsAPI.getJobRuns(jobId, 50)
+                setRuns(res.runs || [])
+            } catch { /* silent */ }
+        }, 3000)
+        return () => clearInterval(interval)
+    }, [runs, jobId])
+
     const handleSort = useCallback((field: SortField) => {
         if (sortField === field) {
             setSortDirection(prev => prev === "asc" ? "desc" : "asc")
@@ -82,6 +97,20 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
     }, [])
 
     const handleRefresh = useCallback(() => loadRuns(true), [loadRuns])
+
+    const [isRetrying, setIsRetrying] = useState(false)
+    const handleRetry = useCallback(async () => {
+        setIsRetrying(true)
+        try {
+            await jobsAPI.triggerJob(jobId)
+            // Quick refresh to pick up RUNNING status, then auto-poll takes over
+            setTimeout(() => loadRuns(true), 500)
+        } catch {
+            // ignore — user will see no new run appear
+        } finally {
+            setIsRetrying(false)
+        }
+    }, [jobId, loadRuns])
 
     const filteredRuns = useMemo(() => {
         let result = [...runs]
@@ -150,5 +179,7 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         handleViewRunFiles,
         handleRefresh,
         isRefreshing,
+        handleRetry,
+        isRetrying,
     }
 }

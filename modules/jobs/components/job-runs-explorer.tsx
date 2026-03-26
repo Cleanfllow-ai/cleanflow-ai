@@ -4,7 +4,7 @@ import { format } from "date-fns"
 import {
     CheckCircle2, XCircle, Clock, Loader2, Activity,
     Search, Filter, RefreshCw, AlertTriangle, ArrowUpDown,
-    ArrowUp, ArrowDown, FolderOpen, Info, Zap
+    ArrowUp, ArrowDown, FolderOpen, Info, Zap, RotateCw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -260,6 +260,20 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                         </TableCell>
                                         <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                                             <div className="flex items-center justify-end gap-0.5">
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7"
+                                                            onClick={() => state.handleRetry()}
+                                                            disabled={state.isRetrying}
+                                                        >
+                                                            <RotateCw className={cn("h-3.5 w-3.5", state.isRetrying && "animate-spin")} />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Retry Job</TooltipContent>
+                                                </Tooltip>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button

@@ -96,6 +96,8 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         actionsErpMode, setActionsErpMode, actionsErpTarget, setActionsErpTarget,
         // Delete
         showDeleteModal, setShowDeleteModal, fileToDelete, handleDeleteConfirm,
+        // Bulk Delete
+        showBulkDeleteModal, setShowBulkDeleteModal, handleBulkDeleteConfirm, selectedFiles,
         // Display columns
         displayColumnModalOpen, setDisplayColumnModalOpen,
         pendingVisibleColumns, setPendingVisibleColumns,
@@ -532,6 +534,22 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Bulk Delete Confirmation */}
+            <AlertDialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete {selectedFiles.size} file(s)?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently remove {selectedFiles.size} selected file(s). This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleBulkDeleteConfirm} className="bg-destructive text-destructive-foreground">Delete All</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

@@ -19,6 +19,7 @@ import {
     X,
     Plus,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -76,6 +77,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         openActionsDialog, handleDeleteClick,
         downloading, deleting,
         handleOpenQuarantineEditor, highlightedFileId,
+        selectedFiles, handleSelectFile, handleSelectAll, handleBulkDeleteClick, bulkDeleting,
         recentlyUploaded, setRecentlyUploaded,
         setWizardFile, setWizardOpen,
         handleNewImportOpen,
@@ -215,6 +217,22 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                 : `${filteredFiles.length} of ${files.length}`}
                         </span>
                     )}
+                    {selectedFiles.size > 0 && (
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-9 gap-1.5 px-3.5"
+                            onClick={handleBulkDeleteClick}
+                            disabled={bulkDeleting}
+                        >
+                            {bulkDeleting ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                            <span className="text-sm font-medium">Delete {selectedFiles.size}</span>
+                        </Button>
+                    )}
                     <Button
                         size="sm"
                         className="h-9 gap-1.5 px-3.5"
@@ -255,6 +273,12 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent border-b border-border/60 bg-muted/30">
+                                <TableHead className="w-10 text-center" onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox
+                                        checked={filteredFiles.length > 0 && selectedFiles.size === filteredFiles.length}
+                                        onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
+                                    />
+                                </TableHead>
                                 {visibleColumns.has("file") && (
                                     <TableHead
                                         className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground/70 cursor-pointer hover:text-foreground transition-colors text-left"
@@ -312,14 +336,14 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                         <TableBody>
                             {loading && files.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-24 text-center">
+                                    <TableCell colSpan={11} className="h-24 text-center">
                                         <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground/50" />
                                     </TableCell>
                                 </TableRow>
                             )}
                             {!loading && tableEmpty && (
                                 <TableRow>
-                                    <TableCell colSpan={10} className="py-20 text-center">
+                                    <TableCell colSpan={11} className="py-20 text-center">
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="w-14 h-14 rounded-xl bg-muted/40 border border-border/40 flex items-center justify-center">
                                                 <FileText className="h-6 w-6 text-muted-foreground/40" />
@@ -354,6 +378,12 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                     )}
                                     onClick={() => handleViewDetails(file)}
                                 >
+                                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                        <Checkbox
+                                            checked={selectedFiles.has(file.upload_id)}
+                                            onCheckedChange={(checked) => handleSelectFile(file.upload_id, Boolean(checked))}
+                                        />
+                                    </TableCell>
                                     {visibleColumns.has("file") && (
                                         <TableCell className="text-left">
                                             {(() => {
