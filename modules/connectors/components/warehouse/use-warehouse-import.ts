@@ -9,6 +9,7 @@ import type { WarehouseConnectionStatus, WarehouseMetadataItem } from "@/modules
 import type { WarehouseImportResponse, WarehouseExportResponse } from "@/modules/connectors/api/warehouse-connectors-api"
 import { autoMapColumns } from "./warehouse-mapping-utils"
 import { filterDQColumns } from "@/modules/files/utils/dq-columns"
+import { ensureConnectorConfig } from "@/modules/connectors/hooks/use-connector-metadata-cache"
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -52,16 +53,17 @@ export function useWarehouseImport({
     const [isConnecting, setIsConnecting] = useState(false)
     const [isCheckingStatus, setIsCheckingStatus] = useState(false)
 
-    // Import — metadata state
-    const [warehouses, setWarehouses] = useState<WarehouseMetadataItem[]>([])
-    const [databases, setDatabases] = useState<WarehouseMetadataItem[]>([])
+    // Import — metadata state (warehouse/database come from admin config)
     const [schemas, setSchemas] = useState<WarehouseMetadataItem[]>([])
     const [tables, setTables] = useState<WarehouseMetadataItem[]>([])
     const [metadataLoading, setMetadataLoading] = useState(false)
 
-    // Import — selection state (populated from provisioned defaults on connect)
-    const [selectedWarehouse, setSelectedWarehouse] = useState("")
-    const [selectedDatabase, setSelectedDatabase] = useState("")
+    // Admin-configured warehouse/database (read-only from connector config)
+    const [configuredWarehouse, setConfiguredWarehouse] = useState("")
+    const [configuredDatabase, setConfiguredDatabase] = useState("")
+    const [configMissing, setConfigMissing] = useState(false)
+
+    // Import — selection state (only schema/table are user-selectable)
     const [selectedSchema, setSelectedSchema] = useState("")
     const [selectedTable, setSelectedTable] = useState("")
     const [importLimit, setImportLimit] = useState(10000)
@@ -105,13 +107,15 @@ export function useWarehouseImport({
     const checkConnection = useCallback(async () => {
         setIsCheckingStatus(true)
         try {
-            const status = await connectorsAPI.getConnectionStatus(provider) as WarehouseConnectionStatus
+            const rawStatus = await connectorsAPI.getConnectionStatus(provider)
+            const status = rawStatus as WarehouseConnectionStatus
             setConnectionStatus(status)
-            // Seed selectors from provisioned user namespace
-            if (status.connected && status.sf_provisioned) {
-                if (status.sf_user_database) setSelectedDatabase((prev) => prev || status.sf_user_database!)
-                if (status.sf_user_schema) setSelectedSchema((prev) => prev || status.sf_user_schema!)
+
+            // Schema: provisioned default
+            if (status.connected && status.sf_provisioned && status.sf_user_schema) {
+                setSelectedSchema((prev) => prev || status.sf_user_schema!)
             }
+
             return status.connected
         } catch {
             setConnectionStatus({ connected: false })
@@ -124,17 +128,28 @@ export function useWarehouseImport({
     const loadMetadata = useCallback(async () => {
         setMetadataLoading(true)
         try {
-            const [wh, dbs] = await Promise.all([
-                warehouseConnectorsAPI.listWarehouses(provider),
-                warehouseConnectorsAPI.listDatabases(provider),
-            ])
-            setWarehouses(wh)
-            setDatabases(dbs)
-            if (wh.length > 0 && !selectedWarehouse) {
-                setSelectedWarehouse(wh[0].name)
+            // Load warehouse/database from admin connector config
+            const config = await ensureConnectorConfig(provider)
+            const wh = config.warehouse || ""
+            const db = config.database || ""
+            setConfiguredWarehouse(wh)
+            setConfiguredDatabase(db)
+
+            if (!wh && !db) {
+                setConfigMissing(true)
+                return
             }
-            if (selectedDatabase && selectedSchema) {
-                const tbl = await warehouseConnectorsAPI.listTables(provider, selectedDatabase, selectedSchema)
+            setConfigMissing(false)
+
+            // Load schemas using the configured database
+            if (db) {
+                const schemaItems = await warehouseConnectorsAPI.listSchemas(provider, db)
+                    .catch(() => [] as WarehouseMetadataItem[])
+                setSchemas(schemaItems)
+            }
+
+            if (db && selectedSchema) {
+                const tbl = await warehouseConnectorsAPI.listTables(provider, db, selectedSchema)
                     .catch(() => [] as WarehouseMetadataItem[])
                 setTables(tbl)
             }
@@ -147,7 +162,7 @@ export function useWarehouseImport({
         } finally {
             setMetadataLoading(false)
         }
-    }, [provider, providerDisplayName, onNotification, selectedWarehouse, selectedDatabase, selectedSchema])
+    }, [provider, providerDisplayName, onNotification, selectedSchema])
 
     const connectOAuth = useCallback(async () => {
         setIsConnecting(true)
@@ -176,12 +191,11 @@ export function useWarehouseImport({
         try {
             await connectorsAPI.disconnect(provider)
             setConnectionStatus({ connected: false })
-            setWarehouses([])
-            setDatabases([])
             setSchemas([])
             setTables([])
-            setSelectedWarehouse("")
-            setSelectedDatabase("")
+            setConfiguredWarehouse("")
+            setConfiguredDatabase("")
+            setConfigMissing(false)
             setSelectedSchema("")
             setSelectedTable("")
             setSelectedFile(null)
@@ -196,18 +210,6 @@ export function useWarehouseImport({
 
     // ─── Metadata loading ─────────────────────────────────────────────────
 
-    const loadSchemas = useCallback(async (database: string) => {
-        if (!database) return
-        setSchemas([])
-        setSelectedTable("")
-        try {
-            const items = await warehouseConnectorsAPI.listSchemas(provider, database)
-            setSchemas(items)
-        } catch (error) {
-            console.error("Failed to load schemas:", error)
-        }
-    }, [provider])
-
     const loadTables = useCallback(async (database: string, schema: string) => {
         if (!database || !schema) return
         setTables([])
@@ -220,18 +222,23 @@ export function useWarehouseImport({
         }
     }, [provider])
 
-    // Import cascading effects
+    // Load schemas when configuredDatabase changes
     useEffect(() => {
-        if (selectedDatabase) {
-            loadSchemas(selectedDatabase)
-        }
-    }, [selectedDatabase, loadSchemas])
+        if (!configuredDatabase) return
+        setSchemas([])
+        setSelectedSchema("")
+        setSelectedTable("")
+        warehouseConnectorsAPI.listSchemas(provider, configuredDatabase)
+            .then(items => setSchemas(items))
+            .catch(() => setSchemas([]))
+    }, [provider, configuredDatabase])
 
+    // Load tables when schema changes
     useEffect(() => {
-        if (selectedDatabase && selectedSchema) {
-            loadTables(selectedDatabase, selectedSchema)
+        if (configuredDatabase && selectedSchema) {
+            loadTables(configuredDatabase, selectedSchema)
         }
-    }, [selectedDatabase, selectedSchema, loadTables])
+    }, [configuredDatabase, selectedSchema, loadTables])
 
     // Load metadata on mount if already connected
     useEffect(() => {
@@ -246,7 +253,7 @@ export function useWarehouseImport({
     // ─── Fetch existing table columns when an existing table is selected ──
 
     useEffect(() => {
-        if (destinationMode !== "existing" || !selectedExistingTable || !selectedDatabase || !selectedSchema) {
+        if (destinationMode !== "existing" || !selectedExistingTable || !configuredDatabase || !selectedSchema) {
             setTargetTableColumns([])
             setColumnMapping({})
             return
@@ -254,7 +261,7 @@ export function useWarehouseImport({
         let cancelled = false
         setTargetColumnsLoading(true)
         warehouseConnectorsAPI
-            .getTableColumns(provider, selectedDatabase, selectedSchema, selectedExistingTable)
+            .getTableColumns(provider, configuredDatabase, selectedSchema, selectedExistingTable)
             .then((cols) => {
                 if (cancelled) return
                 const names = cols.map((c) => c.name)
@@ -273,7 +280,7 @@ export function useWarehouseImport({
                 if (!cancelled) setTargetColumnsLoading(false)
             })
         return () => { cancelled = true }
-    }, [provider, destinationMode, selectedExistingTable, selectedDatabase, selectedSchema, availableColumns])
+    }, [provider, destinationMode, selectedExistingTable, configuredDatabase, selectedSchema, availableColumns])
 
     // ─── File management (export) ──────────────────────────────────────────
 
@@ -366,8 +373,8 @@ export function useWarehouseImport({
             const result = await warehouseConnectorsAPI.importData(provider, {
                 table: selectedTable,
                 limit: importLimit,
-                warehouse: selectedWarehouse || undefined,
-                database: selectedDatabase || undefined,
+                warehouse: configuredWarehouse || undefined,
+                database: configuredDatabase || undefined,
                 schema: selectedSchema || undefined,
             })
             setImportResult(result)
@@ -391,8 +398,8 @@ export function useWarehouseImport({
         providerDisplayName,
         selectedTable,
         importLimit,
-        selectedWarehouse,
-        selectedDatabase,
+        configuredWarehouse,
+        configuredDatabase,
         selectedSchema,
         onNotification,
         onImportComplete,
@@ -439,8 +446,8 @@ export function useWarehouseImport({
             const result = await warehouseConnectorsAPI.exportData(provider, {
                 upload_id: fileId,
                 target_table: targetTable,
-                warehouse: selectedWarehouse || undefined,
-                database: selectedDatabase || undefined,
+                warehouse: configuredWarehouse || undefined,
+                database: configuredDatabase || undefined,
                 schema: selectedSchema || undefined,
                 write_mode: exportWriteMode,
                 column_mapping: destinationMode === "existing" && Object.keys(columnMapping).length > 0
@@ -468,8 +475,8 @@ export function useWarehouseImport({
         selectedExistingTable,
         newTableName,
         columnMapping,
-        selectedWarehouse,
-        selectedDatabase,
+        configuredWarehouse,
+        configuredDatabase,
         selectedSchema,
         onNotification,
     ])
@@ -487,17 +494,16 @@ export function useWarehouseImport({
         checkConnection,
 
         // Metadata (import)
-        warehouses,
-        databases,
         schemas,
         tables,
         metadataLoading,
 
+        // Admin-configured warehouse/database (read-only)
+        configuredWarehouse,
+        configuredDatabase,
+        configMissing,
+
         // Import selections
-        selectedWarehouse,
-        setSelectedWarehouse,
-        selectedDatabase,
-        setSelectedDatabase,
         selectedSchema,
         setSelectedSchema,
         selectedTable,

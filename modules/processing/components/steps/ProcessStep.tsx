@@ -139,6 +139,10 @@ export function ProcessStep({
       })
       setStatusMessage("Processing started, monitoring progress...")
       if (onStarted) onStarted()
+      // Auto-close dialog 3 seconds after processing kicks off
+      setTimeout(() => {
+        if (onComplete) onComplete()
+      }, 3000)
     } catch (err: any) {
       setStatus("error")
       setProcessingError(err.message || "Failed to start processing")
@@ -216,6 +220,7 @@ export function ProcessStep({
             <div>
               <h2 className="text-xl font-semibold">Processing...</h2>
               <p className="text-muted-foreground mt-2">{statusMessage}</p>
+              <p className="text-sm text-muted-foreground mt-1">This dialog will close automatically. Processing continues in the background.</p>
             </div>
           </div>
         )}

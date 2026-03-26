@@ -1,7 +1,7 @@
 "use client"
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Download, File, FileJson, FileSpreadsheet, Loader2, Columns, Edit2, Check, X, Undo, ShieldX } from 'lucide-react'
+import { Download, File, FileJson, FileSpreadsheet, Loader2, Columns, Edit2, Check, X, Undo, ShieldX, Search } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 import { Button } from '@/components/ui/button'
@@ -217,9 +217,13 @@ export function ColumnExportContent({
   }
 
   const dqStatusCount = columns.filter(col => isDQStatusColumn(col, columns)).length
-  const dqStatusSelected = Object.entries(columnStates)
-    .filter(([col, state]) => isDQStatusColumn(col, columns) && state.selected)
-    .length
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const filteredColumns = useMemo(() => {
+    if (!searchQuery.trim()) return columns
+    const q = searchQuery.toLowerCase()
+    return columns.filter(col => col.toLowerCase().includes(q))
+  }, [columns, searchQuery])
 
   const handleExport = () => {
     onExport({
@@ -327,113 +331,89 @@ export function ColumnExportContent({
 
       <div className="space-y-3 shrink-0">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Column Selection</div>
-            <div className="text-sm font-medium mt-2">
-              {selectedColumns.length} of {columns.length} columns selected
-              {renamedCount > 0 && (
-                <span className="ml-3 text-xs text-amber-600 dark:text-amber-400 font-semibold">
-                  ({renamedCount} renamed)
-                </span>
-              )}
-            </div>
+          <div className="text-sm text-muted-foreground">
+            {selectedColumns.length} of {columns.length} selected
+            {renamedCount > 0 && (
+              <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">
+                ({renamedCount} renamed)
+              </span>
+            )}
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleSelectAll} disabled={exporting} className="text-xs h-8">
-              Select All
+          <div className="flex gap-1.5">
+            <Button variant="ghost" size="sm" onClick={handleSelectAll} disabled={exporting} className="text-xs h-7 px-2">
+              All
             </Button>
-            <Button variant="outline" size="sm" onClick={handleDeselectAll} disabled={exporting} className="text-xs h-8">
-              Clear All
+            <Button variant="ghost" size="sm" onClick={handleDeselectAll} disabled={exporting} className="text-xs h-7 px-2">
+              None
             </Button>
             {dqStatusCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearDQStatus}
-                disabled={exporting}
-                className="text-xs h-8 gap-1.5"
-              >
-                <ShieldX className="h-3.5 w-3.5" />
-                Clear DQ Status
+              <Button variant="ghost" size="sm" onClick={handleClearDQStatus} disabled={exporting} className="text-xs h-7 px-2 gap-1">
+                <ShieldX className="h-3 w-3" />
+                Hide DQ
               </Button>
             )}
           </div>
         </div>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search columns..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 pl-8 text-sm"
+          />
+        </div>
       </div>
 
-      <ScrollArea className="border rounded-lg bg-muted/30 flex-1 min-h-0">
-        <div className="p-3 space-y-2">
-          {columns.map((col) => {
+      <ScrollArea className="border rounded-md flex-1 min-h-0">
+        <div className="grid grid-cols-2 gap-px bg-border p-px">
+          {filteredColumns.map((col) => {
             const state = columnStates[col] || { selected: true, exportName: col, isEditing: false }
             const isRenamed = state.exportName !== col
+            const isDQ = isDQStatusColumn(col, columns)
 
             return (
               <div
                 key={col}
-                className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${state.selected
-                    ? 'bg-blue-100/60 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700/50 hover:bg-blue-100/80 dark:hover:bg-blue-900/60 shadow-sm'
-                    : 'bg-muted/30 border-muted/50 hover:bg-muted/50'
-                  }`}
+                className="flex items-center gap-2 px-2.5 py-1.5 bg-background cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => !exporting && handleToggleColumn(col)}
               >
                 <Checkbox
                   checked={state.selected}
                   onCheckedChange={() => handleToggleColumn(col)}
                   disabled={exporting}
+                  className="shrink-0"
                 />
 
                 <div className="flex-1 min-w-0">
                   {state.isEditing ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Input
                         value={state.exportName}
                         onChange={(e) => handleNameChange(col, e.target.value)}
-                        className="h-8 text-sm flex-1"
+                        className="h-6 text-xs flex-1 font-mono px-1.5"
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleEndEdit(col)
                           if (e.key === 'Escape') handleResetName(col)
                         }}
                       />
-                      {state.exportName !== col && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/30"
-                          onClick={() => handleEndEdit(col)}
-                          title="Confirm"
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
-                        onClick={() => handleResetName(col)}
-                        title="Cancel"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <button onClick={() => handleEndEdit(col)} className="p-0.5 text-emerald-600 hover:bg-emerald-50 rounded" title="Confirm">
+                        <Check className="h-3 w-3" />
+                      </button>
+                      <button onClick={() => handleResetName(col)} className="p-0.5 text-muted-foreground hover:bg-muted rounded" title="Cancel">
+                        <X className="h-3 w-3" />
+                      </button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-medium truncate ${state.selected
-                          ? isRenamed ? 'text-blue-700 dark:text-blue-300 line-through' : 'text-blue-900 dark:text-blue-100 font-semibold'
-                          : isRenamed ? 'text-muted-foreground line-through' : 'text-foreground'
-                        }`}>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className={`text-xs font-mono truncate ${isRenamed ? 'line-through text-muted-foreground' : isDQ ? 'text-muted-foreground/60' : state.selected ? 'text-foreground' : 'text-muted-foreground'}`}>
                         {col}
                       </span>
                       {isRenamed && (
                         <>
-                          <span className={`text-xs font-medium ${state.selected ? 'text-blue-600 dark:text-blue-300' : 'text-muted-foreground'
-                            }`}>→</span>
-                          <span className={`text-sm font-medium truncate px-2 py-0.5 rounded ${state.selected
-                              ? 'text-green-700 dark:text-green-200 bg-green-200/50 dark:bg-green-900/50'
-                              : 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20'
-                            }`}>
-                            {state.exportName}
-                          </span>
+                          <span className="text-[10px] text-muted-foreground">→</span>
+                          <span className="text-xs font-mono truncate text-emerald-600 dark:text-emerald-400">{state.exportName}</span>
                         </>
                       )}
                     </div>
@@ -441,34 +421,24 @@ export function ColumnExportContent({
                 </div>
 
                 {!state.isEditing && state.selected && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleStartEdit(col)
-                      }}
+                  <div className="flex items-center shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="p-0.5 text-muted-foreground/40 hover:text-foreground hover:bg-muted rounded transition-colors"
+                      onClick={() => handleStartEdit(col)}
                       disabled={exporting}
                       title="Rename"
                     >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
+                      <Edit2 className="h-2.5 w-2.5" />
+                    </button>
                     {isRenamed && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleResetName(col)
-                        }}
+                      <button
+                        className="p-0.5 text-muted-foreground/40 hover:text-foreground hover:bg-muted rounded transition-colors"
+                        onClick={() => handleResetName(col)}
                         disabled={exporting}
-                        title="Reset"
+                        title="Reset name"
                       >
-                        <Undo className="h-4 w-4" />
-                      </Button>
+                        <Undo className="h-2.5 w-2.5" />
+                      </button>
                     )}
                   </div>
                 )}
@@ -476,6 +446,11 @@ export function ColumnExportContent({
             )
           })}
         </div>
+        {filteredColumns.length === 0 && (
+          <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+            No columns match &ldquo;{searchQuery}&rdquo;
+          </div>
+        )}
       </ScrollArea>
 
       {showFooter && (
@@ -510,7 +485,7 @@ export function ColumnExportContent({
             <Button
               onClick={handleExport}
               disabled={exporting || selectedColumns.length === 0}
-              className="gap-2 px-6 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
+              className="gap-2 px-6"
             >
               {exporting ? (
                 <>

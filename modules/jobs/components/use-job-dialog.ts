@@ -12,6 +12,7 @@ import {
     CATEGORY_LABELS,
 } from './job-dialog-constants'
 import { connectorsAPI, warehouseConnectorsAPI, erpConnectorsAPI } from '@/modules/connectors'
+import { ensureConnectorConfig } from '@/modules/connectors/hooks/use-connector-metadata-cache'
 import type { ProviderInfo } from '@/modules/connectors/api/connectors-api'
 import type { WarehouseMetadataItem } from '@/modules/connectors/api/warehouse-connectors-api'
 import { getSettingsPresets } from '@/modules/files/api/file-settings-api'
@@ -293,30 +294,46 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         setSourceConfig({})
     }, [sourceProvider])
 
-    // ── Warehouse metadata helpers (for source_config cascading) ─────────────
+    // ── Warehouse config from admin connectors tab ──────────────────────────
 
-    const [warehouseList, setWarehouseList] = useState<WarehouseMetadataItem[]>([])
-    const [databaseList, setDatabaseList] = useState<WarehouseMetadataItem[]>([])
+    const [sourceConnectorConfig, setSourceConnectorConfig] = useState<{ warehouse?: string; database?: string }>({})
+    const [destConnectorConfig, setDestConnectorConfig] = useState<{ warehouse?: string; database?: string }>({})
+    const [sourceConfigMissing, setSourceConfigMissing] = useState(false)
+    const [destConfigMissing, setDestConfigMissing] = useState(false)
     const [schemaList, setSchemaList] = useState<WarehouseMetadataItem[]>([])
     const [warehouseMetaLoading, setWarehouseMetaLoading] = useState(false)
 
-    // Fetch warehouses + databases when warehouse provider selected
+    // Load admin connector config and auto-populate source config when warehouse provider selected
     useEffect(() => {
-        if (sourceCategory !== 'warehouse' || !sourceProvider) return
+        if (sourceCategory !== 'warehouse' || !sourceProvider) {
+            setSourceConnectorConfig({})
+            setSourceConfigMissing(false)
+            return
+        }
         let cancelled = false
         setWarehouseMetaLoading(true)
-        Promise.all([
-            warehouseConnectorsAPI.listWarehouses(sourceProvider).catch(() => []),
-            warehouseConnectorsAPI.listDatabases(sourceProvider).catch(() => []),
-        ]).then(([wh, db]) => {
+
+        ensureConnectorConfig(sourceProvider).then(config => {
             if (cancelled) return
-            setWarehouseList(wh)
-            setDatabaseList(db)
+            setSourceConnectorConfig(config)
+            if (!config.warehouse && !config.database) {
+                setSourceConfigMissing(true)
+            } else {
+                setSourceConfigMissing(false)
+                if (config.warehouse && !sourceConfig.warehouse) {
+                    updateSourceConfig('warehouse', config.warehouse)
+                }
+                if (config.database && !sourceConfig.database) {
+                    updateSourceConfig('database', config.database)
+                }
+            }
         }).finally(() => { if (!cancelled) setWarehouseMetaLoading(false) })
+
         return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sourceCategory, sourceProvider])
 
-    // Fetch schemas when database selected
+    // Fetch schemas when database is set (from admin config)
     useEffect(() => {
         if (sourceCategory !== 'warehouse' || !sourceProvider || !sourceConfig.database) {
             setSchemaList([])
@@ -329,25 +346,37 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         return () => { cancelled = true }
     }, [sourceCategory, sourceProvider, sourceConfig.database])
 
-    // ── Destination warehouse metadata (for cascading selects) ─────────────────
+    // ── Destination warehouse config from admin connectors tab ────────────────
 
-    const [destWarehouseList, setDestWarehouseList] = useState<WarehouseMetadataItem[]>([])
-    const [destDatabaseList, setDestDatabaseList] = useState<WarehouseMetadataItem[]>([])
     const [destSchemaList, setDestSchemaList] = useState<WarehouseMetadataItem[]>([])
     const [destTableList, setDestTableList] = useState<WarehouseMetadataItem[]>([])
 
+    // Load admin connector config and auto-populate destination config
     useEffect(() => {
-        if (destinationCategory !== 'warehouse' || !destinationProvider) return
+        if (destinationCategory !== 'warehouse' || !destinationProvider) {
+            setDestConnectorConfig({})
+            setDestConfigMissing(false)
+            return
+        }
         let cancelled = false
-        Promise.all([
-            warehouseConnectorsAPI.listWarehouses(destinationProvider).catch(() => []),
-            warehouseConnectorsAPI.listDatabases(destinationProvider).catch(() => []),
-        ]).then(([wh, db]) => {
+
+        ensureConnectorConfig(destinationProvider).then(config => {
             if (cancelled) return
-            setDestWarehouseList(wh)
-            setDestDatabaseList(db)
+            setDestConnectorConfig(config)
+            if (!config.warehouse && !config.database) {
+                setDestConfigMissing(true)
+            } else {
+                setDestConfigMissing(false)
+                if (config.warehouse && !destinationConfig.warehouse) {
+                    updateDestinationConfig('warehouse', config.warehouse)
+                }
+                if (config.database && !destinationConfig.database) {
+                    updateDestinationConfig('database', config.database)
+                }
+            }
         })
         return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [destinationCategory, destinationProvider])
 
     useEffect(() => {
@@ -683,13 +712,13 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         // Source / destination config
         sourceConfig, updateSourceConfig,
         destinationConfig, updateDestinationConfig,
-        // Warehouse metadata (for cascading selects)
-        warehouseList,
-        databaseList,
+        // Warehouse config from admin connectors tab
+        sourceConnectorConfig,
+        destConnectorConfig,
+        sourceConfigMissing,
+        destConfigMissing,
         schemaList,
         warehouseMetaLoading,
-        destWarehouseList,
-        destDatabaseList,
         destSchemaList,
         destTableList,
         // Column mapping

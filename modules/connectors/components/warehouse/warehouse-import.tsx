@@ -8,6 +8,9 @@ import {
     AlertCircle,
     Table,
     Plus,
+    Settings2,
+    Database,
+    HardDrive,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -139,57 +142,54 @@ export default function WarehouseImport({
                                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mr-2" />
                                     <span className="text-sm text-muted-foreground">Loading {providerDisplayName} metadata...</span>
                                 </div>
+                            ) : s.configMissing ? (
+                                <Alert className="border-amber-200 bg-amber-50 py-3">
+                                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                                    <AlertDescription className="text-sm text-amber-900">
+                                        Warehouse and database are not configured. Please set them up in{" "}
+                                        <a href="/admin" className="font-medium underline hover:text-amber-700">
+                                            Admin &gt; Connectors
+                                        </a>{" "}
+                                        first.
+                                    </AlertDescription>
+                                </Alert>
                             ) : (
                                 <>
-                                    {/* Warehouse / Database / Schema */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                                        {s.warehouses.length > 0 && (
-                                            <div>
-                                                <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Warehouse</Label>
-                                                <Select
-                                                    value={s.selectedWarehouse}
-                                                    onValueChange={s.setSelectedWarehouse}
-                                                >
-                                                    <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
-                                                        <SelectValue placeholder="Select warehouse" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {s.warehouses.map((wh) => (
-                                                            <SelectItem key={wh.name} value={wh.name}>
-                                                                {wh.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        )}
-                                        <div>
-                                            <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Database</Label>
-                                            <Select
-                                                value={s.selectedDatabase}
-                                                onValueChange={s.setSelectedDatabase}
-                                            >
-                                                <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
-                                                    <SelectValue placeholder="Select database" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {s.databases.map((db) => (
-                                                        <SelectItem key={db.name} value={db.name}>
-                                                            {db.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                    {/* Admin-configured warehouse/database indicator */}
+                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/40">
+                                        <Settings2 className="h-3.5 w-3.5 text-muted-foreground/60 flex-shrink-0" />
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            {s.configuredWarehouse && (
+                                                <span className="inline-flex items-center gap-1">
+                                                    <HardDrive className="h-3 w-3" />
+                                                    {s.configuredWarehouse}
+                                                </span>
+                                            )}
+                                            {s.configuredWarehouse && s.configuredDatabase && (
+                                                <span className="text-muted-foreground/30">/</span>
+                                            )}
+                                            {s.configuredDatabase && (
+                                                <span className="inline-flex items-center gap-1">
+                                                    <Database className="h-3 w-3" />
+                                                    {s.configuredDatabase}
+                                                </span>
+                                            )}
                                         </div>
+                                        <a href="/admin" className="ml-auto text-[10px] text-primary hover:underline">
+                                            Change
+                                        </a>
+                                    </div>
+
+                                    {/* Schema selector */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-1 gap-3 sm:gap-4">
                                         <div>
                                             <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Schema</Label>
                                             <Select
                                                 value={s.selectedSchema}
                                                 onValueChange={s.setSelectedSchema}
-                                                disabled={!s.selectedDatabase}
                                             >
                                                 <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
-                                                    <SelectValue placeholder={s.selectedDatabase ? "Select schema" : "Select database first"} />
+                                                    <SelectValue placeholder="Select schema" />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {s.schemas.map((sch) => (
@@ -274,61 +274,59 @@ export default function WarehouseImport({
                     {/* Export Form - Destination Mode */}
                     {mode === "destination" && (
                         <div className="grid gap-3 sm:gap-4">
-                            {/* Warehouse / Database / Schema */}
+                            {/* Config indicator / Schema */}
                             {s.metadataLoading ? (
                                 <div className="flex items-center justify-center py-4">
                                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
                                     <span className="text-sm text-muted-foreground">Loading {providerDisplayName} metadata...</span>
                                 </div>
+                            ) : s.configMissing ? (
+                                <Alert className="border-amber-200 bg-amber-50 py-3">
+                                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                                    <AlertDescription className="text-sm text-amber-900">
+                                        Warehouse and database are not configured. Please set them up in{" "}
+                                        <a href="/admin" className="font-medium underline hover:text-amber-700">
+                                            Admin &gt; Connectors
+                                        </a>{" "}
+                                        first.
+                                    </AlertDescription>
+                                </Alert>
                             ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                                    {s.warehouses.length > 0 && (
-                                        <div>
-                                            <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Warehouse</Label>
-                                            <Select
-                                                value={s.selectedWarehouse}
-                                                onValueChange={s.setSelectedWarehouse}
-                                            >
-                                                <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
-                                                    <SelectValue placeholder="Select warehouse" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {s.warehouses.map((wh) => (
-                                                        <SelectItem key={wh.name} value={wh.name}>
-                                                            {wh.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                <>
+                                    {/* Admin-configured warehouse/database indicator */}
+                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/40">
+                                        <Settings2 className="h-3.5 w-3.5 text-muted-foreground/60 flex-shrink-0" />
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            {s.configuredWarehouse && (
+                                                <span className="inline-flex items-center gap-1">
+                                                    <HardDrive className="h-3 w-3" />
+                                                    {s.configuredWarehouse}
+                                                </span>
+                                            )}
+                                            {s.configuredWarehouse && s.configuredDatabase && (
+                                                <span className="text-muted-foreground/30">/</span>
+                                            )}
+                                            {s.configuredDatabase && (
+                                                <span className="inline-flex items-center gap-1">
+                                                    <Database className="h-3 w-3" />
+                                                    {s.configuredDatabase}
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
-                                    <div>
-                                        <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Database</Label>
-                                        <Select
-                                            value={s.selectedDatabase}
-                                            onValueChange={s.setSelectedDatabase}
-                                        >
-                                            <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
-                                                <SelectValue placeholder="Select database" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {s.databases.map((db) => (
-                                                    <SelectItem key={db.name} value={db.name}>
-                                                        {db.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <a href="/admin" className="ml-auto text-[10px] text-primary hover:underline">
+                                            Change
+                                        </a>
                                     </div>
+
+                                    {/* Schema selector */}
                                     <div>
                                         <Label className="text-xs sm:text-sm mb-1.5 sm:mb-2 block">Schema</Label>
                                         <Select
                                             value={s.selectedSchema}
                                             onValueChange={s.setSelectedSchema}
-                                            disabled={!s.selectedDatabase}
                                         >
                                             <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
-                                                <SelectValue placeholder={s.selectedDatabase ? "Select schema" : "Select database first"} />
+                                                <SelectValue placeholder="Select schema" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {s.schemas.map((sch) => (
@@ -339,7 +337,7 @@ export default function WarehouseImport({
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                </div>
+                                </>
                             )}
 
                             {/* File Selection */}

@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, Sparkles, Zap, X, Edit2, SlidersHorizontal, Shield } from "lucide-react"
+import { Loader2, Sparkles, Zap, X, Edit2, SlidersHorizontal, Shield, Settings2, HardDrive, Database, AlertCircle } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { ColumnMappingEditor } from "./column-mapping-editor"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/shared/lib/utils"
 import type { JobFrequency } from "@/modules/jobs/types/jobs.types"
 import type { useJobDialog, ProviderCategory } from "./use-job-dialog"
@@ -118,67 +119,67 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                             </div>
                         </div>
 
-                        {/* Warehouse source config (cascading: warehouse, database, schema) */}
+                        {/* Warehouse source config — warehouse/database from admin, only schema selectable */}
                         {d.sourceCategory === "warehouse" && d.sourceProvider && (
-                            <div className="grid grid-cols-3 gap-2">
-                                {d.warehouseList.length > 0 && (
-                                    <div className="space-y-1">
-                                        <Label className="text-[10px] text-muted-foreground">Warehouse</Label>
-                                        <Select
-                                            value={d.sourceConfig.warehouse || ""}
-                                            onValueChange={(v) => d.updateSourceConfig("warehouse", v)}
-                                        >
-                                            <SelectTrigger className="h-8 text-xs">
-                                                <SelectValue placeholder="Warehouse" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {d.warehouseList.map(wh => (
-                                                    <SelectItem key={wh.name} value={wh.name} className="text-xs">
-                                                        {wh.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                            <>
+                                {d.sourceConfigMissing ? (
+                                    <Alert className="border-amber-200 bg-amber-50 py-2">
+                                        <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                                        <AlertDescription className="text-xs text-amber-900">
+                                            Warehouse/database not configured.{" "}
+                                            <a href="/admin" className="font-medium underline">Configure in Admin &gt; Connectors</a>
+                                        </AlertDescription>
+                                    </Alert>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {/* Admin config indicator */}
+                                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/30 border border-border/40">
+                                            <Settings2 className="h-3 w-3 text-muted-foreground/60 flex-shrink-0" />
+                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                                {d.sourceConnectorConfig.warehouse && (
+                                                    <span className="inline-flex items-center gap-0.5">
+                                                        <HardDrive className="h-2.5 w-2.5" />
+                                                        {d.sourceConnectorConfig.warehouse}
+                                                    </span>
+                                                )}
+                                                {d.sourceConnectorConfig.warehouse && d.sourceConnectorConfig.database && (
+                                                    <span className="text-muted-foreground/30">/</span>
+                                                )}
+                                                {d.sourceConnectorConfig.database && (
+                                                    <span className="inline-flex items-center gap-0.5">
+                                                        <Database className="h-2.5 w-2.5" />
+                                                        {d.sourceConnectorConfig.database}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <a href="/admin" className="ml-auto text-[9px] text-primary hover:underline">
+                                                Change
+                                            </a>
+                                        </div>
+
+                                        {/* Schema selector */}
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] text-muted-foreground">Schema</Label>
+                                            <Select
+                                                value={d.sourceConfig.schema || ""}
+                                                onValueChange={(v) => d.updateSourceConfig("schema", v)}
+                                                disabled={!d.sourceConfig.database}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue placeholder={d.sourceConfig.database ? "Schema" : "Loading..."} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {d.schemaList.map(s => (
+                                                        <SelectItem key={s.name} value={s.name} className="text-xs">
+                                                            {s.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                 )}
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] text-muted-foreground">Database</Label>
-                                    <Select
-                                        value={d.sourceConfig.database || ""}
-                                        onValueChange={(v) => d.updateSourceConfig("database", v)}
-                                    >
-                                        <SelectTrigger className="h-8 text-xs">
-                                            <SelectValue placeholder="Database" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {d.databaseList.map(db => (
-                                                <SelectItem key={db.name} value={db.name} className="text-xs">
-                                                    {db.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] text-muted-foreground">Schema</Label>
-                                    <Select
-                                        value={d.sourceConfig.schema || ""}
-                                        onValueChange={(v) => d.updateSourceConfig("schema", v)}
-                                        disabled={!d.sourceConfig.database}
-                                    >
-                                        <SelectTrigger className="h-8 text-xs">
-                                            <SelectValue placeholder={d.sourceConfig.database ? "Schema" : "Select DB"} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {d.schemaList.map(s => (
-                                                <SelectItem key={s.name} value={s.name} className="text-xs">
-                                                    {s.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
+                            </>
                         )}
 
                         {/* Entity selection */}
@@ -321,67 +322,67 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                             </div>
                         </div>
 
-                        {/* Warehouse destination config (cascading: warehouse, database, schema) */}
+                        {/* Warehouse destination config — warehouse/database from admin, only schema selectable */}
                         {d.destinationCategory === "warehouse" && d.destinationProvider && (
-                            <div className="grid grid-cols-3 gap-2">
-                                {d.destWarehouseList.length > 0 && (
-                                    <div className="space-y-1">
-                                        <Label className="text-[10px] text-muted-foreground">Warehouse</Label>
-                                        <Select
-                                            value={d.destinationConfig.warehouse || ""}
-                                            onValueChange={(v) => d.updateDestinationConfig("warehouse", v)}
-                                        >
-                                            <SelectTrigger className="h-8 text-xs">
-                                                <SelectValue placeholder="Warehouse" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {d.destWarehouseList.map(wh => (
-                                                    <SelectItem key={wh.name} value={wh.name} className="text-xs">
-                                                        {wh.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                            <>
+                                {d.destConfigMissing ? (
+                                    <Alert className="border-amber-200 bg-amber-50 py-2">
+                                        <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                                        <AlertDescription className="text-xs text-amber-900">
+                                            Warehouse/database not configured.{" "}
+                                            <a href="/admin" className="font-medium underline">Configure in Admin &gt; Connectors</a>
+                                        </AlertDescription>
+                                    </Alert>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {/* Admin config indicator */}
+                                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/30 border border-border/40">
+                                            <Settings2 className="h-3 w-3 text-muted-foreground/60 flex-shrink-0" />
+                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                                {d.destConnectorConfig.warehouse && (
+                                                    <span className="inline-flex items-center gap-0.5">
+                                                        <HardDrive className="h-2.5 w-2.5" />
+                                                        {d.destConnectorConfig.warehouse}
+                                                    </span>
+                                                )}
+                                                {d.destConnectorConfig.warehouse && d.destConnectorConfig.database && (
+                                                    <span className="text-muted-foreground/30">/</span>
+                                                )}
+                                                {d.destConnectorConfig.database && (
+                                                    <span className="inline-flex items-center gap-0.5">
+                                                        <Database className="h-2.5 w-2.5" />
+                                                        {d.destConnectorConfig.database}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <a href="/admin" className="ml-auto text-[9px] text-primary hover:underline">
+                                                Change
+                                            </a>
+                                        </div>
+
+                                        {/* Schema selector */}
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] text-muted-foreground">Schema</Label>
+                                            <Select
+                                                value={d.destinationConfig.schema || ""}
+                                                onValueChange={(v) => d.updateDestinationConfig("schema", v)}
+                                                disabled={!d.destinationConfig.database}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue placeholder={d.destinationConfig.database ? "Schema" : "Loading..."} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {d.destSchemaList.map(s => (
+                                                        <SelectItem key={s.name} value={s.name} className="text-xs">
+                                                            {s.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                 )}
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] text-muted-foreground">Database</Label>
-                                    <Select
-                                        value={d.destinationConfig.database || ""}
-                                        onValueChange={(v) => d.updateDestinationConfig("database", v)}
-                                    >
-                                        <SelectTrigger className="h-8 text-xs">
-                                            <SelectValue placeholder="Database" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {d.destDatabaseList.map(db => (
-                                                <SelectItem key={db.name} value={db.name} className="text-xs">
-                                                    {db.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] text-muted-foreground">Schema</Label>
-                                    <Select
-                                        value={d.destinationConfig.schema || ""}
-                                        onValueChange={(v) => d.updateDestinationConfig("schema", v)}
-                                        disabled={!d.destinationConfig.database}
-                                    >
-                                        <SelectTrigger className="h-8 text-xs">
-                                            <SelectValue placeholder={d.destinationConfig.database ? "Schema" : "Select DB"} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {d.destSchemaList.map(s => (
-                                                <SelectItem key={s.name} value={s.name} className="text-xs">
-                                                    {s.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
+                            </>
                         )}
 
                         {/* Target table (shown after schema is selected) */}
@@ -450,8 +451,8 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                         </div>
                     )}
 
-                    {/* ── Column Mapping ───────────────────────────────────── */}
-                    {d.sourceProvider && d.destinationProvider && d.entities.length > 0 && (
+                    {/* ── Column Mapping (Advanced only) ──────────────────── */}
+                    {advancedDQ && d.sourceProvider && d.destinationProvider && d.entities.length > 0 && (
                         <div className="space-y-2">
                             {d.showMappingEditor ? (
                                 <ColumnMappingEditor
@@ -607,7 +608,7 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                             <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-background/60 border border-border/40">
                                 <Shield className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
                                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    All 33 universal DQ rules will be applied with balanced strictness and auto-fix enabled.
+                                    All columns selected, DQ rules applied with auto-fix, and columns auto-mapped by name. Enable Advanced for manual mapping, cross-field rules, and column selection.
                                 </p>
                             </div>
                         )}
