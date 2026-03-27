@@ -27,10 +27,13 @@ import {
 } from '@/modules/files'
 import { FilePreviewTab } from '@/modules/files/components/file-details/file-preview-tab'
 import type { FilePreviewData } from '@/modules/files/types'
+import { buildPrefixedDataFilename } from '@/modules/files/utils/download-filenames'
 
 interface FileVersionHistoryProps {
   rootUploadId: string
   authToken: string
+  selectedUploadId?: string | null
+  onSelectVersion?: (version: FileVersionSummary) => void
 }
 
 function dqScoreColor(score?: number | null): string {
@@ -57,7 +60,12 @@ function statusBadgeVariant(status?: string): 'default' | 'secondary' | 'destruc
 const PROCESSABLE = new Set(['UPLOADED', 'VALIDATED'])
 const PROCESSED = new Set(['DQ_FIXED', 'COMPLETED', 'DQ_COMPLETE'])
 
-export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHistoryProps) {
+export function FileVersionHistory({
+  rootUploadId,
+  authToken,
+  selectedUploadId,
+  onSelectVersion,
+}: FileVersionHistoryProps) {
   const [versions, setVersions] = useState<FileVersionSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [fileDownloadingId, setFileDownloadingId] = useState<string | null>(null)
@@ -98,14 +106,27 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
     const isProcessed = PROCESSED.has((v.status ?? '').toUpperCase())
     const dataType = isProcessed ? 'clean' : 'raw'
     try {
-      const blob = await fileManagementAPI.downloadFile(v.upload_id, 'csv', dataType as any, authToken)
-      const url = URL.createObjectURL(blob)
+      const download = await fileManagementAPI.downloadFile(v.upload_id, 'csv', dataType as any, authToken)
       const a = document.createElement('a')
-      a.href = url
-      const base = (v.original_filename ?? v.upload_id).replace(/\.[^.]+$/, '')
-      a.download = `${base}_v${v.version_number}_${dataType}.csv`
-      a.click()
-      URL.revokeObjectURL(url)
+      a.download = buildPrefixedDataFilename({
+        sourceName: v.original_filename ?? v.upload_id,
+        dataType: dataType === 'raw' ? 'original' : 'clean',
+        extension: '.csv',
+        versionNumber: v.version_number,
+      })
+      if (download.blob) {
+        const url = URL.createObjectURL(download.blob)
+        a.href = url
+        a.click()
+        URL.revokeObjectURL(url)
+      } else if (download.downloadUrl) {
+        a.href = download.downloadUrl
+        a.target = '_blank'
+        a.rel = 'noopener noreferrer'
+        a.click()
+      } else {
+        throw new Error('No downloadable export payload received')
+      }
     } catch {
       toast({ title: 'Download failed', variant: 'destructive' })
     } finally {
@@ -113,10 +134,10 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
     }
   }
 
-  async function handleDownloadQuarantined(uploadId: string) {
-    setQuarantineDownloadingId(uploadId)
+  async function handleDownloadQuarantined(v: FileVersionSummary) {
+    setQuarantineDownloadingId(v.upload_id)
     try {
-      const res = await fileManagementAPI.getQuarantinedExportUrl(uploadId, authToken)
+      const res = await fileManagementAPI.getQuarantinedExportUrl(v.upload_id, authToken)
       if (!res.url) {
         toast({
           title: 'No quarantined rows',
@@ -126,7 +147,12 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
       }
       const a = document.createElement('a')
       a.href = res.url
-      a.download = res.filename ?? 'quarantined.csv'
+      a.download = buildPrefixedDataFilename({
+        sourceName: v.original_filename ?? v.upload_id,
+        dataType: 'quarantine',
+        extension: '.csv',
+        versionNumber: v.version_number,
+      })
       a.click()
       toast({ title: `Downloading ${res.row_count} quarantined rows` })
     } catch {
@@ -182,11 +208,24 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
                 {i > 0 && <Separator className="my-2" />}
                 <div className="flex items-start justify-between gap-3">
                   {/* Left: version info */}
-                  <div className="space-y-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => onSelectVersion?.(v)}
+                    className={`min-w-0 flex-1 rounded-lg px-3 py-2 text-left transition-colors ${
+                      selectedUploadId === v.upload_id
+                        ? 'bg-primary/5 ring-1 ring-primary/15'
+                        : 'hover:bg-muted/40'
+                    }`}
+                  >
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className="text-xs font-mono shrink-0">
                         v{v.version_number}
                       </Badge>
+                      {selectedUploadId === v.upload_id && (
+                        <Badge variant="secondary" className="text-xs">
+                          Viewing
+                        </Badge>
+                      )}
                       <Badge variant={statusBadgeVariant(v.status)} className="text-xs">
                         {v.status ?? '—'}
                       </Badge>
@@ -201,13 +240,15 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
                       <p className="text-xs text-muted-foreground italic">"{v.patch_notes}"</p>
                     )}
                     <div className="flex gap-3 text-xs text-muted-foreground">
-                      {v.rows_quarantined != null && <span>{v.rows_quarantined} quarantined</span>}
+                      {v.rows_in != null && <span>{v.rows_in} total</span>}
                       {v.rows_clean != null && <span>{v.rows_clean} clean</span>}
+                      {(v.rows_fixed ?? 0) > 0 && <span>{v.rows_fixed} fixed</span>}
+                      {v.rows_quarantined != null && <span>{v.rows_quarantined} quarantined</span>}
                       {v.uploaded_at && (
                         <span>{formatToIST(v.uploaded_at)}</span>
                       )}
                     </div>
-                  </div>
+                  </button>
 
                   {/* Right: actions */}
                   <div className="flex items-center gap-1 shrink-0">
@@ -263,7 +304,7 @@ export function FileVersionHistory({ rootUploadId, authToken }: FileVersionHisto
                         variant="ghost"
                         className="gap-1.5 text-xs"
                         disabled={quarantineDownloadingId === v.upload_id}
-                        onClick={() => handleDownloadQuarantined(v.upload_id)}
+                          onClick={() => handleDownloadQuarantined(v)}
                       >
                         {quarantineDownloadingId === v.upload_id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />

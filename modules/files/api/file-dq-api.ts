@@ -53,11 +53,12 @@ export async function downloadDqReport(uploadId: string, authToken: string): Pro
     // Case 0: presigned URL redirect for large reports
     try {
         const payload = JSON.parse(text)
-        if (payload.download_url) {
-            if (!isValidS3Url(payload.download_url)) {
+        const presignedUrl = payload.download_url || payload.presigned_url
+        if (presignedUrl) {
+            if (!isValidS3Url(presignedUrl)) {
                 throw new Error('Invalid presigned URL: must be an HTTPS S3/AWS URL')
             }
-            const reportResp = await fetch(payload.download_url)
+            const reportResp = await fetch(presignedUrl)
             if (!reportResp.ok) throw new Error(`DQ report download failed: ${reportResp.statusText}`)
             return await reportResp.json()
         }

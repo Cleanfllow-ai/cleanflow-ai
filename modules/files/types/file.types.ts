@@ -54,6 +54,8 @@ export interface FileStatusResponse {
   version_number?: number
   parent_upload_id?: string | null
   root_upload_id?: string | null
+  source_upload_id?: string | null
+  is_latest?: boolean
   patch_notes?: string | null
   // Pipeline source tracking
   source_type?: string

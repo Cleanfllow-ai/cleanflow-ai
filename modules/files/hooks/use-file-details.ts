@@ -1,12 +1,42 @@
 import { useEffect, useState, useCallback } from "react"
 
 import { useToast } from "@/shared/hooks/use-toast"
-import { DqReportResponse, FileStatusResponse, fileManagementAPI } from "@/modules/files/api/file-management-api"
+import {
+  DqReportResponse,
+  FileStatusResponse,
+  fileManagementAPI,
+  type FileVersionSummary,
+} from "@/modules/files/api/file-management-api"
 import type { FileDetailsTab, FileIssue, FilePreviewData, MatrixTotals } from "@/modules/files/types"
 
 interface VersionInfo {
   versionNumber: number
   totalVersions: number
+  isLatest: boolean
+  patchNotes?: string | null
+  sourceUploadId?: string | null
+  remediationMode?: string | null
+}
+
+const READY_FOR_REPORT = new Set(["DQ_FIXED", "DQ_COMPLETE", "COMPLETED", "PROCESSED"])
+
+function getVersionNumber(
+  version: FileVersionSummary | null | undefined,
+  file: FileStatusResponse | null | undefined,
+): number {
+  return version?.version_number || file?.version_number || 1
+}
+
+function normalizeVersions(versions: FileVersionSummary[]): FileVersionSummary[] {
+  return [...versions].sort((a, b) => (a.version_number || 0) - (b.version_number || 0))
+}
+
+function resolveLatestVersion(versions: FileVersionSummary[]): FileVersionSummary | null {
+  if (versions.length === 0) return null
+  return versions.find((version) => version.is_latest) ||
+    versions.reduce((latest, candidate) =>
+      (candidate.version_number || 0) >= (latest.version_number || 0) ? candidate : latest
+    )
 }
 
 export function useFileDetails(file: FileStatusResponse | null, open: boolean, defaultTab: FileDetailsTab = "details") {
@@ -32,14 +62,28 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
   const [issuesLoading, setIssuesLoading] = useState(false)
   const [availableViolations, setAvailableViolations] = useState<Record<string, number>>({})
   const [selectedViolations, setSelectedViolations] = useState<Set<string>>(new Set())
-  const [latestFile, setLatestFile] = useState<FileStatusResponse | null>(file)
-  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null)
-  const [latestVersionUploadId, setLatestVersionUploadId] = useState<string | null | undefined>(undefined)
+  const [versions, setVersions] = useState<FileVersionSummary[]>([])
+  const [versionsLoading, setVersionsLoading] = useState(false)
+  const [selectedVersionUploadId, setSelectedVersionUploadId] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<FileStatusResponse | null>(file)
+  const [statusCache, setStatusCache] = useState<Record<string, FileStatusResponse>>({})
   const { toast } = useToast()
 
+  const selectedVersion = versions.find((version) => version.upload_id === selectedVersionUploadId) || null
+  const currentFile = selectedFile || file
+  const versionInfo: VersionInfo | null = currentFile ? {
+    versionNumber: getVersionNumber(selectedVersion, currentFile),
+    totalVersions: Math.max(versions.length, 1),
+    isLatest: Boolean(selectedVersion?.is_latest || currentFile.is_latest),
+    patchNotes: selectedVersion?.patch_notes,
+    sourceUploadId: selectedVersion?.source_upload_id || currentFile.source_upload_id || null,
+    remediationMode: selectedVersion?.remediation_mode || currentFile.remediation_mode || null,
+  } : null
+
+  const selectedUploadId = selectedVersionUploadId || currentFile?.upload_id || file?.upload_id || null
+
   const loadPreview = useCallback(async () => {
-    const targetFile = latestFile || file
-    if (!targetFile) return
+    if (!selectedUploadId) return
 
     setPreviewLoading(true)
     setPreviewError(null)
@@ -47,18 +91,17 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
       const token = authTokens.idToken
       if (!token) throw new Error("Not authenticated")
-      const data = await fileManagementAPI.getFilePreview(latestVersionUploadId || targetFile.upload_id, token)
+      const data = await fileManagementAPI.getFilePreview(selectedUploadId, token)
       setPreviewData(data)
     } catch (err: any) {
       setPreviewError(err.message || "Failed to load preview")
     } finally {
       setPreviewLoading(false)
     }
-  }, [latestFile, file, latestVersionUploadId])
+  }, [selectedUploadId])
 
   const loadDqReport = useCallback(async () => {
-    const targetFile = latestFile || file
-    if (!targetFile) return
+    if (!selectedUploadId) return
 
     setDqReportLoading(true)
     setDqReportError(null)
@@ -66,7 +109,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
       const token = authTokens.idToken
       if (!token) throw new Error("Not authenticated")
-      const report = await fileManagementAPI.downloadDqReport(latestVersionUploadId || targetFile.upload_id, token)
+      const report = await fileManagementAPI.downloadDqReport(selectedUploadId, token)
       setDqReport(report)
 
       const sampleIssues = report?.hybrid_summary?.outstanding_issues || []
@@ -84,18 +127,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
     } finally {
       setDqReportLoading(false)
     }
-  }, [latestFile, file, latestVersionUploadId])
-
-  useEffect(() => {
-    // latestVersionUploadId === undefined means "not yet resolved" — wait for it
-    if (latestVersionUploadId === undefined) return
-    if (open && file && activeTab === "preview" && !previewData) {
-      void loadPreview()
-    }
-    if (open && file && activeTab === "dq-report" && !dqReport) {
-      void loadDqReport()
-    }
-  }, [open, file, activeTab, latestVersionUploadId, loadPreview, loadDqReport])
+  }, [selectedUploadId])
 
   useEffect(() => {
     if (!open) {
@@ -109,68 +141,154 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       setIssuesNextOffset(null)
       setAvailableViolations({})
       setSelectedViolations(new Set())
-      setLatestVersionUploadId(undefined)
+      setVersions([])
+      setSelectedVersionUploadId(null)
+      setSelectedFile(file)
+      setStatusCache({})
+      setMatrixTotals(null)
+      return
     }
-  }, [open])
 
-  useEffect(() => {
-    setLatestFile(file)
-  }, [file])
-
-  useEffect(() => {
-    if (open && file) {
-      void loadLatestFileDetails()
-    }
-  }, [open, file])
-
-  const loadLatestFileDetails = async () => {
     if (!file) return
-    try {
-      const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
-      const token = authTokens.idToken
-      if (!token) return
 
-      const [freshFile, versionsResp] = await Promise.all([
-        fileManagementAPI.getFileStatus(file.upload_id, token),
-        fileManagementAPI.getFileVersions(file.upload_id, token).catch(() => ({ versions: [], count: 0 })),
-      ])
+    let cancelled = false
+    const refreshLineage = async () => {
+      setVersionsLoading(true)
+      try {
+        const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
+        const token = authTokens.idToken
+        if (!token) return
 
-      const versions = versionsResp.versions || []
-      if (versions.length > 0) {
-        // Find latest version by is_latest flag or highest version_number
-        const latest = versions.find((v) => v.is_latest) ||
-          versions.reduce((a, b) => ((a.version_number || 0) >= (b.version_number || 0) ? a : b))
-        // Merge latest version stats onto the root file record
-        if (latest.dq_score != null) freshFile.dq_score = latest.dq_score
-        if (latest.status) freshFile.status = latest.status as FileStatusResponse["status"]
-        if (latest.rows_in != null) freshFile.rows_in = latest.rows_in
-        if (latest.rows_clean != null) freshFile.rows_clean = latest.rows_clean
-        if (latest.rows_fixed != null) freshFile.rows_fixed = latest.rows_fixed
-        if (latest.rows_quarantined != null) freshFile.rows_quarantined = latest.rows_quarantined
-        if (latest.processing_time_seconds != null) freshFile.processing_time_seconds = latest.processing_time_seconds
-        setLatestVersionUploadId(latest.upload_id)
-        setVersionInfo({ versionNumber: latest.version_number || 1, totalVersions: versions.length })
-      } else {
-        setLatestVersionUploadId(null)
-        setVersionInfo(null)
+        const freshFile = await fileManagementAPI.getFileStatus(file.upload_id, token)
+        if (cancelled) return
+
+        let nextStatusCache: Record<string, FileStatusResponse> = { [freshFile.upload_id]: freshFile }
+
+        const rootUploadId = freshFile.root_upload_id || freshFile.upload_id
+        const versionsResp = await fileManagementAPI.getFileVersions(rootUploadId, token).catch(() => ({ versions: [], count: 0 }))
+        if (cancelled) return
+
+        const normalized = normalizeVersions(versionsResp.versions || [])
+        setVersions(normalized)
+
+        const latest = resolveLatestVersion(normalized)
+        const openedSpecificVersion = Boolean(freshFile.root_upload_id && freshFile.root_upload_id !== freshFile.upload_id)
+        const defaultVersionId = openedSpecificVersion
+          ? freshFile.upload_id
+          : (latest?.upload_id || freshFile.upload_id)
+        if (defaultVersionId !== freshFile.upload_id) {
+          const defaultVersionFile = await fileManagementAPI.getFileStatus(defaultVersionId, token)
+          if (cancelled) return
+          nextStatusCache = {
+            ...nextStatusCache,
+            [defaultVersionId]: defaultVersionFile,
+          }
+          setSelectedFile(defaultVersionFile)
+        } else {
+          setSelectedFile(freshFile)
+        }
+        setStatusCache(nextStatusCache)
+        setSelectedVersionUploadId(defaultVersionId)
+      } catch (error) {
+        console.error("Failed to refresh file details", error)
+        if (!cancelled) {
+          setVersions([])
+          setSelectedVersionUploadId(file.upload_id)
+          setSelectedFile(file)
+          setStatusCache(file ? { [file.upload_id]: file } : {})
+        }
+      } finally {
+        if (!cancelled) {
+          setVersionsLoading(false)
+        }
       }
-
-      setLatestFile(freshFile)
-    } catch (error) {
-      console.error("Failed to refresh file details", error)
-      setLatestVersionUploadId(null)
     }
-  }
+
+    void refreshLineage()
+    return () => {
+      cancelled = true
+    }
+  }, [open, file, defaultTab])
+
+  useEffect(() => {
+    if (!open || !selectedUploadId) return
+
+    const cached = statusCache[selectedUploadId]
+    if (cached) {
+      setSelectedFile(cached)
+      return
+    }
+
+    let cancelled = false
+    const loadSelectedFile = async () => {
+      try {
+        const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
+        const token = authTokens.idToken
+        if (!token) return
+        const nextFile = await fileManagementAPI.getFileStatus(selectedUploadId, token)
+        if (cancelled) return
+        setStatusCache((prev) => ({ ...prev, [selectedUploadId]: nextFile }))
+        setSelectedFile(nextFile)
+      } catch (error) {
+        console.error("Failed to load selected version details", error)
+      }
+    }
+
+    void loadSelectedFile()
+    return () => {
+      cancelled = true
+    }
+  }, [open, selectedUploadId, statusCache])
+
+  useEffect(() => {
+    setPreviewData(null)
+    setPreviewError(null)
+    setDqReport(null)
+    setDqReportError(null)
+    setIssues([])
+    setIssuesTotal(null)
+    setIssuesNextOffset(null)
+    setAvailableViolations({})
+    setSelectedViolations(new Set())
+    setMatrixTotals(null)
+  }, [selectedUploadId])
+
+  useEffect(() => {
+    if (!open || !selectedUploadId) return
+    if (activeTab === "preview" && !previewData && !previewLoading) {
+      void loadPreview()
+    }
+    if (activeTab === "dq-report" && !dqReport && !dqReportLoading) {
+      void loadDqReport()
+    }
+  }, [
+    open,
+    selectedUploadId,
+    activeTab,
+    previewData,
+    previewLoading,
+    dqReport,
+    dqReportLoading,
+    loadPreview,
+    loadDqReport,
+  ])
+
+  useEffect(() => {
+    const status = (currentFile?.status || "").toUpperCase()
+    if (activeTab === "dq-report" && status && !READY_FOR_REPORT.has(status)) {
+      setActiveTab(defaultTab === "details" ? "details" : "preview")
+    }
+  }, [activeTab, currentFile?.status, defaultTab])
 
   const fetchIssues = async (reset = false) => {
-    if (!file) return
+    if (!selectedUploadId) return
     if (!reset && issuesNextOffset === null) return
     setIssuesLoading(true)
     try {
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
       const token = authTokens.idToken
       if (!token) throw new Error("Not authenticated")
-      const resp = await fileManagementAPI.getFileIssues(latestVersionUploadId || file.upload_id, token, {
+      const resp = await fileManagementAPI.getFileIssues(selectedUploadId, token, {
         offset: reset ? 0 : issuesNextOffset || 0,
         violations: Array.from(selectedViolations),
       })
@@ -194,19 +312,19 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
   }
 
   const handleDownloadDqReport = async () => {
-    if (!file) return
+    if (!selectedUploadId || !currentFile) return
     setDownloading(true)
     try {
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
       const token = authTokens.idToken
       if (!token) throw new Error("Not authenticated")
-      const report = await fileManagementAPI.downloadDqReport(latestVersionUploadId || file.upload_id, token)
+      const report = await fileManagementAPI.downloadDqReport(selectedUploadId, token)
 
       const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" })
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
-      link.download = `dq_report_${file.original_filename || file.filename || file.upload_id}.json`
+      link.download = `dq_report_${currentFile.original_filename || currentFile.filename || selectedUploadId}.json`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -229,14 +347,14 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
 
   const openMatrixDialog = async () => {
     setMatrixDialogOpen(true)
-    if (!file) return
+    if (!selectedUploadId) return
 
     setMatrixLoadingTotals(true)
     try {
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
       const token = authTokens.idToken
       if (!token) throw new Error("Not authenticated")
-      const head = await fileManagementAPI.getDQMatrix(file.upload_id, token, { limit: 1, offset: 0 })
+      const head = await fileManagementAPI.getDQMatrix(selectedUploadId, token, { limit: 1, offset: 0 })
       setMatrixTotals({
         totalResults: head?.total_results,
         totalRows: head?.total_rows,
@@ -249,7 +367,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
   }
 
   const handleDownloadDqMatrix = async () => {
-    if (!file) return
+    if (!selectedUploadId || !currentFile) return
     setDownloadingMatrix(true)
     try {
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
@@ -266,12 +384,12 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
           params.limit = endVal - startVal + 1
         }
       }
-      const data = await fileManagementAPI.getDQMatrix(file.upload_id, token, params)
+      const data = await fileManagementAPI.getDQMatrix(selectedUploadId, token, params)
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
-      link.download = `dq_matrix_${file.original_filename || file.filename || file.upload_id}.json`
+      link.download = `dq_matrix_${currentFile.original_filename || currentFile.filename || selectedUploadId}.json`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -318,7 +436,12 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
     availableViolations,
     selectedViolations,
     setSelectedViolations,
-    latestFile,
+    currentFile,
+    versions,
+    versionsLoading,
+    selectedVersion,
+    selectedVersionUploadId,
+    setSelectedVersionUploadId,
     versionInfo,
     fetchIssues,
     handleDownloadDqReport,
@@ -326,4 +449,3 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
     handleDownloadDqMatrix,
   }
 }
-

@@ -51,6 +51,7 @@ export interface FileVersionSummary {
   version_number: number
   root_upload_id?: string
   parent_upload_id?: string | null
+  source_upload_id?: string | null
   is_latest?: boolean
   created_at?: string
   uploaded_at?: string
@@ -61,10 +62,12 @@ export interface FileVersionSummary {
   status?: string
   dq_score?: number | null
   rows_in?: number | null
+  rows_out?: number | null
   rows_clean?: number | null
   rows_fixed?: number | null
   rows_quarantined?: number | null
   processing_time_seconds?: number | null
+  remediation_mode?: string | null
 }
 
 // ========== API Request Types ==========

@@ -22,6 +22,7 @@ import fileManagementAPI, { type FileStatusResponse } from '@/modules/files/api/
 import { DownloadFormatModal } from '@/modules/files/components/download-format-modal'
 import { useAuth } from '@/modules/auth'
 import { useToast } from '@/shared/hooks/use-toast'
+import { buildPrefixedDataFilename } from '@/modules/files/utils/download-filenames'
 
 interface CustomDestinationExportProps {
   selectedFormat: string | null
@@ -246,17 +247,17 @@ export default function CustomDestinationExport({
 
     setDownloading(true)
     try {
-      let blob: Blob
+      let downloadResult: Awaited<ReturnType<typeof fileManagementAPI.downloadFile>>
 
       if (dataType === 'clean') {
-        blob = await fileManagementAPI.downloadFile(
+        downloadResult = await fileManagementAPI.downloadFile(
           selectedFile.upload_id,
           format,
           'clean',
           idToken
         )
       } else {
-        blob = await fileManagementAPI.downloadFile(
+        downloadResult = await fileManagementAPI.downloadFile(
           selectedFile.upload_id,
           format,
           'original',
@@ -264,19 +265,31 @@ export default function CustomDestinationExport({
         )
       }
 
-      // Create download link
-      const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = url
 
-      const extension = format === 'excel' ? 'xlsx' : format
-      const filename = downloadFilename || 'export'
-      link.download = `${filename}.${extension}`
-
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      const extension = format === 'excel' ? '.xlsx' : `.${format}`
+      link.download = buildPrefixedDataFilename({
+        sourceName: downloadFilename || selectedFile.original_filename || selectedFile.filename || 'export',
+        dataType,
+        extension,
+      })
+      if (downloadResult.blob) {
+        const url = window.URL.createObjectURL(downloadResult.blob)
+        link.href = url
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      } else if (downloadResult.downloadUrl) {
+        link.href = downloadResult.downloadUrl
+        link.target = '_blank'
+        link.rel = 'noopener noreferrer'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } else {
+        throw new Error('No downloadable export payload received')
+      }
 
       toast({
         title: 'Download Complete',

@@ -13,6 +13,7 @@ import {
 } from "@/modules/files/store/filesSlice";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/modules/auth";
+import { buildPrefixedDataFilename, sanitizeFilenamePart } from "@/modules/files/utils/download-filenames";
 import {
     fileManagementAPI,
     type FileStatusResponse,
@@ -1135,9 +1136,13 @@ export function useFilesPage() {
                 columnExportFile.upload_id, idToken,
                 { format: options.format, data: options.dataType, columns: options.columns, columnMapping: options.columnMapping },
             );
-            const baseFilename = (columnExportFile.original_filename || columnExportFile.filename || "file").replace(/\.[^/.]+$/, "");
             const extension = options.format === "excel" ? ".xlsx" : options.format === "json" ? ".json" : ".csv";
-            const filename = `${baseFilename}_export${extension}`;
+            const filename = buildPrefixedDataFilename({
+                sourceName: columnExportFile.original_filename || columnExportFile.filename || "file",
+                dataType: options.dataType,
+                extension,
+                tags: ["export"],
+            });
             const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
@@ -1179,9 +1184,13 @@ export function useFilesPage() {
                     erp: actionsErpMode === "transform" ? actionsErpTarget : undefined,
                 },
             );
-            const baseFilename = (columnExportFile.original_filename || columnExportFile.filename || "file").replace(/\.[^/.]+$/, "");
             const extension = options.format === "excel" ? ".xlsx" : options.format === "json" ? ".json" : ".csv";
-            const filename = `${baseFilename}_erp${extension}`;
+            const filename = buildPrefixedDataFilename({
+                sourceName: columnExportFile.original_filename || columnExportFile.filename || "file",
+                dataType: options.dataType,
+                extension,
+                tags: ["erp", actionsErpMode === "transform" ? actionsErpTarget : null],
+            });
             const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
@@ -1240,10 +1249,12 @@ export function useFilesPage() {
                 file.upload_id, idToken,
                 { format, data: dataType === "original" ? "raw" : "clean" },
             );
-            const baseFilename = (file.original_filename || file.filename || "file").replace(/\.[^/.]+$/, "");
             const extension = format === "excel" ? ".xlsx" : format === "json" ? ".json" : ".csv";
-            const dataSuffix = dataType === "original" ? "_original" : "_clean";
-            const filename = `${baseFilename}${dataSuffix}${extension}`;
+            const filename = buildPrefixedDataFilename({
+                sourceName: file.original_filename || file.filename || "file",
+                dataType: dataType === "original" ? "original" : "clean",
+                extension,
+            });
             const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
@@ -1281,11 +1292,13 @@ export function useFilesPage() {
                 file.upload_id, idToken,
                 { format, data: dataType, erp: targetErp || undefined },
             );
-            const baseFilename = (file.original_filename || file.filename || "file").replace(/\.[^/.]+$/, "");
             const extension = format === "excel" ? ".xlsx" : format === "json" ? ".json" : ".csv";
-            const erpSuffix = targetErp ? `_${targetErp.replace(/\s+/g, "_").toLowerCase()}` : "";
-            const dataTypeSuffix = dataType === "clean" ? "_clean" : dataType === "quarantine" ? "_quarantined" : "_full";
-            const filename = `${baseFilename}${dataTypeSuffix}${erpSuffix}${extension}`;
+            const filename = buildPrefixedDataFilename({
+                sourceName: file.original_filename || file.filename || "file",
+                dataType,
+                extension,
+                tags: targetErp ? [sanitizeFilenamePart(targetErp)] : [],
+            });
             const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "@/modules/auth"
 import { useToast } from "@/shared/hooks/use-toast"
+import { buildPrefixedDataFilename } from "@/modules/files/utils/download-filenames"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
 import { jobsAPI } from "@/modules/jobs/api/jobs-api"
 import type { FileStatusResponse, QuarantineReprocessResponse } from "@/modules/files/types"
@@ -307,9 +308,13 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
                     erp: erpMode === "transform" ? erpTarget : undefined,
                 },
             )
-            const baseFilename = (downloadFile.original_filename || downloadFile.filename || "file").replace(/\.[^/.]+$/, "")
             const extension = options.format === "excel" ? ".xlsx" : options.format === "json" ? ".json" : ".csv"
-            const filename = `${baseFilename}_export${extension}`
+            const filename = buildPrefixedDataFilename({
+                sourceName: downloadFile.original_filename || downloadFile.filename || "file",
+                dataType: options.dataType,
+                extension,
+                tags: ["export"],
+            })
             const link = document.createElement("a")
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob)
@@ -384,8 +389,9 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
      */
     const handleReprocessSubmitted = useCallback(async (reprocessResult: QuarantineReprocessResponse) => {
         const entity = quarantineEntity
-        const fileUploadId = quarantineFile?.upload_id
-        const previousSnapshotId = quarantineFile?.current_reprocess_snapshot_id || null
+        const activeFile = quarantineFile
+        const fileUploadId = activeFile?.upload_id
+        const previousSnapshotId = activeFile?.current_reprocess_snapshot_id || null
         const jobId = run?.job_id
         const destination = "destination"
         const destLabel = ERP_DISPLAY[destination || ""] || destination || "destination"
@@ -393,6 +399,19 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
         if (!entity || !fileUploadId || !jobId || !idToken) return
         const effectiveMode = reprocessResult.effective_mode || "full"
         const targetUploadId = reprocessResult.new_upload_id || reprocessResult.base_upload_id || fileUploadId
+
+        if (activeFile) {
+            const optimisticFile: FileStatusResponse = {
+                ...activeFile,
+                status: "QUEUED",
+                remediation_state: "REPROCESS_SUBMITTED",
+                updated_at: new Date().toISOString(),
+            }
+            setEntries(prev => prev.map(e =>
+                e.uploadId === fileUploadId ? { ...e, file: optimisticFile } : e
+            ))
+            setQuarantineFile(optimisticFile)
+        }
 
         setExporting(true)
         toast({ title: "Reprocessing...", description: `Waiting for reprocess to complete before exporting to ${destLabel}` })

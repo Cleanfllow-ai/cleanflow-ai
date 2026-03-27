@@ -1,8 +1,8 @@
-import { FileText, GitBranch, Pencil, PieChart as PieChartIcon, Server, Table as TableIcon } from "lucide-react"
+import { FileText, GitBranch, PieChart as PieChartIcon, Server, Table as TableIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/shared/lib/utils"
 import { useAuth } from "@/modules/auth"
 import type { FileStatusResponse } from "@/modules/files/api/file-management-api"
@@ -58,7 +58,12 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
     availableViolations,
     selectedViolations,
     setSelectedViolations,
-    latestFile,
+    currentFile,
+    versions,
+    versionsLoading,
+    selectedVersion,
+    selectedVersionUploadId,
+    setSelectedVersionUploadId,
     versionInfo,
     fetchIssues,
     handleDownloadDqReport,
@@ -67,8 +72,7 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
   } = useFileDetails(file, open, defaultTab)
 
   if (!file) return null
-
-  const currentFile = latestFile || file
+  const resolvedFile = currentFile || file
 
   const getStatusColor = (status: string) => {
     const s = status?.toUpperCase() || ""
@@ -83,7 +87,7 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
   }
 
   const isDqMatrixReady = (() => {
-    const status = (file.status || "").toUpperCase()
+    const status = (resolvedFile.status || "").toUpperCase()
     return (
       status.includes("DQ_COMPLETE") ||
       status.includes("DQ_FIXED") ||
@@ -92,24 +96,74 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
     )
   })()
 
+  const versionOptions = [...versions].sort((a, b) => (b.version_number || 0) - (a.version_number || 0))
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="w-[98vw] h-[80vh] max-w-6xl max-h-none p-0 flex flex-col gap-0">
           <div className="flex h-full flex-col">
             <DialogHeader className="px-6 py-3 border-b shrink-0">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 text-primary" />
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <DialogTitle className="flex items-center gap-2.5 font-sans text-base font-semibold tracking-tight truncate">
+                      <span className="truncate">{resolvedFile.original_filename || resolvedFile.filename || "File"}</span>
+                    </DialogTitle>
+                    <Badge className={cn("shrink-0 text-[10px] font-medium", getStatusColor(resolvedFile.status))} variant="outline">
+                      {resolvedFile.status}
+                    </Badge>
+                    {versionInfo && (
+                      <Badge variant="outline" className="shrink-0 text-[10px] font-medium">
+                        v{versionInfo.versionNumber}
+                        <span className="ml-1 text-muted-foreground">of {versionInfo.totalVersions}</span>
+                      </Badge>
+                    )}
                   </div>
-                  <DialogTitle className="flex items-center gap-2.5 font-sans text-base font-semibold tracking-tight truncate">
-                    <span className="truncate">{currentFile.original_filename || currentFile.filename || "File"}</span>
-                  </DialogTitle>
-                  <Badge className={cn("shrink-0 text-[10px] font-medium", getStatusColor(currentFile.status))} variant="outline">
-                    {currentFile.status}
-                  </Badge>
+                  {versionInfo && (versionInfo.patchNotes || versionInfo.remediationMode || versionInfo.isLatest) && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {versionInfo.patchNotes && (
+                        <span className="max-w-[420px] truncate">{versionInfo.patchNotes}</span>
+                      )}
+                      {versionInfo.remediationMode && (
+                        <Badge variant="secondary" className="font-normal capitalize">
+                          {versionInfo.remediationMode}
+                        </Badge>
+                      )}
+                      {versionInfo.isLatest && (
+                        <Badge variant="secondary" className="font-normal">
+                          Current latest
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                 </div>
+                {versionOptions.length > 0 && (
+                  <div className="w-full shrink-0 lg:w-[320px]">
+                    <div className="mb-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                      Viewing Version
+                    </div>
+                    <Select
+                      value={selectedVersionUploadId || resolvedFile.upload_id}
+                      onValueChange={setSelectedVersionUploadId}
+                      disabled={versionsLoading}
+                    >
+                      <SelectTrigger className="h-10 bg-background/80">
+                        <SelectValue placeholder={selectedVersion ? `v${selectedVersion.version_number}` : "Select version"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {versionOptions.map((version) => (
+                          <SelectItem key={version.upload_id} value={version.upload_id}>
+                            {`v${version.version_number} | ${version.status || "Unknown"}${version.is_latest ? " | Latest" : ""}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </DialogHeader>
 
@@ -141,7 +195,7 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                   <TableIcon className="h-3.5 w-3.5" />
                   Preview
                 </button>
-                {(file.status === "DQ_FIXED" || file.status === "COMPLETED") && (
+                {isDqMatrixReady && (
                   <button
                     onClick={() => setActiveTab("dq-report")}
                     className={cn(
@@ -173,7 +227,7 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
             </div>
 
             <div className="flex-1 overflow-hidden relative">
-              {activeTab === "details" && <FileOverviewTab file={currentFile} versionInfo={versionInfo} />}
+              {activeTab === "details" && <FileOverviewTab file={resolvedFile} versionInfo={versionInfo} />}
               {activeTab === "preview" && (
                 <FilePreviewTab
                   previewLoading={previewLoading}
@@ -183,7 +237,7 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
               )}
               {activeTab === "dq-report" && (
                 <FileDqReportTab
-                  file={currentFile}
+                  file={resolvedFile}
                   dqReport={dqReport}
                   dqReportLoading={dqReportLoading}
                   dqReportError={dqReportError}
@@ -205,8 +259,10 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
               {activeTab === "versions" && idToken && (
                 <div className="px-6 py-4 overflow-auto">
                   <FileVersionHistory
-                    rootUploadId={currentFile.root_upload_id || currentFile.upload_id}
+                    rootUploadId={resolvedFile.root_upload_id || resolvedFile.upload_id}
                     authToken={idToken}
+                    selectedUploadId={selectedVersionUploadId}
+                    onSelectVersion={(version) => setSelectedVersionUploadId(version.upload_id)}
                   />
                 </div>
               )}

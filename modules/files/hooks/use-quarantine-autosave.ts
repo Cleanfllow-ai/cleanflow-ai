@@ -17,7 +17,7 @@ import { useEffect, useRef } from 'react'
  * @param enabled - Whether autosave is enabled
  */
 export function useQuarantineAutosave(
-  saveFunction: () => Promise<void>,
+  saveFunction: () => Promise<unknown>,
   pendingCount: number,
   debounceMs: number,
   enabled: boolean

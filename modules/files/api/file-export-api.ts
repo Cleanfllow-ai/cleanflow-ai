@@ -19,9 +19,68 @@ const ENDPOINTS = {
     FILES_COLUMNS: (id: string) => `/files/${id}/columns`,
 }
 
+const MAX_EXPORT_PREPARE_ATTEMPTS = 90
+const DEFAULT_EXPORT_PREPARE_DELAY_MS = 2000
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function resolveExportDownload(
+    requestFactory: () => Promise<Response>,
+    attempt: number = 0,
+): Promise<ExportDownloadResult> {
+    const response = await requestFactory()
+    const contentType = response.headers.get('Content-Type') || ''
+    const isJson = contentType.includes('application/json')
+    const data = isJson ? await response.json().catch(() => null) : null
+
+    if (response.status === 202 && data?.status === 'preparing') {
+        if (attempt >= MAX_EXPORT_PREPARE_ATTEMPTS) {
+            throw new Error(data.message || 'Export is still being prepared. Please try again shortly.')
+        }
+        const retryDelayMs = Number(data.retry_after_ms) || DEFAULT_EXPORT_PREPARE_DELAY_MS
+        await sleep(retryDelayMs)
+        return resolveExportDownload(requestFactory, attempt + 1)
+    }
+
+    if (!response.ok) {
+        const fallbackMessage = `Export failed: ${response.statusText}`
+        throw new Error((data && (data.error || data.message)) || fallbackMessage)
+    }
+
+    if (isJson && data) {
+        if (data.presigned_url) {
+            if (!isValidS3Url(data.presigned_url)) {
+                throw new Error('Invalid presigned URL: must be an HTTPS S3/AWS URL')
+            }
+            console.log('Fetching from presigned URL:', data.filename || 'file')
+            try {
+                const s3Response = await fetch(data.presigned_url)
+                if (!s3Response.ok) {
+                    throw new Error(`Failed to download from S3: ${s3Response.statusText}`)
+                }
+                return { blob: await s3Response.blob(), filename: data.filename }
+            } catch (error) {
+                console.warn('Direct S3 fetch failed, falling back to browser download link:', error)
+                return { downloadUrl: data.presigned_url, filename: data.filename }
+            }
+        }
+        if (data.error) {
+            throw new Error(data.error)
+        }
+        return {
+            blob: new Blob([JSON.stringify(data)], { type: 'application/json' }),
+            filename: data.filename,
+        }
+    }
+
+    return { blob: await response.blob() }
+}
+
 // ─── File Download / Export ───
 
-export async function downloadFileFromApi(uploadId: string, fileType: 'csv' | 'excel' | 'json', dataType: 'clean' | 'quarantine' | 'raw' | 'original' | 'all', authToken: string, targetErp?: string): Promise<Blob> {
+export async function downloadFileFromApi(uploadId: string, fileType: 'csv' | 'excel' | 'json', dataType: 'clean' | 'quarantine' | 'raw' | 'original' | 'all', authToken: string, targetErp?: string): Promise<ExportDownloadResult> {
     let endpoint = `${ENDPOINTS.FILES_EXPORT(uploadId)}?type=${fileType}&data=${dataType}&_ts=${Date.now()}`
 
     // Add ERP transformation parameter if specified
@@ -31,49 +90,12 @@ export async function downloadFileFromApi(uploadId: string, fileType: 'csv' | 'e
 
     const url = `${API_BASE_URL}${endpoint}`
 
-    const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${authToken}` },
-        cache: 'no-store',
-    })
-
-    if (!response.ok) throw new Error(`Download failed: ${response.statusText}`)
-
-    // Check if response is JSON (presigned URL response) vs direct file content
-    const contentType = response.headers.get('Content-Type') || ''
-
-    if (contentType.includes('application/json')) {
-        // Response may contain presigned URL - parse and fetch from S3
-        const data = await response.json()
-        if (data.presigned_url) {
-            if (!isValidS3Url(data.presigned_url)) {
-                throw new Error('Invalid presigned URL: must be an HTTPS S3/AWS URL')
-            }
-            console.log('📥 Fetching from presigned URL:', data.filename || 'file')
-            const s3Response = await fetch(data.presigned_url)
-            if (!s3Response.ok) {
-                throw new Error(`Failed to download from S3: ${s3Response.statusText}`)
-            }
-            return s3Response.blob()
-        }
-        // If no presigned_url, might be an error
-        if (data.error) {
-            throw new Error(data.error)
-        }
-        // Fallback - return empty blob if unexpected JSON
-        return new Blob([JSON.stringify(data)], { type: 'application/json' })
-    }
-
-    // Log transformation info if present
-    const erpTransformation = response.headers.get('X-ERP-Transformation')
-    if (erpTransformation === 'true') {
-        console.log('ERP Transformation applied:', {
-            source: response.headers.get('X-Source-ERP'),
-            target: response.headers.get('X-Target-ERP'),
-            entity: response.headers.get('X-Entity-Type')
-        })
-    }
-
-    return response.blob()
+    return resolveExportDownload(
+        () => fetch(url, {
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            cache: 'no-store',
+        }),
+    )
 }
 
 /**
@@ -117,60 +139,16 @@ export async function exportWithColumns(
 
     console.log('📤 Export with columns:', { uploadId, ...options })
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-    })
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `Export failed: ${response.statusText}`)
-    }
-
-    // Check if response is JSON (presigned URL response) vs direct file content
-    const contentType = response.headers.get('Content-Type') || ''
-    console.log('🔍 Response Content-Type:', contentType)
-
-    if (contentType.includes('application/json')) {
-        // Response contains presigned URL - parse and fetch from S3
-        const data = await response.json()
-        if (data.presigned_url) {
-            if (!isValidS3Url(data.presigned_url)) {
-                throw new Error('Invalid presigned URL: must be an HTTPS S3/AWS URL')
-            }
-            console.log('📥 Fetching from presigned URL:', data.filename)
-            // Fetch the actual file from S3 presigned URL
-            try {
-                const s3Response = await fetch(data.presigned_url)
-                if (!s3Response.ok) {
-                    throw new Error(`Failed to download from S3: ${s3Response.statusText}`)
-                }
-                return { blob: await s3Response.blob(), filename: data.filename }
-            } catch (error) {
-                console.warn('Direct S3 fetch failed, falling back to browser download link:', error)
-                return { downloadUrl: data.presigned_url, filename: data.filename }
-            }
-        }
-        // If no presigned_url, might be an error - throw
-        if (data.error) {
-            throw new Error(data.error)
-        }
-    }
-
-    // Log headers for debugging
-    const columnSelection = response.headers.get('X-Column-Selection')
-    if (columnSelection === 'true') {
-        console.log('Column selection applied:', {
-            selected: response.headers.get('X-Selected-Columns'),
-            renamed: response.headers.get('X-Renamed-Columns'),
-        })
-    }
-
-    return { blob: await response.blob() }
+    return resolveExportDownload(
+        () => fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        }),
+    )
 }
 
 // ─── File Preview ───
@@ -196,8 +174,11 @@ export async function getFilePreview(uploadId: string, authToken: string): Promi
 export async function getFilePreviewFromS3(uploadId: string, authToken: string, maxRows: number = 20): Promise<{ headers: string[], sample_data: any[], total_rows: number, has_dq_status?: boolean }> {
     try {
         // Download the original file from S3 via export endpoint
-        const blob = await downloadFileFromApi(uploadId, 'csv', 'all', authToken)
-        const text = await blob.text()
+        const download = await downloadFileFromApi(uploadId, 'csv', 'all', authToken)
+        if (!download.blob) {
+            throw new Error('Preview download requires an inline blob response')
+        }
+        const text = await download.blob.text()
         // Parse CSV
         const lines = text.trim().split('\n')
         if (lines.length === 0) {
