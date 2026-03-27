@@ -198,7 +198,9 @@ class ConnectorsAPI extends ConnectorAPIBase {
     destinationProvider: string,
     entity: string,
     sourceFields?: string[],
-    params?: Record<string, string>,
+    sourceParams?: Record<string, string>,
+    destinationEntity?: string,
+    destinationParams?: Record<string, string>,
   ): Promise<{
     mappings: Array<{
       source: string
@@ -218,7 +220,9 @@ class ConnectorsAPI extends ConnectorAPIBase {
           destination_provider: destinationProvider,
           entity,
           source_fields: sourceFields || [],
-          params: params || {},
+          params: sourceParams || {},
+          destination_entity: destinationEntity || entity,
+          destination_params: destinationParams || {},
         }),
       },
     )

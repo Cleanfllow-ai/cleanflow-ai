@@ -456,18 +456,28 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         }
         setMappingLoading(true)
         try {
-            // Build params from source/destination config for warehouse providers
-            const params: Record<string, string> = {}
-            if (sourceConfig.database) params.database = sourceConfig.database
-            if (sourceConfig.schema) params.schema = sourceConfig.schema
-            if (sourceConfig.warehouse) params.warehouse = sourceConfig.warehouse
+            // Build separate params for source and destination (warehouse config)
+            const srcParams: Record<string, string> = {}
+            if (sourceConfig.database) srcParams.database = sourceConfig.database
+            if (sourceConfig.schema) srcParams.schema = sourceConfig.schema
+            if (sourceConfig.warehouse) srcParams.warehouse = sourceConfig.warehouse
+
+            const dstParams: Record<string, string> = {}
+            if (destinationConfig.database) dstParams.database = destinationConfig.database
+            if (destinationConfig.schema) dstParams.schema = destinationConfig.schema
+            if (destinationConfig.warehouse) dstParams.warehouse = destinationConfig.warehouse
+
+            // For warehouse destinations, use the table name as destination entity
+            const destinationEntity = destinationCategory === 'warehouse' && destinationConfig.table
+                ? destinationConfig.table
+                : entities[0]
 
             let mappings: Array<{ source: string; destination: string; confidence: number; method: string }> = []
             if (destinationCategory === 'erp') {
                 // Fetch source fields first for ERP automap
                 let sourceFields: string[] = []
                 try {
-                    const srcRes = await connectorsAPI.getEntityFields(sourceProvider, entities[0], Object.keys(params).length > 0 ? params : undefined)
+                    const srcRes = await connectorsAPI.getEntityFields(sourceProvider, entities[0], Object.keys(srcParams).length > 0 ? srcParams : undefined)
                     sourceFields = (srcRes.fields || []).map((f: any) => f.key || f.name || "").filter(Boolean)
                 } catch { /* proceed with empty — backend will try to infer */ }
                 const erpRes = await erpConnectorsAPI.aiAutoMap(destinationProvider, sourceFields, entities[0], sourceProvider)
@@ -481,7 +491,9 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                     destinationProvider,
                     entities[0],
                     [],
-                    Object.keys(params).length > 0 ? params : undefined,
+                    Object.keys(srcParams).length > 0 ? srcParams : undefined,
+                    destinationEntity,
+                    Object.keys(dstParams).length > 0 ? dstParams : undefined,
                 )
                 mappings = res.mappings || []
             }
@@ -511,7 +523,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         } finally {
             setMappingLoading(false)
         }
-    }, [sourceProvider, sourceCategory, destinationProvider, destinationCategory, sourceConfig, entities, toast])
+    }, [sourceProvider, sourceCategory, destinationProvider, destinationCategory, sourceConfig, destinationConfig, entities, toast])
 
     // ── Manual mapping editor ────────────────────────────────────────────────
 
