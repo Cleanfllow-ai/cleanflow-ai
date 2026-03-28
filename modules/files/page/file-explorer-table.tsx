@@ -404,7 +404,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                             </div>
                                                         ) : (
                                                             <p className="text-[10px] sm:text-xs text-muted-foreground font-mono tabular-nums">
-                                                                {formatBytes(file.input_size_bytes || file.file_size || 0)}
+                                                                {(file.input_size_bytes || file.file_size) ? formatBytes(file.input_size_bytes || file.file_size || 0) : <span className="text-muted-foreground/40">--</span>}
                                                             </p>
                                                         )}
                                                     </div>
@@ -428,7 +428,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                     )}
                                     {visibleColumns.has("rows") && (
                                         <TableCell className="text-sm text-muted-foreground tabular-nums font-mono text-left">
-                                            {file.rows_clean || file.rows_in || 0}
+                                            {(file.rows_clean || file.rows_in) ? (file.rows_clean || file.rows_in) : <span className="text-muted-foreground/40">--</span>}
                                         </TableCell>
                                     )}
                                     {visibleColumns.has("category") && (
@@ -518,6 +518,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         file.status === "DQ_RUNNING" ||
                                                         file.status === "DQ_DISPATCHED" ||
                                                         isUploading;
+                                                    const isProcessed = file.status === "DQ_FIXED" || file.status === "COMPLETED";
                                                     return (
                                                         <>
                                                 {!isUploading && (file.status === "UPLOADED" ||
@@ -544,29 +545,43 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground"
-                                                                onClick={() => handleViewDetails(file)}
+                                                                className={cn("h-7 w-7 sm:h-8 sm:w-8", isProcessed ? "text-muted-foreground hover:text-foreground" : "text-muted-foreground/40 cursor-not-allowed")}
+                                                                disabled={!isProcessed}
+                                                                onClick={() => isProcessed && handleViewDetails(file)}
                                                             >
                                                                 <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                             </Button>
                                                         </TooltipTrigger>
-                                                        <TooltipContent>Details</TooltipContent>
+                                                        <TooltipContent>{isProcessed ? "Details" : "Available after processing"}</TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                {(file.status === "DQ_FIXED" || file.status === "COMPLETED") && (file.rows_quarantined ?? 0) > 0 && (
+                                                {isProcessed && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10"
-                                                                onClick={() => handleOpenQuarantineEditor(file)}
-                                                            >
-                                                                <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                            </Button>
+                                                            {(file.rows_quarantined ?? 0) > 0 ? (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10"
+                                                                    onClick={() => handleOpenQuarantineEditor(file)}
+                                                                >
+                                                                    <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                </Button>
+                                                            ) : (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground/40 cursor-not-allowed"
+                                                                    disabled
+                                                                >
+                                                                    <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                </Button>
+                                                            )}
                                                         </TooltipTrigger>
                                                         <TooltipContent>
-                                                            {`Edit Quarantined Rows (${file.rows_quarantined})`}
+                                                            {(file.rows_quarantined ?? 0) > 0
+                                                                ? `Edit Quarantined Rows (${file.rows_quarantined})`
+                                                                : "No Quarantined Rows"}
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
@@ -577,9 +592,9 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-primary hover:text-primary hover:bg-primary/10"
-                                                                disabled={downloading === file.upload_id}
-                                                                onClick={() => openActionsDialog(file)}
+                                                                className={cn("h-7 w-7 sm:h-8 sm:w-8", isProcessed ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground/40 cursor-not-allowed")}
+                                                                disabled={!isProcessed || downloading === file.upload_id}
+                                                                onClick={() => isProcessed && openActionsDialog(file)}
                                                             >
                                                                 {downloading === file.upload_id ? (
                                                                     <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
@@ -588,7 +603,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                 )}
                                                             </Button>
                                                         </TooltipTrigger>
-                                                        <TooltipContent>Export</TooltipContent>
+                                                        <TooltipContent>{isProcessed ? "Export" : "Available after processing"}</TooltipContent>
                                                     </Tooltip>
                                                 )}
                                                 <Tooltip>

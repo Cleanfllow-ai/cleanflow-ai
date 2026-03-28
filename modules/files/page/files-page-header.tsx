@@ -21,9 +21,6 @@ export function FilesPageHeader({ files }: FilesPageHeaderProps) {
     if (stats.total === 0) {
         return (
             <div className="pb-1">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium mb-1">
-                    File Management
-                </p>
                 <h1 className="font-sans text-xl font-bold tracking-tight">
                     Data Catalog
                 </h1>
@@ -36,9 +33,6 @@ export function FilesPageHeader({ files }: FilesPageHeaderProps) {
 
     return (
         <div className="pb-1">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium mb-1">
-                File Management
-            </p>
             <div className="flex flex-wrap items-center gap-3">
                 <h1 className="font-sans text-xl font-bold tracking-tight mr-2">
                     Data Catalog
