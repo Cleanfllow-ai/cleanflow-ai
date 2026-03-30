@@ -467,7 +467,10 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             if (destinationConfig.schema) dstParams.schema = destinationConfig.schema
             if (destinationConfig.warehouse) dstParams.warehouse = destinationConfig.warehouse
 
-            // For warehouse destinations, use the table name as destination entity
+            // For warehouse source/destinations, use the table name as entity
+            const sourceEntity = sourceCategory === 'warehouse' && sourceConfig.table
+                ? sourceConfig.table
+                : entities[0]
             const destinationEntity = destinationCategory === 'warehouse' && destinationConfig.table
                 ? destinationConfig.table
                 : entities[0]
@@ -477,7 +480,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 // Fetch source fields first for ERP automap
                 let sourceFields: string[] = []
                 try {
-                    const srcRes = await connectorsAPI.getEntityFields(sourceProvider, entities[0], Object.keys(srcParams).length > 0 ? srcParams : undefined)
+                    const srcRes = await connectorsAPI.getEntityFields(sourceProvider, sourceEntity, Object.keys(srcParams).length > 0 ? srcParams : undefined)
                     sourceFields = (srcRes.fields || []).map((f: any) => f.key || f.name || "").filter(Boolean)
                 } catch { /* proceed with empty — backend will try to infer */ }
                 const erpRes = await erpConnectorsAPI.aiAutoMap(destinationProvider, sourceFields, entities[0], sourceProvider)
