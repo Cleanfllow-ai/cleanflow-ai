@@ -324,7 +324,7 @@ export function SignUpForm() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@company.com"
+                  placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
