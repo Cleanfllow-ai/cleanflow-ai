@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2, ArrowLeft, ArrowRight, RefreshCw, Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useProcessingWizard } from "../WizardContext"
@@ -214,6 +215,115 @@ export function ProfilingStep() {
                   })}
               </div>
             )}
+<<<<<<< Updated upstream:components/processing/steps/ProfilingStep.tsx
+=======
+
+            {/* Cross-field Rules Panel */}
+            {hasProfiles && (() => {
+              const RULE_GROUPS: Record<string, { label: string; color: string }> = {
+                "Temporal ordering": { label: "Date & Time", color: "bg-blue-500/10 text-blue-700 border-blue-200" },
+                "Conditional presence": { label: "Conditional", color: "bg-amber-500/10 text-amber-700 border-amber-200" },
+                "Conditional range": { label: "Conditional", color: "bg-amber-500/10 text-amber-700 border-amber-200" },
+                "Conditional restriction": { label: "Conditional", color: "bg-amber-500/10 text-amber-700 border-amber-200" },
+                "Exclusive fields": { label: "Presence", color: "bg-purple-500/10 text-purple-700 border-purple-200" },
+                "Complementary presence": { label: "Presence", color: "bg-purple-500/10 text-purple-700 border-purple-200" },
+                "Multi-field exclusivity": { label: "Presence", color: "bg-purple-500/10 text-purple-700 border-purple-200" },
+                "Sum consistency": { label: "Numeric", color: "bg-green-500/10 text-green-700 border-green-200" },
+                "Accounting identity": { label: "Numeric", color: "bg-green-500/10 text-green-700 border-green-200" },
+                "Balance consistency": { label: "Numeric", color: "bg-green-500/10 text-green-700 border-green-200" },
+                "Sign consistency": { label: "Numeric", color: "bg-green-500/10 text-green-700 border-green-200" },
+                "Non-negative value": { label: "Numeric", color: "bg-green-500/10 text-green-700 border-green-200" },
+                "Percentage relationship": { label: "Numeric", color: "bg-green-500/10 text-green-700 border-green-200" },
+                "Reference integrity": { label: "Reference", color: "bg-cyan-500/10 text-cyan-700 border-cyan-200" },
+                "Document cross-validation": { label: "Reference", color: "bg-cyan-500/10 text-cyan-700 border-cyan-200" },
+                "Currency consistency": { label: "Domain", color: "bg-rose-500/10 text-rose-700 border-rose-200" },
+                "Format validation": { label: "Format", color: "bg-orange-500/10 text-orange-700 border-orange-200" },
+                "Time calculation": { label: "Date & Time", color: "bg-blue-500/10 text-blue-700 border-blue-200" },
+                "Enum consistency": { label: "Format", color: "bg-orange-500/10 text-orange-700 border-orange-200" },
+              }
+              const defaultGroup = { label: "Other", color: "bg-muted text-foreground" }
+
+              // Group rules by category
+              const grouped = crossFieldRules.reduce((acc, rule) => {
+                const rel = rule.relationship || ""
+                const group = RULE_GROUPS[rel]?.label || defaultGroup.label
+                if (!acc[group]) acc[group] = []
+                acc[group].push(rule)
+                return acc
+              }, {} as Record<string, typeof crossFieldRules>)
+              const groupOrder = ["Date & Time", "Numeric", "Conditional", "Presence", "Reference", "Domain", "Format", "Other"]
+              const sortedGroups = groupOrder.filter(g => grouped[g])
+
+              return (
+                <div className="mt-4 border border-muted rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-sm">Cross-column Rules (CleanAI suggested)</h3>
+                      <Badge variant="outline" className="text-xs">{crossFieldRules.length} rules</Badge>
+                    </div>
+                    {crossFieldRules.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        {sortedGroups.map(g => (
+                          <Badge key={g} variant="secondary" className="text-[10px]">
+                            {g} ({grouped[g].length})
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {crossFieldRules.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No cross-field rules detected. CleanAI will suggest rules based on your column patterns.</p>
+                  ) : (
+                    <ScrollArea className={crossFieldRules.length > 8 ? "max-h-[400px]" : ""}>
+                      <div className="space-y-3">
+                        {sortedGroups.map(groupName => (
+                          <div key={groupName}>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{groupName}</p>
+                            <div className="space-y-1">
+                              {grouped[groupName].map((rule, i) => {
+                                const groupStyle = RULE_GROUPS[rule.relationship || ""] || defaultGroup
+                                return (
+                                  <div key={`${groupName}-${i}`}
+                                    className={`flex items-start gap-2 text-sm p-2 rounded border ${groupStyle.color}`}>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-mono text-[11px] bg-background/50 px-1.5 py-0.5 rounded">
+                                          {rule.rule_id}
+                                        </span>
+                                        <span className="text-xs">{rule.condition || rule.predicate}</span>
+                                      </div>
+                                      <div className="flex gap-1 mt-1 flex-wrap">
+                                        {rule.cols?.map((c: string) => (
+                                          <Badge key={c} variant="outline" className="text-[10px] font-mono">{c}</Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {rule.relationship && (
+                                        <Badge variant="secondary" className="text-[10px] whitespace-nowrap">
+                                          {rule.relationship}
+                                        </Badge>
+                                      )}
+                                      {rule.confidence != null && (
+                                        <Badge variant={rule.confidence >= 0.9 ? "default" : "secondary"}
+                                          className="text-[10px]">
+                                          {Math.round(rule.confidence * 100)}%
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </div>
+              )
+            })()}
+>>>>>>> Stashed changes:modules/processing/components/steps/ProfilingStep.tsx
           </div>
         </div>
       </div>
