@@ -116,6 +116,21 @@
   box-shadow: inset 2px 0 0 #059669;
 }
 
+/* ─── Find & Replace Highlights ───────────────────────────────────────────── */
+
+/* Match — yellow highlight for cells matching the search term */
+.quarantine-ag-grid .ag-cell-find-match {
+  background: #FEF9C3 !important;
+  box-shadow: inset 0 0 0 1px #EAB308 !important;
+}
+
+/* Current match — orange highlight for the actively focused match */
+.quarantine-ag-grid .ag-cell-find-current {
+  background: #FED7AA !important;
+  box-shadow: inset 0 0 0 2px #EA580C !important;
+  font-weight: 600;
+}
+
 /* ─── Editing state ────────────────────────────────────────────────────────── */
 
 .quarantine-ag-grid .ag-cell-inline-editing {

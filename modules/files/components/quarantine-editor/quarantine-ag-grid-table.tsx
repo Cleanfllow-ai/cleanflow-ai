@@ -31,6 +31,8 @@ interface QuarantineAgGridTableProps {
   uploadId: string
   reloadToken: number
   filterComponent?: (column: string) => React.ReactNode
+  findMatches?: Array<{ row_id: string; column: string }>
+  currentMatch?: { row_id: string; column: string } | null
 }
 
 const GRID_THEME = themeQuartz.withParams({
@@ -68,7 +70,9 @@ function formatCellValue(value: unknown) {
 function getCellStatusClass(
   params: CellClassParams<QuarantineRow>,
   isCellEdited: (rowId: string, column: string) => boolean,
-  isCellSaved: (rowId: string, column: string) => boolean
+  isCellSaved: (rowId: string, column: string) => boolean,
+  findMatchSet: Set<string>,
+  currentMatchKey: string | null,
 ) {
   const field = params.colDef.field
   const rowId = String(params.data?.row_id ?? '')
@@ -92,6 +96,13 @@ function getCellStatusClass(
 
   if (isCellEdited(rowId, field)) {
     classes.push('ag-cell-edited')
+  }
+
+  const cellKey = `${rowId}:${field}`
+  if (currentMatchKey === cellKey) {
+    classes.push('ag-cell-find-current')
+  } else if (findMatchSet.has(cellKey)) {
+    classes.push('ag-cell-find-match')
   }
 
   return classes
@@ -152,17 +163,31 @@ export function QuarantineAgGridTable({
   uploadId: _uploadId,
   reloadToken,
   filterComponent,
+  findMatches,
+  currentMatch,
 }: QuarantineAgGridTableProps) {
   const apiRef = useRef<GridApi<QuarantineRow> | null>(null)
   const getCellValueRef = useRef(getCellValue)
   const isCellEditedRef = useRef(isCellEdited)
   const isCellSavedRef = useRef(isCellSaved)
   const fetchRowsRef = useRef(fetchRows)
+  const findMatchSetRef = useRef<Set<string>>(new Set())
+  const currentMatchKeyRef = useRef<string | null>(null)
 
   getCellValueRef.current = getCellValue
   isCellEditedRef.current = isCellEdited
   isCellSavedRef.current = isCellSaved
   fetchRowsRef.current = fetchRows
+
+  useEffect(() => {
+    const set = new Set<string>()
+    for (const m of findMatches || []) {
+      set.add(`${m.row_id}:${m.column}`)
+    }
+    findMatchSetRef.current = set
+    currentMatchKeyRef.current = currentMatch ? `${currentMatch.row_id}:${currentMatch.column}` : null
+    apiRef.current?.refreshCells({ force: true })
+  }, [findMatches, currentMatch])
 
   const editableColumnSet = useMemo(() => {
     return new Set(editableColumns.filter((column) => column !== 'row_id'))
@@ -222,7 +247,7 @@ export function QuarantineAgGridTable({
           return getCellTooltip(column, params.data)
         },
         valueFormatter: (params: ValueFormatterParams<QuarantineRow>) => formatCellValue(params.value),
-        cellClass: (params) => getCellStatusClass(params, isCellEditedRef.current, isCellSavedRef.current),
+        cellClass: (params) => getCellStatusClass(params, isCellEditedRef.current, isCellSavedRef.current, findMatchSetRef.current, currentMatchKeyRef.current),
       }
     })
   }, [columns, editableColumnSet, filterComponent])
