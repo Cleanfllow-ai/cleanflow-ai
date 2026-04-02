@@ -79,20 +79,23 @@ export function useCollaboration({
         break
 
       case 'userLeft':
-        setUsers((prev) => {
-          const next = prev.filter((u) => u.id !== message.userId)
-          usersRef.current = next
-          return next
-        })
-        setCellLocks((prev) => {
-          const next = new Map(prev)
-          for (const [key, lock] of next) {
-            if (lock.userId === message.userId) next.delete(key)
-          }
-          cellLocksRef.current = next
-          return next
-        })
-        addActivity(`${getUserName(message.userId)} left`)
+        {
+          const departingName = getUserName(message.userId)
+          setUsers((prev) => {
+            const next = prev.filter((u) => u.id !== message.userId)
+            usersRef.current = next
+            return next
+          })
+          setCellLocks((prev) => {
+            const next = new Map(prev)
+            for (const [key, lock] of next) {
+              if (lock.userId === message.userId) next.delete(key)
+            }
+            cellLocksRef.current = next
+            return next
+          })
+          addActivity(`${departingName} left`)
+        }
         break
 
       case 'cellLocked':
