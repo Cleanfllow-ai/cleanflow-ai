@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Loader2, Play, Check, Save } from 'lucide-react'
+import { Loader2, Play, Check, Save, Search } from 'lucide-react'
 import type { QuarantineSession } from '@/modules/files/types'
 
 interface QuarantineEditorToolbarProps {
@@ -17,6 +17,7 @@ interface QuarantineEditorToolbarProps {
   submitting: boolean
   savedAt?: Date | null
   onReprocess: () => void
+  onFindReplace?: () => void
 }
 
 export function QuarantineEditorToolbar({
@@ -25,6 +26,7 @@ export function QuarantineEditorToolbar({
   submitting,
   savedAt,
   onReprocess,
+  onFindReplace,
 }: QuarantineEditorToolbarProps) {
   const [showSaved, setShowSaved] = useState(false)
 
@@ -53,6 +55,18 @@ export function QuarantineEditorToolbar({
             )}
             Reprocess
           </Button>
+
+          {onFindReplace && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onFindReplace}
+              className="h-7 text-xs font-medium px-3 ml-1"
+            >
+              <Search className="w-3 h-3 mr-1.5" />
+              Find & Replace
+            </Button>
+          )}
 
           {/* Color legend */}
           <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-border">

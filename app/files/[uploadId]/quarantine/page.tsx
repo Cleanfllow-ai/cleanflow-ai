@@ -1,15 +1,16 @@
 'use client'
 
-import { use } from 'react'
+import { use, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/modules/auth'
-import { useQuarantineEditor, useQuarantineFilters } from '@/modules/files/hooks'
+import { useQuarantineEditor, useQuarantineFilters, useQuarantineFind } from '@/modules/files/hooks'
 import { QuarantineFilterBar } from '@/modules/files/components/quarantine-editor/quarantine-filter-bar'
 import { QuarantineColumnFilter } from '@/modules/files/components/quarantine-editor/quarantine-column-filter'
 import { QuarantineEditorHeader } from '@/modules/files/components/quarantine-editor/quarantine-editor-header'
 import { QuarantineEditorToolbar } from '@/modules/files/components/quarantine-editor/quarantine-editor-toolbar'
 import { QuarantineAgGridTable } from '@/modules/files/components/quarantine-editor/quarantine-ag-grid-table'
 import { QuarantineVersionLineage } from '@/modules/files/components/quarantine-editor/quarantine-version-lineage'
+import { QuarantineFindReplacePanel } from '@/modules/files/components/quarantine-editor/quarantine-find-replace-panel'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -31,6 +32,26 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     authToken: idToken,
     filters: filterState.filters,
   })
+
+  const find = useQuarantineFind({
+    uploadId,
+    authToken: idToken,
+    sessionId: editor.sessionInfo?.session_id,
+    columns: editor.columns,
+    onCellEdit: editor.handleCellEdit,
+    saveEdits: editor.saveEdits,
+  })
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault()
+        find.setOpen(!find.open)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [find.open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleReprocess = async () => {
     const result = await editor.submitReprocess()
@@ -67,6 +88,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         submitting={editor.submitting}
         savedAt={editor.lastSavedAt}
         onReprocess={handleReprocess}
+        onFindReplace={() => find.setOpen(!find.open)}
       />
 
       {/* Version lineage */}
@@ -85,6 +107,28 @@ export default function QuarantineEditorPage({ params }: PageProps) {
 
       {/* Grid */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
+        {find.open && (
+          <QuarantineFindReplacePanel
+            searchTerm={find.searchTerm}
+            replaceTerm={find.replaceTerm}
+            column={find.column}
+            matchCase={find.matchCase}
+            totalMatches={find.totalMatches}
+            currentIndex={find.currentIndex}
+            truncated={find.truncated}
+            loading={find.loading}
+            columns={editor.columns}
+            onSearchTermChange={find.setSearchTerm}
+            onReplaceTermChange={find.setReplaceTerm}
+            onColumnChange={find.setColumn}
+            onMatchCaseChange={find.setMatchCase}
+            onNext={find.goToNext}
+            onPrevious={find.goToPrevious}
+            onReplaceCurrent={find.replaceCurrent}
+            onReplaceAll={find.replaceAll}
+            onClose={() => find.setOpen(false)}
+          />
+        )}
         <div className="absolute inset-0">
           {isGridReady ? (
             <QuarantineAgGridTable
@@ -100,6 +144,8 @@ export default function QuarantineEditorPage({ params }: PageProps) {
               loading={editor.loading}
               uploadId={uploadId}
               reloadToken={editor.dataVersion}
+              findMatches={find.matches}
+              currentMatch={find.currentMatch}
               filterComponent={(column) => (
                 <QuarantineColumnFilter
                   column={column}
