@@ -18,15 +18,6 @@ interface QuarantineColumnFilterProps {
   onFilterChange: (column: string, filter: ColumnFilter) => void
 }
 
-const COMMON_VIOLATIONS = [
-  'missing_value',
-  'invalid_format',
-  'out_of_range',
-  'duplicate_value',
-  'whitespace_issue',
-  'encoding_issue',
-]
-
 export function QuarantineColumnFilter({
   column,
   uploadId,
@@ -36,6 +27,7 @@ export function QuarantineColumnFilter({
 }: QuarantineColumnFilterProps) {
   const [open, setOpen] = useState(false)
   const [values, setValues] = useState<string[]>([])
+  const [violations, setViolations] = useState<string[]>([])
   const [valuesLoading, setValuesLoading] = useState(false)
   const [valueSearch, setValueSearch] = useState('')
 
@@ -43,12 +35,19 @@ export function QuarantineColumnFilter({
   const selectedValues = currentFilter?.values || []
   const hasFilter = selectedViolations.length > 0 || selectedValues.length > 0
 
+  // Fetch distinct values and violations for this column
   useEffect(() => {
     if (!open || !authToken) return
     setValuesLoading(true)
     getColumnValues(uploadId, authToken, { column, search: valueSearch || undefined, limit: 200 })
-      .then((resp) => setValues(resp.values))
-      .catch(() => setValues([]))
+      .then((resp) => {
+        setValues(resp.values)
+        if (resp.violations) setViolations(resp.violations)
+      })
+      .catch(() => {
+        setValues([])
+        setViolations([])
+      })
       .finally(() => setValuesLoading(false))
   }, [open, column, uploadId, authToken, valueSearch])
 
@@ -80,15 +79,21 @@ export function QuarantineColumnFilter({
             <TabsTrigger value="values" className="flex-1 text-xs">Values</TabsTrigger>
           </TabsList>
           <TabsContent value="violations" className="max-h-48 overflow-y-auto p-2">
-            {COMMON_VIOLATIONS.map((v) => (
-              <label key={v} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
-                <Checkbox
-                  checked={selectedViolations.includes(v)}
-                  onCheckedChange={() => toggleViolation(v)}
-                />
-                {v.replace(/_/g, ' ')}
-              </label>
-            ))}
+            {valuesLoading ? (
+              <p className="text-xs text-muted-foreground py-2">Loading...</p>
+            ) : violations.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">No violations found for this column</p>
+            ) : (
+              violations.map((v) => (
+                <label key={v} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
+                  <Checkbox
+                    checked={selectedViolations.includes(v)}
+                    onCheckedChange={() => toggleViolation(v)}
+                  />
+                  {v}
+                </label>
+              ))
+            )}
           </TabsContent>
           <TabsContent value="values" className="p-2">
             <Input
