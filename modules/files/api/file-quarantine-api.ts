@@ -35,6 +35,8 @@ import type {
     ColumnValuesRequest,
     ColumnValuesResponse,
     QuarantineFilters,
+    QuarantineFindRequest,
+    QuarantineFindResponse,
 } from '@/modules/files/types'
 
 // AWS Configuration
@@ -52,6 +54,7 @@ const ENDPOINTS = {
     VERSIONS: (id: string) => `/files/${id}/versions`,
     DOWNLOAD: (id: string) => `/files/${id}/download`,
     QUARANTINED_EXPORT: (id: string) => `/files/${id}/quarantined`,
+    FIND: (id: string) => `/files/${id}/quarantined/find`,
 }
 
 // ========== Quarantine Export ==========
@@ -384,6 +387,30 @@ export async function getColumnValues(
 ): Promise<ColumnValuesResponse> {
     return makeRequest(
         `/files/${uploadId}/quarantined/column-values`,
+        authToken,
+        {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }
+    )
+}
+
+// ========== Find & Replace ==========
+
+/**
+ * Search for text matches across all quarantined rows
+ * @param uploadId - File upload ID
+ * @param authToken - JWT authentication token
+ * @param payload - Search parameters
+ * @returns Match positions and total count
+ */
+export async function findInQuarantineRows(
+    uploadId: string,
+    authToken: string,
+    payload: QuarantineFindRequest
+): Promise<QuarantineFindResponse> {
+    return makeRequest(
+        ENDPOINTS.FIND(uploadId),
         authToken,
         {
             method: 'POST',
