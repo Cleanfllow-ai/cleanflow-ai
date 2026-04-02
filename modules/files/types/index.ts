@@ -88,3 +88,12 @@ export type {
     QuarantineFindRequest,
     QuarantineFindResponse,
 } from './quarantine.types'
+
+export type {
+  WsUserInfo,
+  WsServerMessage,
+  WsClientMessage,
+  CollaborationUser,
+  CellLockInfo,
+  ActivityEntry,
+} from './collaboration.types'
