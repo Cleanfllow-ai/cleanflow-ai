@@ -80,6 +80,7 @@ export interface QuarantineQueryRequest {
   session_id?: string
   cursor?: string
   limit?: number
+  filters?: QuarantineFilters
 }
 
 /**
@@ -347,4 +348,28 @@ export interface QuarantineEditorError {
   type: QuarantineEditorErrorType
   message: string
   details?: any
+}
+
+// ========== Filter Types ==========
+
+export interface ColumnFilter {
+  violations?: string[]
+  values?: string[]
+}
+
+export interface QuarantineFilters {
+  columns: Record<string, ColumnFilter>
+}
+
+export interface ColumnValuesRequest {
+  column: string
+  session_id?: string
+  version?: string
+  search?: string
+  limit?: number
+}
+
+export interface ColumnValuesResponse {
+  values: string[]
+  total_distinct: number
 }

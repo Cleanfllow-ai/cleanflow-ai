@@ -80,4 +80,8 @@ export type {
     ColumnRuleApplyResponse,
     ColumnRuleApplyAllRequest,
     ColumnRuleApplyAllResponse,
+    ColumnFilter,
+    QuarantineFilters,
+    ColumnValuesRequest,
+    ColumnValuesResponse,
 } from './quarantine.types'

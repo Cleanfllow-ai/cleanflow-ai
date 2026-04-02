@@ -32,6 +32,9 @@ import type {
     ColumnRuleApplyResponse,
     ColumnRuleApplyAllRequest,
     ColumnRuleApplyAllResponse,
+    ColumnValuesRequest,
+    ColumnValuesResponse,
+    QuarantineFilters,
 } from '@/modules/files/types'
 
 // AWS Configuration
@@ -357,6 +360,30 @@ export async function applyColumnRuleAll(
 ): Promise<ColumnRuleApplyAllResponse> {
     return makeRequest(
         `/files/${uploadId}/quarantined/column-rule/apply-all`,
+        authToken,
+        {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }
+    )
+}
+
+// ========== Column Values ==========
+
+/**
+ * Get distinct values for a column with optional search and filtering
+ * @param uploadId - File upload ID
+ * @param authToken - JWT authentication token
+ * @param payload - Column values request with search, limit, version, session_id
+ * @returns List of distinct values and total count
+ */
+export async function getColumnValues(
+    uploadId: string,
+    authToken: string,
+    payload: ColumnValuesRequest
+): Promise<ColumnValuesResponse> {
+    return makeRequest(
+        `/files/${uploadId}/quarantined/column-values`,
         authToken,
         {
             method: 'POST',
