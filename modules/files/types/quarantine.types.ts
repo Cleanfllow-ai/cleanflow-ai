@@ -372,4 +372,28 @@ export interface ColumnValuesRequest {
 export interface ColumnValuesResponse {
   values: string[]
   total_distinct: number
+  violations?: string[]
+}
+
+// ========== Find & Replace Types ==========
+
+export interface FindMatch {
+  row_id: string
+  column: string
+  value: string
+}
+
+export interface QuarantineFindRequest {
+  search: string
+  version?: string
+  session_id?: string
+  column?: string | null
+  match_case?: boolean
+  limit?: number
+}
+
+export interface QuarantineFindResponse {
+  total_matches: number
+  match_positions: FindMatch[]
+  truncated: boolean
 }

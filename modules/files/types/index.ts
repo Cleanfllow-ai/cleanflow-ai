@@ -84,4 +84,7 @@ export type {
     QuarantineFilters,
     ColumnValuesRequest,
     ColumnValuesResponse,
+    FindMatch,
+    QuarantineFindRequest,
+    QuarantineFindResponse,
 } from './quarantine.types'
