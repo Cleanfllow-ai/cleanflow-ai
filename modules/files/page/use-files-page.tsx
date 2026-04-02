@@ -547,8 +547,7 @@ export function useFilesPage() {
             return;
         }
 
-        setQuarantineEditorFile(file);
-        setQuarantineEditorOpen(true);
+        router.push(`/files/${file.upload_id}/quarantine`);
     };
 
     const reprocessPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
