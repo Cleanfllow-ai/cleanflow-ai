@@ -14,3 +14,4 @@ export { useQuarantineAutosave } from "./use-quarantine-autosave"
 export { useQuarantineFilters } from "./use-quarantine-filters"
 export type { ActiveFilterChip } from "./use-quarantine-filters"
 export { useQuarantineFind } from "./use-quarantine-find"
+export { useWebSocket } from './use-websocket'
