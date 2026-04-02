@@ -8,8 +8,10 @@
 
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Loader2, Play, Check, Save, Search } from 'lucide-react'
+import { Loader2, Play, Check, Save, Search, Users } from 'lucide-react'
 import type { QuarantineSession } from '@/modules/files/types'
+import type { CollaborationUser } from '@/modules/files/types'
+import { QuarantinePresenceBar } from './quarantine-presence-bar'
 
 interface QuarantineEditorToolbarProps {
   session: QuarantineSession | null
@@ -18,6 +20,10 @@ interface QuarantineEditorToolbarProps {
   savedAt?: Date | null
   onReprocess: () => void
   onFindReplace?: () => void
+  collabConnected?: boolean
+  collabUsers?: CollaborationUser[]
+  collabPanelOpen?: boolean
+  onToggleCollabPanel?: () => void
 }
 
 export function QuarantineEditorToolbar({
@@ -27,6 +33,10 @@ export function QuarantineEditorToolbar({
   savedAt,
   onReprocess,
   onFindReplace,
+  collabConnected,
+  collabUsers,
+  collabPanelOpen,
+  onToggleCollabPanel,
 }: QuarantineEditorToolbarProps) {
   const [showSaved, setShowSaved] = useState(false)
 
@@ -77,8 +87,22 @@ export function QuarantineEditorToolbar({
           </div>
         </div>
 
-        {/* Right: Save status + session */}
+        {/* Right: Collab + Save status + session */}
         <div className="flex items-center gap-3">
+          {collabUsers && (
+            <QuarantinePresenceBar users={collabUsers} connected={collabConnected ?? false} />
+          )}
+          {onToggleCollabPanel && (
+            <Button
+              variant={collabPanelOpen ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={onToggleCollabPanel}
+              className="h-7 text-xs font-medium px-3"
+            >
+              <Users className="w-3 h-3 mr-1.5" />
+              Collab
+            </Button>
+          )}
           {saving ? (
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Save className="w-3.5 h-3.5 animate-pulse" />
