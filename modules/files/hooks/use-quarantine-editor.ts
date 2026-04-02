@@ -24,7 +24,7 @@ import type { SaveSummary, FileStatusResponse, QuarantineRow } from '@/modules/f
 interface UseQuarantineEditorParams {
   file: Pick<FileStatusResponse, 'upload_id' | 'filename' | 'original_filename'> | null
   authToken: string | null
-  open: boolean
+  open?: boolean
 }
 
 /**
@@ -34,7 +34,7 @@ interface UseQuarantineEditorParams {
  * @param params - File, auth token, and open state
  * @returns Complete quarantine editor state and operations
  */
-export function useQuarantineEditor({ file, authToken, open }: UseQuarantineEditorParams) {
+export function useQuarantineEditor({ file, authToken, open = true }: UseQuarantineEditorParams) {
   const { toast } = useToast()
   const config = useQuarantineConfig()
 
