@@ -131,6 +131,19 @@
   font-weight: 600;
 }
 
+/* ── Cell lock indicators (collaboration) ── */
+.quarantine-ag-grid .ag-cell-locked {
+  position: relative;
+}
+.quarantine-ag-grid .ag-cell-locked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 2px solid var(--lock-color, #9CA3AF);
+  border-radius: 1px;
+}
+
 /* ─── Editing state ────────────────────────────────────────────────────────── */
 
 .quarantine-ag-grid .ag-cell-inline-editing {

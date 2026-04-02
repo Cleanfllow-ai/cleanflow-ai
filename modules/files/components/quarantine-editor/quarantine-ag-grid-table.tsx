@@ -7,6 +7,8 @@ import {
   AllCommunityModule,
   themeQuartz,
   type CellClassParams,
+  type CellEditingStartedEvent,
+  type CellEditingStoppedEvent,
   type CellValueChangedEvent,
   type ColDef,
   type GetRowIdParams,
@@ -17,6 +19,7 @@ import {
   type ValueFormatterParams,
 } from 'ag-grid-community'
 import type { QuarantineRow } from '@/modules/files/types'
+import type { CellLockInfo } from '@/modules/files/types'
 
 interface QuarantineAgGridTableProps {
   columns: string[]
@@ -33,6 +36,10 @@ interface QuarantineAgGridTableProps {
   filterComponent?: (column: string) => React.ReactNode
   findMatches?: Array<{ row_id: string; column: string }>
   currentMatch?: { row_id: string; column: string } | null
+  cellLocksRef?: React.MutableRefObject<Map<string, CellLockInfo>>
+  onCellEditingStarted?: (column: string, rowId: string) => void
+  onCellEditingStopped?: (column: string, rowId: string) => void
+  onGridApiReady?: (api: GridApi<QuarantineRow>) => void
 }
 
 const GRID_THEME = themeQuartz.withParams({
@@ -73,6 +80,7 @@ function getCellStatusClass(
   isCellSaved: (rowId: string, column: string) => boolean,
   findMatchSet: Set<string>,
   currentMatchKey: string | null,
+  cellLocksMap: Map<string, CellLockInfo>,
 ) {
   const field = params.colDef.field
   const rowId = String(params.data?.row_id ?? '')
@@ -103,6 +111,12 @@ function getCellStatusClass(
     classes.push('ag-cell-find-current')
   } else if (findMatchSet.has(cellKey)) {
     classes.push('ag-cell-find-match')
+  }
+
+  const lockKey = `${field}:${rowId}`
+  const lockInfo = cellLocksMap.get(lockKey)
+  if (lockInfo) {
+    classes.push('ag-cell-locked')
   }
 
   return classes
@@ -165,6 +179,10 @@ export function QuarantineAgGridTable({
   filterComponent,
   findMatches,
   currentMatch,
+  cellLocksRef,
+  onCellEditingStarted: onCellEditStart,
+  onCellEditingStopped: onCellEditStop,
+  onGridApiReady,
 }: QuarantineAgGridTableProps) {
   const apiRef = useRef<GridApi<QuarantineRow> | null>(null)
   const getCellValueRef = useRef(getCellValue)
@@ -173,6 +191,7 @@ export function QuarantineAgGridTable({
   const fetchRowsRef = useRef(fetchRows)
   const findMatchSetRef = useRef<Set<string>>(new Set())
   const currentMatchKeyRef = useRef<string | null>(null)
+  const cellLocksRefInternal = useRef<Map<string, CellLockInfo>>(new Map())
 
   getCellValueRef.current = getCellValue
   isCellEditedRef.current = isCellEdited
@@ -188,6 +207,11 @@ export function QuarantineAgGridTable({
     currentMatchKeyRef.current = currentMatch ? `${currentMatch.row_id}:${currentMatch.column}` : null
     apiRef.current?.refreshCells({ force: true })
   }, [findMatches, currentMatch])
+
+  useEffect(() => {
+    cellLocksRefInternal.current = cellLocksRef?.current ?? new Map()
+    apiRef.current?.refreshCells({ force: true })
+  }, [cellLocksRef?.current])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const editableColumnSet = useMemo(() => {
     return new Set(editableColumns.filter((column) => column !== 'row_id'))
@@ -216,7 +240,13 @@ export function QuarantineAgGridTable({
       }
 
       return {
-        editable: editableColumnSet.has(column),
+        editable: (params) => {
+          if (!editableColumnSet.has(column)) return false
+          const rowId = String(params.data?.row_id ?? '')
+          if (!rowId) return false
+          const lockInfo = cellLocksRefInternal.current.get(`${column}:${rowId}`)
+          return !lockInfo
+        },
         field: column,
         flex: 1,
         minWidth: 180,
@@ -247,7 +277,17 @@ export function QuarantineAgGridTable({
           return getCellTooltip(column, params.data)
         },
         valueFormatter: (params: ValueFormatterParams<QuarantineRow>) => formatCellValue(params.value),
-        cellClass: (params) => getCellStatusClass(params, isCellEditedRef.current, isCellSavedRef.current, findMatchSetRef.current, currentMatchKeyRef.current),
+        cellClass: (params) => getCellStatusClass(params, isCellEditedRef.current, isCellSavedRef.current, findMatchSetRef.current, currentMatchKeyRef.current, cellLocksRefInternal.current),
+        cellStyle: (params) => {
+          const field = params.colDef.field
+          const rowId = String(params.data?.row_id ?? '')
+          if (!field || field === 'row_id' || !rowId) return undefined
+          const lockInfo = cellLocksRefInternal.current.get(`${field}:${rowId}`)
+          if (lockInfo) {
+            return { '--lock-color': lockInfo.color } as React.CSSProperties
+          }
+          return undefined
+        },
       }
     })
   }, [columns, editableColumnSet, filterComponent])
@@ -291,6 +331,7 @@ export function QuarantineAgGridTable({
   const handleGridReady = (event: GridReadyEvent<QuarantineRow>) => {
     apiRef.current = event.api
     event.api.sizeColumnsToFit()
+    onGridApiReady?.(event.api)
   }
 
   const getRowId = useCallback((params: GetRowIdParams<QuarantineRow>) => {
@@ -333,6 +374,20 @@ export function QuarantineAgGridTable({
         modules={[AllCommunityModule]}
         maxBlocksInCache={8}
         onCellValueChanged={handleCellValueChanged}
+        onCellEditingStarted={(event: CellEditingStartedEvent<QuarantineRow>) => {
+          const field = event.colDef.field
+          const rowId = String(event.data?.row_id ?? '')
+          if (field && field !== 'row_id' && rowId && onCellEditStart) {
+            onCellEditStart(field, rowId)
+          }
+        }}
+        onCellEditingStopped={(event: CellEditingStoppedEvent<QuarantineRow>) => {
+          const field = event.colDef.field
+          const rowId = String(event.data?.row_id ?? '')
+          if (field && field !== 'row_id' && rowId && onCellEditStop) {
+            onCellEditStop(field, rowId)
+          }
+        }}
         onGridReady={handleGridReady}
         overlayLoadingTemplate='<span class="text-xs font-medium text-slate-500">Loading quarantine data...</span>'
         rowBuffer={2}
