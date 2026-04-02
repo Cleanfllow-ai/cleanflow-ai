@@ -3,7 +3,9 @@
 import { use } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/modules/auth'
-import { useQuarantineEditor } from '@/modules/files/hooks'
+import { useQuarantineEditor, useQuarantineFilters } from '@/modules/files/hooks'
+import { QuarantineFilterBar } from '@/modules/files/components/quarantine-editor/quarantine-filter-bar'
+import { QuarantineColumnFilter } from '@/modules/files/components/quarantine-editor/quarantine-column-filter'
 import { QuarantineEditorHeader } from '@/modules/files/components/quarantine-editor/quarantine-editor-header'
 import { QuarantineEditorToolbar } from '@/modules/files/components/quarantine-editor/quarantine-editor-toolbar'
 import { QuarantineAgGridTable } from '@/modules/files/components/quarantine-editor/quarantine-ag-grid-table'
@@ -22,9 +24,12 @@ export default function QuarantineEditorPage({ params }: PageProps) {
 
   const file = { upload_id: uploadId, filename: '', original_filename: '' }
 
+  const filterState = useQuarantineFilters()
+
   const editor = useQuarantineEditor({
     file,
     authToken: idToken,
+    filters: filterState.filters,
   })
 
   const handleReprocess = async () => {
@@ -72,7 +77,11 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         />
       )}
 
-      {/* Filter bar placeholder — will be filled in Task 14 */}
+      <QuarantineFilterBar
+        chips={filterState.activeChips}
+        onRemoveFilter={filterState.removeFilter}
+        onClearAll={filterState.clearAllFilters}
+      />
 
       {/* Grid */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -91,6 +100,15 @@ export default function QuarantineEditorPage({ params }: PageProps) {
               loading={editor.loading}
               uploadId={uploadId}
               reloadToken={editor.dataVersion}
+              filterComponent={(column) => (
+                <QuarantineColumnFilter
+                  column={column}
+                  uploadId={uploadId}
+                  authToken={idToken}
+                  currentFilter={filterState.filters.columns[column]}
+                  onFilterChange={filterState.setColumnFilter}
+                />
+              )}
             />
           ) : !editor.loading ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 px-8">

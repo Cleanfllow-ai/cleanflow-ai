@@ -19,12 +19,13 @@ import { useQuarantineSession } from './use-quarantine-session'
 import { useQuarantineRows } from './use-quarantine-rows'
 import { useQuarantineEdits } from './use-quarantine-edits'
 import { useQuarantineAutosave } from './use-quarantine-autosave'
-import type { SaveSummary, FileStatusResponse, QuarantineRow } from '@/modules/files/types'
+import type { SaveSummary, FileStatusResponse, QuarantineRow, QuarantineFilters } from '@/modules/files/types'
 
 interface UseQuarantineEditorParams {
   file: Pick<FileStatusResponse, 'upload_id' | 'filename' | 'original_filename'> | null
   authToken: string | null
   open?: boolean
+  filters?: QuarantineFilters
 }
 
 /**
@@ -34,7 +35,7 @@ interface UseQuarantineEditorParams {
  * @param params - File, auth token, and open state
  * @returns Complete quarantine editor state and operations
  */
-export function useQuarantineEditor({ file, authToken, open = true }: UseQuarantineEditorParams) {
+export function useQuarantineEditor({ file, authToken, open = true, filters }: UseQuarantineEditorParams) {
   const { toast } = useToast()
   const config = useQuarantineConfig()
 
@@ -50,6 +51,9 @@ export function useQuarantineEditor({ file, authToken, open = true }: UseQuarant
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [showLineage, setShowLineage] = useState(false)
   const [dataVersion, setDataVersion] = useState(0)
+
+  const filtersRef = useRef(filters)
+  filtersRef.current = filters
 
   // Derived state
   const columns = useMemo(() => {
@@ -368,6 +372,7 @@ export function useQuarantineEditor({ file, authToken, open = true }: UseQuarant
           session_id: session.session?.session_id,
           cursor: String(startRow),
           limit: endRow - startRow,
+          filters: filtersRef.current,
         })
         rows.mergeRows(response.rows || [])
 
@@ -399,6 +404,14 @@ export function useQuarantineEditor({ file, authToken, open = true }: UseQuarant
     },
     [edits, rows]
   )
+
+  // Bump dataVersion when filters change so AG Grid re-fetches with new filter params
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDataVersion((prev) => prev + 1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [filters])
 
   return {
     // Session state

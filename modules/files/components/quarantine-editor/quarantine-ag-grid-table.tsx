@@ -1,7 +1,7 @@
 'use client'
 
 import './quarantine-ag-grid-theme.css'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {
   AllCommunityModule,
@@ -30,6 +30,7 @@ interface QuarantineAgGridTableProps {
   loading: boolean
   uploadId: string
   reloadToken: number
+  filterComponent?: (column: string) => React.ReactNode
 }
 
 const GRID_THEME = themeQuartz.withParams({
@@ -150,6 +151,7 @@ export function QuarantineAgGridTable({
   loading,
   uploadId: _uploadId,
   reloadToken,
+  filterComponent,
 }: QuarantineAgGridTableProps) {
   const apiRef = useRef<GridApi<QuarantineRow> | null>(null)
   const getCellValueRef = useRef(getCellValue)
@@ -194,6 +196,14 @@ export function QuarantineAgGridTable({
         flex: 1,
         minWidth: 180,
         sortable: false,
+        headerComponent: filterComponent
+          ? () => (
+              <div className="flex items-center">
+                <span>{column}</span>
+                {filterComponent(column)}
+              </div>
+            )
+          : undefined,
         valueSetter: (params) => {
           if (!params.data) return false
           const nextValue = formatCellValue(params.newValue)
@@ -215,7 +225,7 @@ export function QuarantineAgGridTable({
         cellClass: (params) => getCellStatusClass(params, isCellEditedRef.current, isCellSavedRef.current),
       }
     })
-  }, [columns, editableColumnSet])
+  }, [columns, editableColumnSet, filterComponent])
 
   // fetchRows is accessed via ref so the datasource object stays stable across
   // cell edits and row merges. AG Grid resets scroll/cache whenever datasource
