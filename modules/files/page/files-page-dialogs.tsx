@@ -57,10 +57,10 @@ import {
     FileDetailsDialog,
     PushToERPModal,
     ColumnProfilingPanel,
-    QuarantineEditorDialog,
     ExportDialog,
     ImportDialog,
 } from "@/modules/files";
+import { useRouter } from 'next/navigation';
 import { useToast } from "@/shared/hooks/use-toast";
 import { WizardDialog } from "@/modules/processing";
 import type { FilesPageState } from "./use-files-page";
@@ -128,10 +128,6 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         handleGenerateCustomRule, handleApproveCustomRule, handleRemoveCustomRule,
         // Profiling
         profilingFileId, setProfilingFileId, profilingData, loadingProfiling,
-        // Quarantine editor
-        quarantineEditorOpen, setQuarantineEditorOpen,
-        quarantineEditorFile, setQuarantineEditorFile,
-        handleOpenQuarantineEditor, handleQuarantineEditorComplete, handleReprocessSubmitted,
         // Rename on duplicate
         showRenameDialog, setShowRenameDialog,
         pendingUploadFile, renameValue, setRenameValue,
@@ -140,6 +136,11 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
     } = state;
 
     const { toast } = useToast();
+    const router = useRouter();
+
+    const handleOpenQuarantineEditor = (file: { upload_id: string }) => {
+        router.push(`/files/${file.upload_id}/quarantine`);
+    };
 
     const renderRuleOption = (
         ruleId: string,
@@ -663,20 +664,6 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                 onNotification={(message, type) =>
                     toast({ title: type === 'success' ? 'Import Complete' : 'Import Error', description: message, variant: type === 'error' ? 'destructive' : 'default' })
                 }
-            />
-
-            {/* Quarantine Editor Dialog */}
-            <QuarantineEditorDialog
-                file={quarantineEditorFile}
-                open={quarantineEditorOpen}
-                onOpenChange={(open) => {
-                    setQuarantineEditorOpen(open);
-                    if (!open) {
-                        setQuarantineEditorFile(null);
-                        handleQuarantineEditorComplete();
-                    }
-                }}
-                onReprocessSubmitted={handleReprocessSubmitted}
             />
 
             {/* Rename on duplicate filename dialog */}

@@ -4,6 +4,7 @@ import {
     Loader2, Eye, Download, Trash2, FileText, AlertCircle, CloudUpload, Pencil
 } from "lucide-react"
 import { useState } from "react"
+import { useRouter } from 'next/navigation'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -28,7 +29,6 @@ import {
 import { cn } from "@/shared/lib/utils"
 import type { JobRun } from "@/modules/jobs/types/jobs.types"
 import { FileDetailsDialog } from "@/modules/files/components/file-details-dialog"
-import { QuarantineEditorDialog } from "@/modules/files/components/quarantine-editor"
 import { ColumnExportContent } from "@/modules/files/components/column-export-dialog"
 import { useJobRunFiles } from "./use-job-run-files"
 
@@ -71,6 +71,7 @@ interface JobRunFileViewerProps {
 export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerProps) {
     const state = useJobRunFiles(run, open)
     const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+    const router = useRouter()
 
     if (!run) return null
 
@@ -201,7 +202,7 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:text-violet-700"
-                                                                        onClick={() => state.handleOpenQuarantineEditor(file, entry.entity)}>
+                                                                        onClick={() => router.push(`/files/${file.upload_id}/quarantine`)}>
                                                                         <Pencil className="h-3.5 w-3.5" />
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -233,18 +234,8 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                 file={state.detailFile}
                 open={state.detailOpen}
                 onOpenChange={state.setDetailOpen}
-                onRemediate={(f) => state.handleOpenQuarantineEditor(f)}
+                onRemediate={(f) => router.push(`/files/${f.upload_id}/quarantine`)}
                 hideTabs={["details"]}
-            />
-
-            {/* Quarantine Editor Dialog */}
-            <QuarantineEditorDialog
-                file={state.quarantineFile}
-                open={state.quarantineEditorOpen}
-                onOpenChange={(open) => {
-                    if (!open) state.handleQuarantineEditorClose()
-                }}
-                onReprocessSubmitted={state.handleReprocessSubmitted}
             />
 
             {/* Download Data (Column Export + ERP Transform) */}

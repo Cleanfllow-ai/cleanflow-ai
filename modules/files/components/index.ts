@@ -20,5 +20,3 @@ export { FileVersionHistory } from "./file-version-history"
 export { PushToERPModal, PushToERPContent } from "./push-to-erp-modal"
 export { RowWiseIssues } from "./row-wise-issues"
 
-// Quarantine editor
-export { QuarantineEditorDialog } from "./quarantine-editor"

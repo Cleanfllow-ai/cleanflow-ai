@@ -230,21 +230,6 @@ export interface QuarantineEditorConfig {
 }
 
 /**
- * Props for QuarantineEditorDialog component
- */
-export interface QuarantineEditorDialogProps {
-  file: {
-    upload_id: string
-    filename?: string
-    original_filename?: string
-  } | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  /** Called after reprocess is successfully submitted. */
-  onReprocessSubmitted?: (result: QuarantineReprocessResponse) => void
-}
-
-/**
  * Cell editing state
  */
 export interface ActiveCell {

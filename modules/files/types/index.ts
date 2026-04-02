@@ -67,7 +67,6 @@ export type {
     FileVersionsResponse,
     QuarantineEditorState,
     QuarantineEditorConfig,
-    QuarantineEditorDialogProps,
     ActiveCell,
     SaveSummary,
     CsvParseResult,

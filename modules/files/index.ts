@@ -21,8 +21,6 @@ export { ColumnExportDialog, ColumnExportContent } from "./components/column-exp
 export { ExportDialog } from "./components/export-dialog"
 export { ImportDialog } from "./components/import-dialog"
 export { default as CustomDestinationExport } from "./components/custom-destination-export"
-export { QuarantineEditorDialog } from "./components/quarantine-editor"
-
 export type * from "./types"
 export { useFileManager } from "./hooks/use-file-manager"
 export { isDQColumn, filterDQColumns } from "./utils/dq-columns"
