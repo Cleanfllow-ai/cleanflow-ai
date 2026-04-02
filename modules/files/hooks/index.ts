@@ -15,3 +15,4 @@ export { useQuarantineFilters } from "./use-quarantine-filters"
 export type { ActiveFilterChip } from "./use-quarantine-filters"
 export { useQuarantineFind } from "./use-quarantine-find"
 export { useWebSocket } from './use-websocket'
+export { useCollaboration } from './use-collaboration'
