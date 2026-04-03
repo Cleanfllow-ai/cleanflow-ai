@@ -213,6 +213,19 @@ export function JobsList() {
         }
     }
 
+    const handleTrigger = async (job: Job) => {
+        try {
+            setActionLoading(job.job_id)
+            await jobsAPI.triggerJob(job.job_id)
+            toast({ title: "Job triggered", description: `${job.name} is now running.` })
+            await loadJobs()
+        } catch (err: any) {
+            toast({ title: "Trigger failed", description: err?.message || "Failed to trigger job", variant: "destructive" })
+        } finally {
+            setActionLoading(null)
+        }
+    }
+
     const handleEdit = (job: Job) => {
         setEditingJob(job)
         setDialogOpen(true)
@@ -564,6 +577,13 @@ export function JobsList() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="bg-card border-border/60">
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleTrigger(job)}
+                                                            disabled={actionLoading === job.job_id}
+                                                        >
+                                                            <Play className="h-4 w-4 mr-2" />
+                                                            Run Now
+                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleEdit(job)}>
                                                             <Edit2 className="h-4 w-4 mr-2" />
                                                             Edit
