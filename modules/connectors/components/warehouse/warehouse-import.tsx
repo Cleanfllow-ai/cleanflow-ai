@@ -496,7 +496,7 @@ export default function WarehouseImport({
 
             {/* Column Selection Dialog */}
             <AlertDialog open={s.columnModalOpen} onOpenChange={s.setColumnModalOpen}>
-                <AlertDialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                <AlertDialogContent className="max-w-md max-h-[80vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Select Columns to Export</AlertDialogTitle>
                         <AlertDialogDescription>
@@ -566,7 +566,7 @@ export default function WarehouseImport({
 
             {/* Column Mapping Dialog — only for existing tables */}
             <Dialog open={s.mappingOpen} onOpenChange={s.setMappingOpen}>
-                <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+                <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
                     <DialogHeader>
                         <DialogTitle>Map columns to {s.selectedExistingTable}</DialogTitle>
                         <DialogDescription>
