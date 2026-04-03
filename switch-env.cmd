@@ -16,6 +16,6 @@ if not exist "%ENV_FILE%" (
     exit /b 1
 )
 
-copy /Y "%ENV_FILE%" .env.local >nul
-echo Switched to '%1' environment (.env.local updated)
+copy /Y "%ENV_FILE%" .env >nul
+echo Switched to '%1' environment (.env updated)
 echo Restart the dev server for changes to take effect.

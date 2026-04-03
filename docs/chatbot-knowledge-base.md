@@ -136,7 +136,7 @@ CleanFlowAI is a data quality (DQ) and transformation platform for ERP data. It 
 ### 7.3 Data Stores
 
 - S3 data lake for raw, clean, quarantine, and reports.
-- DynamoDB FileRegistry (CleanFlowAI-FileRegistry-V2).
+- DynamoDB FileRegistry (CleanFlowAI-FileRegistry-V3).
 - DynamoDB ERP connections table for OAuth tokens.
 
 ## 8. Data Model (DynamoDB - FileRegistry)
