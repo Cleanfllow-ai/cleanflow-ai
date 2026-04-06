@@ -33,7 +33,16 @@ export function useWebSocket({
   const onMessageRef = useRef(onMessage)
   const [connected, setConnected] = useState(false)
 
+  // Keep callback ref up-to-date without triggering reconnections
   onMessageRef.current = onMessage
+
+  // Store latest values in refs so the effect doesn't re-run on every change
+  const fileIdRef = useRef(fileId)
+  const accessTokenRef = useRef(accessToken)
+  const enabledRef = useRef(enabled)
+  fileIdRef.current = fileId
+  accessTokenRef.current = accessToken
+  enabledRef.current = enabled
 
   const cleanup = useCallback(() => {
     if (heartbeatRef.current) {
@@ -53,14 +62,23 @@ export function useWebSocket({
   }, [])
 
   const connect = useCallback(() => {
-    if (!accessToken || !fileId || !enabled || !AWS_CONFIG.WS_URL) return
+    const token = accessTokenRef.current
+    const fId = fileIdRef.current
+    const isEnabled = enabledRef.current
+
+    if (!token || !fId || !isEnabled || !AWS_CONFIG.WS_URL) return
+
+    // Don't close and reopen if already connected to the same file
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return
 
     cleanup()
 
-    const url = `${AWS_CONFIG.WS_URL}?fileId=${encodeURIComponent(fileId)}&token=${encodeURIComponent(accessToken)}`
+    const url = `${AWS_CONFIG.WS_URL}?fileId=${encodeURIComponent(fId)}&token=${encodeURIComponent(token)}`
+    console.log('[WS] Opening connection to:', fId)
     const ws = new WebSocket(url)
 
     ws.onopen = () => {
+      console.log('[WS] Connected successfully')
       setConnected(true)
       reconnectAttemptsRef.current = 0
 
@@ -74,20 +92,22 @@ export function useWebSocket({
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data) as WsServerMessage
+        console.log('[WS] Message received:', message.type, message)
         onMessageRef.current(message)
       } catch {
         // Ignore malformed messages
       }
     }
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log('[WS] Connection closed:', { code: event.code, reason: event.reason, wasClean: event.wasClean })
       setConnected(false)
       if (heartbeatRef.current) {
         clearInterval(heartbeatRef.current)
         heartbeatRef.current = null
       }
 
-      if (enabled && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+      if (enabledRef.current && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
         const delay = Math.min(1000 * 2 ** reconnectAttemptsRef.current, 30_000)
         reconnectRef.current = setTimeout(() => {
           reconnectAttemptsRef.current++
@@ -101,18 +121,27 @@ export function useWebSocket({
     }
 
     wsRef.current = ws
-  }, [fileId, accessToken, enabled, cleanup])
+  }, [cleanup])
 
   const send = useCallback((message: Record<string, unknown>) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[WS] Sending:', message)
       wsRef.current.send(JSON.stringify(message))
+    } else {
+      console.warn('[WS] Cannot send, ws not open. readyState:', wsRef.current?.readyState)
     }
   }, [])
 
+  // Connect once on mount, reconnect when fileId or enabled changes
   useEffect(() => {
+    console.log('[WS] Effect triggered:', { enabled, hasToken: !!accessToken, fileId, wsState: wsRef.current?.readyState })
+    if (!enabled || !accessToken) {
+      cleanup()
+      return
+    }
     connect()
     return cleanup
-  }, [connect, cleanup])
+  }, [fileId, enabled, !!accessToken]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { connected, send }
 }

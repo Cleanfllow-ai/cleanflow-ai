@@ -193,10 +193,12 @@ export function QuarantineAgGridTable({
   const currentMatchKeyRef = useRef<string | null>(null)
   const cellLocksRefInternal = useRef<Map<string, CellLockInfo>>(new Map())
 
+  const onCellEditRef = useRef(onCellEdit)
   getCellValueRef.current = getCellValue
   isCellEditedRef.current = isCellEdited
   isCellSavedRef.current = isCellSaved
   fetchRowsRef.current = fetchRows
+  onCellEditRef.current = onCellEdit
 
   useEffect(() => {
     const set = new Set<string>()
@@ -338,7 +340,7 @@ export function QuarantineAgGridTable({
     return String(params.data.row_id)
   }, [])
 
-  const handleCellValueChanged = (event: CellValueChangedEvent<QuarantineRow>) => {
+  const handleCellValueChanged = useCallback((event: CellValueChangedEvent<QuarantineRow>) => {
     const field = event.colDef.field
     const rowId = String(event.data?.row_id ?? '')
 
@@ -350,8 +352,8 @@ export function QuarantineAgGridTable({
     if (event.data) {
       event.data[field] = nextValue
     }
-    onCellEdit(rowId, field, nextValue)
-  }
+    onCellEditRef.current(rowId, field, nextValue)
+  }, [])
 
   return (
     <div className="quarantine-ag-grid h-full w-full bg-white">

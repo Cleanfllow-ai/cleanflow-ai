@@ -23,6 +23,7 @@ interface UseCollaborationParams {
   uploadId: string
   accessToken: string | null
   enabled: boolean
+  onRemoteCellUpdate?: (column: string, rowId: string, value: string) => void
 }
 
 function toCollabUser(u: WsUserInfo): CollaborationUser {
@@ -39,6 +40,7 @@ export function useCollaboration({
   uploadId,
   accessToken,
   enabled,
+  onRemoteCellUpdate,
 }: UseCollaborationParams) {
   const [users, setUsers] = useState<CollaborationUser[]>([])
   const [cellLocks, setCellLocks] = useState<Map<string, CellLockInfo>>(new Map())
@@ -50,6 +52,10 @@ export function useCollaboration({
   const cellLocksRef = useRef<Map<string, CellLockInfo>>(new Map())
 
   const usersRef = useRef<CollaborationUser[]>([])
+
+  // Stable ref for remote cell update callback to avoid re-creating WebSocket
+  const onRemoteCellUpdateRef = useRef(onRemoteCellUpdate)
+  onRemoteCellUpdateRef.current = onRemoteCellUpdate
 
   const addActivity = useCallback((text: string) => {
     setActivity((prev) => [{ text, timestamp: new Date() }, ...prev].slice(0, MAX_ACTIVITY_ENTRIES))
@@ -130,6 +136,15 @@ export function useCollaboration({
 
       case 'cellChanged':
         addActivity(`${getUserName(message.userId)} edited ${message.cell}`)
+        console.log('[Collab] cellChanged received:', { cell: message.cell, value: message.value, hasCallback: !!onRemoteCellUpdateRef.current })
+        if (onRemoteCellUpdateRef.current && message.cell && message.value !== undefined) {
+          const [column, ...rowParts] = message.cell.split(':')
+          const rowId = rowParts.join(':')
+          console.log('[Collab] Dispatching remote update:', { column, rowId, value: message.value })
+          if (column && rowId) {
+            onRemoteCellUpdateRef.current(column, rowId, message.value)
+          }
+        }
         break
 
       case 'bulkChanged':

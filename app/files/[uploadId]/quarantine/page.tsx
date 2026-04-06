@@ -46,10 +46,25 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     saveEdits: editor.saveEdits,
   })
 
+  const handleRemoteCellUpdate = useCallback((column: string, rowId: string, value: string) => {
+    console.log('[Collab] Remote cell update received:', { column, rowId, value, hasGridApi: !!gridApiRef.current })
+    // Update React state so future fetches return the updated value
+    editor.applyRemoteEdit(rowId, { [column]: value, [`${column}_dq_status`]: 'edited' })
+    // Directly update AG Grid's internal row data (infinite model has its own cache)
+    if (gridApiRef.current) {
+      const rowNode = gridApiRef.current.getRowNode(rowId)
+      console.log('[Collab] Row node found:', { rowId, found: !!rowNode, hasData: !!rowNode?.data })
+      if (rowNode && rowNode.data) {
+        rowNode.setData({ ...rowNode.data, [column]: value, [`${column}_dq_status`]: 'edited' })
+      }
+    }
+  }, [editor.applyRemoteEdit]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const collab = useCollaboration({
     uploadId,
     accessToken,
     enabled: Boolean(editor.sessionInfo),
+    onRemoteCellUpdate: handleRemoteCellUpdate,
   })
 
   const gridApiRef = useRef<GridApi<QuarantineRow> | null>(null)
@@ -85,6 +100,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
   }, [collab.blurCell])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCellEditWithBroadcast = useCallback((rowId: string, column: string, value: string) => {
+    console.log('[Collab] handleCellEditWithBroadcast called:', { rowId, column, value })
     editor.handleCellEdit(rowId, column, value)
     collab.broadcastCellUpdate(column, rowId, value)
   }, [editor.handleCellEdit, collab.broadcastCellUpdate])  // eslint-disable-line react-hooks/exhaustive-deps
