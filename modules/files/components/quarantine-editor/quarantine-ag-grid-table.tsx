@@ -328,7 +328,7 @@ export function QuarantineAgGridTable({
 
   useEffect(() => {
     apiRef.current?.refreshCells({ force: true })
-  }, [isCellSaved, reloadToken])
+  }, [isCellEdited, isCellSaved, reloadToken])
 
   const handleGridReady = (event: GridReadyEvent<QuarantineRow>) => {
     apiRef.current = event.api

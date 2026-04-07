@@ -187,7 +187,7 @@ export function useERPImport({
   const loadEntities = async () => {
     setEntitiesLoading(true)
     try {
-      const resp = await erpConnectorsAPI.discoverEntities(provider, config.orgId || undefined)
+      const resp = await connectorsAPI.discoverEntities(provider) as { entities: any[] }
       setDiscoveredEntities((resp.entities || []) as ERPEntityInfo[])
       // Auto-select first available entity if none selected
       if (!config.entity && resp.entities?.length) {
