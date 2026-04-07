@@ -63,7 +63,7 @@ export const getStatusLabel = (status: string): string => {
     case "REJECTED": return "Rejected"
     case "REPROCESSING": return "Reprocessing"
     case "REPROCESS_FAILED": return "Reprocess Failed"
-    case "SHARDING": return "Sharding..."
+    case "SHARDING": return "Initiating..."
     case "SHARDED": return "Ready"
     case "SHARD_FAILED": return "Shard Failed"
     default: return status

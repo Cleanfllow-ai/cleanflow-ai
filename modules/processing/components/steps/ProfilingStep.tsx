@@ -388,8 +388,8 @@ export function ProfilingStep() {
                 {crossFieldRules.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No cross-field rules returned by CleanAI</p>
                 ) : (
-                  <div className="border rounded-md overflow-hidden">
-                    <table className="w-full text-sm">
+                  <div className="border rounded-md overflow-hidden max-h-[300px] overflow-y-auto overflow-x-auto">
+                    <table className="min-w-full text-sm">
                       <thead>
                         <tr className="bg-muted/50 border-b">
                           <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Rule</th>
@@ -403,14 +403,14 @@ export function ProfilingStep() {
                         {crossFieldRules.map((rule, i) => (
                           <tr key={i} className="border-b last:border-0 hover:bg-muted/20">
                             <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{rule.rule_id}</td>
-                            <td className="px-3 py-2 text-muted-foreground text-xs">{rule.condition || rule.predicate}</td>
+                            <td className="px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">{rule.condition || rule.predicate}</td>
                             <td className="px-3 py-2">
                               {rule.relationship && (
                                 <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>
                               )}
                             </td>
                             <td className="px-3 py-2">
-                              <div className="flex gap-1 flex-wrap">
+                              <div className="flex gap-1 flex-nowrap">
                                 {rule.cols?.map((c: string) => (
                                   <Badge key={c} variant="outline" className="text-[10px] whitespace-nowrap">{c}</Badge>
                                 ))}

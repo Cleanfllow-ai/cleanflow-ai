@@ -230,30 +230,41 @@ export function useStorageImport({
                 )
 
                 setImportStatus("Importing...")
-                setImportProgress(1)
+                setImportProgress(2)
 
                 // Known file size from storage provider metadata (bytes)
                 const expectedSize = file.size ?? 0
 
-                // Poll for real progress from backend
-                // TODO: import status polling not yet available in unified connectors API
+                // Simulated progress: advances toward 95% while waiting for UPLOADED signal.
+                // Steps slow down as we approach 95% to avoid feeling "stuck".
+                let simProgress = 2
+                const advanceSim = () => {
+                    const remaining = 95 - simProgress
+                    const step = Math.max(0.5, remaining * 0.06)
+                    simProgress = Math.min(95, simProgress + step)
+                    setImportProgress(simProgress)
+                }
+
                 let pollFailures = 0
                 pollRef.current = setInterval(async () => {
                     try {
                         const status = await storageConnectorsAPI.getImportStatus(provider, result.upload_id)
                         pollFailures = 0
 
-                        // Real progress from bytes_transferred
+                        // Use real bytes_transferred when available, otherwise advance simulation
                         if (status.bytes_transferred && expectedSize > 0) {
-                            const pct = Math.min((status.bytes_transferred / expectedSize) * 100, 99)
-                            setImportProgress(pct)
+                            const realPct = Math.min((status.bytes_transferred / expectedSize) * 100, 95)
+                            simProgress = realPct
+                            setImportProgress(realPct)
                             const mb = (status.bytes_transferred / (1024 * 1024)).toFixed(0)
                             const totalMb = (expectedSize / (1024 * 1024)).toFixed(0)
                             setImportStatus(`Importing... ${mb} MB / ${totalMb} MB`)
                         } else if (status.bytes_transferred) {
-                            // No expected size — show bytes only
                             const mb = (status.bytes_transferred / (1024 * 1024)).toFixed(0)
                             setImportStatus(`Importing... ${mb} MB transferred`)
+                            advanceSim()
+                        } else {
+                            advanceSim()
                         }
 
                         if (status.status === "UPLOADED") {

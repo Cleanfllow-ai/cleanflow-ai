@@ -107,14 +107,12 @@ export default function DashboardPage() {
         mergeIssues(merged, normalizeTopIssues((stats as any)?.top_violations))
         mergeIssues(merged, normalizeViolationCounts((stats as any)?.violation_counts))
       }
-      if (merged.size > 0) {
-        setTopIssues(
-          Array.from(merged.entries())
-            .map(([violation, count]) => ({ violation, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 5),
-        )
-      }
+      setTopIssues(
+        Array.from(merged.entries())
+          .map(([violation, count]) => ({ violation, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5),
+      )
     } catch (error: any) {
       const message = (error?.message || "").toLowerCase()
       if (!message.includes("permission denied") && !message.includes("organization membership required")) {
