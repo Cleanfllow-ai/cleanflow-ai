@@ -125,6 +125,13 @@ export const cognitoApi = {
     )
   },
 
+  async resendConfirmationCode(email: string) {
+    return cognitoClient.resendConfirmationCode({
+      ClientId: COGNITO_CONFIG.clientId,
+      Username: email,
+    })
+  },
+
   async respondMfaSetupChallenge(session: string, username: string) {
     return cognitoClient.send(
       new RespondToAuthChallengeCommand({

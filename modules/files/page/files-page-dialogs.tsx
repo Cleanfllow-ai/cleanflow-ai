@@ -57,8 +57,11 @@ import {
     FileDetailsDialog,
     PushToERPModal,
     ColumnProfilingPanel,
-    QuarantineEditorDialog,
+    ExportDialog,
+    ImportDialog,
 } from "@/modules/files";
+import { useRouter } from 'next/navigation';
+import { useToast } from "@/shared/hooks/use-toast";
 import { WizardDialog } from "@/modules/processing";
 import type { FilesPageState } from "./use-files-page";
 
@@ -79,6 +82,8 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         // Wizard
         wizardOpen, wizardFile, handleWizardOpenChange, handleWizardComplete,
         idToken, loadFiles, setWizardOpen,
+        // New import wizard
+        newImportWizardOpen, handleNewImportClose,
         // Column export
         showColumnExportModal, setShowColumnExportModal,
         columnExportFile, setColumnExportFile,
@@ -91,6 +96,8 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         actionsErpMode, setActionsErpMode, actionsErpTarget, setActionsErpTarget,
         // Delete
         showDeleteModal, setShowDeleteModal, fileToDelete, handleDeleteConfirm,
+        // Bulk Delete
+        showBulkDeleteModal, setShowBulkDeleteModal, handleBulkDeleteConfirm, selectedFiles,
         // Display columns
         displayColumnModalOpen, setDisplayColumnModalOpen,
         pendingVisibleColumns, setPendingVisibleColumns,
@@ -121,16 +128,19 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         handleGenerateCustomRule, handleApproveCustomRule, handleRemoveCustomRule,
         // Profiling
         profilingFileId, setProfilingFileId, profilingData, loadingProfiling,
-        // Quarantine editor
-        quarantineEditorOpen, setQuarantineEditorOpen,
-        quarantineEditorFile, setQuarantineEditorFile,
-        handleOpenQuarantineEditor, handleQuarantineEditorComplete,
         // Rename on duplicate
         showRenameDialog, setShowRenameDialog,
         pendingUploadFile, renameValue, setRenameValue,
         renameError, setRenameError,
         handleRenameConfirm,
     } = state;
+
+    const { toast } = useToast();
+    const router = useRouter();
+
+    const handleOpenQuarantineEditor = (file: { upload_id: string }) => {
+        router.push(`/files/${file.upload_id}/quarantine`);
+    };
 
     const renderRuleOption = (
         ruleId: string,
@@ -529,6 +539,22 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* Bulk Delete Confirmation */}
+            <AlertDialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete {selectedFiles.size} file(s)?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently remove {selectedFiles.size} selected file(s). This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleBulkDeleteConfirm} className="bg-destructive text-destructive-foreground">Delete All</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* File Details */}
             <FileDetailsDialog
                 file={selectedFile}
@@ -574,6 +600,7 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                 open={pushQBModalOpen}
                 onOpenChange={setPushQBModalOpen}
                 file={fileToPush}
+                columns={columnExportColumns}
                 onSuccess={() => {
                     setPushQBModalOpen(false);
                     setFileToPush(null);
@@ -603,75 +630,16 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                 exporting={downloading === columnExportFile?.upload_id || columnExportLoading}
             />
 
-            {/* Actions Dialog */}
-            <Dialog open={actionsDialogOpen} onOpenChange={setActionsDialogOpen}>
-                <DialogContent className="max-w-4xl h-[90vh] flex flex-col overflow-hidden">
-                    <DialogHeader className="border-b pb-4">
-                        <DialogTitle className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950">
-                                <CloudUpload className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            Download Data
-                        </DialogTitle>
-                        <DialogDescription>Configure your data and select a destination.</DialogDescription>
-                    </DialogHeader>
-                    <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
-                        <div className="rounded-lg border p-4 bg-muted/30">
-                            <div className="text-sm font-medium">
-                                {actionsDialogFile?.original_filename || actionsDialogFile?.filename || "Selected file"}
-                            </div>
-                            {actionsDialogFile && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                    {actionsDialogFile.rows_clean || actionsDialogFile.rows_out || 0} clean rows ready to export
-                                </div>
-                            )}
-                        </div>
-                        <div className="space-y-3">
-                            <Label className="text-sm font-semibold flex items-center gap-2">
-                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold">1</span>
-                                ERP Transformation (Optional)
-                            </Label>
-                            <RadioGroup value={actionsErpMode} onValueChange={(value) => setActionsErpMode(value as "original" | "transform")} className="space-y-2">
-                                <div className="flex items-center space-x-2 rounded-lg border p-3">
-                                    <RadioGroupItem value="original" id="erp-original" />
-                                    <Label htmlFor="erp-original" className="cursor-pointer">Original Format (CSV)</Label>
-                                </div>
-                                <div className="flex items-center space-x-2 rounded-lg border p-3">
-                                    <RadioGroupItem value="transform" id="erp-transform" />
-                                    <Label htmlFor="erp-transform" className="cursor-pointer">Transform for ERP System</Label>
-                                </div>
-                            </RadioGroup>
-                            {actionsErpMode === "transform" && (
-                                <div className="grid gap-2">
-                                    <Label className="text-sm font-medium">ERP System</Label>
-                                    <Select value={actionsErpTarget} onValueChange={setActionsErpTarget}>
-                                        <SelectTrigger><SelectValue placeholder="Select ERP" /></SelectTrigger>
-                                        <SelectContent>
-                                            {["Oracle Fusion", "SAP ERP", "Microsoft Dynamics", "NetSuite", "Workday", "QuickBooks Online", "Zoho Books", "Custom ERP"].map((erp) => (
-                                                <SelectItem key={erp} value={erp}>{erp}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-                        </div>
-                        {columnExportLoading ? (
-                            <div className="text-sm text-muted-foreground">Loading columns…</div>
-                        ) : (
-                            <ColumnExportContent
-                                fileName={actionsDialogFile?.original_filename || actionsDialogFile?.filename || "Selected file"}
-                                columns={columnExportColumns}
-                                onExport={handleColumnExport}
-                                primaryActionLabel="Download"
-                                exporting={downloading === columnExportFile?.upload_id || columnExportLoading}
-                                onCancel={() => setActionsDialogOpen(false)}
-                                showTitle={false}
-                                className="min-h-[360px]"
-                            />
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
+            {/* Export Dialog (Download + Push to ERP) */}
+            <ExportDialog
+                open={actionsDialogOpen}
+                onOpenChange={setActionsDialogOpen}
+                file={actionsDialogFile}
+                columns={columnExportColumns}
+                isLoadingColumns={columnExportLoading}
+                onDownload={handleColumnExport}
+                downloading={downloading === columnExportFile?.upload_id || columnExportLoading}
+            />
 
             {/* Profiling Dialog */}
             <Dialog open={!!profilingFileId} onOpenChange={(open) => !open && setProfilingFileId(null)}>
@@ -686,27 +654,16 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                 </DialogContent>
             </Dialog>
 
-            {/* Processing Wizard Dialog */}
-            <WizardDialog
-                open={wizardOpen}
-                onOpenChange={setWizardOpen}
-                file={wizardFile}
-                authToken={idToken || ""}
-                onStarted={() => { setWizardOpen(false); loadFiles(); }}
-                onComplete={() => { setWizardOpen(false); loadFiles(); }}
-            />
-
-            {/* Quarantine Editor Dialog */}
-            <QuarantineEditorDialog
-                file={quarantineEditorFile}
-                open={quarantineEditorOpen}
+            {/* Import Dialog (triggered via + Import button) */}
+            <ImportDialog
+                open={state.newImportWizardOpen}
                 onOpenChange={(open) => {
-                    setQuarantineEditorOpen(open);
-                    if (!open) {
-                        setQuarantineEditorFile(null);
-                        handleQuarantineEditorComplete();
-                    }
+                    if (!open) state.handleNewImportClose(true);
                 }}
+                onImportComplete={() => state.handleNewImportClose(true)}
+                onNotification={(message, type) =>
+                    toast({ title: type === 'success' ? 'Import Complete' : 'Import Error', description: message, variant: type === 'error' ? 'destructive' : 'default' })
+                }
             />
 
             {/* Rename on duplicate filename dialog */}

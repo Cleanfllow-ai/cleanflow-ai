@@ -1,7 +1,8 @@
 import type { FileItem } from "@/modules/files/types"
+import { AWS_CONFIG } from "@/shared/config/aws-config"
 
 export const FILES_API_CONFIG = {
-  apiUrl: "https://oq92wt6zd9.execute-api.ap-south-1.amazonaws.com/prod/",
+  apiUrl: `${AWS_CONFIG.API_BASE_URL}/`,
 }
 
 export const mapStatus = (apiStatus: string): FileItem["status"] => {

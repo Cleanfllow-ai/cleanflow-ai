@@ -51,6 +51,7 @@ export interface FileVersionSummary {
   version_number: number
   root_upload_id?: string
   parent_upload_id?: string | null
+  source_upload_id?: string | null
   is_latest?: boolean
   created_at?: string
   uploaded_at?: string
@@ -61,10 +62,12 @@ export interface FileVersionSummary {
   status?: string
   dq_score?: number | null
   rows_in?: number | null
+  rows_out?: number | null
   rows_clean?: number | null
   rows_fixed?: number | null
   rows_quarantined?: number | null
   processing_time_seconds?: number | null
+  remediation_mode?: string | null
 }
 
 // ========== API Request Types ==========
@@ -77,6 +80,7 @@ export interface QuarantineQueryRequest {
   session_id?: string
   cursor?: string
   limit?: number
+  filters?: QuarantineFilters
 }
 
 /**
@@ -96,6 +100,7 @@ export interface QuarantineReprocessRequest {
   if_match_base_upload_id: string
   patch_notes?: string
   submit_token: string
+  mode?: 'auto' | 'delta' | 'bulk' | 'full'
 }
 
 /**
@@ -131,6 +136,7 @@ export interface QuarantineSessionStartResponse extends QuarantineSession {}
 export interface QuarantineQueryResponse {
   rows: QuarantineRow[]
   next_cursor?: string | null
+  total_rows?: number
   etag?: string
 }
 
@@ -149,8 +155,15 @@ export interface QuarantineSaveBatchResponse {
 export interface QuarantineReprocessResponse {
   execution_arn?: string
   new_upload_id?: string
+  base_upload_id?: string
   status: string
   version_number?: number
+  requested_mode?: 'auto' | 'delta' | 'bulk' | 'full'
+  effective_mode?: 'delta' | 'bulk' | 'full'
+  fallback_reason?: string | null
+  reprocess_snapshot_id?: string
+  rows_passed?: number
+  rows_still_quarantined?: number
 }
 
 /**
@@ -215,19 +228,6 @@ export interface QuarantineEditorConfig {
   rowHeight: number
   headerHeight: number
   overscan: number
-}
-
-/**
- * Props for QuarantineEditorDialog component
- */
-export interface QuarantineEditorDialogProps {
-  file: {
-    upload_id: string
-    filename?: string
-    original_filename?: string
-  } | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
 }
 
 /**
@@ -348,4 +348,52 @@ export interface QuarantineEditorError {
   type: QuarantineEditorErrorType
   message: string
   details?: any
+}
+
+// ========== Filter Types ==========
+
+export interface ColumnFilter {
+  violations?: string[]
+  values?: string[]
+}
+
+export interface QuarantineFilters {
+  columns: Record<string, ColumnFilter>
+}
+
+export interface ColumnValuesRequest {
+  column: string
+  session_id?: string
+  version?: string
+  search?: string
+  limit?: number
+}
+
+export interface ColumnValuesResponse {
+  values: string[]
+  total_distinct: number
+  violations?: string[]
+}
+
+// ========== Find & Replace Types ==========
+
+export interface FindMatch {
+  row_id: string
+  column: string
+  value: string
+}
+
+export interface QuarantineFindRequest {
+  search: string
+  version?: string
+  session_id?: string
+  column?: string | null
+  match_case?: boolean
+  limit?: number
+}
+
+export interface QuarantineFindResponse {
+  total_matches: number
+  match_positions: FindMatch[]
+  truncated: boolean
 }

@@ -32,6 +32,11 @@ import type {
     ColumnRuleApplyResponse,
     ColumnRuleApplyAllRequest,
     ColumnRuleApplyAllResponse,
+    ColumnValuesRequest,
+    ColumnValuesResponse,
+    QuarantineFilters,
+    QuarantineFindRequest,
+    QuarantineFindResponse,
 } from '@/modules/files/types'
 
 // AWS Configuration
@@ -49,6 +54,7 @@ const ENDPOINTS = {
     VERSIONS: (id: string) => `/files/${id}/versions`,
     DOWNLOAD: (id: string) => `/files/${id}/download`,
     QUARANTINED_EXPORT: (id: string) => `/files/${id}/quarantined`,
+    FIND: (id: string) => `/files/${id}/quarantined/find`,
 }
 
 // ========== Quarantine Export ==========
@@ -71,7 +77,8 @@ export async function getQuarantinedExportUrl(
 // ========== Session & Manifest Operations ==========
 
 /**
- * Get quarantine manifest containing metadata about quarantined rows
+ * Get quarantine manifest containing metadata about quarantined rows.
+ * If the read model is still building (202), polls quickly until ready.
  * @param uploadId - File upload ID
  * @param authToken - JWT authentication token
  * @param version - Version to query (default: "latest")
@@ -83,11 +90,21 @@ export async function getQuarantineManifest(
     version: string = 'latest'
 ): Promise<QuarantineManifestResponse> {
     const params = new URLSearchParams({ version })
-    return makeRequest(
-        `${ENDPOINTS.MANIFEST(uploadId)}?${params.toString()}`,
-        authToken,
-        { method: 'GET' }
-    )
+    const endpoint = `${ENDPOINTS.MANIFEST(uploadId)}?${params.toString()}`
+
+    // Progressive backoff: 1s → 2s → 3s → 5s (cap), ~8 min total budget
+    const MAX_POLLS = 160
+    for (let i = 0; i < MAX_POLLS; i++) {
+        const result = await makeRequest(endpoint, authToken, { method: 'GET' })
+        if (result.status !== 'building') {
+            return result
+        }
+        const delay = Math.min(1000 + i * 500, 5000)
+        console.log(`[QuarantineManifest] Read model building… poll ${i + 1}/${MAX_POLLS} (next in ${delay}ms)`)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+
+    throw new Error('Quarantine read model build timed out. Please try again.')
 }
 
 /**
@@ -359,6 +376,54 @@ export async function applyColumnRuleAll(
     )
 }
 
+// ========== Column Values ==========
+
+/**
+ * Get distinct values for a column with optional search and filtering
+ * @param uploadId - File upload ID
+ * @param authToken - JWT authentication token
+ * @param payload - Column values request with search, limit, version, session_id
+ * @returns List of distinct values and total count
+ */
+export async function getColumnValues(
+    uploadId: string,
+    authToken: string,
+    payload: ColumnValuesRequest
+): Promise<ColumnValuesResponse> {
+    return makeRequest(
+        `/files/${uploadId}/quarantined/column-values`,
+        authToken,
+        {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }
+    )
+}
+
+// ========== Find & Replace ==========
+
+/**
+ * Search for text matches across all quarantined rows
+ * @param uploadId - File upload ID
+ * @param authToken - JWT authentication token
+ * @param payload - Search parameters
+ * @returns Match positions and total count
+ */
+export async function findInQuarantineRows(
+    uploadId: string,
+    authToken: string,
+    payload: QuarantineFindRequest
+): Promise<QuarantineFindResponse> {
+    return makeRequest(
+        ENDPOINTS.FIND(uploadId),
+        authToken,
+        {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }
+    )
+}
+
 // ========== Maintenance Operations ==========
 
 /**
@@ -412,7 +477,7 @@ export async function downloadQuarantineFile(
     dataType: 'quarantine' | 'clean' | 'raw',
     authToken: string
 ): Promise<Blob> {
-    const endpoint = `${ENDPOINTS.DOWNLOAD(uploadId)}?type=${fileType}&data=${dataType}&_ts=${Date.now()}`
+    const endpoint = `${ENDPOINTS.DOWNLOAD(uploadId)}?type=${dataType}&_ts=${Date.now()}`
     const url = `${API_BASE_URL}${endpoint}`
 
     const response = await fetch(url, {
@@ -421,7 +486,12 @@ export async function downloadQuarantineFile(
     })
 
     if (!response.ok) {
-        throw new Error(`Download failed: ${response.statusText}`)
+        let detail = response.statusText || `HTTP ${response.status}`
+        try {
+            const errBody = await response.json()
+            detail = errBody?.error || errBody?.message || detail
+        } catch { /* not JSON */ }
+        throw new Error(`Download failed: ${detail}`)
     }
 
     const contentType = response.headers.get('Content-Type') || ''

@@ -1,297 +1,407 @@
 'use client'
 
-/**
- * quarantine-ag-grid-table.tsx
- *
- * AG Grid Community wrapper for the quarantine editor.
- * Replaces the custom virtual-scroll table (quarantine-editor-table.tsx).
- *
- * Features:
- * - GRID-02: Resizable columns via drag
- * - GRID-03: Frozen/pinned headers during vertical scroll (AG Grid default)
- * - GRID-04: Arrow key navigation and Enter-to-edit on cells
- * - AI fix suggestion button (✨) per quarantined cell via AiSuggestCellRenderer
- *
- * Designed to be wired into the quarantine editor dialog in Plan 02.
- * AG Grid handles row virtualization internally — no external virtual scroll needed.
- */
-
-import { useMemo, useCallback, useRef, useLayoutEffect, useEffect } from 'react'
+import './quarantine-ag-grid-theme.css'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {
   AllCommunityModule,
   themeQuartz,
+  type CellClassParams,
+  type CellEditingStartedEvent,
+  type CellEditingStoppedEvent,
+  type CellValueChangedEvent,
   type ColDef,
   type GetRowIdParams,
-  type CellValueChangedEvent,
-  type BodyScrollEndEvent,
   type GridApi,
+  type GridReadyEvent,
+  type IDatasource,
+  type IGetRowsParams,
+  type ValueFormatterParams,
 } from 'ag-grid-community'
-import type { QuarantineRow } from '@/modules/files/types/quarantine.types'
-import { AiSuggestCellRenderer } from './quarantine-ai-suggest-cell'
-import './quarantine-ag-grid-theme.css'
-
-// ─── Props ────────────────────────────────────────────────────────────────────
+import type { QuarantineRow } from '@/modules/files/types'
+import type { CellLockInfo } from '@/modules/files/types'
 
 interface QuarantineAgGridTableProps {
-  /** All quarantined row data passed to AG Grid as rowData */
-  rows: QuarantineRow[]
-  /** Ordered list of column names derived from the quarantine manifest */
   columns: string[]
-  /** Subset of columns that are editable by the user */
   editableColumns: string[]
-
-  /**
-   * Returns true if the given cell has a pending (unsaved) edit.
-   * Used to apply the .ag-cell-edited CSS class for visual indicators.
-   */
+  totalRows: number
+  fetchRows: (startRow: number, endRow: number) => Promise<{ rows: QuarantineRow[]; lastRow: number }>
+  getCellValue: (rowId: string, column: string, row: Record<string, any>) => any
   isCellEdited: (rowId: string, column: string) => boolean
-  /**
-   * Returns true if the given cell was edited and successfully saved this session.
-   * Used to apply the .ag-cell-saved CSS class for visual indicators.
-   */
-  isCellSaved?: (rowId: string, column: string) => boolean
-  /**
-   * Fires when a user commits an edit to a cell (including AI suggestion accepts).
-   * Delegates to the quarantine edits hook which tracks and autosaves changes.
-   */
+  isCellSaved: (rowId: string, column: string) => boolean
   onCellEdit: (rowId: string, column: string, value: string) => void
-
-  /** When true and rows is empty, the grid shows a loading overlay */
   loading: boolean
-
-  /**
-   * Optional callback fired when the user scrolls to the bottom of the grid body.
-   * Use this to trigger fetching the next page of quarantined rows (cursor pagination).
-   */
-  onBodyScrollEnd?: () => void
-
-  /**
-   * Upload ID of the file being edited.
-   * Passed through to AiSuggestCellRenderer for the suggest-fix API call.
-   */
   uploadId: string
-
-  /**
-   * JWT auth token.
-   * Passed through to AiSuggestCellRenderer for the suggest-fix API call.
-   */
-  authToken: string | null
+  reloadToken: number
+  filterComponent?: (column: string) => React.ReactNode
+  findMatches?: Array<{ row_id: string; column: string }>
+  currentMatch?: { row_id: string; column: string } | null
+  cellLocksRef?: React.MutableRefObject<Map<string, CellLockInfo>>
+  onCellEditingStarted?: (column: string, rowId: string) => void
+  onCellEditingStopped?: (column: string, rowId: string) => void
+  onGridApiReady?: (api: GridApi<QuarantineRow>) => void
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const GRID_THEME = themeQuartz.withParams({
+  accentColor: '#2a4477',
+  borderColor: '#e5e7eb',
+  cellHorizontalPaddingScale: 0.85,
+  columnBorder: true,
+  fontFamily: {
+    googleFont: 'IBM Plex Mono',
+  },
+  foregroundColor: '#111827',
+  headerBackgroundColor: '#f9fafb',
+  headerFontFamily: {
+    googleFont: 'Inter',
+  },
+  headerFontSize: 11,
+  headerTextColor: '#6b7280',
+  rowBorder: true,
+  rowHoverColor: '#f9fafb',
+  rowVerticalPaddingScale: 0.9,
+})
 
-/**
- * QuarantineAgGridTable
- *
- * Wraps AG Grid Community's AgGridReact for the quarantine editor.
- * This component is self-contained and does not depend on any virtual scroll
- * infrastructure — AG Grid handles row virtualization internally.
- */
+function formatCellValue(value: unknown) {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function getCellStatusClass(
+  params: CellClassParams<QuarantineRow>,
+  isCellEdited: (rowId: string, column: string) => boolean,
+  isCellSaved: (rowId: string, column: string) => boolean,
+  findMatchSet: Set<string>,
+  currentMatchKey: string | null,
+  cellLocksMap: Map<string, CellLockInfo>,
+) {
+  const field = params.colDef.field
+  const rowId = String(params.data?.row_id ?? '')
+
+  if (!field || field === 'row_id' || !rowId) {
+    return []
+  }
+
+  const classes: string[] = []
+  const dqStatus = String(params.data?.[`${field}_dq_status`] ?? '').toLowerCase()
+
+  if (dqStatus === 'clean' || dqStatus === 'fixed' || dqStatus === 'quarantined' || dqStatus === 'edited') {
+    classes.push(`ag-cell-${dqStatus}`)
+  } else {
+    classes.push('ag-cell-clean')
+  }
+
+  if (isCellSaved(rowId, field)) {
+    classes.push('ag-cell-saved')
+  }
+
+  if (isCellEdited(rowId, field)) {
+    classes.push('ag-cell-edited')
+  }
+
+  const cellKey = `${rowId}:${field}`
+  if (currentMatchKey === cellKey) {
+    classes.push('ag-cell-find-current')
+  } else if (findMatchSet.has(cellKey)) {
+    classes.push('ag-cell-find-match')
+  }
+
+  const lockKey = `${field}:${rowId}`
+  const lockInfo = cellLocksMap.get(lockKey)
+  if (lockInfo) {
+    classes.push('ag-cell-locked')
+  }
+
+  return classes
+}
+
+function getCellTooltip(field: string, row: QuarantineRow) {
+  const cellStatus = String(row?.[`${field}_dq_status`] ?? '').toLowerCase()
+  if (!cellStatus || cellStatus === 'clean') {
+    return null
+  }
+
+  const fieldLower = field.toLowerCase()
+  const extractForColumn = (raw: string) =>
+    raw
+      .split(';')
+      .map((token) => token.trim())
+      .filter((token) => {
+        if (!token) return false
+        const lower = token.toLowerCase()
+        return (
+          lower.includes(`(${fieldLower})`) ||
+          lower.startsWith(`${fieldLower}:`) ||
+          lower.startsWith(`${fieldLower} :`) ||
+          lower.startsWith(`${fieldLower}=`) ||
+          lower.includes(` ${fieldLower}:`) ||
+          lower.includes(` ${fieldLower} `)
+        )
+      })
+
+  const violations = extractForColumn(String(row?.dq_violations ?? ''))
+  const fixes = extractForColumn(String(row?.fixes_applied ?? ''))
+
+  const lines: string[] = [`Status: ${cellStatus}`]
+  if (violations.length > 0) {
+    lines.push(`Issues: ${violations.join('; ')}`)
+  }
+  if (cellStatus === 'fixed') {
+    if (fixes.length > 0) {
+      lines.push(`Fixes: ${fixes.join('; ')}`)
+    } else {
+      lines.push('Auto-fixed by DQ engine')
+    }
+  }
+
+  return lines.join('\n')
+}
+
 export function QuarantineAgGridTable({
-  rows,
   columns,
   editableColumns,
+  totalRows,
+  fetchRows,
+  getCellValue,
   isCellEdited,
   isCellSaved,
   onCellEdit,
   loading,
-  onBodyScrollEnd,
-  uploadId,
-  authToken,
+  uploadId: _uploadId,
+  reloadToken,
+  filterComponent,
+  findMatches,
+  currentMatch,
+  cellLocksRef,
+  onCellEditingStarted: onCellEditStart,
+  onCellEditingStopped: onCellEditStop,
+  onGridApiReady,
 }: QuarantineAgGridTableProps) {
-  // ─── AG Grid API ref ───────────────────────────────────────────────────────
-  const gridApiRef = useRef<GridApi<QuarantineRow> | null>(null)
+  const apiRef = useRef<GridApi<QuarantineRow> | null>(null)
+  const getCellValueRef = useRef(getCellValue)
+  const isCellEditedRef = useRef(isCellEdited)
+  const isCellSavedRef = useRef(isCellSaved)
+  const fetchRowsRef = useRef(fetchRows)
+  const findMatchSetRef = useRef<Set<string>>(new Set())
+  const currentMatchKeyRef = useRef<string | null>(null)
+  const cellLocksRefInternal = useRef<Map<string, CellLockInfo>>(new Map())
 
-  // ─── Stable onCellEdit ref ─────────────────────────────────────────────────
-  // Use a ref so that AiSuggestCellRenderer always calls the latest onCellEdit
-  // without needing to be remounted when the callback identity changes.
+  getCellValueRef.current = getCellValue
+  isCellEditedRef.current = isCellEdited
+  isCellSavedRef.current = isCellSaved
+  fetchRowsRef.current = fetchRows
 
-  const onCellEditRef = useRef(onCellEdit)
-  useLayoutEffect(() => {
-    onCellEditRef.current = onCellEdit
-  }, [onCellEdit])
-
-  const stableOnAccept = useCallback(
-    (rowId: string, col: string, val: string) => {
-      onCellEditRef.current(rowId, col, val)
-      // Use applyTransaction to directly update AG Grid's internal row store.
-      // This is necessary because AG Grid's React integration does not reliably
-      // re-render cell renderers when rowData changes immutably — the React prop
-      // update cycle and AG Grid's internal reconciliation are not synchronised.
-      // applyTransaction is the documented programmatic update path and fires
-      // cell refresh immediately without relying on React's render cycle.
-      if (gridApiRef.current) {
-        const node = gridApiRef.current.getRowNode(rowId)
-        if (node?.data) {
-          // Also flip {col}_dq_status to 'edited' so the cell class rules
-          // see the updated status synchronously (node.data is read before
-          // React's rows.updateRow setState has a chance to re-render).
-          gridApiRef.current.applyTransaction({
-            update: [{ ...node.data, [col]: val, [`${col}_dq_status`]: 'edited' }],
-          })
-        }
-      }
-    },
-    [] // intentionally empty — uses refs
-  )
-
-  // ─── Refresh cell classes after edits commit ──────────────────────────────
-  // isCellEdited gets a new reference every time editsMap changes. Running
-  // refreshCells here — after React has committed the new state and columnDefs
-  // carry the updated cellClassRules closures — ensures ag-cell-edited and
-  // ag-cell-saved classes are applied/removed on the correct cells.
   useEffect(() => {
-    gridApiRef.current?.refreshCells({ force: true })
-  }, [isCellEdited])
+    const set = new Set<string>()
+    for (const m of findMatches || []) {
+      set.add(`${m.row_id}:${m.column}`)
+    }
+    findMatchSetRef.current = set
+    currentMatchKeyRef.current = currentMatch ? `${currentMatch.row_id}:${currentMatch.column}` : null
+    apiRef.current?.refreshCells({ force: true })
+  }, [findMatches, currentMatch])
 
-  // ─── Column Definitions ────────────────────────────────────────────────────
+  useEffect(() => {
+    cellLocksRefInternal.current = cellLocksRef?.current ?? new Map()
+    apiRef.current?.refreshCells({ force: true })
+  }, [cellLocksRef?.current])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const editableColumnSet = useMemo(() => {
+    return new Set(editableColumns.filter((column) => column !== 'row_id'))
+  }, [editableColumns])
 
   const columnDefs = useMemo<ColDef<QuarantineRow>[]>(() => {
-    return columns.map((col) => {
-      // row_id is always pinned to the left and non-editable
-      if (col === 'row_id') {
+    return columns.map((column): ColDef<QuarantineRow> => {
+      if (column === 'row_id') {
         return {
-          field: col,
-          headerName: 'Row ID',
+          cellClass: 'font-medium text-slate-400',
           editable: false,
-          pinned: 'left' as const,
-          width: 80,
+          field: column,
+          headerName: 'Row',
+          maxWidth: 120,
+          minWidth: 96,
+          pinned: 'left',
+          sortable: false,
           suppressMovable: true,
-          resizable: false,
-        } satisfies ColDef<QuarantineRow>
+          valueGetter: (params) => {
+            if (!params.data) return ''
+            return getCellValueRef.current(String(params.data.row_id), column, params.data)
+          },
+          valueFormatter: (params: ValueFormatterParams<QuarantineRow>) => formatCellValue(params.value),
+          width: 104,
+        }
       }
-
-      const isEditable = editableColumns.includes(col)
 
       return {
-        field: col,
-        headerName: col,
-        editable: isEditable,
-        resizable: true,
-        minWidth: 100,
-        flex: 1,
-        // AI suggest button on editable quarantined cells
-        ...(isEditable && {
-          cellRenderer: AiSuggestCellRenderer,
-          cellRendererParams: {
-            uploadId,
-            authToken,
-            onAccept: stableOnAccept,
-          },
-        }),
-        cellClassRules: {
-          ...(isEditable
-            ? {
-                'ag-cell-edited': (params) => {
-                  if (!params.data) return false
-                  return isCellEdited(String(params.data.row_id), col)
-                },
-                'ag-cell-saved': (params) => {
-                  if (!params.data) return false
-                  // In-session: cell was saved this session via the edits hook
-                  if (isCellSaved && isCellSaved(String(params.data.row_id), col)) return true
-                  // Persistent: on reload the patch includes {col}_dq_status='edited'
-                  // so the row comes back from the backend already flipped — show green
-                  // without requiring any in-memory state.
-                  return String(params.data[`${col}_dq_status`] ?? '').toLowerCase() === 'edited'
-                },
-              }
-            : {}),
-          'ag-cell-quarantined': (params) => {
-            if (!params.data) return false
-            const statusValue = col.endsWith('_dq_status')
-              ? params.data[col]
-              : params.data[`${col}_dq_status`]
-            return String(statusValue ?? '').toLowerCase() === 'quarantined'
-          },
+        editable: (params) => {
+          if (!editableColumnSet.has(column)) return false
+          const rowId = String(params.data?.row_id ?? '')
+          if (!rowId) return false
+          const lockInfo = cellLocksRefInternal.current.get(`${column}:${rowId}`)
+          return !lockInfo
         },
-      } satisfies ColDef<QuarantineRow>
-    })
-  }, [columns, editableColumns, isCellEdited, isCellSaved, uploadId, authToken, stableOnAccept])
-
-  // ─── Default Column Definition ─────────────────────────────────────────────
-
-  const defaultColDef = useMemo<ColDef<QuarantineRow>>(
-    () => ({
-      resizable: true,
-      sortable: false,
-      filter: false,
-      minWidth: 80,
-    }),
-    []
-  )
-
-  // ─── Stable Row Identity ───────────────────────────────────────────────────
-
-  const getRowId = useCallback(
-    (params: GetRowIdParams<QuarantineRow>) => String(params.data.row_id),
-    []
-  )
-
-  // ─── Cell Edit Handler ─────────────────────────────────────────────────────
-
-  const handleCellValueChanged = useCallback(
-    (event: CellValueChangedEvent<QuarantineRow>) => {
-      const rowId = String(event.data.row_id)
-      const field = event.colDef.field
-      const newValue = String(event.newValue ?? '')
-      if (field && field !== 'row_id') {
-        onCellEdit(rowId, field, newValue)
+        field: column,
+        flex: 1,
+        minWidth: 180,
+        sortable: false,
+        headerComponent: filterComponent
+          ? () => (
+              <div className="flex items-center">
+                <span>{column}</span>
+                {filterComponent(column)}
+              </div>
+            )
+          : undefined,
+        valueSetter: (params) => {
+          if (!params.data) return false
+          const nextValue = formatCellValue(params.newValue)
+          if (formatCellValue(params.data[column]) === nextValue) {
+            return false
+          }
+          params.data[column] = nextValue
+          return true
+        },
+        valueGetter: (params) => {
+          if (!params.data) return ''
+          return getCellValueRef.current(String(params.data.row_id), column, params.data)
+        },
+        tooltipValueGetter: (params) => {
+          if (!params.data) return null
+          return getCellTooltip(column, params.data)
+        },
+        valueFormatter: (params: ValueFormatterParams<QuarantineRow>) => formatCellValue(params.value),
+        cellClass: (params) => getCellStatusClass(params, isCellEditedRef.current, isCellSavedRef.current, findMatchSetRef.current, currentMatchKeyRef.current, cellLocksRefInternal.current),
+        cellStyle: (params) => {
+          const field = params.colDef.field
+          const rowId = String(params.data?.row_id ?? '')
+          if (!field || field === 'row_id' || !rowId) return undefined
+          const lockInfo = cellLocksRefInternal.current.get(`${field}:${rowId}`)
+          if (lockInfo) {
+            return { '--lock-color': lockInfo.color } as React.CSSProperties
+          }
+          return undefined
+        },
       }
-    },
-    [onCellEdit]
-  )
+    })
+  }, [columns, editableColumnSet, filterComponent])
 
-  // ─── Infinite Scroll Handler ───────────────────────────────────────────────
+  // fetchRows is accessed via ref so the datasource object stays stable across
+  // cell edits and row merges. AG Grid resets scroll/cache whenever datasource
+  // changes, so we only recreate on intentional reloads (reloadToken) or when
+  // the total row count changes.
+  const datasource = useMemo<IDatasource>(() => {
+    return {
+      rowCount: totalRows,
+      getRows: (params: IGetRowsParams<QuarantineRow>) => {
+        void fetchRowsRef.current(params.startRow, params.endRow)
+          .then(({ rows, lastRow }) => {
+            params.successCallback(rows, lastRow >= 0 ? lastRow : undefined)
+          })
+          .catch((error) => {
+            console.error('[QuarantineAgGridTable] Failed to fetch rows', error)
+            params.failCallback()
+          })
+      },
+    }
+  }, [totalRows, reloadToken])
 
-  const handleBodyScrollEnd = useCallback(
-    (_event: BodyScrollEndEvent) => {
-      onBodyScrollEnd?.()
-    },
-    [onBodyScrollEnd]
-  )
+  useEffect(() => {
+    const api = apiRef.current
+    if (!api) return
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+    if (loading) {
+      api.showLoadingOverlay()
+      return
+    }
+
+    api.hideOverlay()
+  }, [loading])
+
+  useEffect(() => {
+    apiRef.current?.refreshCells({ force: true })
+  }, [isCellSaved, reloadToken])
+
+  const handleGridReady = (event: GridReadyEvent<QuarantineRow>) => {
+    apiRef.current = event.api
+    event.api.sizeColumnsToFit()
+    onGridApiReady?.(event.api)
+  }
+
+  const getRowId = useCallback((params: GetRowIdParams<QuarantineRow>) => {
+    return String(params.data.row_id)
+  }, [])
+
+  const handleCellValueChanged = (event: CellValueChangedEvent<QuarantineRow>) => {
+    const field = event.colDef.field
+    const rowId = String(event.data?.row_id ?? '')
+
+    if (!field || field === 'row_id' || !rowId) {
+      return
+    }
+
+    const nextValue = formatCellValue(event.newValue)
+    if (event.data) {
+      event.data[field] = nextValue
+    }
+    onCellEdit(rowId, field, nextValue)
+  }
 
   return (
-    /*
-     * .quarantine-ag-grid: scoping class for CSS variable overrides
-     *   defined in quarantine-ag-grid-theme.css
-     * flex-1 min-h-0: standard flex overflow pattern — parent must use
-     *   display:flex + flex-direction:column for the grid to fill available height
-     */
-    <div className="quarantine-ag-grid" style={{ width: '100%', height: '100%' }}>
+    <div className="quarantine-ag-grid h-full w-full bg-white">
       <AgGridReact<QuarantineRow>
-        // Module registration — use modules prop (not global ModuleRegistry)
-        // to avoid SSR conflicts and multi-grid issues
-        modules={[AllCommunityModule]}
-        // Modern themeQuartz — no legacy CSS imports needed
-        theme={themeQuartz}
-        onGridReady={(params) => { gridApiRef.current = params.api }}
-        // Data
-        rowData={rows}
+        animateRows={false}
+        blockLoadDebounceMillis={75}
+        cacheBlockSize={100}
         columnDefs={columnDefs}
-        defaultColDef={defaultColDef}
+        datasource={datasource}
+        defaultColDef={{
+          editable: false,
+          filter: false,
+          resizable: true,
+          suppressHeaderMenuButton: true,
+          wrapHeaderText: false,
+        }}
+        domLayout="normal"
         getRowId={getRowId}
-        // Loading overlay: show only when loading and no rows are present yet
-        loading={loading && rows.length === 0}
-        // Cell editing — double-click (or Enter/F2) to start editing.
-        // singleClickEdit is intentionally OFF: editable columns use AiSuggestCellRenderer
-        // which embeds interactive buttons. With singleClickEdit=true, a click anywhere on
-        // the cell — including the ✨ wand button — would unmount the renderer and mount the
-        // text editor, making the AI suggestion popover impossible to open.
+        loading={loading}
+        modules={[AllCommunityModule]}
+        maxBlocksInCache={8}
         onCellValueChanged={handleCellValueChanged}
-        // Infinite scroll trigger
-        onBodyScrollEnd={handleBodyScrollEnd}
-        // Keyboard navigation
-        enterNavigatesVerticallyAfterEdit={true}
-        // Suppress the default context menu (prevent browser conflict)
-        suppressContextMenu={true}
-        // Treat field names literally — prevents AG Grid from splitting "Account.Name"
-        // into nested path access (row.Account.Name) for columns with dots in their names
-        suppressFieldDotNotation={true}
+        onCellEditingStarted={(event: CellEditingStartedEvent<QuarantineRow>) => {
+          const field = event.colDef.field
+          const rowId = String(event.data?.row_id ?? '')
+          if (field && field !== 'row_id' && rowId && onCellEditStart) {
+            onCellEditStart(field, rowId)
+          }
+        }}
+        onCellEditingStopped={(event: CellEditingStoppedEvent<QuarantineRow>) => {
+          const field = event.colDef.field
+          const rowId = String(event.data?.row_id ?? '')
+          if (field && field !== 'row_id' && rowId && onCellEditStop) {
+            onCellEditStop(field, rowId)
+          }
+        }}
+        onGridReady={handleGridReady}
+        overlayLoadingTemplate='<span class="text-xs font-medium text-slate-500">Loading quarantine data...</span>'
+        rowBuffer={2}
+        rowModelType="infinite"
+        singleClickEdit
+        stopEditingWhenCellsLoseFocus
+        suppressCellFocus={false}
+        suppressContextMenu
+        tooltipHideDelay={5000}
+        tooltipShowDelay={150}
+        theme={GRID_THEME}
       />
     </div>
   )
 }
+
+export default QuarantineAgGridTable

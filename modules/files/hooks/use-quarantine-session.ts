@@ -23,6 +23,45 @@ import type {
   FileVersionSummary,
 } from '@/modules/files/types'
 
+const READY_VERSION_STATUSES = new Set(['DQ_FIXED', 'DQ_COMPLETE', 'COMPLETED'])
+
+function normalizeVersionStatus(status?: string | null): string {
+  return String(status || '').trim().toUpperCase()
+}
+
+function resolveEditorVersion(
+  uploadId: string,
+  versions: FileVersionSummary[]
+): {
+  requestedVersion: string
+  latestVersion: FileVersionSummary | null
+  stableVersion: FileVersionSummary | null
+} {
+  if (!versions.length) {
+    return {
+      requestedVersion: 'latest',
+      latestVersion: null,
+      stableVersion: null,
+    }
+  }
+
+  const ordered = [...versions].sort((a, b) => (a.version_number || 0) - (b.version_number || 0))
+  const latestVersion = ordered[ordered.length - 1] || null
+  let stableVersion: FileVersionSummary | null = null
+  for (let i = ordered.length - 1; i >= 0; i--) {
+    if (READY_VERSION_STATUSES.has(normalizeVersionStatus(ordered[i].status))) {
+      stableVersion = ordered[i]
+      break
+    }
+  }
+
+  return {
+    requestedVersion: stableVersion?.upload_id || latestVersion?.upload_id || uploadId || 'latest',
+    latestVersion,
+    stableVersion,
+  }
+}
+
 interface SessionState {
   manifest: QuarantineManifest | null
   session: QuarantineSession | null
@@ -49,6 +88,28 @@ export function useQuarantineSession() {
     compatibilityMode: false,
   })
 
+  const loadVersionsInBackground = useCallback(
+    async (uploadId: string, authToken: string, baseUploadId: string) => {
+      try {
+        const versionsResp = await getFileVersions(uploadId, authToken)
+        setState((prev) => {
+          const activeBaseUploadId =
+            prev.session?.base_upload_id || prev.manifest?.upload_id || ''
+          if (activeBaseUploadId && activeBaseUploadId !== baseUploadId) {
+            return prev
+          }
+          return {
+            ...prev,
+            versions: versionsResp.versions || [],
+          }
+        })
+      } catch (error) {
+        console.warn('[QuarantineSession] Failed to load versions in background:', error)
+      }
+    },
+    []
+  )
+
   /**
    * Initialize session in legacy compatibility mode
    * Downloads CSV, parses locally, and sets up mock manifest
@@ -60,9 +121,12 @@ export function useQuarantineSession() {
         versions: [],
         count: 0,
       }))
+      const versions = versionsResp.versions || []
+      const { requestedVersion, latestVersion, stableVersion } = resolveEditorVersion(uploadId, versions)
+      const legacySourceUploadId = requestedVersion === 'latest' ? uploadId : requestedVersion
 
       // Download quarantined CSV
-      const blob = await downloadQuarantineFile(uploadId, 'csv', 'quarantine', authToken)
+      const blob = await downloadQuarantineFile(legacySourceUploadId, 'csv', 'quarantine', authToken)
       const csvText = await blob.text()
       const parsed = parseLegacyCsv(csvText)
 
@@ -70,8 +134,8 @@ export function useQuarantineSession() {
       const editableColumns = parsed.columns.filter((col) => col !== 'row_id')
 
       const mockManifest: QuarantineManifest = {
-        upload_id: uploadId,
-        root_upload_id: versionsResp.versions?.[0]?.root_upload_id || uploadId,
+        upload_id: legacySourceUploadId,
+        root_upload_id: versions[0]?.root_upload_id || uploadId,
         row_count_quarantined: parsed.rows.length,
         columns: parsed.columns,
         editable_columns: editableColumns,
@@ -81,18 +145,26 @@ export function useQuarantineSession() {
 
       const mockSession: QuarantineSession = {
         session_id: `legacy-${Date.now()}`,
-        base_upload_id: uploadId,
+        base_upload_id: legacySourceUploadId,
         session_etag: 'legacy',
       }
 
       setState({
         manifest: mockManifest,
         session: mockSession,
-        versions: versionsResp.versions || [],
+        versions,
         etag: 'legacy',
         loading: false,
         compatibilityMode: true,
       })
+
+      if (latestVersion && stableVersion && latestVersion.upload_id !== stableVersion.upload_id) {
+        const latestStatus = normalizeVersionStatus(latestVersion.status).toLowerCase() || 'processing'
+        toast({
+          title: 'Latest version still processing',
+          description: `Opening latest completed version v${stableVersion.version_number} while v${latestVersion.version_number} is ${latestStatus}.`,
+        })
+      }
 
       return {
         manifest: mockManifest,
@@ -109,10 +181,17 @@ export function useQuarantineSession() {
    */
   const initializeModern = useCallback(
     async (uploadId: string, authToken: string) => {
+      const versionsResp = await getFileVersions(uploadId, authToken).catch(() => ({
+        versions: [],
+        count: 0,
+      }))
+      const versions = versionsResp.versions || []
+      const { requestedVersion, latestVersion, stableVersion } = resolveEditorVersion(uploadId, versions)
+
       // Step 1: Get manifest
       let manifestResp: QuarantineManifest
       try {
-        manifestResp = await getQuarantineManifest(uploadId, authToken, 'latest')
+        manifestResp = await getQuarantineManifest(uploadId, authToken, requestedVersion)
       } catch (manifestError: any) {
         // If authorizer mismatch, immediately throw (can't recover)
         if (isAuthorizerMismatchError(manifestError)) {
@@ -131,24 +210,29 @@ export function useQuarantineSession() {
         }
 
         // Try to backfill read model
-        await backfillQuarantineReadModel(uploadId, authToken, 'latest')
-        manifestResp = await getQuarantineManifest(uploadId, authToken, 'latest')
+        await backfillQuarantineReadModel(uploadId, authToken, requestedVersion)
+        manifestResp = await getQuarantineManifest(uploadId, authToken, requestedVersion)
       }
 
-      // Step 2: Get versions
-      const versionsResp = await getFileVersions(uploadId, authToken)
-
-      // Step 3: Start session
+      // Step 2: Start session
       const sessionResp = await startQuarantineSession(uploadId, authToken, manifestResp.upload_id)
 
       setState({
         manifest: manifestResp,
         session: sessionResp,
-        versions: versionsResp.versions || [],
+        versions,
         etag: sessionResp.session_etag || manifestResp.etag || '',
         loading: false,
         compatibilityMode: false,
       })
+
+      if (latestVersion && stableVersion && latestVersion.upload_id !== stableVersion.upload_id) {
+        const latestStatus = normalizeVersionStatus(latestVersion.status).toLowerCase() || 'processing'
+        toast({
+          title: 'Latest version still processing',
+          description: `Opening latest completed version v${stableVersion.version_number} while v${latestVersion.version_number} is ${latestStatus}.`,
+        })
+      }
 
       return {
         manifest: manifestResp,
@@ -156,7 +240,7 @@ export function useQuarantineSession() {
         etag: sessionResp.session_etag || manifestResp.etag || '',
       }
     },
-    [toast]
+    [loadVersionsInBackground, toast]
   )
 
   /**
@@ -226,10 +310,28 @@ export function useQuarantineSession() {
     setState((prev) => ({ ...prev, etag: newEtag }))
   }, [])
 
+  /**
+   * Re-fetch the current session etag from the server without reloading
+   * manifest or rows.  Used to recover from stale-etag 409 errors.
+   */
+  const refreshEtag = useCallback(
+    async (uploadId: string, authToken: string, baseUploadId: string): Promise<string> => {
+      const sessionResp = await startQuarantineSession(uploadId, authToken, baseUploadId)
+      const freshEtag = sessionResp.session_etag || ''
+      setState((prev) => {
+        if (prev.etag === freshEtag && prev.session?.session_id === sessionResp.session_id) return prev
+        return { ...prev, session: sessionResp, etag: freshEtag }
+      })
+      return freshEtag
+    },
+    []
+  )
+
   return {
     ...state,
     initialize,
     reset,
     updateEtag,
+    refreshEtag,
   }
 }

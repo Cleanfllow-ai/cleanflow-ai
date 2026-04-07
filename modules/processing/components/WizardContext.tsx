@@ -5,7 +5,7 @@ import type { CustomRuleDefinition, ColumnProfile, FileStructureInfo, SchemaMatc
 import { deriveRulesV2 } from "@/shared/lib/type-catalog"
 
 // Wizard step type
-export type WizardStep = "columns" | "profiling" | "settings" | "rules" | "process"
+export type WizardStep = "source" | "columns" | "profiling" | "settings" | "rules" | "process"
 
 // Settings preset
 export interface SettingsPreset {
@@ -69,6 +69,7 @@ export interface CrossFieldRuleWithState {
 export interface WizardState {
     // Current step
     step: WizardStep
+    mode: "new" | "existing"
 
     // File context
     uploadId: string
@@ -164,7 +165,7 @@ interface WizardActions {
     toggleColumn: (column: string) => void
 
     // Profiling
-    setColumnProfiles: (profiles: Record<string, ColumnProfile>) => void
+    setColumnProfiles: (profiles: Record<string, ColumnProfile> | ((prev: Record<string, ColumnProfile>) => Record<string, ColumnProfile>)) => void
     setRequiredColumns: (columns: string[]) => void
     setColumnCoreType: (column: string, core: string) => void
     setColumnTypeAlias: (column: string, alias: string | null) => void
@@ -199,6 +200,7 @@ interface WizardActions {
     // Reset
     reset: () => void
     initializeWithFile: (uploadId: string, fileName: string, columns: string[], authToken: string) => void
+    initializeNew: (authToken: string) => void
 
     // Persistence
     hasSavedState: (uploadId: string) => boolean
@@ -209,9 +211,12 @@ interface WizardActions {
 type WizardContextType = WizardState & WizardActions
 
 const STEP_ORDER: WizardStep[] = ["columns", "profiling", "settings", "rules", "process"]
+export const STEP_ORDER_EXISTING = ["columns", "profiling", "settings", "rules", "process"] as const
+export const STEP_ORDER_NEW = ["source", "columns", "profiling", "settings", "rules", "process"] as const
 
 const initialState: WizardState = {
     step: "columns",
+    mode: "existing",
     uploadId: "",
     fileName: "",
     authToken: "",
@@ -248,17 +253,25 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
         setStep: (step) => setState((s) => ({ ...s, step })),
 
         nextStep: () => {
-            const currentIndex = STEP_ORDER.indexOf(state.step)
-            if (currentIndex < STEP_ORDER.length - 1) {
-                setState((s) => ({ ...s, step: STEP_ORDER[currentIndex + 1] }))
-            }
+            const order = state.mode === "new" ? STEP_ORDER_NEW : STEP_ORDER_EXISTING
+            setState((s) => {
+                const currentIndex = order.indexOf(s.step as any)
+                if (currentIndex < order.length - 1) {
+                    return { ...s, step: order[currentIndex + 1] as WizardStep }
+                }
+                return s
+            })
         },
 
         prevStep: () => {
-            const currentIndex = STEP_ORDER.indexOf(state.step)
-            if (currentIndex > 0) {
-                setState((s) => ({ ...s, step: STEP_ORDER[currentIndex - 1] }))
-            }
+            const order = state.mode === "new" ? STEP_ORDER_NEW : STEP_ORDER_EXISTING
+            setState((s) => {
+                const currentIndex = order.indexOf(s.step as any)
+                if (currentIndex > 0) {
+                    return { ...s, step: order[currentIndex - 1] as WizardStep }
+                }
+                return s
+            })
         },
 
         setSelectedColumns: (columns: string[] | ((prev: string[]) => string[])) => {
@@ -280,7 +293,10 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
             })
         },
 
-        setColumnProfiles: (profiles) => setState((s) => ({ ...s, columnProfiles: profiles })),
+        setColumnProfiles: (profiles) => setState((s) => ({
+            ...s,
+            columnProfiles: typeof profiles === 'function' ? profiles(s.columnProfiles) : profiles,
+        })),
 
         setRequiredColumns: (columns) => setState((s) => ({ ...s, requiredColumns: columns })),
 
@@ -380,6 +396,7 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
         initializeWithFile: (uploadId, fileName, columns, authToken) => {
             setState({
                 ...initialState,
+                mode: "existing",
                 uploadId,
                 fileName,
                 authToken,
@@ -391,6 +408,10 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
                 columnNullable: Object.fromEntries(columns.map((c) => [c, true])),
                 crossFieldRules: [],
             })
+        },
+
+        initializeNew: (authToken) => {
+            setState({ ...initialState, mode: "new", step: "source", authToken })
         },
 
         // Persistence
@@ -411,7 +432,7 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
         if (state.uploadId && state.step !== "columns") {
             saveWizardState(state)
         }
-    }, [state.step, state.uploadId])
+    }, [state.step, state.uploadId, state.selectedColumns, state.columnCoreTypes, state.columnRules, state.customRules])
 
     return (
         <WizardContext.Provider value={{ ...state, ...actions }}>

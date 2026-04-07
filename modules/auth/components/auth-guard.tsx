@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/modules/auth/providers/auth-provider'
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -10,13 +11,15 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children, redirectTo = '/auth/login' }: AuthGuardProps) {
   const { isAuthenticated, isLoading } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      const currentParams = window.location.search
-      window.location.href = `${redirectTo}${currentParams}`
+      // Validate redirectTo to prevent open redirects
+      const safeRedirect = redirectTo.startsWith('/') && !redirectTo.startsWith('//') ? redirectTo : '/auth/login'
+      router.push(safeRedirect)
     }
-  }, [isAuthenticated, isLoading, redirectTo])
+  }, [isAuthenticated, isLoading, redirectTo, router])
 
   if (isLoading) {
     return (

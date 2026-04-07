@@ -89,7 +89,15 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
-        setMessages(parsed.map((m: Message) => ({ ...m, timestamp: new Date(m.timestamp) })))
+        const storedAt = parsed.storedAt || 0
+        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+        if (Date.now() - storedAt > TWENTY_FOUR_HOURS) {
+          localStorage.removeItem('cleanflowai-chat-history')
+          return
+        }
+        if (Array.isArray(parsed.messages)) {
+          setMessages(parsed.messages.map((m: Message) => ({ ...m, timestamp: new Date(m.timestamp) })))
+        }
       } catch (e) {
         console.error('Failed to load chat history:', e)
       }
@@ -98,7 +106,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
   useEffect(() => {
     if (messages.length > 0) {
-      localStorage.setItem('cleanflowai-chat-history', JSON.stringify(messages))
+      localStorage.setItem('cleanflowai-chat-history', JSON.stringify({ messages, storedAt: Date.now() }))
     }
   }, [messages])
 

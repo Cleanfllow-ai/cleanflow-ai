@@ -8,3 +8,5 @@ export {
   validateCSV,
   getCSVStats,
 } from './csv-parser'
+
+export { isDQColumn, filterDQColumns } from './dq-columns'

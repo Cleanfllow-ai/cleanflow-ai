@@ -550,7 +550,7 @@ export function SettingsStep() {
                   {presets.map((preset) => (
                     <SelectItem key={preset.preset_id} value={preset.preset_id}>
                       <div className="flex items-center gap-2">
-                        {preset.is_default && <Star className="w-3 h-3 text-yellow-500" />}
+                        {preset.is_default && <Star className="w-3 h-3 text-amber-500" />}
                         {preset.preset_name}
                       </div>
                     </SelectItem>

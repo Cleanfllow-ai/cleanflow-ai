@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Loader2, CheckCircle, XCircle, Play, RotateCw } from "lucide-react"
 import { useProcessingWizard } from "../WizardContext"
@@ -143,6 +143,10 @@ export function ProcessStep({
       })
       setStatusMessage("Processing started, monitoring progress...")
       if (onStarted) onStarted()
+      // Auto-close dialog 3 seconds after processing kicks off
+      setTimeout(() => {
+        if (onComplete) onComplete()
+      }, 3000)
     } catch (err: any) {
       setStatus("error")
       setProcessingError(err.message || "Failed to start processing")
@@ -155,7 +159,7 @@ export function ProcessStep({
     setProcessingError(null)
   }
 
-  const handleComplete = async () => {
+  const handleComplete = useCallback(async () => {
     try {
       if (authToken) {
         const fileResponse = await fileManagementAPI.getFileStatus(uploadId, authToken)
@@ -166,7 +170,7 @@ export function ProcessStep({
       console.error("Failed to fetch file data", err)
     }
     if (onComplete) onComplete()
-  }
+  }, [authToken, uploadId, onComplete])
 
   // Auto-close after 3 seconds on success
   useEffect(() => {
@@ -176,7 +180,7 @@ export function ProcessStep({
       }, 3000)
       return () => clearTimeout(timer)
     }
-  }, [status])
+  }, [status, handleComplete])
 
   return (
     <>
@@ -220,6 +224,7 @@ export function ProcessStep({
             <div>
               <h2 className="text-xl font-semibold">Processing...</h2>
               <p className="text-muted-foreground mt-2">{statusMessage}</p>
+              <p className="text-sm text-muted-foreground mt-1">This dialog will close automatically. Processing continues in the background.</p>
             </div>
           </div>
         )}

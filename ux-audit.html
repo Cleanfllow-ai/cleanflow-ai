@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CleanFlowAI UX Audit — Problems & Proposed Fixes</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1219;
+    --card: #161a24;
+    --card-hover: #1a1f2b;
+    --border: #1e2433;
+    --text: #e2e5ec;
+    --muted: #6b7280;
+    --primary: hsl(192, 85%, 50%);
+    --accent: hsl(168, 75%, 45%);
+    --rose: #f43f5e;
+    --amber: #f59e0b;
+    --emerald: #10b981;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', system-ui, sans-serif; line-height:1.6; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+  h1 { font-family: 'Outfit', sans-serif; font-size: 2.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 8px; }
+  h1 span { background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 48px; max-width: 600px; }
+
+  /* Problem cards */
+  .problem-section { margin-bottom: 64px; }
+  .problem-section h2 {
+    font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+    margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+  }
+  .problem-section h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--primary); color: #000; font-size: 13px; font-weight: 700;
+    margin-right: 10px; vertical-align: middle;
+  }
+
+  .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  .problem-card, .solution-card {
+    border-radius: 12px; padding: 24px; border: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+  .problem-card { background: #1c1015; border-color: #3a1520; }
+  .problem-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--rose);
+  }
+  .solution-card { background: #0f1a1a; border-color: #153030; }
+  .solution-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--emerald);
+  }
+
+  .card-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em;
+    margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+  }
+  .problem-card .card-label { color: var(--rose); }
+  .solution-card .card-label { color: var(--emerald); }
+
+  .card-title { font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+  .card-desc { font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .card-desc strong { color: var(--text); font-weight: 600; }
+
+  /* Mini mockups */
+  .mockup-frame {
+    margin-top: 16px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--border); padding: 16px; font-size: 11px;
+  }
+  .mockup-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; }
+  .mockup-pill {
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px;
+    border-radius: 6px; font-size: 10px; font-weight: 600; border: 1px solid;
+  }
+  .mockup-pill.green { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2); color: #10b981; }
+  .mockup-pill.rose { background: rgba(244,63,94,0.1); border-color: rgba(244,63,94,0.2); color: #f43f5e; }
+  .mockup-pill.amber { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.2); color: #f59e0b; }
+  .mockup-pill.blue { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.2); color: #3b82f6; }
+  .mockup-pill.teal { background: rgba(0,190,182,0.1); border-color: rgba(0,190,182,0.2); color: var(--primary); }
+
+  .mockup-bar { height: 6px; border-radius: 3px; background: var(--border); flex: 1; position: relative; overflow: hidden; }
+  .mockup-bar .fill { height: 100%; border-radius: 3px; }
+
+  .mockup-card-mini {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; flex: 1;
+  }
+  .mockup-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-weight: 600; }
+  .mockup-value { font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 700; margin-top: 2px; }
+  .mockup-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* Inline wireframe mockups */
+  .wireframe { margin-top: 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); overflow: hidden; }
+  .wireframe-header { background: var(--card); padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .wireframe-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .wireframe-body { padding: 16px; }
+  .wireframe-sidebar { width: 48px; background: #0d1117; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px 0; }
+  .wireframe-icon { width: 20px; height: 20px; border-radius: 4px; background: var(--border); }
+  .wireframe-icon.active { background: var(--primary); opacity: 0.3; }
+
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .tag-new { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .tag-improve { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .tag-remove { background: rgba(244,63,94,0.15); color: #fb7185; }
+
+  /* Page nav */
+  .page-nav { position: sticky; top: 0; z-index: 100; background: rgba(15,18,25,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 12px 0; margin-bottom: 32px; }
+  .page-nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .page-nav a {
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 6px 14px; border-radius: 6px; text-decoration: none;
+    color: var(--muted); border: 1px solid var(--border); transition: all 0.15s;
+  }
+  .page-nav a:hover { color: var(--text); border-color: var(--primary); background: rgba(0,190,182,0.05); }
+
+  .impact-badge {
+    display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+    border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .impact-high { background: rgba(244,63,94,0.15); color: #fb7185; }
+  .impact-med { background: rgba(245,158,11,0.15); color: #fbbf24; }
+
+  .divider { height: 1px; background: var(--border); margin: 48px 0; }
+</style>
+</head>
+<body>
+
+<nav class="page-nav">
+  <div class="page-nav-inner">
+    <a href="#dashboard">Dashboard</a>
+    <a href="#files">Files / Catalog</a>
+    <a href="#sidebar">Sidebar</a>
+    <a href="#dialogs">Dialogs</a>
+    <a href="#jobs">Jobs</a>
+    <a href="#empty-states">Empty States</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<h1>CleanFlowAI <span>UX Audit</span></h1>
+<p class="subtitle">
+  Real UX/UI problems found by auditing every page, dialog, and flow.
+  Each problem has a concrete proposed fix — not just cosmetic, but structural improvements to layout, hierarchy, interactions, and information architecture.
+</p>
+
+<!-- ═══════════════════ DASHBOARD ═══════════════════ -->
+<section class="problem-section" id="dashboard">
+<h2><span class="num">1</span> Dashboard Page</h2>
+
+<div class="problem-grid">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-high">High Impact</span></div>
+    <div class="card-title">Dashboard is read-only — zero actionable items</div>
+    <div class="card-desc">
+      Users see charts and KPIs but <strong>cannot act on anything</strong>. No "files need attention" with direct links. No "click to remediate". The attention banner links to /files but loses context. Users must mentally map numbers → navigation → action.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Add "Action Required" panel with direct deep-links</div>
+    <div class="card-desc">
+      Replace the generic attention banner with a <strong>prioritized action queue</strong>: "3 files have quarantined rows — click to open editor". Each item is a clickable card that opens the relevant dialog directly. Failed files link straight to retry.
+    </div>
+    <div class="mockup-frame">
+      <div style="font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#6b7280; font-weight:600; margin-bottom:8px;">Action Required</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:6px; background:#1c1015; border:1px solid #3a1520; cursor:pointer;">
+          <span class="mockup-pill rose">&#x25CF; 42 quarantined</span>
+          <span style="flex:1; font-size:11px;">invoices_march.csv</span>
+          <span style="font-size:10px; color:var(--primary);">Open Editor →</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:6px; background:#1a1510; border:1px solid #3a2a15; cursor:pointer;">
+          <span class="mockup-pill amber">&#x25CF; Failed</span>
+          <span style="flex:1; font-size:11px;">customers_q4.xlsx</span>
+          <span style="font-size:10px; color:var(--primary);">Retry →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="problem-grid" style="margin-top:24px;">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-high">High Impact</span></div>
+    <div class="card-title">No file-level progress visible from dashboard</div>
+    <div class="card-desc">
+      If a file is currently processing (DQ_RUNNING), the dashboard shows nothing about it. Users have to navigate to Files page to check. The Activity Feed shows <strong>past events only</strong>, not live processing status.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Add "Live Pipeline" status strip below KPIs</div>
+    <div class="card-desc">
+      Show currently-processing files with a <strong>live progress indicator</strong> directly on the dashboard. When nothing is processing, this strip auto-hides. Clicking it navigates to the file's detail view.
+    </div>
+    <div class="mockup-frame">
+      <div style="font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#6b7280; font-weight:600; margin-bottom:8px;">Processing Now</div>
+      <div style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:6px; background:var(--card); border:1px solid var(--border);">
+        <div style="width:8px; height:8px; border-radius:50%; background:var(--primary); animation: pulse 1.5s infinite;"></div>
+        <span style="font-size:11px; font-weight:500;">vendor_payments.csv</span>
+        <div class="mockup-bar" style="max-width:120px;">
+          <div class="fill" style="width:65%; background:var(--primary);"></div>
+        </div>
+        <span style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted);">65%</span>
+        <span style="font-size:10px; color:var(--muted);">~2 min remaining</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="problem-grid" style="margin-top:24px;">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-med">Medium</span></div>
+    <div class="card-title">KPI cards don't show trend/change direction</div>
+    <div class="card-desc">
+      "Avg DQ Score: 87.5%" — is that better or worse than last week? The cards show a <strong>snapshot with no context</strong>. Users can't tell if quality is improving.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Add trend indicators (↑↓) with delta values</div>
+    <div class="card-desc">
+      Compare current values against 7-day rolling average. Show <strong>↑ 2.3%</strong> in green or <strong>↓ 1.1%</strong> in red next to each KPI. Even simple "since last refresh" deltas help.
+    </div>
+    <div class="mockup-frame">
+      <div style="display:flex; gap:8px;">
+        <div class="mockup-card-mini">
+          <div class="mockup-label">Avg DQ Score</div>
+          <div style="display:flex; align-items:baseline; gap:6px;">
+            <div class="mockup-value" style="color:var(--emerald);">87.5%</div>
+            <span style="font-size:11px; color:var(--emerald);">↑ 2.3%</span>
+          </div>
+          <div class="mockup-sub">vs. 7-day avg</div>
+        </div>
+        <div class="mockup-card-mini">
+          <div class="mockup-label">Quarantined</div>
+          <div style="display:flex; align-items:baseline; gap:6px;">
+            <div class="mockup-value" style="color:var(--rose);">1,247</div>
+            <span style="font-size:11px; color:var(--rose);">↑ 89</span>
+          </div>
+          <div class="mockup-sub">needs attention</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ FILES ═══════════════════ -->
+<section class="problem-section" id="files">
+<h2><span class="num">2</span> Files / Data Catalog Page</h2>
+
+<div class="problem-grid">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-high">High Impact</span></div>
+    <div class="card-title">File status is a static badge — no progression visualization</div>
+    <div class="card-desc">
+      Files go through: UPLOADED → QUEUED → DQ_RUNNING → DQ_FIXED. But the table shows a <strong>single text badge</strong>. Users can't see where in the pipeline a file is, or how much work remains. "DQ_RUNNING" tells you nothing about progress.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Replace status badge with a mini pipeline stepper</div>
+    <div class="card-desc">
+      Show a <strong>3-dot stepper</strong> (Upload → Process → Complete) with the current step highlighted. For DQ_RUNNING, show an animated pulse on the "Process" dot. Failed states show the step that failed in red.
+    </div>
+    <div class="mockup-frame">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px;">
+          <span style="font-size:11px; color:var(--muted); width:100px;">invoices.csv</span>
+          <div style="width:8px; height:8px; border-radius:50%; background:var(--emerald);"></div>
+          <div style="width:24px; height:2px; background:var(--emerald);"></div>
+          <div style="width:8px; height:8px; border-radius:50%; background:var(--emerald);"></div>
+          <div style="width:24px; height:2px; background:var(--emerald);"></div>
+          <div style="width:8px; height:8px; border-radius:50%; background:var(--emerald);"></div>
+          <span style="margin-left:6px; color:var(--emerald); font-size:10px; font-weight:600;">Complete</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px;">
+          <span style="font-size:11px; color:var(--muted); width:100px;">vendors.csv</span>
+          <div style="width:8px; height:8px; border-radius:50%; background:var(--emerald);"></div>
+          <div style="width:24px; height:2px; background:var(--primary);"></div>
+          <div style="width:10px; height:10px; border-radius:50%; border:2px solid var(--primary); box-shadow:0 0 6px var(--primary);"></div>
+          <div style="width:24px; height:2px; background:var(--border);"></div>
+          <div style="width:8px; height:8px; border-radius:50%; background:var(--border);"></div>
+          <span style="margin-left:6px; color:var(--primary); font-size:10px; font-weight:600;">Processing...</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px;">
+          <span style="font-size:11px; color:var(--muted); width:100px;">customers.csv</span>
+          <div style="width:8px; height:8px; border-radius:50%; background:var(--emerald);"></div>
+          <div style="width:24px; height:2px; background:var(--rose);"></div>
+          <div style="width:8px; height:8px; border-radius:50%; background:var(--rose);"></div>
+          <div style="width:24px; height:2px; background:var(--border);"></div>
+          <div style="width:8px; height:8px; border-radius:50%; background:var(--border);"></div>
+          <span style="margin-left:6px; color:var(--rose); font-size:10px; font-weight:600;">Failed at DQ</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="problem-grid" style="margin-top:24px;">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-high">High Impact</span></div>
+    <div class="card-title">13+ dialogs stacked in files-page-dialogs.tsx — modal maze</div>
+    <div class="card-desc">
+      The files page renders <strong>13 different modals</strong> (delete, rename, column selection, rules, confirm columns, details, download, ERP transform, push to ERP, wizard, column export, export, profiling, import, quarantine editor). Users can trigger dialog → dialog → dialog chains. This is a navigation nightmare.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Consolidate into a slide-over detail panel + unified action drawer</div>
+    <div class="card-desc">
+      Replace the "click row → open full-screen dialog" pattern with a <strong>persistent right panel</strong> (slide-over) showing file details. Actions (export, process, edit) become a <strong>single action drawer</strong> at the bottom of this panel. No more modal stacking.
+    </div>
+    <div class="mockup-frame">
+      <div style="display:flex; gap:0; height:160px; border-radius:6px; overflow:hidden; border:1px solid var(--border);">
+        <!-- Table -->
+        <div style="flex:1; padding:10px; background:var(--bg); border-right:1px solid var(--border);">
+          <div style="font-size:9px; color:var(--muted); margin-bottom:6px;">FILE TABLE</div>
+          <div style="height:8px; background:var(--border); border-radius:2px; margin-bottom:4px; width:80%;"></div>
+          <div style="height:8px; background:var(--primary); opacity:0.2; border-radius:2px; margin-bottom:4px; width:90%; border-left:2px solid var(--primary);"></div>
+          <div style="height:8px; background:var(--border); border-radius:2px; margin-bottom:4px; width:75%;"></div>
+          <div style="height:8px; background:var(--border); border-radius:2px; width:85%;"></div>
+        </div>
+        <!-- Detail Panel -->
+        <div style="width:220px; padding:10px; background:var(--card);">
+          <div style="font-size:9px; color:var(--primary); font-weight:600; margin-bottom:6px;">DETAIL PANEL</div>
+          <div style="font-size:10px; font-weight:600; margin-bottom:4px;">invoices.csv</div>
+          <div style="font-size:9px; color:var(--muted); margin-bottom:8px;">DQ Score: 87.5% · 1,247 rows</div>
+          <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <span class="mockup-pill teal" style="font-size:8px;">Preview</span>
+            <span class="mockup-pill blue" style="font-size:8px;">DQ Report</span>
+            <span class="mockup-pill amber" style="font-size:8px;">Edit Quarantine</span>
+            <span class="mockup-pill green" style="font-size:8px;">Export</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="problem-grid" style="margin-top:24px;">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-med">Medium</span></div>
+    <div class="card-title">No drag-and-drop anywhere on the files page</div>
+    <div class="card-desc">
+      Users must click "Import" → wait for dialog → then drag a file into the dialog's drop zone. The main page surface — which is often empty for new users — doesn't accept file drops. This is a <strong>missed opportunity for the most common action</strong>.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Make the entire files page a drop zone</div>
+    <div class="card-desc">
+      When a user drags a file over the page, show a <strong>full-page drop overlay</strong> ("Drop to upload and process"). On drop, auto-open the processing wizard. This is especially powerful when the page is empty (first-time experience).
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+<section class="problem-section" id="sidebar">
+<h2><span class="num">3</span> Sidebar & Navigation</h2>
+
+<div class="problem-grid">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-med">Medium</span></div>
+    <div class="card-title">Sidebar shows no live context — just static links</div>
+    <div class="card-desc">
+      The sidebar is a plain nav menu. It doesn't show: how many files are processing, how many jobs are running, if anything needs attention. Users navigate blind — <strong>they don't know where to go until they get there</strong>.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Add contextual count badges + status indicators</div>
+    <div class="card-desc">
+      Show a <strong>red badge "3"</strong> on Data Catalog when 3 files need attention. Show a <strong>green pulse dot</strong> on Jobs when active jobs are running. These cost almost nothing to implement but drastically improve wayfinding.
+    </div>
+    <div class="mockup-frame">
+      <div style="width:200px; background:#0d1117; border-radius:8px; padding:8px;">
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:6px; margin-bottom:2px; color:var(--muted); font-size:12px;">
+          <div style="width:16px; height:16px; border-radius:3px; background:var(--border);"></div>
+          Dashboard
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:6px; margin-bottom:2px; background:rgba(0,190,182,0.08); border-left:2px solid var(--primary); font-size:12px; color:#fff;">
+          <div style="width:16px; height:16px; border-radius:3px; background:rgba(0,190,182,0.2);"></div>
+          Data Catalog
+          <span style="margin-left:auto; background:var(--rose); color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; min-width:16px; text-align:center;">3</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:6px; margin-bottom:2px; color:var(--muted); font-size:12px;">
+          <div style="width:16px; height:16px; border-radius:3px; background:var(--border);"></div>
+          Jobs
+          <span style="margin-left:auto; width:6px; height:6px; border-radius:50%; background:var(--emerald); box-shadow:0 0 4px var(--emerald);"></span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:6px; color:var(--muted); font-size:12px;">
+          <div style="width:16px; height:16px; border-radius:3px; background:var(--border);"></div>
+          Admin
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ DIALOGS ═══════════════════ -->
+<section class="problem-section" id="dialogs">
+<h2><span class="num">4</span> Dialogs & Workflows</h2>
+
+<div class="problem-grid">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-high">High Impact</span></div>
+    <div class="card-title">Processing wizard is 6 steps but most users only need 1</div>
+    <div class="card-desc">
+      The wizard has: Source → Columns → Profiling → Settings → Rules → Process. But <strong>80% of users just want "process with defaults"</strong>. The wizard forces everyone through 6 screens even when the defaults are fine. Power users need the granularity, but it shouldn't be mandatory.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Add "Quick Process" one-click + "Advanced" expandable wizard</div>
+    <div class="card-desc">
+      After upload, show two paths: <strong>"Process Now" (one click, default settings)</strong> and "Configure Processing →" (opens the full wizard). The quick path skips all optional steps. Advanced users can always access the full wizard.
+    </div>
+    <div class="mockup-frame">
+      <div style="text-align:center; padding:8px;">
+        <div style="font-size:11px; font-weight:600; margin-bottom:10px;">invoices_march.csv uploaded</div>
+        <div style="display:flex; gap:8px; justify-content:center;">
+          <div style="padding:8px 20px; border-radius:6px; background:var(--primary); color:#000; font-size:11px; font-weight:700; cursor:pointer;">
+            &#x26A1; Process Now
+          </div>
+          <div style="padding:8px 20px; border-radius:6px; border:1px solid var(--border); color:var(--muted); font-size:11px; font-weight:500; cursor:pointer;">
+            Configure Processing →
+          </div>
+        </div>
+        <div style="font-size:9px; color:var(--muted); margin-top:6px;">Quick process uses auto-detected types & default rules</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="problem-grid" style="margin-top:24px;">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-med">Medium</span></div>
+    <div class="card-title">Export flow requires 3+ clicks through nested dialogs</div>
+    <div class="card-desc">
+      To export: click Export action → choose format in ExportDialog → (optional) column selection → download. That's 3 dialogs for what should be the simplest action on the platform.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Inline export dropdown directly on the action button</div>
+    <div class="card-desc">
+      Replace the export dialog chain with a <strong>dropdown menu on the export button</strong>: CSV | Excel | JSON. One click to download. "Advanced export..." at the bottom opens the column selection if needed.
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ JOBS ═══════════════════ -->
+<section class="problem-section" id="jobs">
+<h2><span class="num">5</span> Jobs Page</h2>
+
+<div class="problem-grid">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-med">Medium</span></div>
+    <div class="card-title">Job run history is hidden behind an expand click</div>
+    <div class="card-desc">
+      To see if a job's last runs succeeded, you must click the expand chevron on each row. There's no at-a-glance view of <strong>"which jobs are healthy vs. failing"</strong>.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Add inline sparkline showing last 7 runs</div>
+    <div class="card-desc">
+      In the table, add a <strong>tiny sparkline column</strong> showing the last 7 run results as colored dots (green = success, red = fail, gray = not run). At a glance, users see patterns — "this job fails every Monday".
+    </div>
+    <div class="mockup-frame">
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; align-items:center; gap:12px; font-size:11px;">
+          <span style="width:120px;">QB → Zoho Daily</span>
+          <div style="display:flex; gap:3px;">
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--emerald);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--emerald);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--emerald);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--rose);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--emerald);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--emerald);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--emerald);"></div>
+          </div>
+          <span style="font-size:10px; color:var(--emerald);">85% success</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; font-size:11px;">
+          <span style="width:120px;">Invoice Sync 1hr</span>
+          <div style="display:flex; gap:3px;">
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--rose);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--rose);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--rose);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--rose);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--border);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--border);"></div>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--border);"></div>
+          </div>
+          <span style="font-size:10px; color:var(--rose);">0% — auto-paused</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ EMPTY STATES ═══════════════════ -->
+<section class="problem-section" id="empty-states">
+<h2><span class="num">6</span> Empty States & Onboarding</h2>
+
+<div class="problem-grid">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-high">High Impact</span></div>
+    <div class="card-title">First-time user sees an empty dashboard with zero guidance</div>
+    <div class="card-desc">
+      New user lands on Dashboard: empty KPIs (all "0" or "—"), empty charts, empty activity feed. There's no <strong>"Welcome! Here's how to get started"</strong>. The most critical moment (first session) is completely wasted.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Replace empty dashboard with an onboarding checklist</div>
+    <div class="card-desc">
+      When files.length === 0, show a <strong>getting-started card</strong> instead of empty charts:
+      <br><br>
+      &#x2610; Upload your first file<br>
+      &#x2610; Run data quality processing<br>
+      &#x2610; Review and fix quarantined rows<br>
+      &#x2610; Export clean data<br>
+      <br>
+      Each step links directly to the relevant page/action. The card disappears once all steps are completed.
+    </div>
+  </div>
+</div>
+
+<div class="problem-grid" style="margin-top:24px;">
+  <div class="problem-card">
+    <div class="card-label">&#x26A0; Problem <span class="impact-badge impact-med">Medium</span></div>
+    <div class="card-title">Empty tables show "No files yet" but don't explain why or what to do</div>
+    <div class="card-desc">
+      Files table empty state: icon + "No files yet" + "Import a file to start analyzing data quality" + button. This is minimal but <strong>doesn't educate</strong>. What file formats? What happens after import? Users don't know what to expect.
+    </div>
+  </div>
+  <div class="solution-card">
+    <div class="card-label">&#x2713; Proposed Fix</div>
+    <div class="card-title">Rich empty state with format chips + mini workflow preview</div>
+    <div class="card-desc">
+      Show supported formats as clickable chips (CSV, Excel, JSON). Below that, a <strong>3-step mini diagram</strong>: Upload → AI processes → Clean data. This sets expectations and makes the empty state feel like a feature, not a void.
+    </div>
+  </div>
+</div>
+</section>
+
+<div style="margin-top:80px; padding:32px; border-radius:12px; background:var(--card); border:1px solid var(--border); text-align:center;">
+  <div style="font-family:'Outfit',sans-serif; font-size:1.3rem; font-weight:700; margin-bottom:8px;">
+    Summary: 11 UX problems identified
+  </div>
+  <div style="color:var(--muted); font-size:13px; max-width:500px; margin:0 auto;">
+    6 high-impact, 5 medium-impact. Which improvements should we tackle first?
+  </div>
+</div>
+
+</div>
+
+<style>
+@keyframes pulse { 0%,100% { opacity:0.4; } 50% { opacity:1; } }
+</style>
+</body>
+</html>

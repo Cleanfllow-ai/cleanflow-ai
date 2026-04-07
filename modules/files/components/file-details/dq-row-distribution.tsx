@@ -1,5 +1,6 @@
+"use client"
+
 import { PieChart as PieChartIcon } from "lucide-react"
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
 
 import type { DqReportResponse, FileStatusResponse } from "@/modules/files"
 
@@ -8,17 +9,64 @@ interface DqRowDistributionProps {
   dqReport: DqReportResponse | null
 }
 
+interface Segment {
+  name: string
+  value: number
+  color: string
+}
+
+function DonutChart({ segments, total }: { segments: Segment[]; total: number }) {
+  const r = 70
+  const cx = 110
+  const cy = 110
+  const circumference = 2 * Math.PI * r
+  let offsetAngle = -90 // start at 12 o'clock
+
+  return (
+    <svg width={220} height={220} viewBox="0 0 220 220">
+      {/* Background track */}
+      <circle
+        cx={cx} cy={cy} r={r}
+        fill="none"
+        stroke="#e5e7eb"
+        strokeWidth={28}
+      />
+      {segments.map((seg) => {
+        const fraction = total > 0 ? seg.value / total : 0
+        const dashLen = fraction * circumference
+        const rotation = offsetAngle
+        offsetAngle += fraction * 360
+
+        return (
+          <circle
+            key={seg.name}
+            cx={cx} cy={cy} r={r}
+            fill="none"
+            stroke={seg.color}
+            strokeWidth={28}
+            strokeDasharray={`${dashLen} ${circumference}`}
+            strokeDashoffset={0}
+            transform={`rotate(${rotation}, ${cx}, ${cy})`}
+          />
+        )
+      })}
+    </svg>
+  )
+}
+
 export function DqRowDistribution({ file, dqReport }: DqRowDistributionProps) {
   const total = dqReport?.rows_in ?? file.rows_in ?? 0
   const clean = dqReport?.rows_clean ?? file.rows_clean ?? 0
   const fixed = dqReport?.rows_fixed ?? file.rows_fixed ?? 0
   const quarantined = dqReport?.rows_quarantined ?? file.rows_quarantined ?? 0
 
-  const pieData = [
+  const segments: Segment[] = [
     { name: "Clean", value: clean, color: "#22C55E" },
     { name: "Fixed", value: fixed, color: "#EAB308" },
     { name: "Quarantined", value: quarantined, color: "#EF4444" },
   ].filter((d) => d.value > 0)
+
+  const pct = (v: number) => (total > 0 ? ((v / total) * 100).toFixed(1) : "0.0")
 
   return (
     <div className="space-y-4">
@@ -27,48 +75,29 @@ export function DqRowDistribution({ file, dqReport }: DqRowDistributionProps) {
         Row Distribution
       </h4>
 
-      {pieData.length === 0 ? (
+      {segments.length === 0 ? (
         <div className="h-[200px] flex items-center justify-center text-muted-foreground">No data available</div>
       ) : (
         <div className="bg-muted/30 rounded-lg p-6">
-          <div className="text-center mb-4">
-            <p className="text-3xl font-bold">{total.toLocaleString()}</p>
-            <p className="text-sm text-muted-foreground">Total Rows</p>
-          </div>
-
           <div className="flex justify-center">
-            <div style={{ width: 220, height: 220 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => [value.toLocaleString(), "Rows"]}
-                    contentStyle={{
-                      borderRadius: "8px",
-                      border: "1px solid hsl(var(--border))",
-                      backgroundColor: "hsl(var(--background))",
-                      padding: "8px 12px",
-                      fontSize: "13px",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="relative" style={{ width: 220, height: 220 }}>
+              <DonutChart segments={segments} total={total} />
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <p className="text-2xl font-bold leading-tight">{total.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Total Rows</p>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-center gap-6 mt-4">
-            {pieData.map((item) => (
+          <div className="flex justify-center flex-wrap gap-6 mt-4">
+            {segments.map((item) => (
               <div key={item.name} className="flex flex-col items-center">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
                   <span className="text-sm font-medium">{item.name}</span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {item.value.toLocaleString()} ({total > 0 ? ((item.value / total) * 100).toFixed(1) : 0}%)
+                  {item.value.toLocaleString()} ({pct(item.value)}%)
                 </span>
               </div>
             ))}
@@ -78,4 +107,3 @@ export function DqRowDistribution({ file, dqReport }: DqRowDistributionProps) {
     </div>
   )
 }
-

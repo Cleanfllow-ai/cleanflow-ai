@@ -75,7 +75,6 @@ export type {
     FileVersionsResponse,
     QuarantineEditorState,
     QuarantineEditorConfig,
-    QuarantineEditorDialogProps,
     ActiveCell,
     SaveSummary,
     CsvParseResult,
@@ -89,4 +88,20 @@ export type {
     ColumnRuleApplyResponse,
     ColumnRuleApplyAllRequest,
     ColumnRuleApplyAllResponse,
+    ColumnFilter,
+    QuarantineFilters,
+    ColumnValuesRequest,
+    ColumnValuesResponse,
+    FindMatch,
+    QuarantineFindRequest,
+    QuarantineFindResponse,
 } from './quarantine.types'
+
+export type {
+  WsUserInfo,
+  WsServerMessage,
+  WsClientMessage,
+  CollaborationUser,
+  CellLockInfo,
+  ActivityEntry,
+} from './collaboration.types'

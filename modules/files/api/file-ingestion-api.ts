@@ -172,6 +172,10 @@ export async function ingestFromHttp(config: HttpIngestionConfig, token: string)
 }
 
 export async function uploadBinary(file: File, token: string, onProgress?: (progress: number) => void): Promise<IngestionResponse> {
+    if (file.size > 5 * 1024 * 1024) {
+        throw new Error('File exceeds 5 MB limit for binary upload. Use the multipart upload path instead.')
+    }
+
     return new Promise((resolve, reject) => {
         const reader = new FileReader()
 
@@ -213,19 +217,25 @@ export async function uploadBinary(file: File, token: string, onProgress?: (prog
 
 // ─── Connection Tests ───
 
-export async function testFtpConnection(config: Omit<FtpIngestionConfig, 'filename'>): Promise<{ success: boolean; message: string }> {
+export async function validateFtpConfig(config: Omit<FtpIngestionConfig, 'filename'>): Promise<{ success: boolean; message: string }> {
     if (!config.host || !config.remote_path) {
         return { success: false, message: 'Host and remote path are required' }
     }
-    return { success: true, message: 'Connection parameters look valid' }
+    return { success: true, message: 'Configuration looks valid (connectivity not tested)' }
 }
 
-export async function testTcpConnection(config: Omit<TcpIngestionConfig, 'filename'>): Promise<{ success: boolean; message: string }> {
+/** @deprecated Use validateFtpConfig instead */
+export const testFtpConnection = validateFtpConfig
+
+export async function validateTcpConfig(config: Omit<TcpIngestionConfig, 'filename'>): Promise<{ success: boolean; message: string }> {
     if (!config.host || !config.port) {
         return { success: false, message: 'Host and port are required' }
     }
-    return { success: true, message: 'Connection parameters look valid' }
+    return { success: true, message: 'Configuration looks valid (connectivity not tested)' }
 }
+
+/** @deprecated Use validateTcpConfig instead */
+export const testTcpConnection = validateTcpConfig
 
 export async function testHttpEndpoint(config: Omit<HttpIngestionConfig, 'filename'>): Promise<{ success: boolean; message: string }> {
     if (!config.url) {

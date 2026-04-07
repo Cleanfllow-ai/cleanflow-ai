@@ -1,14 +1,13 @@
 /**
  * quarantine-editor-header.tsx
  *
- * Header component for quarantine editor dialog
- * Displays file metadata and edit status
+ * Clean light header for the quarantine editor.
+ * Professional, minimal — matches the B2B light theme.
  */
 
 'use client'
 
-import { Badge } from '@/components/ui/badge'
-import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ShieldAlert, Columns3, Pencil, CircleDot, AlertTriangle } from 'lucide-react'
 import type { QuarantineManifest } from '@/modules/files/types'
 
 interface QuarantineEditorHeaderProps {
@@ -24,9 +23,11 @@ export function QuarantineEditorHeader({
 }: QuarantineEditorHeaderProps) {
   if (!manifest) {
     return (
-      <DialogHeader className="px-6 py-3 border-b bg-gradient-to-r from-muted/30 to-muted/10 backdrop-blur-sm">
-        <DialogTitle className="text-lg font-semibold">Quarantine Editor</DialogTitle>
-      </DialogHeader>
+      <div className="px-5 py-3 bg-card">
+        <div className="text-sm font-semibold text-foreground">
+          Quarantine Editor
+        </div>
+      </div>
     )
   }
 
@@ -34,26 +35,100 @@ export function QuarantineEditorHeader({
   const editableColumns = manifest.editable_columns.filter((c) => c !== 'row_id').length
 
   return (
-    <DialogHeader className="px-6 py-3.5 border-b bg-gradient-to-r from-muted/30 to-muted/10 backdrop-blur-sm">
-      <DialogTitle className="flex flex-wrap items-center gap-2.5 text-lg font-semibold">
-        <span className="mr-1">Quarantine Editor</span>
-        <Badge variant="secondary" className="px-2.5 py-0.5 text-xs font-medium shadow-sm">
-          {manifest.row_count_quarantined.toLocaleString()} rows
-        </Badge>
-        <Badge variant="outline" className="px-2.5 py-0.5 text-xs font-medium">
-          {totalColumns.toLocaleString()} columns
-        </Badge>
-        <Badge variant="outline" className="px-2.5 py-0.5 text-xs font-medium border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300">
-          {editableColumns.toLocaleString()} editable
-        </Badge>
-        <Badge
-          variant={pendingCount > 0 ? 'destructive' : 'outline'}
-          className={`px-2.5 py-0.5 text-xs font-medium shadow-sm ${pendingCount > 0 ? 'animate-pulse' : ''}`}
-        >
-          {pendingCount > 0 ? `${pendingCount} unsaved` : '✓ saved'}
-        </Badge>
-        {compatibilityMode && <Badge variant="destructive" className="px-2.5 py-0.5 text-xs font-medium shadow-sm">Legacy Mode</Badge>}
-      </DialogTitle>
-    </DialogHeader>
+    <div className="px-5 py-0 bg-card">
+      <div className="flex items-center gap-0 py-0">
+        {/* Title */}
+        <div className="flex items-center gap-2 pr-5 py-2.5 border-r border-border">
+          <ShieldAlert className="w-4 h-4 text-destructive" />
+          <span className="text-[13px] font-semibold text-foreground tracking-tight">
+            Quarantine Editor
+          </span>
+        </div>
+
+        {/* Stat pills */}
+        <div className="flex items-center">
+          <StatPill
+            icon={<CircleDot className="w-3 h-3" />}
+            value={manifest.row_count_quarantined.toLocaleString()}
+            label="rows"
+            accent="rose"
+          />
+          <StatPill
+            icon={<Columns3 className="w-3 h-3" />}
+            value={totalColumns.toLocaleString()}
+            label="cols"
+            accent="gray"
+          />
+          <StatPill
+            icon={<Pencil className="w-3 h-3" />}
+            value={editableColumns.toLocaleString()}
+            label="editable"
+            accent="blue"
+          />
+        </div>
+
+        {/* Save status */}
+        <div className="ml-auto flex items-center gap-2 pl-4 pr-4">
+          {pendingCount > 0 ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
+              </span>
+              <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400 tabular-nums font-mono">
+                {pendingCount} unsaved
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20">
+              <span className="inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+              <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                Saved
+              </span>
+            </div>
+          )}
+          {compatibilityMode && (
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 border border-red-200 dark:bg-red-500/10 dark:border-red-500/20">
+              <AlertTriangle className="w-3 h-3 text-destructive" />
+              <span className="text-[10px] font-medium text-destructive uppercase tracking-wider">
+                Legacy
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Stat Pill ─────────────────────────────────────────────────────────────── */
+
+function StatPill({
+  icon,
+  value,
+  label,
+  accent,
+}: {
+  icon: React.ReactNode
+  value: string
+  label: string
+  accent: 'rose' | 'gray' | 'blue'
+}) {
+  const colors = {
+    rose: 'text-destructive',
+    gray: 'text-muted-foreground',
+    blue: 'text-primary',
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 px-3.5 py-2.5 border-r border-border last:border-r-0">
+      <span className={colors[accent]}>{icon}</span>
+      <span className="text-[12px] font-semibold text-foreground tabular-nums font-mono">
+        {value}
+      </span>
+      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+        {label}
+      </span>
+    </div>
   )
 }

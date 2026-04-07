@@ -20,6 +20,7 @@ import ErpSourceForm from "./erp-source-form"
 
 interface UnifiedBridgeImportProps {
   mode?: "source" | "destination"
+  uploadId?: string
   onImportComplete?: (uploadId: string) => void
   onNotification?: (message: string, type: "success" | "error") => void
   onPermissionDenied?: () => void
@@ -29,6 +30,7 @@ type IngestionSource = "ftp" | "tcp" | "http" | "other"
 
 export default function UnifiedBridgeImport({
   mode = "source",
+  uploadId,
   onImportComplete,
   onNotification,
   onPermissionDenied,
@@ -90,7 +92,7 @@ export default function UnifiedBridgeImport({
     ftp: "FTP/SFTP",
     tcp: "TCP",
     http: "HTTP",
-    other: "Others",
+    other: "Connectors",
   }
 
   const sourceDescriptions = {
@@ -108,6 +110,24 @@ export default function UnifiedBridgeImport({
       : "Connect to systems like QuickBooks to export data",
   }
 
+  // Export mode: skip protocol tabs, show only ERP/Warehouse/Storage connectors
+  if (mode === "destination") {
+    return (
+      <div className="flex flex-col h-full min-h-[300px] sm:min-h-[400px] lg:min-h-[500px]">
+        <ErpSourceForm
+          mode="destination"
+          uploadId={uploadId}
+          onIngestionStart={handleIngestionStart}
+          onIngestionComplete={handleIngestionComplete}
+          onError={handleIngestionError}
+          onNotification={onNotification}
+          onPermissionDenied={onPermissionDenied}
+          disabled={isIngesting}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full min-h-[300px] sm:min-h-[400px] lg:min-h-[500px]">
       {/* Header */}
@@ -119,16 +139,14 @@ export default function UnifiedBridgeImport({
           <div>
             <h3 className="text-sm font-medium">Unified Bridge</h3>
             <p className="text-xs text-muted-foreground">
-              {mode === "source"
-                ? "Ingest data from multiple sources"
-                : "Export data to multiple destinations"}
+              Ingest data from multiple sources
             </p>
           </div>
         </div>
         {isIngesting && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>{mode === "source" ? "Ingesting..." : "Exporting..."}</span>
+            <span>Ingesting...</span>
           </div>
         )}
       </div>
@@ -215,6 +233,7 @@ export default function UnifiedBridgeImport({
           <TabsContent value="other" className="mt-0 h-full">
             <ErpSourceForm
               mode={mode}
+              uploadId={uploadId}
               token={idToken || ""}
               onIngestionStart={handleIngestionStart}
               onIngestionComplete={handleIngestionComplete}

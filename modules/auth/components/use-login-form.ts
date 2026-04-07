@@ -342,5 +342,7 @@ export function useLoginForm() {
         isSettingPassword,
         handleSetNewPassword,
         handleCloseNewPasswordModal,
+        // Search params for SSR-safe URL construction
+        searchParamsString: searchParams.toString(),
     }
 }

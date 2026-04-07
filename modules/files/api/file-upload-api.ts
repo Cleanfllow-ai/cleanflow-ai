@@ -46,13 +46,15 @@ export async function makeRequest(endpoint: string, authToken: string, options: 
             const errorData = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {}
             const fallbackMsg = typeof raw === "string" ? raw : `HTTP ${response.status}`
             const error = new Error(errorData.error || errorData.message || fallbackMsg)
+            ;(error as any).status = response.status
 
             // Don't log expected/handled errors to reduce console noise.
             const isSettingsNotFound = url.includes('/settings/presets') && response.status === 404
             const errorMessage = (errorData.error || errorData.message || fallbackMsg || '').toLowerCase()
             const isPermissionDenied = response.status === 403
             const isMembershipRequired = errorMessage.includes('organization membership required')
-            if (!isSettingsNotFound && !isPermissionDenied && !isMembershipRequired) {
+            const isStaleEtagConflict = response.status === 409 && url.includes('/quarantine')
+            if (!isSettingsNotFound && !isPermissionDenied && !isMembershipRequired && !isStaleEtagConflict) {
                 console.error('❌ API Error:', error)
             }
 
@@ -120,6 +122,13 @@ export async function getFileColumns(uploadId: string, authToken: string): Promi
 export async function deleteUpload(uploadId: string, authToken: string): Promise<void> {
     return makeRequest(`/uploads/${uploadId}`, authToken, {
         method: 'DELETE'
+    })
+}
+
+export async function confirmUpload(uploadId: string, authToken: string, totalSize: number): Promise<void> {
+    return makeRequest(`/uploads/${uploadId}/confirm`, authToken, {
+        method: 'POST',
+        body: JSON.stringify({ total_size: totalSize }),
     })
 }
 
@@ -199,34 +208,32 @@ export async function uploadToS3Post(presignedUrl: string, fields: Record<string
 // ─── Polling ───
 
 export async function pollFileStatus(uploadId: string, authToken: string, onStatusUpdate: (status: FileStatusResponse) => void, maxAttempts: number = 60, intervalMs: number = 2000): Promise<FileStatusResponse> {
+    const terminalStatuses = ['DQ_FIXED', 'FAILED', 'COMPLETED', 'DQ_FAILED', 'SHARD_FAILED', 'REJECTED']
     let attempts = 0
 
-    const poll = async (): Promise<FileStatusResponse> => {
-        if (attempts >= maxAttempts) throw new Error('Polling timeout')
-
+    while (attempts < maxAttempts) {
         attempts++
         const status = await getFileStatus(uploadId, authToken)
         onStatusUpdate(status)
 
-        const terminalStatuses = ['DQ_FIXED', 'FAILED', 'COMPLETED', 'DQ_FAILED']
         if (terminalStatuses.includes(status.status)) {
             return status
         }
 
-        await new Promise((resolve) => setTimeout(resolve, intervalMs))
-        return poll()
+        await new Promise(r => setTimeout(r, intervalMs))
     }
 
-    return poll()
+    throw new Error('Polling timeout')
 }
 
 // Enhanced smart polling with multiple fallback detection methods - 30 minute timeout
 export async function pollFileStatusSmart(uploadId: string, authToken: string, onStatusUpdate: (status: FileStatusResponse) => void, maxAttempts: number = 180): Promise<FileStatusResponse> {
+    const terminalStatuses = ['DQ_FIXED', 'COMPLETED', 'DQ_FAILED', 'FAILED', 'SHARD_FAILED', 'REJECTED']
     let attempts = 0
     let consecutiveSameStatus = 0
     let lastStatus: FileStatusResponse | null = null
 
-    const poll = async (): Promise<FileStatusResponse> => {
+    while (attempts < maxAttempts) {
         try {
             attempts++
             console.log(`🔄 Smart poll attempt ${attempts}/${maxAttempts} for ${uploadId}`)
@@ -244,7 +251,7 @@ export async function pollFileStatusSmart(uploadId: string, authToken: string, o
             onStatusUpdate(status)
 
             // Terminal statuses
-            if (['DQ_FIXED', 'COMPLETED', 'DQ_FAILED', 'FAILED'].includes(status.status)) {
+            if (terminalStatuses.includes(status.status)) {
                 console.log(`✅ Polling completed: ${status.status}`)
                 return status
             }
@@ -270,23 +277,22 @@ export async function pollFileStatusSmart(uploadId: string, authToken: string, o
             }
 
             // 10 second intervals
-            await new Promise((resolve) => setTimeout(resolve, 10000))
-            return await poll()
+            await new Promise(r => setTimeout(r, 10000))
         } catch (error) {
             console.error(`❌ Polling error on attempt ${attempts}:`, error)
 
             // Retry network errors with backoff
             if (attempts < 5 && (error instanceof Error && (error.message.includes('fetch') || error.message.includes('network')))) {
                 const backoffTime = attempts * 2000
-                await new Promise((resolve) => setTimeout(resolve, backoffTime))
-                return await poll()
+                await new Promise(r => setTimeout(r, backoffTime))
+                continue
             }
 
             throw error
         }
     }
 
-    return await poll()
+    throw new Error(`Polling timeout after ${maxAttempts} attempts`)
 }
 
 // Smart completion detection methods

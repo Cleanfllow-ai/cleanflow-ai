@@ -7,11 +7,12 @@ export {
 export type {
     JobStatus,
     JobFrequency,
-    ERPType,
     DQMode,
     DQConfig,
     Job,
     JobRun,
     CreateJobPayload,
     UpdateJobPayload,
+    PipelineLog,
+    EntityResult,
 } from "./jobs-api"

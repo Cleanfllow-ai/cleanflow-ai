@@ -365,7 +365,6 @@ export function RulesStep() {
 
   // Calculate rule statistics
   const totalAutoRules = Object.values(columnRules).flat().filter(r => r.category === "auto").length
-  const totalHumanRules = Object.values(columnRules).flat().filter(r => r.category === "human").length
   const totalSelectedRules = Object.values(columnRules).flat().filter(r => r.selected).length
   const totalCustomRules = customRules.length
   const totalCrossRules = crossFieldRules.length
@@ -750,7 +749,6 @@ export function RulesStep() {
               const rules = columnRules[col] || []
               const columnCustomRules = customRules.filter((r) => r.column === col)
               const autoCount = rules.filter(r => r.category === "auto").length
-              const humanCount = rules.filter(r => r.category === "human").length
               const selectedCount = rules.filter((r) => r.selected).length + columnCustomRules.length
           return (
             <Collapsible key={col} open={isExpanded} onOpenChange={() => toggleColumnExpand(col)}>
@@ -761,8 +759,7 @@ export function RulesStep() {
                   {columnKeyTypes[col] && columnKeyTypes[col] !== "none" ? columnKeyTypes[col] : "type"} | {columnCoreTypes[col] || columnProfiles[col]?.type_guess}
                 </div>
                 <div className="ml-auto flex items-center gap-1">
-                  <Badge variant="outline" className="text-xs">A:{autoCount}</Badge>
-                  <Badge variant="outline" className="text-xs">H:{humanCount}</Badge>
+                  <Badge variant="outline" className="text-xs">AI:{autoCount}</Badge>
                   <Badge variant="outline" className="text-xs">C:{columnCustomRules.length}</Badge>
                   <Badge variant="default" className="text-xs">S:{selectedCount}</Badge>
                     </div>
@@ -775,7 +772,7 @@ export function RulesStep() {
                     )}
                     {rules.filter((r) => r.category === "auto").length > 0 && (
                       <div>
-                        <p className="text-xs text-muted-foreground mb-2">Auto Rules (recommended)</p>
+                        <p className="text-xs text-muted-foreground mb-2">AI Rules (recommended)</p>
                         <div className="space-y-1">
                           {rules
                             .filter((r) => r.category === "auto")
@@ -790,25 +787,6 @@ export function RulesStep() {
                                   {rule.rule_name}
                                   {rule.source && <span className="ml-1 text-[10px] text-muted-foreground">({rule.source})</span>}
                                 </span>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                    {rules.filter((r) => r.category === "human").length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-2">Human Rules (optional)</p>
-                        <div className="space-y-1">
-                          {rules
-                            .filter((r) => r.category === "human")
-                            .map((rule) => (
-                              <div
-                                key={rule.rule_id}
-                                onClick={() => toggleColumnRule(col, rule.rule_id)}
-                                className="flex items-center gap-2 p-2 rounded hover:bg-muted/30 cursor-pointer"
-                              >
-                                <Checkbox checked={rule.selected} />
-                                <span className="text-sm">{rule.rule_name}</span>
                               </div>
                             ))}
                         </div>

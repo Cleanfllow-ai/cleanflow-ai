@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Building2, Cable, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { OrgGeneralTab } from "./org-settings/org-general-tab";
 import { OrgMembersTab } from "./org-settings/org-members-tab";
 import { OrgPermissionsTab } from "./org-settings/org-permissions-tab";
 import { OrgServicesTab } from "./org-settings/org-services-tab";
+import { ConnectorsHub } from "@/modules/connectors/components/connectors-hub";
 
 export function OrganizationSettings() {
   const hookData = useOrgSettings();
@@ -20,24 +21,26 @@ export function OrganizationSettings() {
     <Tabs value={hookData.activeTab} onValueChange={hookData.setActiveTab} className="space-y-6">
       {/* Invite Dialog */}
       <Dialog open={hookData.isInviteDialogOpen} onOpenChange={hookData.setIsInviteDialogOpen}>
-        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden rounded-2xl border border-border shadow-2xl bg-card">
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden rounded-xl border border-border bg-card">
           <div className="p-8 pb-4 flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 border border-primary/20">
-              <UserPlus className="w-8 h-8 text-primary" />
+            <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5">
+              <UserPlus className="w-7 h-7 text-primary" />
             </div>
             <DialogHeader className="space-y-2">
-              <DialogTitle className="text-2xl font-bold tracking-tight text-foreground">Add Team Member</DialogTitle>
+              <DialogTitle className="font-sans text-xl font-bold tracking-tight text-foreground">
+                Add Team Member
+              </DialogTitle>
               <DialogDescription className="text-muted-foreground text-sm leading-relaxed max-w-[320px]">
-                Enter the email address of the person you'd like to add and select their role within the organization.
+                Enter the email address and select their role within the organization.
               </DialogDescription>
             </DialogHeader>
           </div>
 
-          <div className="px-8 pb-8 pt-4 space-y-6">
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="invite-email" className="text-sm font-medium text-foreground flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
+          <div className="px-8 pb-8 pt-4 space-y-5">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="invite-email" className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground font-medium flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5" />
                   Email Address
                 </Label>
                 <Input
@@ -47,12 +50,12 @@ export function OrganizationSettings() {
                   value={hookData.inviteEmail}
                   onChange={(e) => hookData.setInviteEmail(e.target.value)}
                   disabled={hookData.isSendingInvite}
-                  className="h-11 rounded-xl focus-visible:ring-primary/20 transition-all border-input"
+                  className="h-10"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="invite-role" className="text-sm font-medium text-foreground flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+              <div className="space-y-1.5">
+                <Label htmlFor="invite-role" className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground font-medium flex items-center gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5" />
                   Access Level
                 </Label>
                 <Select
@@ -60,12 +63,12 @@ export function OrganizationSettings() {
                   onValueChange={(value) => hookData.setInviteRole(value as AppRole)}
                   disabled={hookData.isSendingInvite}
                 >
-                  <SelectTrigger id="invite-role" className="h-11 rounded-xl focus:ring-primary/20">
+                  <SelectTrigger id="invite-role" className="h-10">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl">
+                  <SelectContent>
                     {hookData.allowedInviteRoles.map((role) => (
-                      <SelectItem key={role} value={role} className="rounded-lg">
+                      <SelectItem key={role} value={role}>
                         <span className="font-medium">{role}</span>
                       </SelectItem>
                     ))}
@@ -74,91 +77,104 @@ export function OrganizationSettings() {
               </div>
             </div>
 
-            <div className="pt-2">
-              <Button
-                onClick={hookData.handleSubmitInvite}
-                disabled={hookData.isSendingInvite || !hookData.inviteEmail.includes("@")}
-                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl shadow-sm transition-all active:scale-95 group"
-              >
-                {hookData.isSendingInvite ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Adding Member...
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-2">
-                    Add Member
-                    <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 text-primary-foreground/80" />
-                  </div>
-                )}
-              </Button>
-            </div>
+            <Button
+              onClick={hookData.handleSubmitInvite}
+              disabled={hookData.isSendingInvite || !hookData.inviteEmail.includes("@")}
+              className="w-full h-10 font-semibold"
+            >
+              {hookData.isSendingInvite ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Adding Member...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add Member
+                </div>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Centered Tabs Header */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 pt-2 pb-4">
-        <div />
-        <div className="overflow-x-auto justify-self-center">
-          <TabsList className="inline-flex h-10 sm:h-12 items-center justify-center rounded-xl bg-muted p-1 sm:p-1.5 gap-1">
-            <TabsTrigger
-              value="organization"
-              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg px-3 sm:px-6 py-2 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+      {/* Header with Tabs */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-1 pb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="font-sans text-xl font-bold tracking-tight text-foreground">
+              Organization
+            </h1>
+            <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-medium mt-0.5"
+              
             >
-              <Building2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Organization</span>
-              <span className="sm:hidden">Org</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="members"
-              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg px-3 sm:px-6 py-2 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-            >
-              <Users className="w-4 h-4" />
-              <span>Members</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="permissions"
-              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg px-3 sm:px-6 py-2 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-            >
-              <Shield className="w-4 h-4" />
-              <span className="hidden sm:inline">Permissions</span>
-              <span className="sm:hidden">Perms</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="services"
-              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg px-3 sm:px-6 py-2 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-            >
-              <Cog className="w-4 h-4" />
-              <span>Services</span>
-            </TabsTrigger>
-          </TabsList>
+              Settings & team management
+            </p>
+          </div>
         </div>
-        <div className="justify-self-end">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={hookData.handleRefreshAdminTab}
-            disabled={hookData.isRefreshingOrg}
-            aria-label="Refresh admin data"
-          >
-            {hookData.isRefreshingOrg ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Refreshing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-4 h-4" />
-                Refresh
-              </>
-            )}
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2 h-8"
+          onClick={hookData.handleRefreshAdminTab}
+          disabled={hookData.isRefreshingOrg}
+        >
+          {hookData.isRefreshingOrg ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="w-3.5 h-3.5" />
+          )}
+          <span className="text-xs">Refresh</span>
+        </Button>
       </div>
 
-      {/* Organization Settings Tab */}
+      {/* Tab Navigation */}
+      <div className="overflow-x-auto">
+        <TabsList className="inline-flex h-9 items-center rounded-lg bg-muted p-1 gap-0.5">
+          <TabsTrigger
+            value="organization"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Organization</span>
+            <span className="sm:hidden">Org</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="members"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Users className="w-3.5 h-3.5" />
+            Members
+          </TabsTrigger>
+          <TabsTrigger
+            value="permissions"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Permissions</span>
+            <span className="sm:hidden">Perms</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="services"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Cog className="w-3.5 h-3.5" />
+            Services
+          </TabsTrigger>
+          <TabsTrigger
+            value="connectors"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Cable className="w-3.5 h-3.5" />
+            Connectors
+          </TabsTrigger>
+        </TabsList>
+      </div>
+
+      {/* Tab Content */}
       <TabsContent value="organization" className="space-y-6">
         <OrgGeneralTab
           currentUserRole={hookData.currentUserRole}
@@ -175,7 +191,6 @@ export function OrganizationSettings() {
         />
       </TabsContent>
 
-      {/* Members Tab */}
       <TabsContent value="members" className="space-y-6">
         <OrgMembersTab
           currentUserRole={hookData.currentUserRole}
@@ -196,7 +211,6 @@ export function OrganizationSettings() {
         />
       </TabsContent>
 
-      {/* Permissions Tab */}
       <TabsContent value="permissions" className="space-y-6">
         <OrgPermissionsTab
           currentUserRole={hookData.currentUserRole}
@@ -209,7 +223,6 @@ export function OrganizationSettings() {
         />
       </TabsContent>
 
-      {/* Services Tab */}
       <TabsContent value="services" className="space-y-6">
         <OrgServicesTab
           currentUserRole={hookData.currentUserRole}
@@ -240,6 +253,10 @@ export function OrganizationSettings() {
           setPresetToDelete={hookData.setPresetToDelete}
           setIsDeletePresetOpen={hookData.setIsDeletePresetOpen}
         />
+      </TabsContent>
+
+      <TabsContent value="connectors" className="space-y-6">
+        <ConnectorsHub />
       </TabsContent>
     </Tabs>
   );

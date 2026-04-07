@@ -21,6 +21,8 @@ const normalizeApiBaseUrl = (value: string | undefined) => {
 export const AWS_CONFIG = {
   // API Gateway
   API_BASE_URL: normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL),
+  // WebSocket API (Collaborative Editing)
+  WS_URL: process.env.NEXT_PUBLIC_WS_URL || '',
 
   // AWS Cognito
   COGNITO: {

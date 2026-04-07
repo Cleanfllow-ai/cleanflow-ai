@@ -1,106 +1,85 @@
 "use client"
 
-import { Microscope, Zap, GitBranch, Tag } from "lucide-react"
-
 import Image from "next/image"
 import React from "react"
 import { LoginForm } from "@/modules/auth"
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Hero Section */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 m-2 rounded-3xl border border-slate-200 dark:border-slate-700">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-20 dark:opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-cyan-400 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-teal-400 rounded-full blur-3xl" />
-        </div>
+    <div className="min-h-screen flex bg-background">
+      {/* Left Side — Hero */}
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-[#0f1729]">
+        {/* Gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#162244]/80 via-[#0f1729] to-[#0a1628]" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/[0.07] rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-cyan-500/[0.05] rounded-full blur-[100px]" />
 
-        {/* Grid Pattern Overlay */}
-        <div className="absolute inset-0 opacity-[0.03] dark:opacity-5" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+        {/* Subtle grid */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+            backgroundSize: "64px 64px",
+          }}
+        />
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-between p-12 h-full">
-          {/* Top - Logo */}
-          <div className="flex items-center space-x-3">
-            <div className="relative w-12 h-12">
-              <Image
-                src="/images/infiniqon-logo-light.png"
-                alt="CleanFlowAI"
-                width={48}
-                height={48}
-                className="rounded-xl object-contain"
-              />
+        <div className="relative z-10 flex flex-col justify-between p-12 h-full w-full">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="relative w-8 h-8">
+              <Image src="/images/infiniqon-logo-light.png" alt="CleanFlowAI" width={32} height={32} className="object-contain" />
             </div>
             <div>
-              <span className="font-bold text-xl text-slate-900 dark:text-white">CleanFlowAI</span>
-              <p className="text-xs text-slate-500 dark:text-white/60">Data Platform</p>
+              <span className="font-semibold text-[15px] text-white tracking-tight">CleanFlowAI</span>
+              <p className="text-[9px] uppercase tracking-[0.25em] text-white/50 font-medium">Data Quality Platform</p>
             </div>
           </div>
 
-          {/* Middle - Main Content */}
-          <div className="flex-1 flex flex-col justify-center">
-            <div className="mb-8">
-              <h1 className="text-5xl font-bold mb-6 leading-tight text-slate-900 dark:text-white">
-                Transform Data,<br />Empower Decisions
-              </h1>
-              <p className="text-lg text-slate-600 dark:text-white/70 leading-relaxed max-w-md">
-                Access your dashboard and continue transforming your data with our powerful platform.
-              </p>
-            </div>
+          {/* Main content */}
+          <div className="flex-1 flex flex-col justify-center max-w-lg">
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <h1 className="text-[2.75rem] font-bold leading-[1.1] text-white tracking-tight">
+                  Enterprise-grade
+                  <br />
+                  <span className="text-white/70">data quality.</span>
+                </h1>
+                <p className="text-[15px] text-white/60 leading-relaxed max-w-sm">
+                  Profile, validate, transform, and export your data with confidence. Built for teams that demand precision.
+                </p>
+              </div>
 
-            {/* Features Grid */}
-            <div className="grid grid-cols-2 gap-4 max-w-md">
-              <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
-                  <Microscope className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
+              {/* Stats row */}
+              <div className="flex items-center gap-8 pt-4">
                 <div>
-                  <p className="font-medium text-sm text-slate-900 dark:text-white">Data Profiling</p>
-                  <p className="text-xs text-slate-500 dark:text-white/50">Analyze & Understand</p>
+                  <p className="text-2xl font-bold text-white">AI-Powered</p>
+                  <p className="text-[11px] text-white/50 uppercase tracking-wider">Smart Profiling</p>
                 </div>
-              </div>
-              <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                </div>
+                <div className="w-px h-10 bg-white/10" />
                 <div>
-                  <p className="font-medium text-sm text-slate-900 dark:text-white">Data Modernization</p>
-                  <p className="text-xs text-slate-500 dark:text-white/50">Transform & Optimize</p>
+                  <p className="text-2xl font-bold text-white">99.9%</p>
+                  <p className="text-[11px] text-white/50 uppercase tracking-wider">Uptime SLA</p>
                 </div>
-              </div>
-              <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
-                  <GitBranch className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
+                <div className="w-px h-10 bg-white/10" />
                 <div>
-                  <p className="font-medium text-sm text-slate-900 dark:text-white">Data Lineage</p>
-                  <p className="text-xs text-slate-500 dark:text-white/50">Track & Trace Origins</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center">
-                  <Tag className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm text-slate-900 dark:text-white">Metadata Management</p>
-                  <p className="text-xs text-slate-500 dark:text-white/50">Organize & Catalog</p>
+                  <p className="text-2xl font-bold text-white">SOC 2</p>
+                  <p className="text-[11px] text-white/50 uppercase tracking-wider">Compliant</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Bottom - Tagline */}
-          <div className="pt-8 border-t border-slate-200 dark:border-white/10">
-            <p className="text-sm text-slate-500 dark:text-white/50">Transform • Analyze • Export</p>
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-6 border-t border-white/[0.06]">
+            <p className="text-[11px] text-white/40 tracking-wide">Profile &middot; Validate &middot; Transform &middot; Export</p>
           </div>
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-md">
+      {/* Right Side — Login Form */}
+      <div className="w-full lg:w-[45%] flex items-center justify-center p-8 lg:p-16">
+        <div className="w-full max-w-[400px]">
           <React.Suspense fallback={<div className="flex items-center justify-center min-h-[400px]">Loading...</div>}>
             <LoginForm />
           </React.Suspense>

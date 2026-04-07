@@ -55,8 +55,8 @@ export function InviteSetPasswordForm() {
       const params = new URLSearchParams({
         org_id: orgId,
         invite_id: inviteId,
-        token,
         email,
+        token,
       });
       router.push(`/auth/login?${params.toString()}`);
     } catch (err: any) {

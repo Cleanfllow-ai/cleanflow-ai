@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
     Card,
     CardContent,
@@ -53,7 +53,7 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
         loadOverallReport();
     }, [idToken]);
 
-    const generateCompactData = () => {
+    const monthlyData = useMemo(() => {
         const completedFiles = files.filter((f) => f.status === "DQ_FIXED" && (f.uploaded_at || f.created_at));
 
         if (timePeriod === 'day') {
@@ -183,9 +183,7 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
                 ...monthGroups[month],
             }));
         }
-    };
-
-    const monthlyData = generateCompactData();
+    }, [files, timePeriod, overallReport]);
 
     if (loading) {
         return (
@@ -197,24 +195,14 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
         );
     }
 
+    const monthNames = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+
     if (monthlyData.length === 0) {
         return null;
     }
-
-    const monthNames = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-    ];
 
     return (
         <Card>

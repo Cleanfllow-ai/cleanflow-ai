@@ -1,4 +1,6 @@
 export { ColumnExportDialog, ColumnExportContent } from "./column-export-dialog"
+export { ExportDialog } from "./export-dialog"
+export { ImportDialog } from "./import-dialog"
 export { ColumnProfilingPanel } from "./column-profiling-panel"
 export { default as CustomDestinationExport } from "./custom-destination-export"
 export { DownloadFormatModal, DownloadFormatContent } from "./download-format-modal"
@@ -15,8 +17,6 @@ export { DqTopViolations } from "./file-details/dq-top-violations"
 export { DqIssuesPanel } from "./file-details/dq-issues-panel"
 export { FilePreloader } from "./file-preloader"
 export { FileVersionHistory } from "./file-version-history"
-export { PushToERPModal } from "./push-to-erp-modal"
+export { PushToERPModal, PushToERPContent } from "./push-to-erp-modal"
 export { RowWiseIssues } from "./row-wise-issues"
 
-// Quarantine editor
-export { QuarantineEditorDialog } from "./quarantine-editor"

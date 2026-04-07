@@ -13,6 +13,7 @@ import {
 } from "@/modules/files/store/filesSlice";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/modules/auth";
+import { buildPrefixedDataFilename, sanitizeFilenamePart } from "@/modules/files/utils/download-filenames";
 import {
     fileManagementAPI,
     type FileStatusResponse,
@@ -35,10 +36,6 @@ export function useFilesPage() {
     const router = useRouter();
     const pathname = usePathname();
 
-    useEffect(() => {
-        console.log("API Response / Table Source Data:", files);
-    }, [files]);
-
     const [loading, setLoading] = useState(false);
     const [isManualRefresh, setIsManualRefresh] = useState(false);
 
@@ -47,6 +44,10 @@ export function useFilesPage() {
 
     // Track previous file statuses for processing completion toast
     const prevStatusesRef = useRef<Map<string, string>>(new Map());
+
+    // Ref to latest files for polling callbacks
+    const filesRef = useRef(files);
+    useEffect(() => { filesRef.current = files; }, [files]);
 
     useEffect(() => {
         setLoading(filesStatus === "loading");
@@ -64,6 +65,9 @@ export function useFilesPage() {
     const [deleting, setDeleting] = useState<string | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [fileToDelete, setFileToDelete] = useState<FileStatusResponse | null>(null);
+    const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+    const [bulkDeleting, setBulkDeleting] = useState(false);
+    const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
     const [showDownloadModal, setShowDownloadModal] = useState(false);
     const [downloadModalFile, setDownloadModalFile] = useState<FileStatusResponse | null>(null);
     const [erpModalConfig, setErpModalConfig] = useState<{
@@ -89,7 +93,9 @@ export function useFilesPage() {
     const [loadingProfiling, setLoadingProfiling] = useState(false);
     const [pushQBModalOpen, setPushQBModalOpen] = useState(false);
     const [fileToPush, setFileToPush] = useState<FileStatusResponse | null>(null);
-    const [activeSection, setActiveSection] = useState<"upload" | "explorer">("upload");
+    const [activeSection, setActiveSection] = useState<"upload" | "explorer">("explorer");
+    // New import wizard state
+    const [newImportWizardOpen, setNewImportWizardOpen] = useState(false);
     const [selectedSource, setSelectedSource] = useState("local");
     const [selectedDestination, setSelectedDestination] = useState("null");
     const [lastActiveSelector, setLastActiveSelector] = useState<'source' | 'destination'>('source');
@@ -120,14 +126,14 @@ export function useFilesPage() {
     const [useCustomRules, setUseCustomRules] = useState(false);
     const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
         new Set([
-            "file", "score", "quality", "rows", "category",
+            "file", "score", "rows",
             "status", "uploaded", "updated", "processingTime", "actions",
         ]),
     );
     const [selectedDestinationFormat, setSelectedDestinationFormat] = useState<string | null>(null);
     const [pendingVisibleColumns, setPendingVisibleColumns] = useState<Set<string>>(
         new Set([
-            "file", "score", "quality", "rows", "category",
+            "file", "score", "rows",
             "status", "uploaded", "updated", "processingTime", "actions",
         ]),
     );
@@ -220,17 +226,34 @@ export function useFilesPage() {
         loadFiles(false);
     }, [loadFiles]);
 
+    // Highlighted file (from activity feed click — animates the row)
+    const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null);
+
     // Handle query params from Dashboard → Catalog navigation
     const consumedFileParamRef = useRef(false);
     useEffect(() => {
         const tab = searchParams.get("tab");
         const status = searchParams.get("status");
         const fileId = searchParams.get("file");
+        const highlightId = searchParams.get("highlight");
 
-        if (!tab && !status && !fileId) return;
+        if (!tab && !status && !fileId && !highlightId) return;
 
         if (tab === "explorer") setActiveSection("explorer");
         if (status) setStatusFilter(status);
+
+        // Highlight a file row (from activity feed) — scroll to it, animate it
+        if (highlightId && files.length > 0) {
+            setActiveSection("explorer");
+            setHighlightedFileId(highlightId);
+            // Auto-clear highlight after animation
+            setTimeout(() => setHighlightedFileId(null), 3000);
+            // Scroll to the row after a short delay for render
+            setTimeout(() => {
+                const row = document.querySelector(`[data-file-id="${highlightId}"]`);
+                if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 200);
+        }
 
         // Auto-open file details when linked from Dashboard/Jobs
         if (fileId && files.length > 0) {
@@ -240,16 +263,16 @@ export function useFilesPage() {
                 setSelectedFile(target);
                 setDetailsOpen(true);
             }
-            // Only clear the `file` param so reload doesn't re-open the panel
-            // Keep `tab` and `status` so the page stays on the correct sub-tab
-            if (!consumedFileParamRef.current) {
-                consumedFileParamRef.current = true;
-                const kept = new URLSearchParams();
-                if (tab) kept.set("tab", tab);
-                if (status) kept.set("status", status);
-                const qs = kept.toString();
-                router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-            }
+        }
+
+        // Clear consumed params
+        if ((fileId || highlightId) && !consumedFileParamRef.current) {
+            consumedFileParamRef.current = true;
+            const kept = new URLSearchParams();
+            if (tab) kept.set("tab", tab);
+            if (status) kept.set("status", status);
+            const qs = kept.toString();
+            router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
         }
     }, [searchParams, files, router, pathname]);
 
@@ -300,6 +323,12 @@ export function useFilesPage() {
             const matchesSearch = name.includes(searchQuery.toLowerCase());
             const filterOption = STATUS_OPTIONS.find((opt) => opt.value === statusFilter);
             if (!filterOption || filterOption.value === "all") return matchesSearch;
+            if (filterOption.type === "attention") {
+                // "Needs Attention" = failed files + files with quarantined rows
+                const isFailed = ["DQ_FAILED", "UPLOAD_FAILED", "FAILED", "REJECTED"].includes(file.status);
+                const hasQuarantined = file.status === "DQ_FIXED" && (file.rows_quarantined ?? 0) > 0;
+                return matchesSearch && (isFailed || hasQuarantined);
+            }
             if (filterOption.type === "status") return matchesSearch && file.status === statusFilter;
             if (filterOption.type === "quality") {
                 const fileQuality = getDqQuality(file.dq_score);
@@ -518,9 +547,71 @@ export function useFilesPage() {
             return;
         }
 
-        setQuarantineEditorFile(file);
-        setQuarantineEditorOpen(true);
+        router.push(`/files/${file.upload_id}/quarantine`);
     };
+
+    const reprocessPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const handleReprocessSubmitted = useCallback((result: any) => {
+        const activeFile = quarantineEditorFile;
+        if (activeFile) {
+            const optimisticFile: FileStatusResponse = {
+                ...activeFile,
+                status: "QUEUED",
+                remediation_state: "REPROCESS_SUBMITTED",
+                updated_at: new Date().toISOString(),
+            };
+
+            dispatch(updateFile(optimisticFile));
+            filesRef.current = (filesRef.current ?? []).map((file) =>
+                file.upload_id === optimisticFile.upload_id ? optimisticFile : file
+            );
+            setSelectedFile((prev) =>
+                prev?.upload_id === optimisticFile.upload_id
+                    ? { ...prev, ...optimisticFile }
+                    : prev
+            );
+            setQuarantineEditorFile(optimisticFile);
+        }
+
+        // Immediately refresh to pick up remediation_state=REPROCESS_SUBMITTED
+        loadFiles();
+
+        // Poll until both the reprocess AND the new DQ processing complete.
+        // The reprocess worker creates a new version that goes through
+        // DQ_DISPATCHED → DQ_RUNNING → DQ_FIXED. We need to keep polling
+        // until no file is in any active/transitional state.
+        if (reprocessPollRef.current) clearInterval(reprocessPollRef.current);
+        let pollCount = 0;
+        const maxPolls = 120; // 30 minutes max
+        const ACTIVE_STATES = new Set([
+            "DQ_DISPATCHED", "DQ_RUNNING", "QUEUED", "PROCESSING",
+            "REPROCESS_SUBMITTED", "REPROCESSING",
+        ]);
+        reprocessPollRef.current = setInterval(async () => {
+            pollCount++;
+            await loadFiles();
+            const currentFiles = filesRef.current ?? [];
+            const stillActive = currentFiles.some(
+                (f: any) =>
+                    ACTIVE_STATES.has(f.status) ||
+                    f.remediation_state === "REPROCESS_SUBMITTED"
+            );
+            if (!stillActive || pollCount >= maxPolls) {
+                if (reprocessPollRef.current) {
+                    clearInterval(reprocessPollRef.current);
+                    reprocessPollRef.current = null;
+                }
+            }
+        }, 5000); // poll every 5s for snappier UX
+    }, [dispatch, loadFiles, quarantineEditorFile]);
+
+    // Clean up reprocess polling on unmount
+    useEffect(() => {
+        return () => {
+            if (reprocessPollRef.current) clearInterval(reprocessPollRef.current);
+        };
+    }, []);
 
     const handleQuarantineEditorComplete = () => {
         // Reload files to reflect new version
@@ -568,6 +659,24 @@ export function useFilesPage() {
         setWizardOpen(true);
     };
 
+    /** Quick Process: one-click with default settings (skips wizard) */
+    const handleQuickProcess = async (file: FileStatusResponse) => {
+        if (!idToken) return;
+        if (!ensureFilesPermission()) return;
+        try {
+            await fileManagementAPI.startProcessing(file.upload_id, idToken);
+            toast({
+                title: "Processing Started",
+                description: `${file.original_filename || file.filename} is being processed with default settings.`,
+            });
+            setRecentlyUploaded(null);
+            loadFiles();
+        } catch (error) {
+            console.error("Quick processing failed:", error);
+            toast({ title: "Processing Failed", description: "Failed to start processing. Try using Configure for more options.", variant: "destructive" });
+        }
+    };
+
     const handleWizardOpenChange = (open: boolean) => {
         setWizardOpen(open);
         if (!open) setWizardFile(null);
@@ -575,13 +684,19 @@ export function useFilesPage() {
 
     const handleWizardComplete = () => {
         loadFiles();
-        if (wizardFile) {
-            setSelectedFile(wizardFile);
-            setDetailsOpen(true);
-        }
         setWizardOpen(false);
         setWizardFile(null);
     };
+
+    const handleNewImportOpen = useCallback(() => {
+        if (!ensureFilesPermission()) return;
+        setNewImportWizardOpen(true);
+    }, [ensureFilesPermission]);
+
+    const handleNewImportClose = useCallback((reload?: boolean) => {
+        setNewImportWizardOpen(false);
+        if (reload) loadFiles();
+    }, [loadFiles]);
 
     // ─── Column selection ─────────────────────────────────────────────
     const handleColumnConfirm = async () => {
@@ -897,6 +1012,54 @@ export function useFilesPage() {
         }
     };
 
+    // ─── Multi-select & Bulk Delete ──────────────────────────────────
+    const handleSelectFile = (uploadId: string, checked: boolean) => {
+        setSelectedFiles(prev => {
+            const next = new Set(prev);
+            if (checked) next.add(uploadId); else next.delete(uploadId);
+            return next;
+        });
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedFiles(new Set(filteredFiles.map(f => f.upload_id)));
+        } else {
+            setSelectedFiles(new Set());
+        }
+    };
+
+    const handleBulkDeleteClick = () => {
+        if (selectedFiles.size === 0) return;
+        setShowBulkDeleteModal(true);
+    };
+
+    const handleBulkDeleteConfirm = async () => {
+        if (selectedFiles.size === 0 || !idToken) return;
+        if (!ensureFilesPermission()) return;
+        setShowBulkDeleteModal(false);
+        setBulkDeleting(true);
+        const ids = Array.from(selectedFiles);
+        let successCount = 0;
+        let failCount = 0;
+        for (const id of ids) {
+            try {
+                await fileManagementAPI.deleteUpload(id, idToken);
+                successCount++;
+            } catch {
+                failCount++;
+            }
+        }
+        setSelectedFiles(new Set());
+        setBulkDeleting(false);
+        await loadFiles();
+        if (failCount === 0) {
+            toast({ title: "Files deleted", description: `${successCount} file(s) removed successfully` });
+        } else {
+            toast({ title: "Bulk delete partial", description: `${successCount} deleted, ${failCount} failed`, variant: "destructive" });
+        }
+    };
+
     // ─── Download / export ────────────────────────────────────────────
     const handleDownloadClick = (file: FileStatusResponse) => {
         if (!ensureFilesPermission()) return;
@@ -956,7 +1119,7 @@ export function useFilesPage() {
 
     const handleColumnExport = async (options: {
         format: "csv" | "excel" | "json";
-        dataType: "all" | "clean" | "quarantine";
+        dataType: "raw" | "all" | "clean" | "quarantine";
         columns: string[];
         columnMapping: Record<string, string>;
     }) => {
@@ -968,9 +1131,13 @@ export function useFilesPage() {
                 columnExportFile.upload_id, idToken,
                 { format: options.format, data: options.dataType, columns: options.columns, columnMapping: options.columnMapping },
             );
-            const baseFilename = (columnExportFile.original_filename || columnExportFile.filename || "file").replace(/\.[^/.]+$/, "");
             const extension = options.format === "excel" ? ".xlsx" : options.format === "json" ? ".json" : ".csv";
-            const filename = `${baseFilename}_export${extension}`;
+            const filename = buildPrefixedDataFilename({
+                sourceName: columnExportFile.original_filename || columnExportFile.filename || "file",
+                dataType: options.dataType,
+                extension,
+                tags: ["export"],
+            });
             const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
@@ -996,7 +1163,7 @@ export function useFilesPage() {
 
     const handleColumnExportWithErp = async (options: {
         format: "csv" | "excel" | "json";
-        dataType: "all" | "clean" | "quarantine";
+        dataType: "raw" | "all" | "clean" | "quarantine";
         columns: string[];
         columnMapping: Record<string, string>;
     }) => {
@@ -1012,9 +1179,13 @@ export function useFilesPage() {
                     erp: actionsErpMode === "transform" ? actionsErpTarget : undefined,
                 },
             );
-            const baseFilename = (columnExportFile.original_filename || columnExportFile.filename || "file").replace(/\.[^/.]+$/, "");
             const extension = options.format === "excel" ? ".xlsx" : options.format === "json" ? ".json" : ".csv";
-            const filename = `${baseFilename}_erp${extension}`;
+            const filename = buildPrefixedDataFilename({
+                sourceName: columnExportFile.original_filename || columnExportFile.filename || "file",
+                dataType: options.dataType,
+                extension,
+                tags: ["erp", actionsErpMode === "transform" ? actionsErpTarget : null],
+            });
             const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
@@ -1073,10 +1244,12 @@ export function useFilesPage() {
                 file.upload_id, idToken,
                 { format, data: dataType === "original" ? "raw" : "clean" },
             );
-            const baseFilename = (file.original_filename || file.filename || "file").replace(/\.[^/.]+$/, "");
             const extension = format === "excel" ? ".xlsx" : format === "json" ? ".json" : ".csv";
-            const dataSuffix = dataType === "original" ? "_original" : "_clean";
-            const filename = `${baseFilename}${dataSuffix}${extension}`;
+            const filename = buildPrefixedDataFilename({
+                sourceName: file.original_filename || file.filename || "file",
+                dataType: dataType === "original" ? "original" : "clean",
+                extension,
+            });
             const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
@@ -1114,11 +1287,13 @@ export function useFilesPage() {
                 file.upload_id, idToken,
                 { format, data: dataType, erp: targetErp || undefined },
             );
-            const baseFilename = (file.original_filename || file.filename || "file").replace(/\.[^/.]+$/, "");
             const extension = format === "excel" ? ".xlsx" : format === "json" ? ".json" : ".csv";
-            const erpSuffix = targetErp ? `_${targetErp.replace(/\s+/g, "_").toLowerCase()}` : "";
-            const dataTypeSuffix = dataType === "clean" ? "_clean" : dataType === "quarantine" ? "_quarantined" : "_full";
-            const filename = `${baseFilename}${dataTypeSuffix}${erpSuffix}${extension}`;
+            const filename = buildPrefixedDataFilename({
+                sourceName: file.original_filename || file.filename || "file",
+                dataType,
+                extension,
+                tags: targetErp ? [sanitizeFilenamePart(targetErp)] : [],
+            });
             const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
@@ -1175,7 +1350,7 @@ export function useFilesPage() {
         // Manual refresh
         isManualRefresh, handleManualRefresh,
         // Search / filter / sort
-        searchQuery, setSearchQuery, statusFilter, setStatusFilter,
+        searchQuery, setSearchQuery, statusFilter, setStatusFilter, highlightedFileId,
         sortField, sortDirection, handleSort, filteredFiles, tableEmpty,
         // Section
         activeSection, setActiveSection,
@@ -1188,12 +1363,15 @@ export function useFilesPage() {
         pageMode,
         // Details / wizard
         detailsOpen, setDetailsOpen, selectedFile, setSelectedFile,
-        handleViewDetails, handleStartProcessing,
+        handleViewDetails, handleStartProcessing, handleQuickProcess,
         wizardOpen, setWizardOpen, wizardFile, setWizardFile, handleWizardOpenChange, handleWizardComplete,
+        // New import wizard
+        newImportWizardOpen, setNewImportWizardOpen,
+        handleNewImportOpen, handleNewImportClose,
         // Quarantine editor
         quarantineEditorOpen, setQuarantineEditorOpen,
         quarantineEditorFile, setQuarantineEditorFile,
-        handleOpenQuarantineEditor, handleQuarantineEditorComplete,
+        handleOpenQuarantineEditor, handleQuarantineEditorComplete, handleReprocessSubmitted,
         // Push to ERP
         pushQBModalOpen, setPushQBModalOpen, fileToPush, setFileToPush,
         handlePushToQuickBooks, handleQuickBooksImportComplete,
@@ -1202,6 +1380,9 @@ export function useFilesPage() {
         profilingFileId, setProfilingFileId, profilingData, loadingProfiling, handleViewProfiling,
         // Delete
         deleting, showDeleteModal, setShowDeleteModal, fileToDelete, handleDeleteClick, handleDeleteConfirm,
+        // Multi-select & Bulk Delete
+        selectedFiles, handleSelectFile, handleSelectAll, handleBulkDeleteClick,
+        showBulkDeleteModal, setShowBulkDeleteModal, handleBulkDeleteConfirm, bulkDeleting,
         // Download / export
         downloading, downloadingFormat,
         showDownloadModal, setShowDownloadModal, downloadModalFile,

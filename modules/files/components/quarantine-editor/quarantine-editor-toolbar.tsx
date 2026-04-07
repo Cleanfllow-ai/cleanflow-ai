@@ -1,15 +1,17 @@
 /**
  * quarantine-editor-toolbar.tsx
  *
- * Toolbar component with action buttons for quarantine editor
+ * Clean, minimal toolbar — professional light theme.
  */
 
 'use client'
 
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Loader2, Play, CloudUpload, Wand2 } from 'lucide-react'
+import { Loader2, Play, Check, Save, Search, Users } from 'lucide-react'
 import type { QuarantineSession } from '@/modules/files/types'
+import type { CollaborationUser } from '@/modules/files/types'
+import { QuarantinePresenceBar } from './quarantine-presence-bar'
 
 interface QuarantineEditorToolbarProps {
   session: QuarantineSession | null
@@ -17,7 +19,11 @@ interface QuarantineEditorToolbarProps {
   submitting: boolean
   savedAt?: Date | null
   onReprocess: () => void
-  onOpenCustomRule: () => void
+  onFindReplace?: () => void
+  collabConnected?: boolean
+  collabUsers?: CollaborationUser[]
+  collabPanelOpen?: boolean
+  onToggleCollabPanel?: () => void
 }
 
 export function QuarantineEditorToolbar({
@@ -26,7 +32,11 @@ export function QuarantineEditorToolbar({
   submitting,
   savedAt,
   onReprocess,
-  onOpenCustomRule,
+  onFindReplace,
+  collabConnected,
+  collabUsers,
+  collabPanelOpen,
+  onToggleCollabPanel,
 }: QuarantineEditorToolbarProps) {
   const [showSaved, setShowSaved] = useState(false)
 
@@ -38,50 +48,106 @@ export function QuarantineEditorToolbar({
   }, [savedAt])
 
   return (
-    <div className="px-6 py-3 border-b bg-muted/5 backdrop-blur-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* Left: Action buttons */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Button size="sm" disabled={submitting || !session} onClick={onReprocess}>
+    <div className="px-5 py-2 border-b border-border bg-card">
+      <div className="flex items-center justify-between gap-4">
+        {/* Left: Actions */}
+        <div className="flex items-center gap-3">
+          <Button
+            size="sm"
+            disabled={submitting || !session}
+            onClick={onReprocess}
+            className="h-7 text-xs font-medium px-4"
+          >
             {submitting ? (
-              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
             ) : (
-              <Play className="w-4 h-4 mr-1.5" />
+              <Play className="w-3 h-3 mr-1.5 fill-current" />
             )}
             Reprocess
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!session}
-            onClick={onOpenCustomRule}
-            className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300"
-          >
-            <Wand2 className="w-4 h-4 mr-1" />
-            AI Fix
-          </Button>
+
+          {onFindReplace && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onFindReplace}
+              className="h-7 text-xs font-medium px-3 ml-1"
+            >
+              <Search className="w-3 h-3 mr-1.5" />
+              Find & Replace
+            </Button>
+          )}
+
+          {/* Color legend */}
+          <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-border">
+            <LegendDot color="bg-transparent border border-border" label="Clean" />
+            <LegendDot color="bg-orange-500" label="Fixed" />
+            <LegendDot color="bg-red-400" label="Quarantined" />
+            <LegendDot color="bg-blue-500" label="Edited" />
+          </div>
         </div>
 
-        {/* Right: Autosave status + session */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        {/* Right: Collab + Save status + session */}
+        <div className="flex items-center gap-3">
+          {collabUsers && (
+            <QuarantinePresenceBar users={collabUsers} connected={collabConnected ?? false} />
+          )}
+          {onToggleCollabPanel && (
+            <Button
+              variant={collabPanelOpen ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={onToggleCollabPanel}
+              className="h-7 text-xs font-medium px-3"
+            >
+              <Users className="w-3 h-3 mr-1.5" />
+              Collab
+            </Button>
+          )}
           {saving ? (
-            <span className="flex items-center gap-1">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Saving…
-            </span>
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Save className="w-3.5 h-3.5 animate-pulse" />
+              <span className="text-[11px] font-medium">Saving...</span>
+            </div>
           ) : showSaved ? (
-            <span className="flex items-center gap-1 text-green-600 transition-opacity duration-500">
-              <CloudUpload className="w-3.5 h-3.5" />
-              Saved
-            </span>
+            <div className="flex items-center gap-1.5 text-emerald-600">
+              <Check className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-medium">Saved</span>
+            </div>
           ) : null}
-          {session && <span className="text-xs opacity-50">Session {session.session_id.slice(0, 8)}</span>}
+          {session && (
+            <span className="text-[10px] text-muted-foreground/60 font-mono tabular-nums">
+              {session.session_id.slice(0, 8)}
+            </span>
+          )}
         </div>
       </div>
-      <p className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1.5">
-        <span className="inline-block w-1 h-1 rounded-full bg-blue-500" />
-        Excel-style editing: click a cell to edit, press Enter or Escape to finish. Changes auto-save in the background.
+
+      {/* Instructions */}
+      <p className="mt-1.5 mb-0.5 text-[10.5px] text-muted-foreground flex items-center gap-1.5">
+        <kbd className="inline-flex items-center justify-center h-4 px-1 rounded bg-muted border border-border text-[9px] font-mono text-muted-foreground">
+          Click
+        </kbd>
+        <span>to edit</span>
+        <kbd className="inline-flex items-center justify-center h-4 px-1 rounded bg-muted border border-border text-[9px] font-mono text-muted-foreground">
+          Enter
+        </kbd>
+        <span>to save</span>
+        <kbd className="inline-flex items-center justify-center h-4 px-1 rounded bg-muted border border-border text-[9px] font-mono text-muted-foreground">
+          Esc
+        </kbd>
+        <span>to cancel</span>
+        <span className="text-border mx-0.5">|</span>
+        <span>Auto-saves in background</span>
       </p>
+    </div>
+  )
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center gap-1">
+      <span className={`inline-block w-2 h-2 rounded-full ${color}`} />
+      <span className="text-[10px] text-muted-foreground font-medium">{label}</span>
     </div>
   )
 }

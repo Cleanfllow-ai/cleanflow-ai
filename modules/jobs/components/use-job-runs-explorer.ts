@@ -5,7 +5,7 @@ import { jobsAPI, type JobRun } from "@/modules/jobs/api/jobs-api"
 
 export type SortField = "started_at" | "duration" | "imported" | "exported" | "status"
 export type SortDirection = "asc" | "desc"
-export type StatusFilter = "all" | "SUCCESS" | "FAILED" | "PARTIAL" | "NO_CHANGES"
+export type StatusFilter = "all" | "SUCCESS" | "FAILED" | "PARTIAL" | "AWAITING_REVIEW" | "NO_CHANGES"
 
 export interface JobRunsExplorerState {
     runs: JobRun[]
@@ -29,6 +29,8 @@ export interface JobRunsExplorerState {
     handleViewRunFiles: (run: JobRun) => void
     handleRefresh: () => void
     isRefreshing: boolean
+    handleRetry: () => Promise<void>
+    isRetrying: boolean
 }
 
 export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
@@ -62,6 +64,19 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         loadRuns()
     }, [loadRuns])
 
+    // Silent poll every 3s when any run is RUNNING (no loading flash)
+    useEffect(() => {
+        const hasRunning = runs.some(r => r.status === "RUNNING")
+        if (!hasRunning) return
+        const interval = setInterval(async () => {
+            try {
+                const res = await jobsAPI.getJobRuns(jobId, 50)
+                setRuns(res.runs || [])
+            } catch { /* silent */ }
+        }, 3000)
+        return () => clearInterval(interval)
+    }, [runs, jobId])
+
     const handleSort = useCallback((field: SortField) => {
         if (sortField === field) {
             setSortDirection(prev => prev === "asc" ? "desc" : "asc")
@@ -82,6 +97,20 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
     }, [])
 
     const handleRefresh = useCallback(() => loadRuns(true), [loadRuns])
+
+    const [isRetrying, setIsRetrying] = useState(false)
+    const handleRetry = useCallback(async () => {
+        setIsRetrying(true)
+        try {
+            await jobsAPI.triggerJob(jobId)
+            // Quick refresh to pick up RUNNING status, then auto-poll takes over
+            setTimeout(() => loadRuns(true), 500)
+        } catch {
+            // ignore — user will see no new run appear
+        } finally {
+            setIsRetrying(false)
+        }
+    }, [jobId, loadRuns])
 
     const filteredRuns = useMemo(() => {
         let result = [...runs]
@@ -110,13 +139,13 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
                     cmp = (a.started_at || "").localeCompare(b.started_at || "")
                     break
                 case "duration":
-                    cmp = (a.duration_seconds || 0) - (b.duration_seconds || 0)
+                    cmp = (a.duration_ms || 0) - (b.duration_ms || 0)
                     break
                 case "imported":
-                    cmp = (a.total_records_imported || 0) - (b.total_records_imported || 0)
+                    cmp = (a.total_imported || 0) - (b.total_imported || 0)
                     break
                 case "exported":
-                    cmp = (a.total_records_exported || 0) - (b.total_records_exported || 0)
+                    cmp = (a.total_exported || 0) - (b.total_exported || 0)
                     break
                 case "status":
                     cmp = (a.status || "").localeCompare(b.status || "")
@@ -150,5 +179,7 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         handleViewRunFiles,
         handleRefresh,
         isRefreshing,
+        handleRetry,
+        isRetrying,
     }
 }

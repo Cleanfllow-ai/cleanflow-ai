@@ -4,7 +4,7 @@ import { format } from "date-fns"
 import {
     CheckCircle2, XCircle, Clock, Loader2, Activity,
     Search, Filter, RefreshCw, AlertTriangle, ArrowUpDown,
-    ArrowUp, ArrowDown, FolderOpen, Info, Zap
+    ArrowUp, ArrowDown, FolderOpen, Info, Zap, RotateCw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +31,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
     { value: "SUCCESS", label: "Success" },
     { value: "FAILED", label: "Failed" },
     { value: "PARTIAL", label: "Partial" },
+    { value: "AWAITING_REVIEW", label: "Awaiting Review" },
     { value: "NO_CHANGES", label: "No Changes" },
 ]
 
@@ -39,6 +40,7 @@ function getStatusColor(status: string) {
         case "SUCCESS": return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
         case "FAILED": return "bg-red-500/15 text-red-600 border-red-500/25"
         case "PARTIAL": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
+        case "AWAITING_REVIEW": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
         case "NO_CHANGES": return "bg-slate-500/15 text-slate-600 border-slate-500/25"
         default: return "bg-muted text-muted-foreground border-border"
     }
@@ -49,6 +51,7 @@ function getStatusIcon(status: string) {
         case "SUCCESS": return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
         case "FAILED": return <XCircle className="h-3.5 w-3.5 text-red-500" />
         case "PARTIAL": return <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+        case "AWAITING_REVIEW": return <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
         case "RUNNING": return <Loader2 className="h-3.5 w-3.5 text-blue-500 animate-spin" />
         default: return <Clock className="h-3.5 w-3.5 text-muted-foreground" />
     }
@@ -217,18 +220,18 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground tabular-nums">
                                             {run.started_at
-                                                ? format(new Date(run.started_at), "MMM d, HH:mm:ss")
-                                                : "—"
+                                                ? (() => { try { return format(new Date(run.started_at), "MMM d, HH:mm:ss") } catch { return "\u2014" } })()
+                                                : "\u2014"
                                             }
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground tabular-nums text-right">
-                                            {formatDuration(run.duration_seconds)}
+                                            {formatDuration(run.duration_ms ? run.duration_ms / 1000 : undefined)}
                                         </TableCell>
                                         <TableCell className="text-xs tabular-nums text-right font-medium">
-                                            {run.total_records_imported || 0}
+                                            {run.total_imported || 0}
                                         </TableCell>
                                         <TableCell className="text-xs tabular-nums text-right font-medium">
-                                            {run.total_records_exported || 0}
+                                            {run.total_exported || 0}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {avgScore != null ? (
@@ -257,6 +260,20 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                         </TableCell>
                                         <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                                             <div className="flex items-center justify-end gap-0.5">
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7"
+                                                            onClick={() => state.handleRetry()}
+                                                            disabled={state.isRetrying}
+                                                        >
+                                                            <RotateCw className={cn("h-3.5 w-3.5", state.isRetrying && "animate-spin")} />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Retry Job</TooltipContent>
+                                                </Tooltip>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
@@ -298,6 +315,8 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                 run={state.selectedRun}
                 open={state.detailModalOpen}
                 onOpenChange={state.setDetailModalOpen}
+                jobId={jobId}
+                onRunResumed={state.handleRefresh}
             />
 
             {/* File Viewer */}

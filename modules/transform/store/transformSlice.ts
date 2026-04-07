@@ -1,8 +1,14 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
 
+interface UploadedFileInfo {
+  name: string
+  size: number
+  type: string
+}
+
 interface TransformState {
   isLoading: boolean
-  uploadedFile: File | null
+  uploadedFileInfo: UploadedFileInfo | null
   transformResult: any | null
   error: string | null
   supportedErps: string[]
@@ -14,7 +20,7 @@ interface TransformState {
 
 const initialState: TransformState = {
   isLoading: false,
-  uploadedFile: null,
+  uploadedFileInfo: null,
   transformResult: null,
   error: null,
   supportedErps: [
@@ -43,8 +49,8 @@ const transformSlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload
     },
-    setUploadedFile: (state, action: PayloadAction<File | null>) => {
-      state.uploadedFile = action.payload
+    setUploadedFileInfo: (state, action: PayloadAction<UploadedFileInfo | null>) => {
+      state.uploadedFileInfo = action.payload
     },
     setTransformResult: (state, action: PayloadAction<any>) => {
       state.transformResult = action.payload
@@ -62,7 +68,7 @@ const transformSlice = createSlice({
       state.autoDetect = action.payload
     },
     resetTransform: (state) => {
-      state.uploadedFile = null
+      state.uploadedFileInfo = null
       state.transformResult = null
       state.error = null
       state.isLoading = false
@@ -72,7 +78,7 @@ const transformSlice = createSlice({
 
 export const {
   setLoading,
-  setUploadedFile,
+  setUploadedFileInfo,
   setTransformResult,
   setError,
   setSelectedErp,

@@ -96,37 +96,6 @@ export function useFileUpload({
 
         return newFile
       } catch (error) {
-        if (error instanceof TypeError && error.message.includes("Failed to fetch")) {
-          await new Promise((resolve) => setTimeout(resolve, 2000))
-
-          const newFile: FileItem = {
-            id: `dev_${Date.now()}_${file.name}`,
-            name: file.name,
-            key: file.name,
-            size: file.size,
-            type: file.name.split(".").pop()?.toUpperCase() || "FILE",
-            modified: new Date(),
-            lastModified: new Date().toISOString(),
-            status: "uploaded",
-          }
-
-          setFiles((prev) => [newFile, ...prev])
-          setStats((prev) => ({
-            ...prev,
-            totalFiles: prev.totalFiles + 1,
-            totalSize: prev.totalSize + file.size,
-            storageUsed: prev.storageUsed + file.size,
-            uploadedToday: prev.uploadedToday + 1,
-          }))
-
-          toast({
-            title: "Upload successful (Development Mode)",
-            description: `${file.name} has been uploaded successfully in development mode.`,
-          })
-
-          return newFile
-        }
-
         toast({
           title: "Upload failed",
           description: error instanceof Error ? error.message : "Failed to upload file",

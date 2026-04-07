@@ -40,6 +40,12 @@ export function ProfilingStep() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeColumn, setActiveColumn] = useState<string | null>(null)
+  const pollRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => { if (pollRef.current) clearTimeout(pollRef.current) }
+  }, [])
 
   useEffect(() => {
     if (selectedColumns.length > 0 && Object.keys(columnProfiles).length === 0 && authToken) {
@@ -51,42 +57,67 @@ export function ProfilingStep() {
     if (!authToken) return
     setLoading(true)
     setError(null)
+    if (pollRef.current) clearTimeout(pollRef.current)
     try {
       const response = await fileManagementAPI.getColumnProfilingPreview(uploadId, authToken, selectedColumns, 200)
       const profiles = (response as any)?.profiles || (response as any)?.column_profiles || {}
       if (profiles && Object.keys(profiles).length > 0) {
         setColumnProfiles(profiles)
+        setLoading(false)
+      } else {
+        // Backend may still be computing (LLM calls for many columns).
+        // Poll every 5s until profiles arrive, up to 2 minutes.
+        setLoading(true)
+        let attempts = 0
+        const poll = async () => {
+          attempts++
+          if (attempts > 300) { // 300 × 2s = 10 min
+            setError("Profiling is taking too long. Click Refresh to retry.")
+            setLoading(false)
+            return
+          }
+          try {
+            const retry = await fileManagementAPI.getColumnProfilingPreview(uploadId, authToken!, selectedColumns, 200)
+            const retryProfiles = (retry as any)?.profiles || (retry as any)?.column_profiles || {}
+            if (retryProfiles && Object.keys(retryProfiles).length > 0) {
+              applyProfilingResponse(retry)
+              setLoading(false)
+              return
+            }
+          } catch { /* ignore, retry */ }
+          pollRef.current = setTimeout(poll, 2000)
+        }
+        pollRef.current = setTimeout(poll, 2000)
+        return
       }
-      const inferredRequired = (response as any)?.required_columns
-      if (Array.isArray(inferredRequired) && inferredRequired.length > 0) {
-        setRequiredColumns(inferredRequired)
-      }
-
-      // Store backend version
-      const summary = (response as any)?.summary || {}
-      setBackendVersion(summary.backend_version)
-
-      // Store cross-field rules from CleanAI
-      const cfr = (response as any)?.cross_field_rules || []
-      setCrossFieldRules(cfr.map((r: any) => ({ ...r, enabled: true })))
-
-      // Store key_type and nullable into wizard state
-      Object.entries(profiles).forEach(([col, p]: [string, any]) => {
-        if (p.key_type) setColumnKeyType(col, p.key_type)
-        if (p.nullable_suggested !== undefined) setColumnNullable(col, p.nullable_suggested)
-      })
-
-      // Store Schema Intelligence V2 data
-      const resp = response as any
-      if (resp?.file_structure) setFileStructure(resp.file_structure)
-      if (resp?.schema_match) setSchemaMatch(resp.schema_match)
-      if (resp?.object_model) setObjectModel(resp.object_model)
-      if (resp?.row_types) setRowTypes(resp.row_types)
+      applyProfilingResponse(response)
     } catch (err: any) {
       setError(err.message || "Failed to fetch profiling data")
-    } finally {
       setLoading(false)
     }
+  }
+
+  const applyProfilingResponse = (response: any) => {
+    const profiles = response?.profiles || response?.column_profiles || {}
+    if (profiles && Object.keys(profiles).length > 0) {
+      setColumnProfiles(profiles)
+    }
+    const inferredRequired = response?.required_columns
+    if (Array.isArray(inferredRequired) && inferredRequired.length > 0) {
+      setRequiredColumns(inferredRequired)
+    }
+    const summary = response?.summary || {}
+    setBackendVersion(summary.backend_version)
+    const cfr = response?.cross_field_rules || []
+    setCrossFieldRules(cfr.map((r: any) => ({ ...r, enabled: true })))
+    Object.entries(profiles).forEach(([col, p]: [string, any]) => {
+      if (p.key_type) setColumnKeyType(col, p.key_type)
+      if (p.nullable_suggested !== undefined) setColumnNullable(col, p.nullable_suggested)
+    })
+    if (response?.file_structure) setFileStructure(response.file_structure)
+    if (response?.schema_match) setSchemaMatch(response.schema_match)
+    if (response?.object_model) setObjectModel(response.object_model)
+    if (response?.row_types) setRowTypes(response.row_types)
   }
 
   const toggleColumnSelection = (col: string) => {
@@ -107,10 +138,10 @@ export function ProfilingStep() {
       const response = await fileManagementAPI.getColumnProfilingPreview(uploadId, authToken, [column], 200)
       const profiles = (response as any)?.profiles || (response as any)?.column_profiles || {}
       if (profiles?.[column]) {
-        setColumnProfiles({
-          ...columnProfiles,
+        setColumnProfiles(prev => ({
+          ...prev,
           [column]: profiles[column],
-        })
+        }))
       }
     } catch (err) {
       console.error("Failed to profile column", column, err)
@@ -231,7 +262,7 @@ export function ProfilingStep() {
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Null Rate:</span>
-                            <span className={profile.null_rate > 0.1 ? "text-yellow-500" : "text-green-500"}>
+                            <span className={profile.null_rate > 0.1 ? "text-amber-600 dark:text-yellow-500" : "text-emerald-600 dark:text-green-500"}>
                               {(profile.null_rate * 100).toFixed(1)}%
                             </span>
                           </div>
@@ -244,7 +275,7 @@ export function ProfilingStep() {
                         </div>
                         {profile.rules && profile.rules.length > 0 && (
                           <div className="text-xs">
-                            <span className="text-muted-foreground">Auto Rules: </span>
+                            <span className="text-muted-foreground">AI Rules: </span>
                             {profile.rules
                               .filter((r: any) => r.decision === "auto")
                               .map((r: any) => getRuleLabel(r.rule_id))

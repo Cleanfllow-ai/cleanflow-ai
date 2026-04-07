@@ -18,7 +18,7 @@ export interface FileUploadInitResponse {
 
 export interface FileStatusResponse {
   upload_id: string
-  status: 'QUEUED' | 'DQ_RUNNING' | 'DQ_FIXED' | 'FAILED' | 'COMPLETED' | 'UPLOADING' | 'NORMALIZING' | 'DQ_FAILED' | 'UPLOAD_FAILED' | 'UPLOADED' | 'VALIDATED' | 'REJECTED' | 'DQ_DISPATCHED'
+  status: 'QUEUED' | 'DQ_RUNNING' | 'DQ_FIXED' | 'FAILED' | 'COMPLETED' | 'UPLOADING' | 'NORMALIZING' | 'DQ_FAILED' | 'UPLOAD_FAILED' | 'UPLOADED' | 'VALIDATED' | 'REJECTED' | 'DQ_DISPATCHED' | 'SHARDING' | 'SHARDED' | 'SHARD_FAILED'
   filename?: string
   original_filename?: string
   content_type?: string
@@ -46,13 +46,22 @@ export interface FileStatusResponse {
   dq_report_s3?: string
   dq_rules_version?: string
   processing_time_seconds?: number
+  remediation_state?: string
+  remediation_mode?: string
+  current_reprocess_snapshot_id?: string
+  current_reprocess_passed_rows_key?: string
   // Version management fields
   version_number?: number
   parent_upload_id?: string | null
   root_upload_id?: string | null
+  source_upload_id?: string | null
+  is_latest?: boolean
   patch_notes?: string | null
   // Pipeline source tracking
   source_type?: string
+  // ERP detection
+  detected_erp?: string | null
+  detected_entity?: string
 }
 
 export interface FileListResponse {

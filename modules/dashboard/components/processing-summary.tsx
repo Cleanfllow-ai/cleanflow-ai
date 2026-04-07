@@ -1,5 +1,4 @@
 "use client";
-
 import {
     Card,
     CardContent,
@@ -8,8 +7,6 @@ import {
     CardDescription,
 } from "@/components/ui/card";
 import type { DqChartsProps } from "./chart-constants";
-
-// Processing Summary component
 export function ProcessingSummary({ files }: DqChartsProps) {
     const completedFiles = files.filter((f) => f.status === "DQ_FIXED");
     const totalRowsIn = completedFiles.reduce(
@@ -25,45 +22,33 @@ export function ProcessingSummary({ files }: DqChartsProps) {
         0
     );
     const totalRowsOut = totalRowsIn - totalRowsQuarantined;
-
+    const metrics = [
+        { label: "Input Rows", value: totalRowsIn, color: "text-foreground", bg: "bg-muted/30" },
+        { label: "Valid Output", value: totalRowsOut, color: "text-emerald-500", bg: "bg-emerald-500/5" },
+        { label: "Issues Fixed", value: totalRowsFixed, color: "text-amber-500", bg: "bg-amber-500/5" },
+        { label: "Quarantined", value: totalRowsQuarantined, color: "text-rose-500", bg: "bg-rose-500/5" },
+    ];
     return (
-        <Card>
+        <Card className="border-border">
             <CardHeader className="pb-2 pt-4">
-                <CardTitle className="text-base font-semibold">
+                <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2"
+                >
                     Processing Summary
                 </CardTitle>
-                <CardDescription className="text-xs">
-                    Data quality metrics breakdown
-                </CardDescription>
             </CardHeader>
-            <CardContent className="pt-2 pb-3 max-h-[280px] overflow-y-auto">
-                <div className="space-y-1.5">
-                    <div className="flex justify-between items-center p-2 rounded-lg bg-muted/50">
-                        <span className="text-sm text-muted-foreground">
-                            Total Input Rows
-                        </span>
-                        <span className="text-sm font-medium">
-                            {totalRowsIn.toLocaleString()}
-                        </span>
-                    </div>
-                    <div className="flex justify-between items-center p-2 rounded-lg bg-green-500/10">
-                        <span className="text-sm text-muted-foreground">Valid Output Rows</span>
-                        <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                            {totalRowsOut.toLocaleString()}
-                        </span>
-                    </div>
-                    <div className="flex justify-between items-center p-2 rounded-lg bg-yellow-500/10">
-                        <span className="text-sm text-muted-foreground">Issues Resolved</span>
-                        <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
-                            {totalRowsFixed.toLocaleString()}
-                        </span>
-                    </div>
-                    <div className="flex justify-between items-center p-2 rounded-lg bg-red-500/10">
-                        <span className="text-sm text-muted-foreground">Records Quarantined</span>
-                        <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                            {totalRowsQuarantined.toLocaleString()}
-                        </span>
-                    </div>
+            <CardContent className="pt-1 pb-3">
+                <div className="space-y-1">
+                    {metrics.map((m) => (
+                        <div key={m.label} className={`flex justify-between items-center px-3 py-2 rounded-md ${m.bg}`}>
+                            <span className="text-[11px] text-muted-foreground font-medium"
+                            >
+                                {m.label}
+                            </span>
+                            <span className={`text-sm font-bold font-mono tabular-nums ${m.color}`}>
+                                {m.value.toLocaleString()}
+                            </span>
+                        </div>
+                    ))}
                 </div>
             </CardContent>
         </Card>

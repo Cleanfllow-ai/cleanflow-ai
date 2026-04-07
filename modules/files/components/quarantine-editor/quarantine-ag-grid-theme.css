@@ -1,94 +1,189 @@
 /**
  * quarantine-ag-grid-theme.css
  *
- * CSS variable overrides for the AG Grid Quartz theme to align with the
- * shadcn/neutral design system used throughout CleanFlowAI.
+ * Professional light AG Grid theme for the quarantine editor.
+ * Subtle cell indicators — no gradients, no glows.
+ * Business users reviewing data should focus on the data, not the colors.
  *
- * These values are derived from Tailwind's neutral palette — the same values
- * used in the rest of the frontend. The --font-sans CSS variable is set by
- * the Geist font in the root layout.
- *
- * Note: This file is scoped to .quarantine-ag-grid wrapper class.
- * Do NOT import AG Grid's legacy CSS files — the modern themeQuartz API
- * applies styling via the `theme` prop on AgGridReact.
+ * Scoped to .quarantine-ag-grid wrapper class.
  */
 
+/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+/* ─── AG Grid variable overrides ───────────────────────────────────────────── */
 .quarantine-ag-grid {
-  /* Background and text */
-  --ag-background-color: hsl(0 0% 100%);
-  --ag-foreground-color: hsl(0 0% 3.9%);
+  --ag-background-color: #FFFFFF;
+  --ag-foreground-color: #111827;
 
-  /* Header */
-  --ag-header-background-color: hsl(0 0% 96.1%);
-  --ag-header-foreground-color: hsl(0 0% 45.1%);
+  --ag-header-background-color: #F9FAFB;
+  --ag-header-foreground-color: #6B7280;
 
-  /* Borders */
-  --ag-border-color: hsl(0 0% 89.8%);
+  --ag-border-color: #E5E7EB;
+  --ag-row-border-color: #F3F4F6;
 
-  /* Row states */
-  --ag-row-hover-color: hsl(0 0% 96.1% / 0.25);
-  --ag-selected-row-background-color: hsl(0 0% 96.1% / 0.5);
+  --ag-row-hover-color: #F9FAFB;
+  --ag-selected-row-background-color: #EFF6FF;
 
-  /* Selection / range */
-  --ag-range-selection-border-color: hsl(0 0% 9%);
+  --ag-range-selection-border-color: #2a4477;
+  --ag-range-selection-background-color: rgba(42, 68, 119, 0.06);
 
   /* Typography */
-  --ag-font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
-  --ag-font-size: 13px;
-  --ag-header-font-size: 12px;
+  --ag-font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  --ag-font-size: 12.5px;
+  --ag-header-font-family: 'Inter', system-ui, sans-serif;
+  --ag-header-font-size: 11px;
   --ag-header-font-weight: 600;
 
   /* Sizing */
   --ag-row-height: 32px;
   --ag-header-height: 34px;
-  --ag-cell-horizontal-padding: 8px;
+  --ag-cell-horizontal-padding: 10px;
+
+  --ag-cell-horizontal-border: solid 1px #F3F4F6;
 }
 
-/**
- * Edited cell — amber left border + warm tint.
- * Visible pending-edit indicator, similar to a "dirty" line gutter.
- */
-.quarantine-ag-grid .ag-cell-edited {
-  background-color: hsl(45 96% 92%);
-  color: hsl(30 90% 28%);
-  font-weight: 600;
-  box-shadow: inset 3px 0 0 hsl(38 92% 50%);
+/* Header cells */
+.quarantine-ag-grid .ag-header-cell-text {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10.5px;
 }
 
-/**
- * Saved cell — green left border + mint tint.
- * Shows the edit was persisted to the backend this session.
- */
-.quarantine-ag-grid .ag-cell-saved {
-  background-color: hsl(142 60% 92%);
-  color: hsl(142 50% 25%);
+.quarantine-ag-grid .ag-header {
+  border-bottom: 1px solid #E5E7EB;
+}
+
+/* Row ID column */
+.quarantine-ag-grid .ag-cell[col-id="row_id"] {
+  color: #9CA3AF;
+  font-size: 11px;
   font-weight: 500;
-  box-shadow: inset 3px 0 0 hsl(142 60% 40%);
+  background: #F9FAFB;
 }
 
-/**
- * Quarantined cell — red tint.
- * Applied when the corresponding {col}_dq_status value is "quarantined".
- */
+/* ─── Cell Status Indicators ───────────────────────────────────────────────── */
+
+/* Clean — barely visible. Just normal. */
+.quarantine-ag-grid .ag-cell-clean {
+  background: transparent;
+  color: #111827;
+}
+
+/* Fixed — subtle orange left border. "Engine auto-corrected this." */
+.quarantine-ag-grid .ag-cell-fixed {
+  background: #FFF7ED;
+  color: #9A3412;
+  box-shadow: inset 2px 0 0 #F97316;
+}
+
+/* Quarantined — subtle red left border. "Needs your attention." */
 .quarantine-ag-grid .ag-cell-quarantined {
-  background-color: hsl(0 84% 96%);
-  color: hsl(0 70% 38%);
+  background: #FEF2F2;
+  color: #991B1B;
+  box-shadow: inset 2px 0 0 #EF4444;
 }
 
-/**
- * Edited takes precedence over quarantined when both apply.
- */
-.quarantine-ag-grid .ag-cell-quarantined.ag-cell-edited {
-  background-color: hsl(45 96% 92%);
-  color: hsl(30 90% 28%);
-  box-shadow: inset 3px 0 0 hsl(38 92% 50%);
+/* Edited (pending save) — blue left border. */
+.quarantine-ag-grid .ag-cell-edited {
+  background: #EFF6FF;
+  color: #1E40AF;
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 #2563EB;
 }
 
-/**
- * Saved takes precedence over quarantined when both apply.
- */
-.quarantine-ag-grid .ag-cell-quarantined.ag-cell-saved {
-  background-color: hsl(142 60% 92%);
-  color: hsl(142 50% 25%);
-  box-shadow: inset 3px 0 0 hsl(142 60% 40%);
+/* Saved — green left border. "Persisted." */
+.quarantine-ag-grid .ag-cell-saved {
+  background: #ECFDF5;
+  color: #065F46;
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 #059669;
 }
+
+/* ─── Precedence cascades ──────────────────────────────────────────────────── */
+
+.quarantine-ag-grid .ag-cell-quarantined.ag-cell-edited,
+.quarantine-ag-grid .ag-cell-fixed.ag-cell-edited {
+  background: #EFF6FF;
+  color: #1E40AF;
+  box-shadow: inset 2px 0 0 #2563EB;
+}
+
+.quarantine-ag-grid .ag-cell-quarantined.ag-cell-saved,
+.quarantine-ag-grid .ag-cell-fixed.ag-cell-saved {
+  background: #ECFDF5;
+  color: #065F46;
+  box-shadow: inset 2px 0 0 #059669;
+}
+
+/* ─── Find & Replace Highlights ───────────────────────────────────────────── */
+
+/* Match — yellow highlight for cells matching the search term */
+.quarantine-ag-grid .ag-cell-find-match {
+  background: #FEF9C3 !important;
+  box-shadow: inset 0 0 0 1px #EAB308 !important;
+}
+
+/* Current match — orange highlight for the actively focused match */
+.quarantine-ag-grid .ag-cell-find-current {
+  background: #FED7AA !important;
+  box-shadow: inset 0 0 0 2px #EA580C !important;
+  font-weight: 600;
+}
+
+/* ── Cell lock indicators (collaboration) ── */
+.quarantine-ag-grid .ag-cell-locked {
+  position: relative;
+}
+.quarantine-ag-grid .ag-cell-locked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 2px solid var(--lock-color, #9CA3AF);
+  border-radius: 1px;
+}
+
+/* ─── Editing state ────────────────────────────────────────────────────────── */
+
+.quarantine-ag-grid .ag-cell-inline-editing {
+  border: 2px solid #2a4477 !important;
+  border-radius: 2px;
+  box-shadow: 0 0 0 3px rgba(42, 68, 119, 0.1);
+  background: white !important;
+  padding: 0 8px;
+}
+
+.quarantine-ag-grid .ag-cell-inline-editing input {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12.5px;
+}
+
+/* ─── Tooltip ──────────────────────────────────────────────────────────────── */
+
+.quarantine-ag-grid .ag-tooltip {
+  background: #1F2937;
+  color: #F3F4F6;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11.5px;
+  line-height: 1.5;
+  max-width: 320px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ─── Loading overlay ──────────────────────────────────────────────────────── */
+
+.quarantine-ag-grid .ag-overlay-loading-wrapper {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(2px);
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────────────────── */
+
+.quarantine-ag-grid ::-webkit-scrollbar { width: 6px; height: 6px; }
+.quarantine-ag-grid ::-webkit-scrollbar-track { background: #F9FAFB; }
+.quarantine-ag-grid ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+.quarantine-ag-grid ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }

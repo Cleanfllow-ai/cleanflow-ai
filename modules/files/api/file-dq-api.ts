@@ -10,6 +10,23 @@ import type {
 import { AWS_CONFIG } from '@/shared/config/aws-config'
 const API_BASE_URL = AWS_CONFIG.API_BASE_URL
 
+/** Validate that a URL looks like a legitimate S3 presigned URL */
+function isValidS3Url(url: string): boolean {
+    return url.startsWith('https://') && (url.includes('.s3.') || url.includes('.amazonaws.com'))
+}
+
+/** Try to base64-decode a string, return null on failure */
+function tryDecodeBase64(s: string): string | null {
+    try {
+        const trimmed = (s || '').trim()
+        if (!trimmed) return null
+        const binary = atob(trimmed)
+        return binary
+    } catch (e) {
+        return null
+    }
+}
+
 // API Endpoints used by this module
 const ENDPOINTS = {
     FILES_ISSUES: (id: string) => `/files/${id}/issues`,
@@ -33,21 +50,19 @@ export async function downloadDqReport(uploadId: string, authToken: string): Pro
 
     const text = await response.text()
 
-    // Helper: try to base64-decode a string, return null on failure
-    const tryDecodeBase64 = (s: string): string | null => {
-        try {
-            const trimmed = (s || '').trim()
-            if (!trimmed) return null
-            const binary = atob(trimmed)
-            return binary
-        } catch (e) {
-            return null
-        }
-    }
-
-    // Case 1: JSON envelope
+    // Case 0: presigned URL redirect for large reports
     try {
         const payload = JSON.parse(text)
+        const presignedUrl = payload.download_url || payload.presigned_url
+        if (presignedUrl) {
+            if (!isValidS3Url(presignedUrl)) {
+                throw new Error('Invalid presigned URL: must be an HTTPS S3/AWS URL')
+            }
+            const reportResp = await fetch(presignedUrl)
+            if (!reportResp.ok) throw new Error(`DQ report download failed: ${reportResp.statusText}`)
+            return await reportResp.json()
+        }
+        // Case 1: JSON envelope with base64 body
         const base64Body = payload.body || payload.data || ''
         if (base64Body) {
             const decoded = tryDecodeBase64(base64Body)
@@ -55,8 +70,9 @@ export async function downloadDqReport(uploadId: string, authToken: string): Pro
         }
         // If there's no body field, treat payload itself as report JSON
         return payload as DqReportResponse
-    } catch {
-        // Not JSON – fall through
+    } catch (e) {
+        // Not JSON or fetch failed – fall through
+        if (e instanceof Error && e.message.includes('DQ report download failed')) throw e
     }
 
     // Case 2: plain base64 string
@@ -108,18 +124,6 @@ export async function downloadOverallDqReport(authToken: string): Promise<Overal
     }
 
     const text = await response.text()
-
-    // Helper: try to base64-decode a string, return null on failure
-    const tryDecodeBase64 = (s: string): string | null => {
-        try {
-            const trimmed = (s || '').trim()
-            if (!trimmed) return null
-            const binary = atob(trimmed)
-            return binary
-        } catch (e) {
-            return null
-        }
-    }
 
     // Case 1: JSON envelope
     try {
