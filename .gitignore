@@ -27,3 +27,10 @@ yarn-error.log*
 next-env.d.ts
 test-page/
 test-reactui/
+
+# Claude Code local artifacts
+.claude/
+CLAUDE.md
+
+# pnpm local store
+.pnpm-store/
