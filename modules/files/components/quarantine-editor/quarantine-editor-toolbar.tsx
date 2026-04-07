@@ -7,10 +7,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Loader2, Play, Check, Save, Search, Users } from 'lucide-react'
+import { ClipboardCheck, Loader2, Play, Check, Save, Search, Shield, Users, Clock, X } from 'lucide-react'
 import type { QuarantineSession } from '@/modules/files/types'
 import type { CollaborationUser } from '@/modules/files/types'
+import type { ApprovalStatus } from '@/modules/auth/api/org-api'
 import { QuarantinePresenceBar } from './quarantine-presence-bar'
 import { QuarantineColumnToggle } from './quarantine-column-toggle'
 
@@ -19,7 +21,10 @@ interface QuarantineEditorToolbarProps {
   saving: boolean
   submitting: boolean
   savedAt?: Date | null
-  onReprocess: () => void
+  currentUserRole: string | null
+  approvalStatus: ApprovalStatus | 'NONE'
+  approvalLoading?: boolean
+  onPrimaryAction: () => void | Promise<void>
   onFindReplace?: () => void
   columns?: string[]
   hiddenColumns?: Set<string>
@@ -37,7 +42,10 @@ export function QuarantineEditorToolbar({
   saving,
   submitting,
   savedAt,
-  onReprocess,
+  currentUserRole,
+  approvalStatus,
+  approvalLoading = false,
+  onPrimaryAction,
   onFindReplace,
   columns,
   hiddenColumns,
@@ -50,6 +58,74 @@ export function QuarantineEditorToolbar({
   onToggleCollabPanel,
 }: QuarantineEditorToolbarProps) {
   const [showSaved, setShowSaved] = useState(false)
+  const isSuperAdmin = currentUserRole === 'Super Admin'
+
+  const primaryLabel = (() => {
+    if (isSuperAdmin) return 'Reprocess'
+    if (approvalLoading) return 'Checking approval...'
+
+    switch (approvalStatus) {
+      case 'APPROVED':
+        return 'Approved - Reprocess'
+      case 'PENDING':
+        return 'Awaiting Approval'
+      case 'REJECTED':
+        return 'Re-request Approval'
+      default:
+        return 'Request Approval'
+    }
+  })()
+
+  const statusBadge = (() => {
+    if (isSuperAdmin) {
+      return (
+        <Badge variant="secondary" className="gap-1.5">
+          <Shield className="h-3 w-3" />
+          Super Admin
+        </Badge>
+      )
+    }
+
+    if (approvalLoading) {
+      return (
+        <Badge variant="outline" className="gap-1.5">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Checking approval
+        </Badge>
+      )
+    }
+
+    switch (approvalStatus) {
+      case 'APPROVED':
+        return (
+          <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 gap-1.5">
+            <Check className="h-3 w-3" />
+            Approved
+          </Badge>
+        )
+      case 'PENDING':
+        return (
+          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-600 gap-1.5">
+            <Clock className="h-3 w-3" />
+            Pending approval
+          </Badge>
+        )
+      case 'REJECTED':
+        return (
+          <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-600 gap-1.5">
+            <X className="h-3 w-3" />
+            Rejected
+          </Badge>
+        )
+      default:
+        return (
+          <Badge variant="outline" className="gap-1.5">
+            <ClipboardCheck className="h-3 w-3" />
+            Approval required
+          </Badge>
+        )
+    }
+  })()
 
   useEffect(() => {
     if (!savedAt) return
@@ -63,19 +139,24 @@ export function QuarantineEditorToolbar({
       <div className="flex items-center justify-between gap-4">
         {/* Left: Actions */}
         <div className="flex items-center gap-3">
-          <Button
-            size="sm"
-            disabled={submitting || !session}
-            onClick={onReprocess}
-            className="h-7 text-xs font-medium px-4"
-          >
-            {submitting ? (
-              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <Play className="w-3 h-3 mr-1.5 fill-current" />
-            )}
-            Reprocess
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              disabled={submitting || approvalLoading || !session}
+              onClick={() => void onPrimaryAction()}
+              className="h-7 text-xs font-medium px-4"
+            >
+              {submitting ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : isSuperAdmin || approvalStatus === 'APPROVED' ? (
+                <Play className="w-3 h-3 mr-1.5 fill-current" />
+              ) : (
+                <ClipboardCheck className="w-3 h-3 mr-1.5" />
+              )}
+              {primaryLabel}
+            </Button>
+            {statusBadge}
+          </div>
 
           {onFindReplace && (
             <Button
