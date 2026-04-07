@@ -289,6 +289,10 @@ export function useStorageImport({
                         pollFailures++
                         if (pollFailures >= 20) {
                             finishImport(result, file.name)
+                        } else {
+                            // Keep the bar moving even when a poll fails — prevents it from
+                            // freezing at 2% during transient network errors or Lambda cold starts.
+                            advanceSim()
                         }
                     }
                 }, 2000)
