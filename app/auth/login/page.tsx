@@ -51,20 +51,20 @@ export default function LoginPage() {
               </div>
 
               {/* Stats row */}
-              <div className="flex items-center gap-8 pt-4">
+              <div className="flex items-center gap-6 pt-4">
                 <div>
-                  <p className="text-2xl font-bold text-white">AI-Powered</p>
+                  <p className="text-xl font-bold text-white">AI-Powered</p>
                   <p className="text-[11px] text-white/50 uppercase tracking-wider">Smart Profiling</p>
                 </div>
                 <div className="w-px h-10 bg-white/10" />
                 <div>
-                  <p className="text-2xl font-bold text-white">99.9%</p>
+                  <p className="text-xl font-bold text-white">99.9%</p>
                   <p className="text-[11px] text-white/50 uppercase tracking-wider">Uptime SLA</p>
                 </div>
                 <div className="w-px h-10 bg-white/10" />
                 <div>
-                  <p className="text-2xl font-bold text-white">SOC 2</p>
-                  <p className="text-[11px] text-white/50 uppercase tracking-wider">Compliant</p>
+                  <p className="text-xl font-bold text-white">30+ Rules</p>
+                  <p className="text-[11px] text-white/50 uppercase tracking-wider">Auto Validation</p>
                 </div>
               </div>
             </div>

@@ -291,28 +291,45 @@ export function ProfilingStep() {
                 {crossFieldRules.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No cross-field rules returned by CleanAI</p>
                 ) : (
-                  <div className="space-y-2">
-                    {crossFieldRules.map((rule, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/30 overflow-x-auto ">
-                        <span className="font-mono text-xs shrink-0">{rule.rule_id}</span>
-                        <span className="text-muted-foreground shrink-0">{rule.condition || rule.predicate}</span>
-                        {rule.relationship && (
-                          <Badge variant="secondary" className="text-[10px] shrink-0">
-                            {rule.relationship}
-                          </Badge>
-                        )}
-                        <div className="flex gap-1 shrink-0">
-                          {rule.cols?.map((c: string) => (
-                            <Badge key={c} variant="outline" className="text-[10px] whitespace-nowrap">{c}</Badge>
-                          ))}
-                        </div>
-                        {rule.confidence != null && (
-                          <Badge variant="secondary" className="text-[10px] shrink-0 ml-auto">
-                            {Math.round(rule.confidence * 100)}%
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
+                  <div className="border rounded-md overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/50 border-b">
+                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Rule</th>
+                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Condition</th>
+                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Type</th>
+                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Columns</th>
+                          <th className="text-right px-3 py-2 font-medium text-xs text-muted-foreground">Confidence</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {crossFieldRules.map((rule, i) => (
+                          <tr key={i} className="border-b last:border-0 hover:bg-muted/20">
+                            <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{rule.rule_id}</td>
+                            <td className="px-3 py-2 text-muted-foreground text-xs">{rule.condition || rule.predicate}</td>
+                            <td className="px-3 py-2">
+                              {rule.relationship && (
+                                <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex gap-1 flex-wrap">
+                                {rule.cols?.map((c: string) => (
+                                  <Badge key={c} variant="outline" className="text-[10px] whitespace-nowrap">{c}</Badge>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              {rule.confidence != null && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {Math.round(rule.confidence * 100)}%
+                                </Badge>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
