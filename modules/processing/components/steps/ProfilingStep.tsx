@@ -227,7 +227,7 @@ export function ProfilingStep() {
                     return (
                       <div
                         key={col}
-                        className={cn("border border-muted rounded-lg p-4 space-y-3", activeColumn === col && "border-primary")}
+                        className={cn("border border-muted rounded-lg p-4 space-y-3 max-h-[220px] overflow-y-auto", activeColumn === col && "border-primary")}
                         onClick={() => setActiveColumn(col)}
                       >
                         <div className="flex items-center justify-between">
@@ -264,10 +264,15 @@ export function ProfilingStep() {
                         {profile.rules && profile.rules.length > 0 && (
                           <div className="text-xs">
                             <span className="text-muted-foreground">AI Rules: </span>
-                            {profile.rules
-                              .filter((r: any) => r.decision === "auto")
-                              .map((r: any) => getRuleLabel(r.rule_id))
-                              .join(", ")}
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {profile.rules
+                                .filter((r: any) => r.decision === "auto")
+                                .map((r: any, idx: number) => (
+                                  <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0">
+                                    {getRuleLabel(r.rule_id)}
+                                  </Badge>
+                                ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -288,21 +293,21 @@ export function ProfilingStep() {
                 ) : (
                   <div className="space-y-2">
                     {crossFieldRules.map((rule, i) => (
-                      <div key={i} className="flex items-center gap-3 text-sm p-2 rounded bg-muted/30">
-                        <span className="font-mono text-xs">{rule.rule_id}</span>
-                        <span className="text-muted-foreground">{rule.condition || rule.predicate}</span>
+                      <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/30 overflow-x-auto ">
+                        <span className="font-mono text-xs shrink-0">{rule.rule_id}</span>
+                        <span className="text-muted-foreground shrink-0">{rule.condition || rule.predicate}</span>
                         {rule.relationship && (
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge variant="secondary" className="text-[10px] shrink-0">
                             {rule.relationship}
                           </Badge>
                         )}
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 shrink-0">
                           {rule.cols?.map((c: string) => (
-                            <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
+                            <Badge key={c} variant="outline" className="text-[10px] whitespace-nowrap">{c}</Badge>
                           ))}
                         </div>
                         {rule.confidence != null && (
-                          <Badge variant="secondary" className="text-[10px] ml-auto">
+                          <Badge variant="secondary" className="text-[10px] shrink-0 ml-auto">
                             {Math.round(rule.confidence * 100)}%
                           </Badge>
                         )}

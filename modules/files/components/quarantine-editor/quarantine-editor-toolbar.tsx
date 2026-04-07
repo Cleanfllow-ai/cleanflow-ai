@@ -12,6 +12,7 @@ import { Loader2, Play, Check, Save, Search, Users } from 'lucide-react'
 import type { QuarantineSession } from '@/modules/files/types'
 import type { CollaborationUser } from '@/modules/files/types'
 import { QuarantinePresenceBar } from './quarantine-presence-bar'
+import { QuarantineColumnToggle } from './quarantine-column-toggle'
 
 interface QuarantineEditorToolbarProps {
   session: QuarantineSession | null
@@ -20,6 +21,11 @@ interface QuarantineEditorToolbarProps {
   savedAt?: Date | null
   onReprocess: () => void
   onFindReplace?: () => void
+  columns?: string[]
+  hiddenColumns?: Set<string>
+  onToggleColumn?: (column: string) => void
+  onShowAllColumns?: () => void
+  onHideAllColumns?: () => void
   collabConnected?: boolean
   collabUsers?: CollaborationUser[]
   collabPanelOpen?: boolean
@@ -33,6 +39,11 @@ export function QuarantineEditorToolbar({
   savedAt,
   onReprocess,
   onFindReplace,
+  columns,
+  hiddenColumns,
+  onToggleColumn,
+  onShowAllColumns,
+  onHideAllColumns,
   collabConnected,
   collabUsers,
   collabPanelOpen,
@@ -76,6 +87,16 @@ export function QuarantineEditorToolbar({
               <Search className="w-3 h-3 mr-1.5" />
               Find & Replace
             </Button>
+          )}
+
+          {columns && hiddenColumns && onToggleColumn && onShowAllColumns && onHideAllColumns && (
+            <QuarantineColumnToggle
+              columns={columns}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={onToggleColumn}
+              onShowAll={onShowAllColumns}
+              onHideAll={onHideAllColumns}
+            />
           )}
 
           {/* Color legend */}

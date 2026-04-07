@@ -36,12 +36,15 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
         {
             label: "Total Files",
             value: stats.total.toString(),
-            sub: stats.failed > 0 ? `${stats.failed} failed` : "all sources",
+            sub:
+                stats.total > 0
+                    ? `${Math.round((stats.processed / stats.total) * 100)}% completion`
+                    : "no files",
             icon: Files,
             iconColor: "text-primary",
             bgColor: "bg-primary/8",
             valueColor: "",
-            alertColor: stats.failed > 0 ? "text-destructive" : "text-muted-foreground",
+            alertColor: "text-muted-foreground",
             accentColor: "bg-primary",
         },
         {
@@ -93,15 +96,12 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
         {
             label: "Processed",
             value: stats.processed.toString(),
-            sub:
-                stats.total > 0
-                    ? `${Math.round((stats.processed / stats.total) * 100)}% completion`
-                    : "no files",
+            sub: stats.failed > 0 ? `${stats.failed} failed` : "all sources",
             icon: CheckCircle2,
             iconColor: "text-emerald-500",
             bgColor: "bg-emerald-500/8",
             valueColor: "",
-            alertColor: "text-muted-foreground",
+            alertColor: stats.failed > 0 ? "text-destructive" : "text-muted-foreground",
             accentColor: "bg-emerald-500",
         },
         {

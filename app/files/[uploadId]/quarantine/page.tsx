@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useCallback, useEffect, useRef } from 'react'
+import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/modules/auth'
 import { useQuarantineEditor, useQuarantineFilters, useQuarantineFind } from '@/modules/files/hooks'
@@ -68,6 +68,29 @@ export default function QuarantineEditorPage({ params }: PageProps) {
   })
 
   const gridApiRef = useRef<GridApi<QuarantineRow> | null>(null)
+
+  // Column visibility
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set())
+
+  const toggleColumn = useCallback((column: string) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev)
+      if (next.has(column)) next.delete(column)
+      else next.add(column)
+      return next
+    })
+  }, [])
+
+  const showAllColumns = useCallback(() => setHiddenColumns(new Set()), [])
+
+  const hideAllColumns = useCallback(() => {
+    setHiddenColumns(new Set(editor.columns.filter((c) => c !== 'row_id')))
+  }, [editor.columns])
+
+  const visibleColumns = useMemo(
+    () => editor.columns.filter((c) => c === 'row_id' || !hiddenColumns.has(c)),
+    [editor.columns, hiddenColumns],
+  )
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -140,6 +163,11 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         savedAt={editor.lastSavedAt}
         onReprocess={handleReprocess}
         onFindReplace={() => find.setOpen(!find.open)}
+        columns={editor.columns}
+        hiddenColumns={hiddenColumns}
+        onToggleColumn={toggleColumn}
+        onShowAllColumns={showAllColumns}
+        onHideAllColumns={hideAllColumns}
         collabConnected={collab.connected}
         collabUsers={collab.users}
         collabPanelOpen={collab.panelOpen}
@@ -190,7 +218,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
             {isGridReady ? (
               <QuarantineAgGridTable
                 key={gridInstanceKey}
-                columns={editor.columns}
+                columns={visibleColumns}
                 editableColumns={editor.manifest?.editable_columns || []}
                 totalRows={editor.totalRows}
                 fetchRows={editor.fetchRows}
