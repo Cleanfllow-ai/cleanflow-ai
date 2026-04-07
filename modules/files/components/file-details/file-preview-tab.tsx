@@ -124,18 +124,21 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                           ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400"
                           : ""
 
-                      // ── Tooltip (only for non-clean cells) ─────────────────
+                      // ── Tooltip (only for quarantined/fixed cells) ──────────
+                      // Strip trailing "(ColumnName)" — redundant on a per-cell tooltip
+                      const stripColRef = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, "").trim()
                       const tooltipLines: string[] = []
-                      if (resolvedStatus && resolvedStatus !== "clean") {
-                        tooltipLines.push(`Status: ${resolvedStatus}`)
+                      if (resolvedStatus === "quarantined" || resolvedStatus === "fixed") {
                         if (colViolations.length > 0) {
-                          tooltipLines.push(`Issues: ${colViolations.join("; ")}`)
+                          tooltipLines.push(...colViolations.map(stripColRef).filter(Boolean))
                         }
-                        if (colFixes.length > 0) {
-                          tooltipLines.push(`Fixes: ${colFixes.join("; ")}`)
-                        }
-                        if (resolvedStatus === "fixed" && colFixes.length === 0) {
-                          tooltipLines.push("Auto-fixed by DQ engine")
+                        if (resolvedStatus === "fixed") {
+                          const cleanedFixes = colFixes.map(stripColRef).filter(Boolean)
+                          if (cleanedFixes.length > 0) {
+                            tooltipLines.push(...cleanedFixes)
+                          } else if (colViolations.length === 0) {
+                            tooltipLines.push("Auto-fixed by DQ engine")
+                          }
                         }
                       }
 

@@ -209,7 +209,18 @@ export function useQuarantineSession() {
           throw manifestError
         }
 
-        // Try to backfill read model
+        // DQ pipeline never completed for this file — artifact missing, can't backfill
+        if (
+          msg.includes('artifact') ||
+          msg.includes('not ready') ||
+          (manifestError as any)?.needs_reprocess
+        ) {
+          throw new Error(
+            'This file\'s DQ pipeline did not complete successfully. Please re-process the file to use the quarantine editor.'
+          )
+        }
+
+        // Try to backfill read model (manifest missing but artifact exists)
         await backfillQuarantineReadModel(uploadId, authToken, requestedVersion)
         manifestResp = await getQuarantineManifest(uploadId, authToken, requestedVersion)
       }

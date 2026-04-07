@@ -124,7 +124,7 @@ function getCellStatusClass(
 
 function getCellTooltip(field: string, row: QuarantineRow) {
   const cellStatus = String(row?.[`${field}_dq_status`] ?? '').toLowerCase()
-  if (!cellStatus || cellStatus === 'clean') {
+  if (!cellStatus || cellStatus === 'clean' || cellStatus === 'edited') {
     return null
   }
 
@@ -145,23 +145,26 @@ function getCellTooltip(field: string, row: QuarantineRow) {
           lower.includes(` ${fieldLower} `)
         )
       })
+      // Strip trailing "(ColumnName)" reference — redundant since we're already on that cell
+      .map((token) => token.replace(/\s*\([^)]*\)\s*$/, '').trim())
+      .filter(Boolean)
 
   const violations = extractForColumn(String(row?.dq_violations ?? ''))
   const fixes = extractForColumn(String(row?.fixes_applied ?? ''))
 
-  const lines: string[] = [`Status: ${cellStatus}`]
+  const lines: string[] = []
   if (violations.length > 0) {
-    lines.push(`Issues: ${violations.join('; ')}`)
+    lines.push(...violations)
   }
   if (cellStatus === 'fixed') {
     if (fixes.length > 0) {
-      lines.push(`Fixes: ${fixes.join('; ')}`)
-    } else {
+      lines.push(...fixes)
+    } else if (violations.length === 0) {
       lines.push('Auto-fixed by DQ engine')
     }
   }
 
-  return lines.join('\n')
+  return lines.length > 0 ? lines.join('\n') : null
 }
 
 export function QuarantineAgGridTable({
