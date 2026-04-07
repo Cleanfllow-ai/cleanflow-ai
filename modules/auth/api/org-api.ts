@@ -71,6 +71,35 @@ export interface OrgPermissionsResponse {
   permissions_by_role: Record<string, Record<string, boolean>>;
 }
 
+export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface ApprovalRecord {
+  approval_id: string;
+  action_type: string;
+  resource_id: string;
+  resource_name: string;
+  requester_user_id: string;
+  requester_email: string;
+  status: ApprovalStatus;
+  message: string;
+  decided_by?: string;
+  decided_at?: string;
+  created_at: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ApprovalsListResponse {
+  approvals: ApprovalRecord[];
+  count: number;
+}
+
+export interface ApprovalCheckResponse {
+  approved: boolean;
+  pending?: boolean;
+  approval_id?: string;
+  decided_at?: string;
+}
+
 function getAuthTokenFromStorage(): string | null {
   try {
     const raw = window.localStorage.getItem("authTokens");
@@ -209,6 +238,59 @@ class OrgAPI {
       method: "PUT",
       body: JSON.stringify({ permissions }),
     });
+  }
+
+  // ── Approvals ───────────────────────────────────────────────────────────
+
+  createApproval(
+    payload: {
+      action_type: string;
+      resource_id: string;
+      message?: string;
+      resource_name?: string;
+      metadata?: Record<string, unknown>;
+    },
+    authToken?: string | null,
+  ) {
+    return this.makeRequest("/org/approvals", authToken, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  listApprovals(
+    params?: { status?: string; action_type?: string },
+    authToken?: string | null,
+  ): Promise<ApprovalsListResponse> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.action_type) qs.set("action_type", params.action_type);
+    const suffix = qs.toString() ? `?${qs}` : "";
+    return this.makeRequest(`/org/approvals${suffix}`, authToken, { method: "GET" });
+  }
+
+  approveRequest(approvalId: string, authToken?: string | null) {
+    return this.makeRequest(`/org/approvals/${encodeURIComponent(approvalId)}/approve`, authToken, {
+      method: "POST",
+    });
+  }
+
+  rejectRequest(approvalId: string, authToken?: string | null) {
+    return this.makeRequest(`/org/approvals/${encodeURIComponent(approvalId)}/reject`, authToken, {
+      method: "POST",
+    });
+  }
+
+  getPendingCount(authToken?: string | null): Promise<{ pending_count: number }> {
+    return this.makeRequest("/org/approvals/pending-count", authToken, { method: "GET" });
+  }
+
+  checkApprovalStatus(
+    params: { action_type: string; resource_id: string },
+    authToken?: string | null,
+  ): Promise<ApprovalCheckResponse> {
+    const qs = new URLSearchParams(params);
+    return this.makeRequest(`/org/approvals/check?${qs}`, authToken, { method: "GET" });
   }
 }
 

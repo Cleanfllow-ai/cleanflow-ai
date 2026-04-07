@@ -159,8 +159,15 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
         const token = authTokens.idToken
         if (!token) return
 
-        const freshFile = await fileManagementAPI.getFileStatus(file.upload_id, token)
+        const rawFreshFile = await fileManagementAPI.getFileStatus(file.upload_id, token)
         if (cancelled) return
+
+        // Preserve processing_time from the original file if the status endpoint doesn't return it
+        const freshFile: FileStatusResponse = {
+          ...rawFreshFile,
+          processing_time: rawFreshFile.processing_time ?? file.processing_time,
+          processing_time_seconds: rawFreshFile.processing_time_seconds ?? file.processing_time_seconds,
+        }
 
         let nextStatusCache: Record<string, FileStatusResponse> = { [freshFile.upload_id]: freshFile }
 

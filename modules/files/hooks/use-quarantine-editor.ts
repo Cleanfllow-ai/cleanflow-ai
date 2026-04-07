@@ -7,6 +7,8 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef, startTransition } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
+import { useAuth } from '@/modules/auth'
+import { orgAPI, type ApprovalRecord, type ApprovalStatus } from '@/modules/auth/api/org-api'
 import {
   saveQuarantineEditsBatch,
   submitQuarantineReprocess,
@@ -28,6 +30,8 @@ interface UseQuarantineEditorParams {
   filters?: QuarantineFilters
 }
 
+type QuarantineApprovalState = ApprovalStatus | 'NONE'
+
 /**
  * Main quarantine editor hook
  * Orchestrates all sub-hooks and provides unified state management
@@ -37,6 +41,7 @@ interface UseQuarantineEditorParams {
  */
 export function useQuarantineEditor({ file, authToken, open = true, filters }: UseQuarantineEditorParams) {
   const { toast } = useToast()
+  const { user, userRole } = useAuth()
   const config = useQuarantineConfig()
 
   // Sub-hooks
@@ -51,6 +56,13 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [showLineage, setShowLineage] = useState(false)
   const [dataVersion, setDataVersion] = useState(0)
+  const [approvalStatus, setApprovalStatus] = useState<QuarantineApprovalState>('NONE')
+  const [approvalId, setApprovalId] = useState('')
+  const [approvalLoading, setApprovalLoading] = useState(false)
+  const [approvalRequestDialogOpen, setApprovalRequestDialogOpen] = useState(false)
+  const [approvalRequestMessage, setApprovalRequestMessage] = useState('')
+  const [approvalRequestSubmitting, setApprovalRequestSubmitting] = useState(false)
+  const approvalRefreshSeqRef = useRef(0)
 
   const filtersRef = useRef(filters)
   filtersRef.current = filters
@@ -80,6 +92,147 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
     return lineage.find((v) => v.is_latest) || lineage[lineage.length - 1]
   }, [lineage])
   const activeUploadId = session.manifest?.upload_id || file?.upload_id || ''
+  const approvalResourceName = useMemo(() => {
+    return file?.original_filename?.trim() || file?.filename?.trim() || activeUploadId || 'Quarantine file'
+  }, [file?.filename, file?.original_filename, activeUploadId])
+
+  const isApprovalDeniedError = useCallback((error: any) => {
+    const message = String(error?.message || '').toLowerCase()
+    return (
+      message.includes('reprocess pending approval') ||
+      message.includes('reprocess requires approval') ||
+      message.includes('approval required') ||
+      message.includes('awaiting approval')
+    )
+  }, [])
+
+  const refreshApprovalState = useCallback(async (): Promise<QuarantineApprovalState> => {
+    if (!activeUploadId || !authToken || userRole === 'Super Admin') {
+      setApprovalStatus('NONE')
+      setApprovalId('')
+      return 'NONE'
+    }
+
+    approvalRefreshSeqRef.current += 1
+    const refreshSeq = approvalRefreshSeqRef.current
+    setApprovalLoading(true)
+    try {
+      const check = await orgAPI.checkApprovalStatus(
+        { action_type: 'reprocess', resource_id: activeUploadId },
+        authToken
+      )
+
+      if (refreshSeq !== approvalRefreshSeqRef.current) {
+        return 'NONE'
+      }
+
+      if (check.approved) {
+        setApprovalStatus('APPROVED')
+        setApprovalId(check.approval_id || '')
+        return 'APPROVED'
+      }
+
+      if (check.pending) {
+        setApprovalStatus('PENDING')
+        setApprovalId(check.approval_id || '')
+        return 'PENDING'
+      }
+
+      const rejected = await orgAPI.listApprovals(
+        { status: 'REJECTED', action_type: 'reprocess' },
+        authToken
+      )
+
+      if (refreshSeq !== approvalRefreshSeqRef.current) {
+        return 'NONE'
+      }
+
+      const matchingRejected = (rejected.approvals || [])
+        .filter((approval: ApprovalRecord) => {
+          return approval.resource_id === activeUploadId && approval.requester_user_id === user?.sub
+        })
+        .sort((a: ApprovalRecord, b: ApprovalRecord) => {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        })[0]
+
+      if (matchingRejected) {
+        setApprovalStatus('REJECTED')
+        setApprovalId(matchingRejected.approval_id)
+        return 'REJECTED'
+      }
+
+      setApprovalStatus('NONE')
+      setApprovalId('')
+      return 'NONE'
+    } catch (error) {
+      console.error('[QuarantineEditor] Failed to refresh approval state:', error)
+      setApprovalStatus('NONE')
+      setApprovalId('')
+      return 'NONE'
+    } finally {
+      if (refreshSeq === approvalRefreshSeqRef.current) {
+        setApprovalLoading(false)
+      }
+    }
+  }, [activeUploadId, authToken, user?.sub, userRole])
+
+  const requestApproval = useCallback(async () => {
+    if (!file || !authToken || !activeUploadId) {
+      return null
+    }
+
+    setApprovalRequestSubmitting(true)
+    try {
+      const result = await orgAPI.createApproval(
+        {
+          action_type: 'reprocess',
+          resource_id: activeUploadId,
+          resource_name: approvalResourceName,
+          message: approvalRequestMessage.trim(),
+          metadata: {
+            session_id: session.session?.session_id || '',
+            base_upload_id: session.session?.base_upload_id || session.manifest?.upload_id || activeUploadId,
+          },
+        },
+        authToken
+      )
+
+      const nextStatus = (result?.status || 'PENDING') as QuarantineApprovalState
+      setApprovalStatus(nextStatus)
+      setApprovalId(result?.approval_id || '')
+      setApprovalRequestDialogOpen(false)
+      setApprovalRequestMessage('')
+      toast({
+        title: nextStatus === 'APPROVED' ? 'Approval already granted' : 'Approval requested',
+        description:
+          nextStatus === 'APPROVED'
+            ? 'A Super Admin approved this request immediately.'
+            : 'A Super Admin will review this reprocess request.',
+      })
+
+      return result
+    } catch (error: any) {
+      toast({
+        title: 'Approval request failed',
+        description: error?.message || 'Unable to create approval request',
+        variant: 'destructive',
+      })
+      return null
+    } finally {
+      setApprovalRequestSubmitting(false)
+    }
+  }, [
+    activeUploadId,
+    approvalId,
+    approvalRequestMessage,
+    approvalResourceName,
+    authToken,
+    file,
+    session.manifest?.upload_id,
+    session.session?.base_upload_id,
+    session.session?.session_id,
+    toast,
+  ])
 
   // Full reset when file changes — clears savedEditsMap so green indicators
   // from a previous file don't bleed into a different file's editor.
@@ -130,6 +283,22 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
     void init()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, file?.upload_id, authToken])
+
+  useEffect(() => {
+    if (!open || !authToken || !activeUploadId) {
+      setApprovalStatus('NONE')
+      setApprovalId('')
+      return
+    }
+
+    if (userRole === 'Super Admin') {
+      setApprovalStatus('NONE')
+      setApprovalId('')
+      return
+    }
+
+    void refreshApprovalState()
+  }, [open, authToken, activeUploadId, userRole, refreshApprovalState])
 
   // Autosave edits
   const saveEdits = useCallback(async (): Promise<boolean> => {
@@ -239,6 +408,23 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
     async (patchNotes?: string) => {
       if (!file || !authToken || !activeUploadId) return
 
+      if (userRole !== 'Super Admin') {
+        const latestApprovalStatus =
+          approvalStatus === 'APPROVED' ? approvalStatus : await refreshApprovalState()
+
+        if (latestApprovalStatus !== 'APPROVED') {
+          toast({
+            title: latestApprovalStatus === 'PENDING' ? 'Awaiting approval' : 'Reprocess requires approval',
+            description:
+              latestApprovalStatus === 'PENDING'
+                ? 'A Super Admin must approve this request before reprocessing can run.'
+                : 'Request approval from a Super Admin before submitting this reprocess.',
+            variant: 'destructive',
+          })
+          return null
+        }
+      }
+
       setSubmitting(true)
       try {
         // Save any pending edits first
@@ -276,6 +462,17 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
 
             return result
           } catch (legacyError: any) {
+            if (isApprovalDeniedError(legacyError)) {
+              await refreshApprovalState()
+              toast({
+                title: 'Reprocess blocked',
+                description:
+                  legacyError?.message || 'This reprocess is waiting for Super Admin approval.',
+                variant: 'destructive',
+              })
+              return null
+            }
+
             // Try compatibility upload as last resort
             const compatResult = await submitCompatibilityReprocessViaUpload(authToken, {
               rows: rows.rows,
@@ -316,6 +513,9 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
 
         return result
       } catch (error: any) {
+        if (isApprovalDeniedError(error)) {
+          await refreshApprovalState()
+        }
         toast({
           title: 'Reprocess failed',
           description: error?.message || 'Unable to submit reprocess',
@@ -326,8 +526,45 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
         setSubmitting(false)
       }
     },
-    [activeUploadId, file, authToken, session, edits, rows, saveEdits, toast]
+    [
+      activeUploadId,
+      file,
+      authToken,
+      session,
+      edits,
+      rows,
+      saveEdits,
+      toast,
+      approvalStatus,
+      refreshApprovalState,
+      userRole,
+      isApprovalDeniedError,
+    ]
   )
+
+  const handlePrimaryReprocessAction = useCallback(async () => {
+    if (userRole === 'Super Admin') {
+      return submitReprocess()
+    }
+
+    const latestApprovalStatus =
+      approvalStatus === 'APPROVED' ? approvalStatus : await refreshApprovalState()
+
+    if (latestApprovalStatus === 'APPROVED') {
+      return submitReprocess()
+    }
+
+    if (latestApprovalStatus === 'PENDING') {
+      toast({
+        title: 'Awaiting approval',
+        description: 'A Super Admin must approve this reprocess request before it can run.',
+      })
+      return null
+    }
+
+    setApprovalRequestDialogOpen(true)
+    return null
+  }, [approvalStatus, refreshApprovalState, submitReprocess, toast, userRole])
 
   // Refresh session + rows after a server-side operation (e.g. AI Fix Apply to All)
   const refreshSession = useCallback(async () => {
@@ -439,9 +676,13 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
 
     // Actions
     handleCellEdit,
+    applyRemoteEdit: rows.updateRow,
     setActiveCell: edits.setActiveCell,
     saveEdits,
     submitReprocess,
+    handleReprocessAction: handlePrimaryReprocessAction,
+    refreshApprovalState,
+    requestApproval,
     refreshSession,
 
     // UI state
@@ -454,6 +695,14 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
     lineage,
     latestVersion,
     dataVersion,
+    approvalStatus,
+    approvalId,
+    approvalLoading,
+    approvalRequestDialogOpen,
+    setApprovalRequestDialogOpen,
+    approvalRequestMessage,
+    setApprovalRequestMessage,
+    approvalRequestSubmitting,
 
     // AG Grid Infinite Row Model datasource
     fetchRows,

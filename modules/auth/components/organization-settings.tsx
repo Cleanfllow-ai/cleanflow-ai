@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Cable, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Building2, Cable, ClipboardCheck, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { OrgGeneralTab } from "./org-settings/org-general-tab";
 import { OrgMembersTab } from "./org-settings/org-members-tab";
 import { OrgPermissionsTab } from "./org-settings/org-permissions-tab";
 import { OrgServicesTab } from "./org-settings/org-services-tab";
+import { OrgApprovalsTab } from "./org-settings/org-approvals-tab";
 import { ConnectorsHub } from "@/modules/connectors/components/connectors-hub";
 
 export function OrganizationSettings() {
@@ -171,6 +172,20 @@ export function OrganizationSettings() {
             <Cable className="w-3.5 h-3.5" />
             Connectors
           </TabsTrigger>
+          {hookData.currentUserRole === "Super Admin" && (
+            <TabsTrigger
+              value="approvals"
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            >
+              <ClipboardCheck className="w-3.5 h-3.5" />
+              Approvals
+              {hookData.pendingApprovalCount > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-destructive rounded-full">
+                  {hookData.pendingApprovalCount}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
         </TabsList>
       </div>
 
@@ -258,6 +273,20 @@ export function OrganizationSettings() {
       <TabsContent value="connectors" className="space-y-6">
         <ConnectorsHub />
       </TabsContent>
+
+      {hookData.currentUserRole === "Super Admin" && (
+        <TabsContent value="approvals" className="space-y-6">
+          <OrgApprovalsTab
+            currentUserRole={hookData.currentUserRole}
+            approvals={hookData.approvals}
+            isLoading={hookData.isLoadingApprovals}
+            statusFilter={hookData.approvalStatusFilter}
+            onStatusFilterChange={hookData.setApprovalStatusFilter}
+            onApprove={hookData.handleApproveRequest}
+            onReject={hookData.handleRejectRequest}
+          />
+        </TabsContent>
+      )}
     </Tabs>
   );
 }

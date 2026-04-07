@@ -75,6 +75,7 @@ export interface EntityResult {
         updated?: number
         failed?: number
     }
+    export_errors?: Array<{ row?: number; error: string }>
 }
 
 export interface JobRun {

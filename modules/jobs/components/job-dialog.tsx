@@ -333,6 +333,38 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                                 )}
                             </div>
                         </div>
+
+                        {/* Destination ERP entity */}
+                        {d.destinationCategory === "erp" && d.destinationProvider && (
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Target Entity</Label>
+                                {d.destEntitiesLoading ? (
+                                    <div className="flex items-center gap-2 h-9 px-3 border rounded-md text-muted-foreground text-sm">
+                                        <Loader2 className="h-3 w-3 animate-spin" /> Loading entities...
+                                    </div>
+                                ) : d.availableDestEntities.length === 0 ? (
+                                    <div className="flex items-center h-9 px-3 border rounded-md text-muted-foreground text-xs border-dashed">
+                                        No entities available
+                                    </div>
+                                ) : (
+                                    <Select
+                                        value={d.destinationEntity}
+                                        onValueChange={d.setDestinationEntity}
+                                    >
+                                        <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="Select target entity" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {d.availableDestEntities.map(e => (
+                                                <SelectItem key={e.value} value={e.value}>
+                                                    {e.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* ── Frequency ────────────────────────────────────────── */}

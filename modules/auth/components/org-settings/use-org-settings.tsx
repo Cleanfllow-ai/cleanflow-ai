@@ -5,6 +5,8 @@ import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/modules/auth";
 import {
     orgAPI,
+    type ApprovalRecord,
+    type ApprovalStatus,
     type OrgInvite,
     type OrgMembership,
     type OrgRole,
@@ -305,6 +307,12 @@ export function useOrgSettings() {
     const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
     const logoInputRef = useRef<HTMLInputElement | null>(null);
     const presetFileInputRef = useRef<HTMLInputElement | null>(null);
+
+    // Approvals state
+    const [approvals, setApprovals] = useState<ApprovalRecord[]>([]);
+    const [isLoadingApprovals, setIsLoadingApprovals] = useState(false);
+    const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+    const [approvalStatusFilter, setApprovalStatusFilter] = useState<ApprovalStatus | "">("PENDING");
 
     // ─── Data helpers ───────────────────────────────────────────────
     const mapMemberToRow = (member: OrgMembership) => {
@@ -975,6 +983,69 @@ export function useOrgSettings() {
         }
     };
 
+    // ─── Approvals ────────────────────────────────────────────────────
+
+    const loadApprovals = async () => {
+        setIsLoadingApprovals(true);
+        try {
+            const params: { status?: string; action_type?: string } = {};
+            if (approvalStatusFilter) params.status = approvalStatusFilter;
+            const data = await orgAPI.listApprovals(params);
+            setApprovals(data.approvals || []);
+        } catch (err: any) {
+            console.error("Failed to load approvals", err);
+        } finally {
+            setIsLoadingApprovals(false);
+        }
+    };
+
+    const loadPendingCount = async () => {
+        try {
+            const data = await orgAPI.getPendingCount();
+            setPendingApprovalCount(data.pending_count || 0);
+        } catch {
+            // Silently ignore — badge is non-critical
+        }
+    };
+
+    // Fetch pending count on mount for badge (Super Admin only)
+    useEffect(() => {
+        if (currentUserRole === "Super Admin") {
+            loadPendingCount();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUserRole]);
+
+    // Load approvals when tab becomes active or filter changes
+    useEffect(() => {
+        if (activeTab === "approvals") {
+            loadApprovals();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, approvalStatusFilter]);
+
+    const handleApproveRequest = async (approvalId: string) => {
+        try {
+            await orgAPI.approveRequest(approvalId);
+            toast({ title: "Approved", description: "The request has been approved." });
+            await loadApprovals();
+            await loadPendingCount();
+        } catch (err: any) {
+            toast({ title: "Failed", description: err?.message || "Could not approve request.", variant: "destructive" });
+        }
+    };
+
+    const handleRejectRequest = async (approvalId: string) => {
+        try {
+            await orgAPI.rejectRequest(approvalId);
+            toast({ title: "Rejected", description: "The request has been rejected." });
+            await loadApprovals();
+            await loadPendingCount();
+        } catch (err: any) {
+            toast({ title: "Failed", description: err?.message || "Could not reject request.", variant: "destructive" });
+        }
+    };
+
     return {
         // Tab
         activeTab,
@@ -1058,5 +1129,13 @@ export function useOrgSettings() {
         handlePresetFileUpload,
         // Refresh
         handleRefreshAdminTab,
+        // Approvals
+        approvals,
+        isLoadingApprovals,
+        pendingApprovalCount,
+        approvalStatusFilter,
+        setApprovalStatusFilter,
+        handleApproveRequest,
+        handleRejectRequest,
     };
 }

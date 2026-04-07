@@ -75,6 +75,11 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     // ── Destination config (generic) ──────────────────────────────────────────
     const [destinationConfig, setDestinationConfig] = useState<Record<string, any>>({})
 
+    // ── Destination ERP entity (e.g. "Customer" for QuickBooks) ──────────────
+    const [destinationEntity, setDestinationEntity] = useState("")
+    const [availableDestEntities, setAvailableDestEntities] = useState<EntityOption[]>([])
+    const [destEntitiesLoading, setDestEntitiesLoading] = useState(false)
+
     // ── Column mapping ────────────────────────────────────────────────────────
     const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
     const [mappingLoading, setMappingLoading] = useState(false)
@@ -201,6 +206,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             setEntities(job.entities || [])
             setSourceConfig(job.source_config || {})
             setDestinationConfig(job.destination_config || {})
+            setDestinationEntity(job.destination_config?.entity_type || "")
             setColumnMapping(job.column_mapping || {})
             // Restore DQ config from existing job
             setDqPolicy((job.dq_config?.policy as DQPolicy) || "block_and_notify")
@@ -223,6 +229,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             setAvailableEntities([])
             setSourceConfig({})
             setDestinationConfig({})
+            setDestinationEntity("")
             setColumnMapping({})
             setAutoMapMethod("")
             // Reset DQ config
@@ -284,6 +291,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     useEffect(() => {
         setDestinationProvider("")
         setDestinationConfig({})
+        setDestinationEntity("")
+        setAvailableDestEntities([])
         setCachedDestFields([])
     }, [destinationCategory])
 
@@ -404,6 +413,47 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         return () => { cancelled = true }
     }, [destinationCategory, destinationProvider, destinationConfig.database, destinationConfig.schema])
 
+    // ── Destination ERP entity discovery ───────────────────────────────────────
+
+    useEffect(() => {
+        if (destinationCategory !== 'erp' || !destinationProvider) {
+            setAvailableDestEntities([])
+            return
+        }
+        let cancelled = false
+        setDestEntitiesLoading(true)
+
+        console.log("[job-dialog] Fetching dest ERP entities for:", destinationProvider)
+        erpConnectorsAPI.discoverEntities(destinationProvider).then(res => {
+            if (cancelled) return
+            console.log("[job-dialog] discoverEntities response:", JSON.stringify(res).slice(0, 200))
+            const opts = (res.entities || []).map((e: any) => ({
+                label: e.label || e.name || e.entity || "",
+                value: e.entity || e.key || e.name || e.value || "",
+            })).filter((e: EntityOption) => e.value)
+            setAvailableDestEntities(opts)
+        }).catch((err) => {
+            console.error("[job-dialog] discoverEntities failed:", err)
+            if (!cancelled) setAvailableDestEntities([])
+        }).finally(() => {
+            if (!cancelled) setDestEntitiesLoading(false)
+        })
+
+        return () => { cancelled = true }
+    }, [destinationCategory, destinationProvider])
+
+    // Reset destination entity when destination provider changes
+    useEffect(() => {
+        setDestinationEntity("")
+        setCachedDestFields([])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [destinationProvider])
+
+    // Clear cached dest fields when destination entity changes (forces re-fetch)
+    useEffect(() => {
+        setCachedDestFields([])
+    }, [destinationEntity])
+
     // ── Entity select helper (single-select) ─────────────────────────────────
 
     const selectEntity = useCallback((entityValue: string) => {
@@ -454,6 +504,10 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             toast({ title: "Select source, destination and entities first", variant: "destructive" })
             return
         }
+        if (destinationCategory === 'erp' && !destinationEntity) {
+            toast({ title: "Select a target entity first", description: "Choose the ERP entity to map columns to", variant: "destructive" })
+            return
+        }
         setMappingLoading(true)
         try {
             // Build separate params for source and destination (warehouse config)
@@ -471,9 +525,11 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             const sourceEntity = sourceCategory === 'warehouse' && sourceConfig.table
                 ? sourceConfig.table
                 : entities[0]
-            const destinationEntity = destinationCategory === 'warehouse' && destinationConfig.table
-                ? destinationConfig.table
-                : entities[0]
+            const destEntityForAutomap = destinationCategory === 'erp' && destinationEntity
+                ? destinationEntity
+                : destinationCategory === 'warehouse' && destinationConfig.table
+                    ? destinationConfig.table
+                    : entities[0]
 
             let mappings: Array<{ source: string; destination: string; confidence: number; method: string }> = []
             if (destinationCategory === 'erp') {
@@ -483,7 +539,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                     const srcRes = await connectorsAPI.getEntityFields(sourceProvider, sourceEntity, Object.keys(srcParams).length > 0 ? srcParams : undefined)
                     sourceFields = (srcRes.fields || []).map((f: any) => f.key || f.name || "").filter(Boolean)
                 } catch { /* proceed with empty — backend will try to infer */ }
-                const erpRes = await erpConnectorsAPI.aiAutoMap(destinationProvider, sourceFields, entities[0], sourceProvider)
+                const erpRes = await erpConnectorsAPI.aiAutoMap(destinationProvider, sourceFields, destEntityForAutomap, sourceProvider)
                 // ERP automap returns {mapping: Record<string, string>} — convert to array
                 mappings = Object.entries(erpRes.mapping || {}).map(([src, dst]) => ({
                     source: src, destination: dst, confidence: 80, method: erpRes.method || "ai",
@@ -495,7 +551,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                     entities[0],
                     [],
                     Object.keys(srcParams).length > 0 ? srcParams : undefined,
-                    destinationEntity,
+                    destEntityForAutomap,
                     Object.keys(dstParams).length > 0 ? dstParams : undefined,
                 )
                 mappings = res.mappings || []
@@ -526,13 +582,17 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         } finally {
             setMappingLoading(false)
         }
-    }, [sourceProvider, sourceCategory, destinationProvider, destinationCategory, sourceConfig, destinationConfig, entities, toast])
+    }, [sourceProvider, sourceCategory, destinationProvider, destinationCategory, sourceConfig, destinationConfig, entities, destinationEntity, toast])
 
     // ── Manual mapping editor ────────────────────────────────────────────────
 
     const handleOpenMappingEditor = useCallback(async () => {
         if (!sourceProvider || entities.length === 0 || !destinationProvider) {
             toast({ title: "Select source, destination and entities first", variant: "destructive" })
+            return
+        }
+        if (destinationCategory === 'erp' && !destinationEntity) {
+            toast({ title: "Select a target entity first", description: "Choose the ERP entity to map columns to", variant: "destructive" })
             return
         }
 
@@ -575,7 +635,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 let dstFields: typeof srcFields = []
                 try {
                     if (destinationCategory === 'erp') {
-                        const dstRes = await erpConnectorsAPI.getEntityFields(destinationProvider, entities[0])
+                        const dstRes = await erpConnectorsAPI.getEntityFields(destinationProvider, destinationEntity || entities[0])
                         dstFields = (dstRes.fields || []).map((f: any) => ({
                             key: f.key || f.name || "", label: f.label || f.key || f.name || "",
                             data_type: f.data_type || f.type || "string", required: f.required || false,
@@ -592,8 +652,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                     }
                 } catch { /* destination fields fetch failed */ }
 
-                // If destination has no fields (new table), mirror source fields
-                if (dstFields.length === 0) {
+                // If destination has no fields (new warehouse table), mirror source fields
+                if (dstFields.length === 0 && destinationCategory === 'warehouse') {
                     dstFields = srcFields.map(f => ({ ...f }))
                 }
 
@@ -605,7 +665,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             }
         }
         setShowMappingEditor(true)
-    }, [sourceProvider, destinationProvider, entities, cachedSourceFields.length, cachedDestFields.length, sourceConfig, destinationConfig, toast])
+    }, [sourceProvider, sourceCategory, destinationProvider, destinationCategory, entities, destinationEntity, cachedSourceFields.length, cachedDestFields.length, sourceConfig, destinationConfig, toast])
 
     // ── Submit ────────────────────────────────────────────────────────────────
 
@@ -666,8 +726,12 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             if (Object.keys(sourceConfig).length > 0) {
                 payload.source_config = sourceConfig
             }
-            if (Object.keys(destinationConfig).length > 0) {
-                payload.destination_config = destinationConfig
+            const finalDestConfig = { ...destinationConfig }
+            if (destinationCategory === 'erp' && destinationEntity) {
+                finalDestConfig.entity_type = destinationEntity
+            }
+            if (Object.keys(finalDestConfig).length > 0) {
+                payload.destination_config = finalDestConfig
             }
             if (Object.keys(columnMapping).length > 0) {
                 payload.column_mapping = columnMapping
@@ -727,6 +791,10 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         // Source / destination config
         sourceConfig, updateSourceConfig,
         destinationConfig, updateDestinationConfig,
+        // Destination ERP entity
+        destinationEntity, setDestinationEntity,
+        availableDestEntities,
+        destEntitiesLoading,
         // Warehouse config from admin connectors tab
         sourceConnectorConfig,
         destConnectorConfig,

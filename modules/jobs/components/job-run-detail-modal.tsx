@@ -293,7 +293,7 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                     </div>
                 )}
 
-                {/* ── Errors ───────────────────────────────────────────── */}
+                {/* ── Entity-level errors (non-export) ────────────────── */}
                 {entityEntries.some(([, r]) => r.error) && (
                     <div className="space-y-2">
                         <p className="text-sm font-semibold text-red-600 flex items-center gap-1.5">
@@ -301,14 +301,37 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                             Errors
                         </p>
                         <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-2 text-xs">
-                            {entityEntries.map(([entity, result]) =>
-                                result.error ? (
+                            {entityEntries.map(([entity, result]) => {
+                                if (!result.error) return null
+                                return (
                                     <div key={entity}>
                                         <span className="font-medium">{formatEntityName(entity)}: </span>
                                         <span className="text-red-600">{result.error}</span>
                                     </div>
-                                ) : null
-                            )}
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Export errors from pipeline logs ──────────────────── */}
+                {run.pipeline_logs?.some(l => l.phase === "export" && l.details?.errors?.length) && (
+                    <div className="space-y-2">
+                        <p className="text-sm font-semibold text-red-600 flex items-center gap-1.5">
+                            <AlertTriangle className="h-4 w-4" />
+                            Export Failures
+                        </p>
+                        <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-1 text-xs max-h-[200px] overflow-y-auto">
+                            {run.pipeline_logs
+                                .filter(l => l.phase === "export" && l.details?.errors?.length)
+                                .flatMap(l => (l.details.errors as Array<{ row?: number; error: string }>))
+                                .map((err, i) => (
+                                    <div key={i} className="text-red-600">
+                                        {err.row != null && <span className="text-muted-foreground mr-1">Row {err.row}:</span>}
+                                        {err.error}
+                                    </div>
+                                ))
+                            }
                         </div>
                     </div>
                 )}

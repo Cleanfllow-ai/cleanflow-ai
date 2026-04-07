@@ -66,10 +66,19 @@ export class ConnectorAPIBase {
   protected getAuthToken(): string | null {
     if (typeof window === "undefined") return null
     try {
+      // Primary: authTokens stored by our auth module
       const tokensStr = localStorage.getItem("authTokens")
       if (tokensStr) {
         const tokens = JSON.parse(tokensStr)
-        return tokens.idToken || null
+        if (tokens.idToken) return tokens.idToken
+      }
+      // Fallback: scan Cognito session keys in localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.includes(".idToken")) {
+          const val = localStorage.getItem(key)
+          if (val) return val
+        }
       }
     } catch {
       // ignore
