@@ -38,7 +38,7 @@ export function OnboardingChecklist({ files }: OnboardingChecklistProps) {
       {
         id: "upload",
         title: "Upload your first file",
-        description: "CSV, Excel, or JSON — up to 1 GB",
+        description: "CSV, Excel, or JSON",
         icon: Upload,
         done: hasUploaded,
         action: () => router.push("/files"),

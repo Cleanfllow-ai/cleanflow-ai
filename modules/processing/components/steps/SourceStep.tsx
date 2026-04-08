@@ -238,7 +238,7 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
                                 <div className="space-y-1.5">
                                     <p className="text-lg font-medium">Drop your file here or click to browse</p>
                                     <p className="text-sm text-muted-foreground">
-                                        Supports CSV, Excel (.xlsx, .xls), and JSON — up to 50 GB
+                                        Supports CSV, Excel (.xlsx, .xls), and JSON
                                     </p>
                                 </div>
                             </div>
