@@ -187,6 +187,7 @@ export function QuarantineAgGridTable({
   onCellEditingStopped: onCellEditStop,
   onGridApiReady,
 }: QuarantineAgGridTableProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const apiRef = useRef<GridApi<QuarantineRow> | null>(null)
   const getCellValueRef = useRef(getCellValue)
   const isCellEditedRef = useRef(isCellEdited)
@@ -359,7 +360,7 @@ export function QuarantineAgGridTable({
   }, [])
 
   return (
-    <div className="quarantine-ag-grid h-full w-full bg-white">
+    <div ref={wrapperRef} className="quarantine-ag-grid h-full w-full bg-white">
       <AgGridReact<QuarantineRow>
         animateRows={false}
         blockLoadDebounceMillis={75}
@@ -395,6 +396,7 @@ export function QuarantineAgGridTable({
         }}
         onGridReady={handleGridReady}
         overlayLoadingTemplate='<span class="text-xs font-medium text-slate-500">Loading quarantine data...</span>'
+        popupParent={wrapperRef.current ?? undefined}
         rowBuffer={2}
         rowModelType="infinite"
         singleClickEdit
@@ -402,6 +404,7 @@ export function QuarantineAgGridTable({
         suppressCellFocus={false}
         suppressContextMenu
         tooltipHideDelay={5000}
+        tooltipInteraction
         tooltipShowDelay={150}
         theme={GRID_THEME}
       />

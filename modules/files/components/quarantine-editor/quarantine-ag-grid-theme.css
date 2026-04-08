@@ -160,10 +160,14 @@
 }
 
 /* ─── Tooltip ──────────────────────────────────────────────────────────────── */
+/* AG Grid v35 may render tooltip popups inside the wrapper (popupParent) or
+   at document.body level.  Cover both cases so the dark tooltip always shows. */
 
-.quarantine-ag-grid .ag-tooltip {
-  background: #1F2937;
-  color: #F3F4F6;
+.quarantine-ag-grid .ag-tooltip,
+.ag-popup[class*="quarantine"] .ag-tooltip,
+body > .ag-popup .ag-tooltip {
+  background: #1F2937 !important;
+  color: #F3F4F6 !important;
   border: 1px solid #374151;
   border-radius: 6px;
   padding: 6px 10px;
@@ -173,6 +177,8 @@
   max-width: 320px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   white-space: pre-line;
+  z-index: 9999;
+  pointer-events: auto;
 }
 
 /* ─── Loading overlay ──────────────────────────────────────────────────────── */
