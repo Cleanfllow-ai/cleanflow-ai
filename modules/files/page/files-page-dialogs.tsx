@@ -368,9 +368,6 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                                                 {customRuleSuggestion.suggestion.severity}
                                             </Badge>
                                         )}
-                                        {typeof customRuleSuggestion.suggestion.confidence === "number" && (
-                                            <span className="text-xs text-muted-foreground">{(customRuleSuggestion.suggestion.confidence * 100).toFixed(0)}% confidence</span>
-                                        )}
                                     </div>
                                     <p className="text-xs text-muted-foreground">Template: {customRuleSuggestion.suggestion.template}</p>
                                     {customRuleSuggestion.suggestion.explanation && <p className="text-xs text-muted-foreground">{customRuleSuggestion.suggestion.explanation}</p>}

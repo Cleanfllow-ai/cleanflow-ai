@@ -254,9 +254,6 @@ export function ProfilingStep() {
                           </div>
                           <Badge variant="outline">
                             {profile.type_guess}
-                            {profile.type_confidence && (
-                              <span className="ml-1 opacity-70">{Math.round(profile.type_confidence * 100)}%</span>
-                            )}
                           </Badge>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
@@ -309,10 +306,6 @@ export function ProfilingStep() {
                         {fileStructure.pattern}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-muted-foreground">Confidence:</span>
-                      <span>{Math.round(fileStructure.confidence * 100)}%</span>
-                    </div>
                     {fileStructure.object_prefixes && fileStructure.object_prefixes.length > 0 && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-muted-foreground">Objects:</span>
@@ -344,9 +337,6 @@ export function ProfilingStep() {
                     <span className="text-muted-foreground">Matched Schema:</span>
                     <span className="font-medium">{schemaMatch.schema_name}</span>
                     <Badge variant="secondary" className="text-[10px]">{schemaMatch.domain}</Badge>
-                    <Badge variant="outline" className="text-[10px] ml-auto">
-                      {Math.round(schemaMatch.confidence * 100)}%
-                    </Badge>
                   </div>
                 )}
 
@@ -396,7 +386,6 @@ export function ProfilingStep() {
                           <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Condition</th>
                           <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Type</th>
                           <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Columns</th>
-                          <th className="text-right px-3 py-2 font-medium text-xs text-muted-foreground">Confidence</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -415,13 +404,6 @@ export function ProfilingStep() {
                                   <Badge key={c} variant="outline" className="text-[10px] whitespace-nowrap">{c}</Badge>
                                 ))}
                               </div>
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              {rule.confidence != null && (
-                                <Badge variant="secondary" className="text-[10px]">
-                                  {Math.round(rule.confidence * 100)}%
-                                </Badge>
-                              )}
                             </td>
                           </tr>
                         ))}

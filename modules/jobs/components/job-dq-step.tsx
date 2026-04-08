@@ -251,9 +251,6 @@ function JobProfilingStep({
                                                 </div>
                                                 <Badge variant="outline">
                                                     {profile.type_guess}
-                                                    {profile.type_confidence && (
-                                                        <span className="ml-1 opacity-70">{Math.round(profile.type_confidence * 100)}%</span>
-                                                    )}
                                                 </Badge>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2 text-sm">

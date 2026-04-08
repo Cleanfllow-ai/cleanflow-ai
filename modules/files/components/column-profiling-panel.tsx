@@ -198,7 +198,6 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
             <TableRow>
               <TableHead className="w-[160px]">Column</TableHead>
               <TableHead className="w-[160px]">Type Guess</TableHead>
-              <TableHead className="w-[90px]">Type Conf</TableHead>
               <TableHead>Top Rules</TableHead>
               <TableHead className="w-[90px] text-right">Rule Count</TableHead>
               <TableHead className="w-[70px] text-right">Auto</TableHead>
@@ -230,12 +229,6 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
                       {profile.type_guess}
                     </span>
                   </div>
-                </TableCell>
-
-                <TableCell className="align-top text-xs text-right tabular-nums">
-                  {profile.type_confidence > 0
-                    ? `${(profile.type_confidence * 100).toFixed(0)}%`
-                    : "-"}
                 </TableCell>
 
                 <TableCell className="align-top">
@@ -270,9 +263,6 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
                                   >
                                     {rule.decision}
                                   </Badge>
-                                  <span className="text-muted-foreground">
-                                    {(rule.confidence * 100).toFixed(0)}%
-                                  </span>
                                   <span className="text-[10px] text-muted-foreground">Rule ID: {rule.rule_id}</span>
                                 </div>
                                 <p className="text-muted-foreground leading-tight">

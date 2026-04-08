@@ -46,12 +46,11 @@ export function DqDetectionInfo({ dqReport }: DqDetectionInfoProps) {
             <div>
               <p className="text-xs text-muted-foreground">File Structure</p>
               <p className="font-medium capitalize">{si.file_structure.pattern}</p>
-              <p className="text-xs text-muted-foreground">
-                {Math.round(si.file_structure.confidence * 100)}% confidence
-                {si.file_structure.object_prefixes?.length
-                  ? ` | ${si.file_structure.object_prefixes.length} objects`
-                  : ""}
-              </p>
+              {si.file_structure.object_prefixes?.length ? (
+                <p className="text-xs text-muted-foreground">
+                  {si.file_structure.object_prefixes.length} objects
+                </p>
+              ) : null}
             </div>
           </div>
         )}
@@ -64,7 +63,7 @@ export function DqDetectionInfo({ dqReport }: DqDetectionInfoProps) {
               <p className="text-xs text-muted-foreground">Matched Schema</p>
               <p className="font-medium">{si.schema_match.schema_name}</p>
               <p className="text-xs text-muted-foreground">
-                {si.schema_match.domain} | {Math.round(si.schema_match.confidence * 100)}%
+                {si.schema_match.domain}
               </p>
             </div>
           </div>

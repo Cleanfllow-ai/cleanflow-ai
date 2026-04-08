@@ -442,9 +442,6 @@ export function RulesStep() {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{rule.rule_id}</span>
                             {rule.relationship && <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>}
-                            {rule.confidence !== undefined && (
-                              <Badge variant="outline" className="text-[10px]">{Math.round((rule.confidence || 0) * 100)}%</Badge>
-                            )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
                             {rule.condition || rule.predicate || "No condition provided"}
@@ -554,9 +551,6 @@ export function RulesStep() {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{rule.rule_id}</span>
                             {rule.relationship && <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>}
-                            {rule.confidence !== undefined && (
-                              <Badge variant="outline" className="text-[10px]">{Math.round((rule.confidence || 0) * 100)}%</Badge>
-                            )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">{rule.condition || rule.predicate}</p>
                           <div className="flex flex-wrap gap-1 mt-1">
@@ -648,9 +642,6 @@ export function RulesStep() {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{rule.rule_id}</span>
                             {rule.relationship && <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>}
-                            {rule.confidence !== undefined && (
-                              <Badge variant="outline" className="text-[10px]">{Math.round((rule.confidence || 0) * 100)}%</Badge>
-                            )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
                             {rule.condition || rule.predicate || "No condition provided"}
@@ -705,7 +696,6 @@ export function RulesStep() {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{r.rule_id}</span>
                             {r.relationship && <Badge variant="secondary" className="text-[10px]">{r.relationship}</Badge>}
-                            {r.confidence !== undefined && <Badge variant="outline" className="text-[10px]">{Math.round((r.confidence || 0) * 100)}%</Badge>}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">{r.condition || r.predicate}</p>
                           <div className="flex flex-wrap gap-1 mt-1">
