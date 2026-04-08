@@ -145,8 +145,16 @@ function getCellTooltip(field: string, row: QuarantineRow) {
           lower.includes(` ${fieldLower} `)
         )
       })
-      // Strip trailing "(ColumnName)" reference — redundant since we're already on that cell
-      .map((token) => token.replace(/\s*\([^)]*\)\s*$/, '').trim())
+      // Strip column name prefix ("colName: R33: ...") and trailing "(ColumnName)" — redundant on a per-cell tooltip
+      .map((token) => {
+        let cleaned = token.replace(/\s*\([^)]*\)\s*$/, '').trim()
+        // Remove leading "column: " prefix if present
+        const colonIdx = cleaned.indexOf(':')
+        if (colonIdx > 0 && cleaned.substring(0, colonIdx).trim().toLowerCase() === fieldLower) {
+          cleaned = cleaned.substring(colonIdx + 1).trim()
+        }
+        return cleaned
+      })
       .filter(Boolean)
 
   const violations = extractForColumn(String(row?.dq_violations ?? ''))
@@ -164,7 +172,18 @@ function getCellTooltip(field: string, row: QuarantineRow) {
     }
   }
 
-  return lines.length > 0 ? lines.join('\n') : null
+  // Fallback: if extraction found nothing but cell is flagged, show the
+  // raw row-level violation string (may lack column prefix in older data)
+  if (lines.length === 0) {
+    const raw = String(row?.dq_violations ?? '').trim()
+    if (raw) {
+      lines.push(raw)
+    } else {
+      lines.push(cellStatus === 'fixed' ? 'Fixed' : 'Quarantined')
+    }
+  }
+
+  return lines.join('\n')
 }
 
 export function QuarantineAgGridTable({

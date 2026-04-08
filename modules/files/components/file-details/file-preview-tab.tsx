@@ -90,6 +90,14 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                       const fixesRaw = String((row as any)?.fixes_applied || "")
                       const colLower = header.toLowerCase()
 
+                      const stripColPrefix = (token: string) => {
+                        let cleaned = token.trim()
+                        const colonIdx = cleaned.indexOf(":")
+                        if (colonIdx > 0 && cleaned.substring(0, colonIdx).trim().toLowerCase() === colLower) {
+                          cleaned = cleaned.substring(colonIdx + 1).trim()
+                        }
+                        return cleaned
+                      }
                       const extractForCol = (raw: string) =>
                         raw.split(";").map((t) => t.trim()).filter((t) => {
                           if (!t) return false
@@ -102,7 +110,7 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                             lower.includes(` ${colLower}:`) ||
                             lower.includes(` ${colLower} `)
                           )
-                        })
+                        }).map(stripColPrefix).filter(Boolean)
 
                       const colViolations = extractForCol(violationsRaw)
                       const colFixes = extractForCol(fixesRaw)
@@ -138,6 +146,16 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                             tooltipLines.push(...cleanedFixes)
                           } else if (colViolations.length === 0) {
                             tooltipLines.push("Auto-fixed by DQ engine")
+                          }
+                        }
+                        // Fallback: if extraction found nothing but cell is flagged,
+                        // show raw row-level violation string (older data may lack column prefix)
+                        if (tooltipLines.length === 0) {
+                          const raw = violationsRaw.trim()
+                          if (raw) {
+                            tooltipLines.push(raw)
+                          } else {
+                            tooltipLines.push(resolvedStatus === "fixed" ? "Fixed" : "Quarantined")
                           }
                         }
                       }
