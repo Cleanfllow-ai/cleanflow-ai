@@ -7,7 +7,7 @@
 
 'use client'
 
-import { ShieldAlert, Columns3, Pencil, CircleDot, AlertTriangle } from 'lucide-react'
+import { ShieldAlert, Columns3, CircleDot, AlertTriangle } from 'lucide-react'
 import type { QuarantineManifest } from '@/modules/files/types'
 
 interface QuarantineEditorHeaderProps {
@@ -31,7 +31,6 @@ export function QuarantineEditorHeader({
     )
   }
 
-  const totalColumns = manifest.columns.length
   const editableColumns = manifest.editable_columns.filter((c) => c !== 'row_id').length
 
   return (
@@ -55,15 +54,9 @@ export function QuarantineEditorHeader({
           />
           <StatPill
             icon={<Columns3 className="w-3 h-3" />}
-            value={totalColumns.toLocaleString()}
+            value={editableColumns.toLocaleString()}
             label="cols"
             accent="gray"
-          />
-          <StatPill
-            icon={<Pencil className="w-3 h-3" />}
-            value={editableColumns.toLocaleString()}
-            label="editable"
-            accent="blue"
           />
         </div>
 
