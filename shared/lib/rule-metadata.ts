@@ -102,7 +102,7 @@ export const RULE_METADATA: Record<
     description: "Values are outside the allowed set."
   },
   R20: {
-    name: "Cross-field inconsistency",
+    name: "Business Consistency Violation",
     severity: "critical",
     description: "Values conflict across related columns."
   },

@@ -283,11 +283,11 @@ function JobProfilingStep({
                         {hasProfiles && (
                             <div className="mt-4 border border-muted rounded-lg p-4">
                                 <div className="flex items-center gap-2 mb-3">
-                                    <h3 className="font-medium text-sm">Cross-column Rules</h3>
+                                    <h3 className="font-medium text-sm">Business Consistency Rules</h3>
                                     <Badge variant="outline" className="text-xs">{crossFieldRules.length}</Badge>
                                 </div>
                                 {crossFieldRules.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">No cross-field rules returned by DQ preview</p>
+                                    <p className="text-sm text-muted-foreground">No business consistency rules returned by DQ preview</p>
                                 ) : (
                                     <div className="space-y-2">
                                         {crossFieldRules.map((rule, i) => (

@@ -22,7 +22,7 @@ export const DQ_RULE_NAMES: Record<string, string> = {
   R17: "Hidden Null / Control Characters",
   R18: "Excessively Long Text",
   R19: "Status Outside Enum",
-  R20: "Cross-Field Inconsistency",
+  R20: "Business Consistency Violation",
   R21: "Truncated Value / Partial Token",
   R22: "Schema Drift",
   // Security rules

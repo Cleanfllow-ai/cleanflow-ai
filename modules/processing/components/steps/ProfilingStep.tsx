@@ -372,11 +372,11 @@ export function ProfilingStep() {
             {hasProfiles && (
               <div className="mt-4 border border-muted rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <h3 className="font-medium text-sm">Cross-column Rules (CleanAI suggested)</h3>
+                  <h3 className="font-medium text-sm">Business Consistency Rules (CleanAI suggested)</h3>
                   <Badge variant="outline" className="text-xs">{crossFieldRules.length}</Badge>
                 </div>
                 {crossFieldRules.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No cross-field rules returned by CleanAI</p>
+                  <p className="text-sm text-muted-foreground">No business consistency rules returned by CleanAI</p>
                 ) : (
                   <div className="border rounded-md overflow-hidden max-h-[300px] overflow-y-auto overflow-x-auto">
                     <table className="min-w-full text-sm">

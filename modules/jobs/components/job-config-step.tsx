@@ -640,7 +640,7 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                             <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-background/60 border border-border/40">
                                 <Shield className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
                                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    All columns selected, DQ rules applied with auto-fix, and columns auto-mapped by name. Enable Advanced for manual mapping, cross-field rules, and column selection.
+                                    All columns selected, DQ rules applied with auto-fix, and columns auto-mapped by name. Enable Advanced for manual mapping, business consistency rules, and column selection.
                                 </p>
                             </div>
                         )}

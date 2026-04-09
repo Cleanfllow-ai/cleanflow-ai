@@ -287,12 +287,12 @@ export function RulesStep() {
         enabled: true,
       }))
       if (rules.length === 0) {
-        setCrossRuleError("CleanAI could not find a matching cross-column rule. Try a more specific description.")
+        setCrossRuleError("CleanAI could not find a matching business consistency rule. Try a more specific description.")
       } else {
         setPendingCrossRules(rules)
       }
     } catch (err: unknown) {
-      setCrossRuleError(err instanceof Error ? err.message : "Failed to generate cross-column rule")
+      setCrossRuleError(err instanceof Error ? err.message : "Failed to generate business consistency rule")
     } finally {
       setIsGeneratingCross(false)
     }
@@ -336,12 +336,12 @@ export function RulesStep() {
         enabled: true,
       }))
       if (rules.length === 0) {
-        setCrossRowError("CleanAI could not find a matching cross-row rule. Try a more specific description.")
+        setCrossRowError("CleanAI could not find a matching group consistency rule. Try a more specific description.")
       } else {
         setPendingCrossRowRules(rules)
       }
     } catch (err: unknown) {
-      setCrossRowError(err instanceof Error ? err.message : "Failed to generate cross-row rule")
+      setCrossRowError(err instanceof Error ? err.message : "Failed to generate group consistency rule")
     } finally {
       setIsGeneratingCrossRow(false)
     }
@@ -400,7 +400,7 @@ export function RulesStep() {
           <div className="space-y-3">
             <div className="border border-muted rounded-md p-3">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-sm">Cross-column Rules</h3>
+                <h3 className="font-medium text-sm">Business Consistency Rules</h3>
                 <div className="flex items-center gap-2">
                   {totalCrossRules > 0 && (
                     <Badge variant="outline" className="text-xs">{totalSelectedCrossRules}/{totalCrossRules} enabled</Badge>
@@ -467,13 +467,13 @@ export function RulesStep() {
               )}
 
               {crossFieldRules.length === 0 && !showCrossRuleForm && (
-                <p className="text-xs text-muted-foreground">No cross-column rules detected. Click &quot;Add AI Rule&quot; to describe one.</p>
+                <p className="text-xs text-muted-foreground">No business consistency rules detected. Click &quot;Add AI Rule&quot; to describe one.</p>
               )}
 
               {/* AI cross-rule suggestion form */}
               {showCrossRuleForm && (
                 <div className="border border-dashed border-muted rounded-md p-3 space-y-3 mt-1">
-                  <p className="text-xs text-muted-foreground font-medium">Describe the cross-column rule in plain language:</p>
+                  <p className="text-xs text-muted-foreground font-medium">Describe the business consistency rule in plain language:</p>
 
                   {/* Textarea with @ mention highlight overlay */}
                   <div className="relative rounded-lg border border-violet-200 bg-violet-50/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white">
@@ -600,7 +600,7 @@ export function RulesStep() {
             {/* Cross-row Rules section */}
             <div className="border border-muted rounded-md p-3">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-sm">Cross-row Rules</h3>
+                <h3 className="font-medium text-sm">Group Consistency Rules</h3>
                 <div className="flex items-center gap-2">
                   {crossRowRules.length > 0 && (
                     <Badge variant="outline" className="text-xs">{crossRowRules.filter(r => r.enabled).length}/{crossRowRules.length} enabled</Badge>
@@ -667,13 +667,13 @@ export function RulesStep() {
               )}
 
               {crossRowRules.length === 0 && !showCrossRowForm && (
-                <p className="text-xs text-muted-foreground">No cross-row rules detected. Click &quot;Add AI Rule&quot; to describe one (e.g. &quot;@Legal_Entity must match for all rows sharing the same @Order_Financial_ID&quot;).</p>
+                <p className="text-xs text-muted-foreground">No group consistency rules detected. Click &quot;Add AI Rule&quot; to describe one (e.g. &quot;@Legal_Entity must match for all rows sharing the same @Order_Financial_ID&quot;).</p>
               )}
 
               {/* AI cross-row rule suggestion form */}
               {showCrossRowForm && (
                 <div className="border border-dashed border-muted rounded-md p-3 space-y-3 mt-1">
-                  <p className="text-xs text-muted-foreground font-medium">Describe the cross-row rule in plain language:</p>
+                  <p className="text-xs text-muted-foreground font-medium">Describe the group consistency rule in plain language:</p>
                   <textarea
                     className="w-full min-h-[60px] rounded-lg border border-violet-200 bg-violet-50/40 px-3 py-2 text-sm focus:ring-2 focus:ring-violet-400 focus:border-violet-400 focus:bg-white outline-none resize-none"
                     placeholder="e.g. Legal Entity must be the same for all rows sharing the same Order Financial ID"
@@ -690,7 +690,7 @@ export function RulesStep() {
                   {/* Pending cross-row suggestions */}
                   {pendingCrossRowRules && (
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-green-700">CleanAI suggested {pendingCrossRowRules.length} cross-row rule(s):</p>
+                      <p className="text-xs font-medium text-green-700">CleanAI suggested {pendingCrossRowRules.length} group consistency rule(s):</p>
                       {pendingCrossRowRules.map((r, i) => (
                         <div key={i} className="p-2 rounded border border-green-200 bg-green-50/50">
                           <div className="flex items-center gap-2">

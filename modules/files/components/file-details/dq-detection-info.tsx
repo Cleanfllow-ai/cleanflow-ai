@@ -84,7 +84,7 @@ export function DqDetectionInfo({ dqReport }: DqDetectionInfoProps) {
                 <span>Invariants: {si.invariant_violations}</span>
               )}
               {(si.si_cross_violations ?? 0) > 0 && (
-                <span>Cross-column: {si.si_cross_violations}</span>
+                <span>Business Rules: {si.si_cross_violations}</span>
               )}
             </div>
           </div>
