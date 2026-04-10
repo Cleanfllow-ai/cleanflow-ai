@@ -58,10 +58,18 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
             </span>
           </CardTitle>
           <div className="text-right flex items-baseline gap-1">
-            <span className="text-lg font-bold font-mono tabular-nums text-foreground">
-              {totalIssues.toLocaleString()}
-            </span>
-            <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">total</span>
+            {isLoading ? (
+              <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                Loading
+              </span>
+            ) : (
+              <>
+                <span className="text-lg font-bold font-mono tabular-nums text-foreground">
+                  {totalIssues.toLocaleString()}
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">total</span>
+              </>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -83,7 +91,7 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
           </div>
         ) : issuesWithPct.length === 0 ? (
           <div className="text-center text-sm text-muted-foreground py-6">
-            No issues yet. Process files to see real data quality insights.
+            No data available for this card yet.
           </div>
         ) : (
           <div className="space-y-2.5">

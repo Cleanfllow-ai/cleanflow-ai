@@ -428,7 +428,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                     )}
                                     {visibleColumns.has("rows") && (
                                         <TableCell className="text-sm text-muted-foreground tabular-nums font-mono text-left">
-                                            {(file.rows_clean || file.rows_in) ? (file.rows_clean || file.rows_in) : <span className="text-muted-foreground/40">--</span>}
+                                            {file.rows_in != null ? file.rows_in : <span className="text-muted-foreground/40">--</span>}
                                         </TableCell>
                                     )}
                                     {visibleColumns.has("category") && (

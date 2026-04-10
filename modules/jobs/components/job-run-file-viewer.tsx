@@ -206,7 +206,7 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                                                                         <Pencil className="h-3.5 w-3.5" />
                                                                     </Button>
                                                                 </TooltipTrigger>
-                                                                <TooltipContent>AI Edit Quarantined Data</TooltipContent>
+                                                                <TooltipContent>Edit Quarantined Data</TooltipContent>
                                                             </Tooltip>
                                                         )}
                                                     </div>

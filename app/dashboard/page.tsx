@@ -68,20 +68,6 @@ export default function DashboardPage() {
       const response = await fileManagementAPI.getUploads(idToken)
       const items = response.items || []
       setFiles(items)
-      const seed = new Map<string, number>()
-      for (const f of items) {
-        for (const issue of (f.dq_issues || [])) {
-          if (issue) seed.set(issue, (seed.get(issue) || 0) + 1)
-        }
-      }
-      if (seed.size > 0) {
-        setTopIssues(
-          Array.from(seed.entries())
-            .map(([violation, count]) => ({ violation, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 5),
-        )
-      }
     } catch (error: any) {
       const message = (error?.message || "").toLowerCase()
       if (!message.includes("permission denied") && !message.includes("organization membership required")) {
@@ -94,9 +80,13 @@ export default function DashboardPage() {
   const loadOverall = useCallback(async () => {
     if (!idToken) return
     setIsOverallLoading(true)
+    setTopIssues([])
     try {
       const overall: OverallDqReportResponse = await fileManagementAPI.downloadOverallDqReport(idToken)
-      if (!overall) return
+      if (!overall) {
+        setTopIssues([])
+        return
+      }
       const merged = new Map<string, number>()
       const months = Object.values(overall?.months || {})
       mergeIssues(merged, normalizeTopIssues((overall as any).top_issues))
@@ -118,6 +108,7 @@ export default function DashboardPage() {
       if (!message.includes("permission denied") && !message.includes("organization membership required")) {
         console.warn("Failed to load overall DQ report.")
       }
+      setTopIssues([])
     } finally {
       setIsOverallLoading(false)
     }

@@ -37,6 +37,10 @@ export interface ProviderInfo {
   provider_id: string
   display_name: string
   category: string
+  ui_only?: boolean
+  entity_count?: number
+  auth_method?: string
+  connector_file?: string
   capabilities?: {
     supports_import: boolean
     supports_export: boolean
@@ -49,14 +53,260 @@ export interface ProviderInfo {
   }
 }
 
-// Sample providers shown alongside real backend providers
-const SAMPLE_PROVIDERS: ProviderInfo[] = [
-  { provider_id: "sap", display_name: "SAP", category: "erp" },
-  { provider_id: "salesforce", display_name: "Salesforce", category: "erp" },
-  { provider_id: "netsuite", display_name: "NetSuite", category: "erp" },
-  { provider_id: "epicor", display_name: "Epicor Kinetic", category: "erp" },
-  { provider_id: "qad", display_name: "QAD", category: "erp" },
-  { provider_id: "dynamics", display_name: "Microsoft Dynamics", category: "erp" },
+export const UI_ONLY_PROVIDERS: ProviderInfo[] = [
+  {
+    provider_id: "salesforce",
+    display_name: "Salesforce",
+    category: "erp",
+    ui_only: true,
+    auth_method: "OAuth2",
+  },
+  {
+    provider_id: "netsuite",
+    display_name: "NetSuite",
+    category: "erp",
+    ui_only: true,
+    auth_method: "OAuth2",
+  },
+  {
+    provider_id: "epicor",
+    display_name: "Epicor Kinetic",
+    category: "erp",
+    ui_only: true,
+    auth_method: "API Key",
+  },
+  {
+    provider_id: "qad",
+    display_name: "QAD ERP",
+    category: "erp",
+    ui_only: true,
+    auth_method: "OAuth2",
+  },
+  {
+    provider_id: "odoo",
+    display_name: "Odoo",
+    category: "erp",
+    ui_only: true,
+    entity_count: 166,
+    auth_method: "API Key / XML-RPC",
+    connector_file: "backend/odoo_connector.py",
+  },
+  {
+    provider_id: "d365",
+    display_name: "Microsoft Dynamics 365 BC",
+    category: "erp",
+    ui_only: true,
+    entity_count: 88,
+    auth_method: "OAuth2 / ROPC",
+    connector_file: "backend/d365_connector.py",
+  },
+  {
+    provider_id: "erpnext",
+    display_name: "ERPNext / Frappe",
+    category: "erp",
+    ui_only: true,
+    entity_count: 62,
+    auth_method: "Username + Password",
+    connector_file: "backend/erpnext_connector.py",
+  },
+  {
+    provider_id: "oracleords",
+    display_name: "Oracle ORDS",
+    category: "erp",
+    ui_only: true,
+    entity_count: 57,
+    auth_method: "Basic Auth",
+    connector_file: "backend/oracle_connector.py",
+  },
+  {
+    provider_id: "sap",
+    display_name: "SAP S/4HANA Cloud",
+    category: "erp",
+    ui_only: true,
+    entity_count: 53,
+    auth_method: "API Key",
+    connector_file: "backend/sap_connector.py",
+  },
+  {
+    provider_id: "zohobooks",
+    display_name: "Zoho Books",
+    category: "erp",
+    ui_only: true,
+    entity_count: 42,
+    auth_method: "OAuth2 / Refresh Token",
+    connector_file: "backend/zoho_connector.py",
+  },
+  {
+    provider_id: "xero",
+    display_name: "Xero",
+    category: "erp",
+    ui_only: true,
+    entity_count: 41,
+    auth_method: "OAuth2 / Refresh Token",
+    connector_file: "backend/xero_connector.py",
+  },
+  {
+    provider_id: "dolibarr",
+    display_name: "Dolibarr",
+    category: "erp",
+    ui_only: true,
+    entity_count: 36,
+    auth_method: "API Key / DOLAPIKEY",
+    connector_file: "backend/dolibarr_connector.py",
+  },
+  {
+    provider_id: "katana",
+    display_name: "Katana MRP",
+    category: "erp",
+    ui_only: true,
+    entity_count: 27,
+    auth_method: "Bearer Token",
+    connector_file: "backend/katana_connector.py",
+  },
+  {
+    provider_id: "sage-accounting",
+    display_name: "Sage Business Cloud Accounting",
+    category: "erp",
+    ui_only: true,
+    entity_count: 19,
+    auth_method: "OAuth2",
+    connector_file: "backend/sage_accounting_connector.py",
+  },
+  {
+    provider_id: "myob-acumatica",
+    display_name: "MYOB Acumatica",
+    category: "erp",
+    ui_only: true,
+    entity_count: 18,
+    auth_method: "OAuth2",
+    connector_file: "backend/myob_acumatica_connector.py",
+  },
+  {
+    provider_id: "stripe",
+    display_name: "Stripe",
+    category: "erp",
+    ui_only: true,
+    entity_count: 15,
+    auth_method: "API Key / Bearer Token",
+    connector_file: "backend/stripe_connector.py",
+  },
+  {
+    provider_id: "square",
+    display_name: "Square",
+    category: "erp",
+    ui_only: true,
+    entity_count: 15,
+    auth_method: "Bearer Token",
+    connector_file: "backend/square_connector.py",
+  },
+  {
+    provider_id: "chargebee",
+    display_name: "Chargebee",
+    category: "erp",
+    ui_only: true,
+    entity_count: 13,
+    auth_method: "API Key / HTTP Basic",
+    connector_file: "backend/chargebee_connector.py",
+  },
+  {
+    provider_id: "razorpay",
+    display_name: "Razorpay",
+    category: "erp",
+    ui_only: true,
+    entity_count: 13,
+    auth_method: "API Key / HTTP Basic",
+    connector_file: "backend/razorpay_connector.py",
+  },
+  {
+    provider_id: "recurly",
+    display_name: "Recurly",
+    category: "erp",
+    ui_only: true,
+    entity_count: 13,
+    auth_method: "API Key / HTTP Basic",
+    connector_file: "backend/recurly_connector.py",
+  },
+  {
+    provider_id: "bill",
+    display_name: "BILL",
+    category: "erp",
+    ui_only: true,
+    entity_count: 13,
+    auth_method: "API Key / DevKey + Session",
+    connector_file: "backend/bill_connector.py",
+  },
+  {
+    provider_id: "chargeover",
+    display_name: "ChargeOver",
+    category: "erp",
+    ui_only: true,
+    entity_count: 13,
+    auth_method: "API Key / HTTP Basic",
+    connector_file: "backend/chargeover_connector.py",
+  },
+  {
+    provider_id: "nolapro",
+    display_name: "NolaPro",
+    category: "erp",
+    ui_only: true,
+    entity_count: 14,
+    auth_method: "HMAC-SHA1 / API Key",
+    connector_file: "backend/nolapro_connector.py",
+  },
+  {
+    provider_id: "taxjar",
+    display_name: "TaxJar",
+    category: "erp",
+    ui_only: true,
+    entity_count: 10,
+    auth_method: "API Key / Bearer Token",
+    connector_file: "backend/taxjar_connector.py",
+  },
+  {
+    provider_id: "adyen",
+    display_name: "Adyen",
+    category: "erp",
+    ui_only: true,
+    entity_count: 10,
+    auth_method: "API Key / X-API-Key",
+    connector_file: "backend/adyen_connector.py",
+  },
+  {
+    provider_id: "paddle",
+    display_name: "Paddle",
+    category: "erp",
+    ui_only: true,
+    entity_count: 10,
+    auth_method: "Bearer Token",
+    connector_file: "backend/paddle_connector.py",
+  },
+  {
+    provider_id: "braintree",
+    display_name: "Braintree",
+    category: "erp",
+    ui_only: true,
+    entity_count: 10,
+    auth_method: "API Key / SDK",
+    connector_file: "backend/braintree_connector.py",
+  },
+  {
+    provider_id: "authorizenet",
+    display_name: "Authorize.Net",
+    category: "erp",
+    ui_only: true,
+    entity_count: 8,
+    auth_method: "Login ID + Transaction Key",
+    connector_file: "backend/authorizenet_connector.py",
+  },
+  {
+    provider_id: "paypal",
+    display_name: "PayPal",
+    category: "erp",
+    ui_only: true,
+    entity_count: 7,
+    auth_method: "OAuth2 Client Credentials",
+    connector_file: "backend/paypal_connector.py",
+  },
 ]
 
 class ConnectorsAPI extends ConnectorAPIBase {
@@ -124,14 +374,19 @@ class ConnectorsAPI extends ConnectorAPIBase {
     )
   }
 
-  /** List all registered providers (merges backend + sample placeholders). */
-  async listProviders(): Promise<{ providers: ProviderInfo[] }> {
+  /** List all registered providers, optionally including UI-only placeholders. */
+  async listProviders(
+    options?: { includeUiOnly?: boolean },
+  ): Promise<{ providers: ProviderInfo[] }> {
     const resp = await this.makeRequest<{ providers: ProviderInfo[] }>(
       "/connectors/available",
       { method: "GET" },
     )
+    if (!options?.includeUiOnly) {
+      return { providers: resp.providers || [] }
+    }
     const realIds = new Set((resp.providers || []).map((p) => p.provider_id))
-    const extras = SAMPLE_PROVIDERS.filter((s) => !realIds.has(s.provider_id))
+    const extras = UI_ONLY_PROVIDERS.filter((provider) => !realIds.has(provider.provider_id))
     return { providers: [...(resp.providers || []), ...extras] }
   }
 

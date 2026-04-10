@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/shared/hooks/use-toast"
 import { connectorsAPI } from "@/modules/connectors/api/connectors-api"
 import type {
   ConnectionStatus,
@@ -40,10 +41,8 @@ import type { WarehouseMetadataItem } from "@/modules/connectors/api/warehouse-c
 interface ProviderWithStatus extends ProviderInfo {
   connectionStatus: ConnectionStatus | null
   statusLoading: boolean
-  comingSoon?: boolean
+  uiOnly?: boolean
 }
-
-const SAMPLE_PROVIDER_IDS = new Set(["sap", "salesforce", "netsuite", "epicor", "qad", "dynamics"])
 
 // ─── Provider accent colors (subtle, only used for the left border stripe) ──
 
@@ -63,7 +62,7 @@ const PROVIDER_ACCENT: Record<string, string> = {
 // ─── Category metadata ──────────────────────────────────────────────────────
 
 const CATEGORIES: Record<string, { label: string; description: string; icon: typeof Database }> = {
-  erp: { label: "ERP Systems", description: "Accounting & business management", icon: Database },
+  erp: { label: "ERP & Business Platforms", description: "ERP, billing, payment, and finance systems", icon: Database },
   warehouse: { label: "Data Warehouses", description: "Cloud analytics platforms", icon: HardDrive },
   storage: { label: "Cloud Storage", description: "File storage & document management", icon: Cloud },
 }
@@ -88,19 +87,23 @@ export function ConnectorsHub() {
   const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null)
   const [savingConfig, setSavingConfig] = useState<string | null>(null)
   const [warehouseMeta, setWarehouseMeta] = useState<Record<string, { warehouses: WarehouseMetadataItem[]; databases: WarehouseMetadataItem[] }>>({})
+  const { toast } = useToast()
 
   const loadProviders = useCallback(async () => {
     try {
       setError(null)
-      const resp = await connectorsAPI.listProviders()
+      const resp = await connectorsAPI.listProviders({ includeUiOnly: true })
       const list: ProviderInfo[] = resp.providers || []
       const withStatus: ProviderWithStatus[] = list.map((p) => ({
-        ...p, connectionStatus: null, statusLoading: !SAMPLE_PROVIDER_IDS.has(p.provider_id), comingSoon: SAMPLE_PROVIDER_IDS.has(p.provider_id),
+        ...p,
+        connectionStatus: null,
+        statusLoading: !p.ui_only,
+        uiOnly: p.ui_only === true,
       }))
       setProviders(withStatus)
       setLoading(false)
 
-      const realProviders = list.filter((p) => !SAMPLE_PROVIDER_IDS.has(p.provider_id))
+      const realProviders = list.filter((p) => !p.ui_only)
       const results = await Promise.all(
         realProviders.map(async (p) => {
           try {
@@ -135,9 +138,18 @@ export function ConnectorsHub() {
   useEffect(() => { loadProviders() }, [loadProviders])
 
   const handleConnect = async (providerId: string) => {
+    const provider = providers.find((p) => p.provider_id === providerId)
+    if (provider?.uiOnly) {
+      toast({
+        title: `${provider.display_name} is available in the UI`,
+        description:
+          "This connector card is now available for discovery and selection. Backend authentication and data sync wiring will be enabled later.",
+      })
+      return
+    }
+
     setConnectingProvider(providerId)
     try {
-      const provider = providers.find((p) => p.provider_id === providerId)
       const result = await connectorsAPI.openOAuthPopupForProvider(providerId)
       if (result.success) {
         const status = await connectorsAPI.getConnectionStatus(providerId)
@@ -192,7 +204,7 @@ export function ConnectorsHub() {
   }, {})
 
   const connectedCount = providers.filter((p) => p.connectionStatus?.connected).length
-  const totalReal = providers.filter((p) => !p.comingSoon).length
+  const totalAvailable = providers.length
 
   if (loading) {
     return (
@@ -215,14 +227,14 @@ export function ConnectorsHub() {
     <div className="space-y-10 py-2">
       {/* Status summary */}
       <div className="flex items-center gap-4">
-        <span className="text-sm text-muted-foreground">{totalReal} connectors</span>
+        <span className="text-sm text-muted-foreground">{totalAvailable} connectors</span>
         {connectedCount > 0 && (
           <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
             <CheckCircle2 className="w-4 h-4" />
             {connectedCount} active
           </span>
         )}
-        {connectedCount === 0 && totalReal > 0 && (
+        {connectedCount === 0 && totalAvailable > 0 && (
           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
             <Unplug className="w-4 h-4" />
             No active connections
@@ -302,12 +314,12 @@ function ConnectorCard({
   const pid = provider.provider_id
   const displayName = provider.display_name
   const isConnected = provider.connectionStatus?.connected
-  const isComingSoon = provider.comingSoon === true
+  const isUiOnly = provider.uiOnly === true
   const conn = provider.connectionStatus?.connection
   const linkedAt = conn?.linked_at ? String(conn.linked_at) : null
   const isWarehouse = provider.category === "warehouse"
   const isERP = provider.category === "erp"
-  const accent = PROVIDER_ACCENT[pid] || "border-l-border"
+  const accent = PROVIDER_ACCENT[pid] || (isUiOnly ? "border-l-slate-400" : "border-l-border")
 
   const currentWarehouse = conn?.warehouse ? String(conn.warehouse) : ""
   const currentDatabase = conn?.database ? String(conn.database) : ""
@@ -332,8 +344,8 @@ function ConnectorCard({
     <div
       className={`
         relative rounded-lg border-l-[3px] bg-card border border-border/60 transition-shadow
-        ${isComingSoon ? `opacity-50 ${accent}` : isConnected ? accent : `border-l-transparent`}
-        ${!isComingSoon && !isConnected ? "hover:shadow-sm" : ""}
+        ${isUiOnly || isConnected ? accent : `border-l-transparent`}
+        ${!isConnected ? "hover:shadow-sm" : ""}
       `}
     >
       <div className="p-5 space-y-4">
@@ -345,9 +357,7 @@ function ConnectorCard({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground">{displayName}</h3>
-              {isComingSoon ? (
-                <span className="text-xs text-muted-foreground">Coming soon</span>
-              ) : provider.statusLoading ? (
+              {provider.statusLoading ? (
                 <span className="text-xs text-muted-foreground">Checking...</span>
               ) : isConnected ? (
                 <div className="flex items-center gap-2">
@@ -373,7 +383,7 @@ function ConnectorCard({
         </div>
 
         {/* Post-auth config fields */}
-        {!isComingSoon && isConnected &&
+        {!isUiOnly && isConnected &&
           provider.connectionStatus?.post_auth_config?.map((field: PostAuthConfigField) => (
             <div key={field.key}>
               <label className="text-[11px] font-medium text-muted-foreground block mb-1.5">
@@ -410,7 +420,7 @@ function ConnectorCard({
           ))}
 
         {/* Warehouse config */}
-        {!isComingSoon && isConnected && isWarehouse && (
+        {!isUiOnly && isConnected && isWarehouse && (
           <div className="rounded-md border border-border bg-muted/30 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -478,7 +488,7 @@ function ConnectorCard({
         )}
 
         {/* ERP entity summary */}
-        {!isComingSoon && isConnected && isERP && erpEntities.length > 0 && (
+        {!isUiOnly && isConnected && isERP && erpEntities.length > 0 && (
           <div className="rounded-md border border-border bg-muted/30 p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -498,8 +508,8 @@ function ConnectorCard({
 
         {/* Actions */}
         <div className="flex gap-2 pt-1">
-          {isComingSoon ? (
-            <Button variant="outline" size="sm" className="flex-1 h-9 text-xs" disabled>
+          {isUiOnly ? (
+            <Button size="sm" className="flex-1 h-9 text-xs" onClick={() => onConnect(pid)}>
               <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
               Connect
             </Button>
