@@ -381,6 +381,7 @@ export interface FindMatch {
   row_id: string
   column: string
   value: string
+  index?: number
 }
 
 export interface QuarantineFindRequest {

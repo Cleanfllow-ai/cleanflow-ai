@@ -4,7 +4,6 @@ import React, { createContext, useContext, useEffect, useState, useCallback, Rea
 import { useAuth as useAuthHook } from "@/modules/auth/hooks/use-auth";
 import type { MfaSetupData } from "@/modules/auth/types/auth.types";
 import { orgAPI } from "@/modules/auth/api/org-api";
-import { usePathname } from "next/navigation";
 
 interface AuthContextType {
   user: any;
@@ -43,7 +42,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const auth = useAuthHook();
-  const pathname = usePathname();
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [userRole, setUserRole] = useState<string | null>(null);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
@@ -67,12 +65,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [auth.isAuthenticated, auth.idToken]);
 
-  // Re-fetch permissions on page navigation (also covers initial auth state change)
+  // Fetch permissions once when auth resolves. Freshness is handled by the
+  // 30s interval and focus/visibility listeners below.
   useEffect(() => {
     if (auth.isAuthenticated) {
       refreshPermissions();
     }
-  }, [pathname, auth.isAuthenticated, refreshPermissions]);
+  }, [auth.isAuthenticated, refreshPermissions]);
 
   // Clear cached RBAC state on sign-out.
   useEffect(() => {

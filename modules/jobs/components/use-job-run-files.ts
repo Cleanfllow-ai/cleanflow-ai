@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "@/modules/auth"
 import { useToast } from "@/shared/hooks/use-toast"
 import { buildPrefixedDataFilename } from "@/modules/files/utils/download-filenames"
+import { triggerBlobDownload, triggerPresignedDownload } from "@/modules/files/utils/trigger-download"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
 import { jobsAPI } from "@/modules/jobs/api/jobs-api"
 import type { FileStatusResponse, QuarantineReprocessResponse } from "@/modules/files/types"
@@ -315,23 +316,12 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
                 extension,
                 tags: ["export"],
             })
-            const link = document.createElement("a")
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob)
-                link.href = url
-                link.download = filename
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
+                triggerBlobDownload(url, filename)
                 URL.revokeObjectURL(url)
             } else if (exportResult.downloadUrl) {
-                link.href = exportResult.downloadUrl
-                link.target = "_blank"
-                link.rel = "noopener noreferrer"
-                link.download = filename
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
+                triggerPresignedDownload(exportResult.downloadUrl)
             }
             setDownloadOpen(false)
         } catch (err) {

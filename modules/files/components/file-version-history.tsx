@@ -28,6 +28,7 @@ import {
 import { FilePreviewTab } from '@/modules/files/components/file-details/file-preview-tab'
 import type { FilePreviewData } from '@/modules/files/types'
 import { buildPrefixedDataFilename } from '@/modules/files/utils/download-filenames'
+import { triggerBlobDownload, triggerPresignedDownload } from '@/modules/files/utils/trigger-download'
 
 interface FileVersionHistoryProps {
   rootUploadId: string
@@ -107,8 +108,7 @@ export function FileVersionHistory({
     const dataType = isProcessed ? 'clean' : 'raw'
     try {
       const download = await fileManagementAPI.downloadFile(v.upload_id, 'csv', dataType as any, authToken)
-      const a = document.createElement('a')
-      a.download = buildPrefixedDataFilename({
+      const filename = buildPrefixedDataFilename({
         sourceName: v.original_filename ?? v.upload_id,
         dataType: dataType === 'raw' ? 'original' : 'clean',
         extension: '.csv',
@@ -116,14 +116,10 @@ export function FileVersionHistory({
       })
       if (download.blob) {
         const url = URL.createObjectURL(download.blob)
-        a.href = url
-        a.click()
+        triggerBlobDownload(url, filename)
         URL.revokeObjectURL(url)
       } else if (download.downloadUrl) {
-        a.href = download.downloadUrl
-        a.target = '_blank'
-        a.rel = 'noopener noreferrer'
-        a.click()
+        triggerPresignedDownload(download.downloadUrl)
       } else {
         throw new Error('No downloadable export payload received')
       }
@@ -145,15 +141,9 @@ export function FileVersionHistory({
         })
         return
       }
-      const a = document.createElement('a')
-      a.href = res.url
-      a.download = buildPrefixedDataFilename({
-        sourceName: v.original_filename ?? v.upload_id,
-        dataType: 'quarantine',
-        extension: '.csv',
-        versionNumber: v.version_number,
-      })
-      a.click()
+      // res.url is a cross-origin S3 presigned URL — link.download is ignored,
+      // so use the iframe helper to download in-place without navigating.
+      triggerPresignedDownload(res.url)
       toast({ title: `Downloading ${res.row_count} quarantined rows` })
     } catch {
       toast({ title: 'Download failed', variant: 'destructive' })

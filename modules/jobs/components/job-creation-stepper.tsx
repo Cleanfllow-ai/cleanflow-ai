@@ -176,7 +176,7 @@ export function JobCreationStepper() {
     if (d.sourceConfig.warehouse) sourceConfigParams.warehouse = d.sourceConfig.warehouse
 
     return (
-        <div className="flex flex-col h-full bg-background">
+        <div className="flex flex-col flex-1 min-h-0 bg-background">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
                 <div className="flex items-center gap-3.5">

@@ -43,7 +43,7 @@ function QuickProcessView({
     onClose: () => void
     onFallbackToAdvanced?: () => void
 }) {
-    const [status, setStatus] = useState<"starting" | "processing" | "success" | "error">("starting")
+    const [status, setStatus] = useState<"starting" | "processing" | "success" | "error" | "background">("starting")
     const [statusMessage, setStatusMessage] = useState("Starting processing...")
     const [errorMsg, setErrorMsg] = useState("")
 
@@ -55,12 +55,32 @@ function QuickProcessView({
                 setStatus("processing")
                 setStatusMessage("Processing started, running quality checks...")
             } catch (e: any) {
+                const msg = (e?.message || "").toLowerCase()
+                // Backend rejects a second start call while the prior run is still
+                // QUEUED / DQ_DISPATCHED / DQ_RUNNING / SHARDING. That's not a
+                // failure — the pipeline is already working. Show a brief
+                // "running in background" message and auto-close.
+                if (msg.includes("already being processed")) {
+                    setStatus("background")
+                    setStatusMessage("Processing is running in the background")
+                    return
+                }
                 setStatus("error")
                 setErrorMsg(e.message || "Failed to start processing")
             }
         }
         start()
     }, [file.upload_id, authToken])
+
+    // Auto-close the "background" state after 6 seconds
+    useEffect(() => {
+        if (status !== "background") return
+        const timer = setTimeout(() => {
+            onClose()
+            if (onComplete) onComplete()
+        }, 6000)
+        return () => clearTimeout(timer)
+    }, [status, onClose, onComplete])
 
     // Poll for status while processing
     useEffect(() => {
@@ -144,6 +164,21 @@ function QuickProcessView({
                             <h3 className="text-base font-semibold text-emerald-600">Processing Complete</h3>
                             <p className="text-sm text-muted-foreground mt-1">{filename}</p>
                             <p className="text-xs text-muted-foreground mt-2">Closing automatically...</p>
+                        </div>
+                    </>
+                )}
+
+                {status === "background" && (
+                    <>
+                        <div className="w-14 h-14 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto">
+                            <Loader2 className="w-7 h-7 text-blue-500 animate-spin" />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-semibold text-blue-600">Running in background</h3>
+                            <p className="text-sm text-muted-foreground mt-1">{filename}</p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                {statusMessage}. You can close this and check the Data Catalog for progress.
+                            </p>
                         </div>
                     </>
                 )}

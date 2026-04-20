@@ -1,23 +1,33 @@
 "use client"
 
 import { useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { useAuth } from "@/modules/auth"
 import { useAppDispatch, useAppSelector } from "@/shared/store/store"
 import { fetchFiles, enrichFiles, selectFiles, selectFilesStatus } from "@/modules/files/store/filesSlice"
 
+// Routes that never render the sidebar / files UI — no need to preload files there.
+const SKIP_PREFIXES = ["/auth"]
+const shouldSkipPreload = (pathname: string | null) => {
+  if (!pathname || pathname === "/") return true
+  return SKIP_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
+
 export function FilePreloader() {
   const { isAuthenticated, idToken, permissionsLoaded, hasPermission } = useAuth()
+  const pathname = usePathname()
   const dispatch = useAppDispatch()
   const files = useAppSelector(selectFiles)
   const status = useAppSelector(selectFilesStatus)
 
   // 1. Initial Fetch on Login
   useEffect(() => {
+    if (shouldSkipPreload(pathname)) return
     if (!isAuthenticated || !idToken || status !== "idle") return
     // Avoid preloading before org context is ready (prevents membership-required noise).
     if (!permissionsLoaded || !hasPermission("files")) return
     dispatch(fetchFiles(idToken))
-  }, [isAuthenticated, idToken, status, dispatch, permissionsLoaded, hasPermission])
+  }, [pathname, isAuthenticated, idToken, status, dispatch, permissionsLoaded, hasPermission])
 
   // 2. Background Enrichment for Processing Times
   useEffect(() => {

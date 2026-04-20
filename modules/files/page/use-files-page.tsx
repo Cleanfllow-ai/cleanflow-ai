@@ -14,6 +14,7 @@ import {
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/modules/auth";
 import { buildPrefixedDataFilename, sanitizeFilenamePart } from "@/modules/files/utils/download-filenames";
+import { triggerBlobDownload, triggerPresignedDownload } from "@/modules/files/utils/trigger-download";
 import {
     fileManagementAPI,
     type FileStatusResponse,
@@ -646,8 +647,17 @@ export function useFilesPage() {
                 description: `Starting data quality processing for ${file.original_filename || file.filename}...`,
             });
             loadFiles();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Processing failed:", error);
+            const msg = (error?.message || "").toLowerCase();
+            if (msg.includes("already being processed")) {
+                toast({
+                    title: "Already Processing",
+                    description: `${file.original_filename || file.filename} is already in progress.`,
+                });
+                loadFiles();
+                return;
+            }
             toast({ title: "Processing Failed", description: "Failed to start data quality processing", variant: "destructive" });
         }
     };
@@ -671,8 +681,17 @@ export function useFilesPage() {
             });
             setRecentlyUploaded(null);
             loadFiles();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Quick processing failed:", error);
+            const msg = (error?.message || "").toLowerCase();
+            if (msg.includes("already being processed")) {
+                toast({
+                    title: "Already Processing",
+                    description: `${file.original_filename || file.filename} is already in progress.`,
+                });
+                loadFiles();
+                return;
+            }
             toast({ title: "Processing Failed", description: "Failed to start processing. Try using Configure for more options.", variant: "destructive" });
         }
     };
@@ -1138,15 +1157,12 @@ export function useFilesPage() {
                 extension,
                 tags: ["export"],
             });
-            const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
-                link.href = url; link.download = filename;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                triggerBlobDownload(url, filename);
                 URL.revokeObjectURL(url);
             } else if (exportResult.downloadUrl) {
-                link.href = exportResult.downloadUrl; link.target = "_blank"; link.rel = "noopener noreferrer"; link.download = filename;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                triggerPresignedDownload(exportResult.downloadUrl);
             } else {
                 throw new Error("No downloadable export payload received");
             }
@@ -1186,15 +1202,12 @@ export function useFilesPage() {
                 extension,
                 tags: ["erp", actionsErpMode === "transform" ? actionsErpTarget : null],
             });
-            const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
-                link.href = url; link.download = filename;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                triggerBlobDownload(url, filename);
                 URL.revokeObjectURL(url);
             } else if (exportResult.downloadUrl) {
-                link.href = exportResult.downloadUrl; link.target = "_blank"; link.rel = "noopener noreferrer"; link.download = filename;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                triggerPresignedDownload(exportResult.downloadUrl);
             } else {
                 throw new Error("No downloadable export payload received");
             }
@@ -1250,15 +1263,12 @@ export function useFilesPage() {
                 dataType: dataType === "original" ? "original" : "clean",
                 extension,
             });
-            const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
-                link.href = url; link.download = filename;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                triggerBlobDownload(url, filename);
                 URL.revokeObjectURL(url);
             } else if (exportResult.downloadUrl) {
-                link.href = exportResult.downloadUrl; link.target = "_blank"; link.rel = "noopener noreferrer"; link.download = filename;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                triggerPresignedDownload(exportResult.downloadUrl);
             } else {
                 throw new Error("No downloadable export payload received");
             }
@@ -1294,15 +1304,12 @@ export function useFilesPage() {
                 extension,
                 tags: targetErp ? [sanitizeFilenamePart(targetErp)] : [],
             });
-            const link = document.createElement("a");
             if (exportResult.blob) {
                 const url = URL.createObjectURL(exportResult.blob);
-                link.href = url; link.download = filename;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                triggerBlobDownload(url, filename);
                 URL.revokeObjectURL(url);
             } else if (exportResult.downloadUrl) {
-                link.href = exportResult.downloadUrl; link.target = "_blank"; link.rel = "noopener noreferrer"; link.download = filename;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                triggerPresignedDownload(exportResult.downloadUrl);
             } else {
                 throw new Error("No downloadable export payload received");
             }

@@ -23,6 +23,7 @@ import { DownloadFormatModal } from '@/modules/files/components/download-format-
 import { useAuth } from '@/modules/auth'
 import { useToast } from '@/shared/hooks/use-toast'
 import { buildPrefixedDataFilename } from '@/modules/files/utils/download-filenames'
+import { triggerBlobDownload, triggerPresignedDownload } from '@/modules/files/utils/trigger-download'
 
 interface CustomDestinationExportProps {
   selectedFormat: string | null
@@ -265,28 +266,18 @@ export default function CustomDestinationExport({
         )
       }
 
-      const link = document.createElement('a')
-
       const extension = format === 'excel' ? '.xlsx' : `.${format}`
-      link.download = buildPrefixedDataFilename({
+      const filename = buildPrefixedDataFilename({
         sourceName: downloadFilename || selectedFile.original_filename || selectedFile.filename || 'export',
         dataType,
         extension,
       })
       if (downloadResult.blob) {
         const url = window.URL.createObjectURL(downloadResult.blob)
-        link.href = url
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+        triggerBlobDownload(url, filename)
         window.URL.revokeObjectURL(url)
       } else if (downloadResult.downloadUrl) {
-        link.href = downloadResult.downloadUrl
-        link.target = '_blank'
-        link.rel = 'noopener noreferrer'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+        triggerPresignedDownload(downloadResult.downloadUrl)
       } else {
         throw new Error('No downloadable export payload received')
       }

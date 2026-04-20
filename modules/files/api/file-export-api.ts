@@ -21,6 +21,13 @@ const ENDPOINTS = {
 
 const MAX_EXPORT_PREPARE_ATTEMPTS = 90
 const DEFAULT_EXPORT_PREPARE_DELAY_MS = 2000
+// Beyond this row count, skip the in-memory blob fetch and let the browser
+// stream the download natively via <a href>. 100k rows ≈ ~10-20 MB CSV;
+// above that, buffering into JS heap stalls the UI with no progress feedback.
+const INLINE_BLOB_ROW_THRESHOLD = 100_000
+// Hard ceiling on the in-memory blob fetch. 60s covers a ~50 MB download on
+// typical connections; anything slower should fall back to the direct link.
+const S3_FETCH_TIMEOUT_MS = 60_000
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms))
@@ -33,6 +40,10 @@ async function resolveExportDownload(
     const response = await requestFactory()
     const contentType = response.headers.get('Content-Type') || ''
     const isJson = contentType.includes('application/json')
+    // Backend tags the prepared-export path with this header; that path is
+    // exclusively for files large enough to need async preparation, so we
+    // never want to buffer the result through the JS heap.
+    const isPreparedExport = response.headers.get('X-Download-Type') === 'presigned-url'
     const data = isJson ? await response.json().catch(() => null) : null
 
     if (response.status === 202 && data?.status === 'preparing') {
@@ -54,9 +65,27 @@ async function resolveExportDownload(
             if (!isValidS3Url(data.presigned_url)) {
                 throw new Error('Invalid presigned URL: must be an HTTPS S3/AWS URL')
             }
+            // Skip the in-memory blob roundtrip when:
+            //  - the prepared-export path was used (X-Download-Type header — always large), OR
+            //  - the backend reports row_count above our inline threshold, OR
+            //  - the backend gives no size hint at all (assume it's the
+            //    prepared-export path — the X-Download-Type header may be
+            //    invisible to JS until CORS expose_headers ships it).
+            // Caller hands the URL to triggerPresignedDownload (hidden iframe)
+            // so the browser streams the download in-place — no new tab — and
+            // we avoid buffering 100+ MB through fetch().blob() which would
+            // stall the spinner for 30-60s with no feedback.
+            const exceedsRowThreshold =
+                typeof data.row_count === 'number' && data.row_count > INLINE_BLOB_ROW_THRESHOLD
+            const noSizeHint = typeof data.row_count !== 'number'
+            if (isPreparedExport || exceedsRowThreshold || noSizeHint) {
+                return { downloadUrl: data.presigned_url, filename: data.filename }
+            }
             console.log('Fetching from presigned URL:', data.filename || 'file')
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), S3_FETCH_TIMEOUT_MS)
             try {
-                const s3Response = await fetch(data.presigned_url)
+                const s3Response = await fetch(data.presigned_url, { signal: controller.signal })
                 if (!s3Response.ok) {
                     throw new Error(`Failed to download from S3: ${s3Response.statusText}`)
                 }
@@ -64,6 +93,8 @@ async function resolveExportDownload(
             } catch (error) {
                 console.warn('Direct S3 fetch failed, falling back to browser download link:', error)
                 return { downloadUrl: data.presigned_url, filename: data.filename }
+            } finally {
+                clearTimeout(timeoutId)
             }
         }
         if (data.error) {

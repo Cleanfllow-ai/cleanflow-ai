@@ -34,8 +34,8 @@ interface QuarantineAgGridTableProps {
   uploadId: string
   reloadToken: number
   filterComponent?: (column: string) => React.ReactNode
-  findMatches?: Array<{ row_id: string; column: string }>
-  currentMatch?: { row_id: string; column: string } | null
+  findMatches?: Array<{ row_id: string; column: string; index?: number }>
+  currentMatch?: { row_id: string; column: string; index?: number } | null
   cellLocksRef?: React.MutableRefObject<Map<string, CellLockInfo>>
   onCellEditingStarted?: (column: string, rowId: string) => void
   onCellEditingStopped?: (column: string, rowId: string) => void
@@ -231,6 +231,18 @@ export function QuarantineAgGridTable({
     findMatchSetRef.current = set
     currentMatchKeyRef.current = currentMatch ? `${currentMatch.row_id}:${currentMatch.column}` : null
     apiRef.current?.refreshCells({ force: true })
+
+    // Scroll to the current match's row + focus its cell. index is the
+    // row's position in the manifest's sorted quarantine list (returned
+    // by the backend), which is what AG Grid's infinite row model keys by.
+    if (currentMatch && typeof currentMatch.index === 'number' && apiRef.current) {
+      try {
+        apiRef.current.ensureIndexVisible(currentMatch.index, 'middle')
+        apiRef.current.setFocusedCell(currentMatch.index, currentMatch.column)
+      } catch {
+        /* best-effort — ignore if grid isn't ready */
+      }
+    }
   }, [findMatches, currentMatch])
 
   useEffect(() => {

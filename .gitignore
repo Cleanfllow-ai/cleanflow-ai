@@ -34,3 +34,11 @@ CLAUDE.md
 
 # pnpm local store
 .pnpm-store/
+
+# --- Testing ---
+coverage/
+.env.test
+cypress/videos/
+cypress/screenshots/
+cypress/perf-log.json
+lhci-reports/
