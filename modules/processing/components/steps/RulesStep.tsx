@@ -402,8 +402,8 @@ export function RulesStep() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-medium text-sm">Business Consistency Rules</h3>
                 <div className="flex items-center gap-2">
-                  {totalCrossRules > 0 && (
-                    <Badge variant="outline" className="text-xs">{totalSelectedCrossRules}/{totalCrossRules} enabled</Badge>
+                  {crossColOnlyRules.length > 0 && (
+                    <Badge variant="outline" className="text-xs">{crossColOnlyRules.filter(r => r.enabled).length}/{crossColOnlyRules.length} enabled</Badge>
                   )}
                   <Button
                     variant="outline"
@@ -417,56 +417,80 @@ export function RulesStep() {
                 </div>
               </div>
 
-              {/* Existing rules */}
-              {crossFieldRules.length > 0 && (
-                <div className="space-y-2 mb-3">
-                  {crossFieldRules.map((rule) => (
-                    <div
-                      key={rule.rule_id + rule.cols.join(".")}
-                      className="p-2 rounded border border-muted/60 bg-muted/20"
-                    >
-                      <div className="flex items-start gap-2">
-                        <Checkbox
-                          checked={rule.enabled}
-                          onCheckedChange={() =>
-                            setCrossFieldRules(
-                              crossFieldRules.map((item) =>
-                                item.rule_id === rule.rule_id && item.cols.join(".") === rule.cols.join(".")
-                                  ? { ...item, enabled: !item.enabled }
-                                  : item
-                              )
-                            )
-                          }
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{rule.rule_id}</span>
-                            {rule.relationship && <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {rule.condition || rule.predicate || "No condition provided"}
-                          </p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {rule.cols.map((c) => (
-                              <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0"
-                          onClick={() => setCrossFieldRules(crossFieldRules.filter((r) => !(r.rule_id === rule.rule_id && r.cols.join(".") === rule.cols.join("."))))}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+              {/* Existing rules — table layout */}
+              {crossColOnlyRules.length > 0 && (
+                <div className="mb-3 rounded-md border border-muted/60 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40 border-b border-muted/60">
+                        <tr className="text-left text-xs text-muted-foreground">
+                          <th className="w-10 px-3 py-2 font-medium"></th>
+                          <th className="w-40 px-3 py-2 font-medium">Rule</th>
+                          <th className="px-3 py-2 font-medium">Condition</th>
+                          <th className="px-3 py-2 font-medium">Columns</th>
+                          <th className="w-10 px-3 py-2 font-medium"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {crossColOnlyRules.map((rule, idx) => (
+                          <tr
+                            key={rule.rule_id + rule.cols.join(".")}
+                            className={cn(
+                              "border-b border-muted/40 last:border-b-0 hover:bg-muted/20 transition-colors",
+                              idx % 2 === 1 && "bg-muted/10"
+                            )}
+                          >
+                            <td className="px-3 py-2 align-top">
+                              <Checkbox
+                                checked={rule.enabled}
+                                onCheckedChange={() =>
+                                  setCrossFieldRules(
+                                    crossFieldRules.map((item) =>
+                                      item.rule_id === rule.rule_id && item.cols.join(".") === rule.cols.join(".")
+                                        ? { ...item, enabled: !item.enabled }
+                                        : item
+                                    )
+                                  )
+                                }
+                              />
+                            </td>
+                            <td className="px-3 py-2 align-top">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-mono text-xs font-medium">{rule.rule_id}</span>
+                                {rule.relationship && (
+                                  <Badge variant="secondary" className="text-[10px] w-fit">{rule.relationship}</Badge>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 align-top text-xs text-muted-foreground">
+                              {rule.condition || rule.predicate || "—"}
+                            </td>
+                            <td className="px-3 py-2 align-top">
+                              <div className="flex flex-wrap gap-1">
+                                {rule.cols.map((c) => (
+                                  <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 align-top">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => setCrossFieldRules(crossFieldRules.filter((r) => !(r.rule_id === rule.rule_id && r.cols.join(".") === rule.cols.join("."))))}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
-              {crossFieldRules.length === 0 && !showCrossRuleForm && (
+              {crossColOnlyRules.length === 0 && !showCrossRuleForm && (
                 <p className="text-xs text-muted-foreground">No business consistency rules detected. Click &quot;Add AI Rule&quot; to describe one.</p>
               )}
 

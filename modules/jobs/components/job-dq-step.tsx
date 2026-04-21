@@ -236,20 +236,20 @@ function JobProfilingStep({
                                     return (
                                         <div
                                             key={col}
-                                            className={cn("border border-muted rounded-lg p-4 space-y-3", activeColumn === col && "border-primary")}
+                                            className={cn("border border-muted rounded-lg p-4 space-y-3 min-w-0 overflow-hidden", activeColumn === col && "border-primary")}
                                             onClick={() => setActiveColumn(col)}
                                         >
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="font-medium">{col}</h4>
+                                            <div className="flex items-center justify-between gap-2 min-w-0">
+                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                    <h4 className="font-medium truncate" title={col}>{col}</h4>
                                                     {profile.key_type === "primary_key" && (
-                                                        <Badge variant="default" className="text-[10px] px-1.5 py-0">PK</Badge>
+                                                        <Badge variant="default" className="text-[10px] px-1.5 py-0 shrink-0">PK</Badge>
                                                     )}
                                                     {profile.key_type === "unique" && (
-                                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">UNIQUE</Badge>
+                                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">UNIQUE</Badge>
                                                     )}
                                                 </div>
-                                                <Badge variant="outline">
+                                                <Badge variant="outline" className="shrink-0">
                                                     {profile.type_guess}
                                                 </Badge>
                                             </div>
@@ -289,18 +289,43 @@ function JobProfilingStep({
                                 {crossFieldRules.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">No business consistency rules returned by DQ preview</p>
                                 ) : (
-                                    <div className="space-y-2">
-                                        {crossFieldRules.map((rule, i) => (
-                                            <div key={i} className="flex items-center gap-3 text-sm p-2 rounded bg-muted/30">
-                                                <span className="font-mono text-xs">{rule.rule_id}</span>
-                                                <span className="text-muted-foreground">{rule.condition || rule.predicate}</span>
-                                                <div className="flex gap-1">
-                                                    {rule.cols?.map((c: string) => (
-                                                        <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
+                                    <div className="rounded-md border border-muted/60 overflow-hidden">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-muted/40 border-b border-muted/60">
+                                                    <tr className="text-left text-xs text-muted-foreground">
+                                                        <th className="w-40 px-3 py-2 font-medium">Rule</th>
+                                                        <th className="px-3 py-2 font-medium">Condition</th>
+                                                        <th className="px-3 py-2 font-medium">Columns</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {crossFieldRules.map((rule, i) => (
+                                                        <tr
+                                                            key={i}
+                                                            className={cn(
+                                                                "border-b border-muted/40 last:border-b-0 hover:bg-muted/20 transition-colors",
+                                                                i % 2 === 1 && "bg-muted/10"
+                                                            )}
+                                                        >
+                                                            <td className="px-3 py-2 align-top">
+                                                                <span className="font-mono text-xs font-medium">{rule.rule_id}</span>
+                                                            </td>
+                                                            <td className="px-3 py-2 align-top text-xs text-muted-foreground">
+                                                                {rule.condition || rule.predicate || "—"}
+                                                            </td>
+                                                            <td className="px-3 py-2 align-top">
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {rule.cols?.map((c: string) => (
+                                                                        <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
+                                                                    ))}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
                                                     ))}
-                                                </div>
-                                            </div>
-                                        ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 )}
                             </div>

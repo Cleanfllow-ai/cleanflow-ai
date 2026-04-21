@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/modules/auth'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,9 +26,16 @@ interface PageProps {
   params: Promise<{ uploadId: string }>
 }
 
+const ALLOWED_RETURN_TO = new Set(['/jobs', '/files', '/data-catalog', '/dashboard'])
+
 export default function QuarantineEditorPage({ params }: PageProps) {
   const { uploadId } = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const rawReturnTo = searchParams?.get('returnTo') || ''
+  // Only honor safe, in-app relative paths to prevent open-redirect abuse.
+  const returnTo = ALLOWED_RETURN_TO.has(rawReturnTo) ? rawReturnTo : '/files'
+  const navigateBack = useCallback(() => router.push(returnTo), [router, returnTo])
   const { idToken, accessToken, userRole } = useAuth()
 
   const file = { upload_id: uploadId, filename: '', original_filename: '' }
@@ -115,7 +122,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
 
   const handlePrimaryAction = async () => {
     const result = await editor.handleReprocessAction()
-    if (result) router.push('/files')
+    if (result) navigateBack()
   }
 
   const approvalStateLabel = (() => {
@@ -205,7 +212,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     <div className="flex h-screen flex-col bg-white">
       {/* Header */}
       <div className="flex items-center gap-3 border-b px-4 py-2">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/files')}>
+        <Button variant="ghost" size="icon" onClick={navigateBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <QuarantineEditorHeader

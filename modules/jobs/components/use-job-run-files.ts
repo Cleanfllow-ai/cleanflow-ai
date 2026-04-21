@@ -6,17 +6,8 @@ import { useToast } from "@/shared/hooks/use-toast"
 import { buildPrefixedDataFilename } from "@/modules/files/utils/download-filenames"
 import { triggerBlobDownload, triggerPresignedDownload } from "@/modules/files/utils/trigger-download"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
-import { jobsAPI } from "@/modules/jobs/api/jobs-api"
 import type { FileStatusResponse, QuarantineReprocessResponse } from "@/modules/files/types"
 import type { JobRun } from "@/modules/jobs/types/jobs.types"
-
-const ERP_DISPLAY: Record<string, string> = {
-    quickbooks: "QuickBooks",
-    zohobooks: "Zoho Books",
-    "zoho-books": "Zoho Books",
-    zoho_books: "Zoho Books",
-    snowflake: "Snowflake",
-}
 
 export interface RunFileEntry {
     entity: string
@@ -57,6 +48,7 @@ export interface JobRunFilesState {
     handleQuarantineEditorClose: () => void
     handleReprocessSubmitted: (result: QuarantineReprocessResponse) => void
     exporting: boolean
+    refresh: () => Promise<void>
 }
 
 /**
@@ -162,34 +154,6 @@ async function waitForDeltaReprocess(
     return null
 }
 
-/**
- * Poll the re-export status endpoint until the orchestrator finishes the async export.
- */
-async function pollReExportStatus(
-    jobId: string,
-    uploadId: string,
-    maxWaitMs: number = 120000,
-    cancelledRef?: React.MutableRefObject<boolean>,
-): Promise<{ status: string; records_exported?: number; destination?: string; error?: string } | null> {
-    const interval = 5000
-    const startTime = Date.now()
-
-    while (Date.now() - startTime < maxWaitMs) {
-        if (cancelledRef?.current) return null
-        await new Promise(resolve => setTimeout(resolve, interval))
-        if (cancelledRef?.current) return null
-        try {
-            const result = await Promise.resolve as any // TODO: re-export not yet in new jobs API(jobId, uploadId)
-            if (result.status === "SUCCESS" || result.status === "FAILED") {
-                return result
-            }
-            // "PENDING" — keep polling
-        } catch { /* ignore */ }
-    }
-
-    return null // Timeout
-}
-
 export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesState {
     const { idToken } = useAuth()
     const { toast } = useToast()
@@ -220,12 +184,8 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
         return () => { cancelledRef.current = true }
     }, [open])
 
-    useEffect(() => {
-        if (!open || !run || !idToken) {
-            setEntries([])
-            return
-        }
-
+    const refresh = useCallback(async () => {
+        if (!run || !idToken) return
         const entityResults = run.entity_results || {}
         const entityEntries = Object.entries(entityResults)
             .filter(([, result]) => (result as any).upload_id)
@@ -246,23 +206,37 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
         setEntries(entityEntries)
         setLoading(true)
 
-        const fetchAll = async () => {
-            const updated = await Promise.all(
-                entityEntries.map(async (entry) => {
-                    try {
-                        const file = await fetchFileWithLatestVersion(entry.uploadId, idToken)
-                        return { ...entry, file, loading: false }
-                    } catch {
-                        return { ...entry, file: null, loading: false, error: "File not found" }
-                    }
-                })
-            )
-            setEntries(updated)
-            setLoading(false)
-        }
+        const updated = await Promise.all(
+            entityEntries.map(async (entry) => {
+                try {
+                    const file = await fetchFileWithLatestVersion(entry.uploadId, idToken)
+                    return { ...entry, file, loading: false }
+                } catch {
+                    return { ...entry, file: null, loading: false, error: "File not found" }
+                }
+            })
+        )
+        setEntries(updated)
+        setLoading(false)
+    }, [run, idToken])
 
-        fetchAll()
-    }, [open, run, idToken])
+    useEffect(() => {
+        if (!open || !run || !idToken) {
+            setEntries([])
+            return
+        }
+        void refresh()
+    }, [open, run, idToken, refresh])
+
+    // Refetch when the page regains visibility (e.g., user returns from the quarantine editor).
+    useEffect(() => {
+        if (!open) return
+        const onVisible = () => {
+            if (document.visibilityState === "visible") void refresh()
+        }
+        document.addEventListener("visibilitychange", onVisible)
+        return () => document.removeEventListener("visibilitychange", onVisible)
+    }, [open, refresh])
 
     const handleViewDetail = useCallback((file: FileStatusResponse) => {
         setDetailFile(file)
@@ -374,21 +348,17 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
     }, [quarantineFile, idToken])
 
     /**
-     * Called by QuarantineEditorDialog after reprocess is submitted.
-     * Polls for the reprocessed version, then kicks off async re-export and polls for result.
+     * Called after a reprocess is submitted (from an in-place editor).
+     * Optimistically flips status to QUEUED, polls until a new version appears,
+     * then refreshes the entry with the latest version stats.
      */
     const handleReprocessSubmitted = useCallback(async (reprocessResult: QuarantineReprocessResponse) => {
-        const entity = quarantineEntity
         const activeFile = quarantineFile
         const fileUploadId = activeFile?.upload_id
         const previousSnapshotId = activeFile?.current_reprocess_snapshot_id || null
-        const jobId = run?.job_id
-        const destination = "destination"
-        const destLabel = ERP_DISPLAY[destination || ""] || destination || "destination"
 
-        if (!entity || !fileUploadId || !jobId || !idToken) return
+        if (!fileUploadId || !idToken) return
         const effectiveMode = reprocessResult.effective_mode || "full"
-        const targetUploadId = reprocessResult.new_upload_id || reprocessResult.base_upload_id || fileUploadId
 
         if (activeFile) {
             const optimisticFile: FileStatusResponse = {
@@ -404,68 +374,40 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
         }
 
         setExporting(true)
-        toast({ title: "Reprocessing...", description: `Waiting for reprocess to complete before exporting to ${destLabel}` })
+        toast({ title: "Reprocessing...", description: "Waiting for the reprocess job to complete" })
 
         try {
-            let updatedFile: FileStatusResponse | null
-            if (effectiveMode === "delta") {
-                updatedFile = await waitForDeltaReprocess(fileUploadId, idToken, {
+            const updatedFile = effectiveMode === "delta"
+                ? await waitForDeltaReprocess(fileUploadId, idToken, {
                     maxWaitMs: 60000,
                     expectedSnapshotId: reprocessResult.reprocess_snapshot_id,
                     previousSnapshotId,
                     cancelledRef,
                 })
-            } else {
-                // Wait for the reprocess worker to create the new version
-                updatedFile = await waitForNewVersion(fileUploadId, idToken, 60000, cancelledRef)
-            }
+                : await waitForNewVersion(fileUploadId, idToken, 60000, cancelledRef)
 
             if (!updatedFile) {
-                toast({ title: "Export skipped", description: "Reprocess is still in progress. Clean data will need to be exported manually.", variant: "destructive" })
-                setExporting(false)
+                toast({
+                    title: "Still reprocessing",
+                    description: "The reprocess is taking longer than expected. Refresh shortly to see the updated version.",
+                })
                 return
             }
 
-            // Refresh file entry in the table
             setEntries(prev => prev.map(e =>
                 e.uploadId === fileUploadId ? { ...e, file: updatedFile } : e
             ))
-
-            // Kick off async re-export (returns immediately)
-            toast({ title: "Exporting...", description: `Exporting cleaned rows to ${destLabel}` })
-            await (jobsAPI as any).reExportFile // TODO: re-export not yet in new jobs API(jobId, targetUploadId, entity)
-
-            // Poll for the async export result
-            const exportResult = await pollReExportStatus(jobId, targetUploadId, 120000, cancelledRef)
-
-            if (exportResult?.status === "SUCCESS") {
-                toast({
-                    title: "Successfully Exported",
-                    description: `${exportResult.records_exported ?? 0} cleaned rows exported to ${destLabel}`,
-                })
-            } else if (exportResult?.status === "FAILED") {
-                toast({
-                    title: "Export Failed",
-                    description: exportResult.error || `Could not export cleaned rows to ${destLabel}. Please try exporting manually.`,
-                    variant: "destructive",
-                })
-            } else {
-                // Timeout — export still running in the background
-                toast({
-                    title: "Export In Progress",
-                    description: `Export to ${destLabel} is still running. Check back shortly for results.`,
-                })
-            }
+            toast({ title: "Reprocess complete", description: "File refreshed with the new version" })
         } catch (err: any) {
             toast({
-                title: "Export Failed",
-                description: err?.message || `Could not export cleaned rows to ${destLabel}. Please try exporting manually.`,
+                title: "Reprocess status check failed",
+                description: err?.message || "Could not confirm reprocess completion. Refresh to retry.",
                 variant: "destructive",
             })
         } finally {
             setExporting(false)
         }
-    }, [quarantineEntity, quarantineFile, run, idToken, toast])
+    }, [quarantineFile, idToken, toast])
 
     return {
         entries,
@@ -493,5 +435,6 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
         handleQuarantineEditorClose,
         handleReprocessSubmitted,
         exporting,
+        refresh,
     }
 }

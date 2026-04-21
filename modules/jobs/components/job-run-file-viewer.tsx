@@ -1,7 +1,7 @@
 "use client"
 
 import {
-    Loader2, Eye, Download, Trash2, FileText, AlertCircle, CloudUpload, Pencil
+    Loader2, Eye, Download, Trash2, FileText, AlertCircle, CloudUpload, Pencil, RefreshCw
 } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from 'next/navigation'
@@ -85,6 +85,16 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                         <DialogTitle className="flex items-center gap-2 text-lg">
                             <FileText className="h-5 w-5 text-primary" />
                             Run Files
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="ml-auto h-7 w-7"
+                                onClick={() => void state.refresh()}
+                                disabled={state.loading}
+                                title="Refresh files"
+                            >
+                                <RefreshCw className={cn("h-3.5 w-3.5", state.loading && "animate-spin")} />
+                            </Button>
                         </DialogTitle>
                         <DialogDescription className="flex items-center gap-2">
                             <span className="font-mono text-xs">{runLabel}</span>
@@ -202,7 +212,7 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:text-violet-700"
-                                                                        onClick={() => router.push(`/files/${file.upload_id}/quarantine`)}>
+                                                                        onClick={() => router.push(`/files/${file.upload_id}/quarantine?returnTo=/jobs`)}>
                                                                         <Pencil className="h-3.5 w-3.5" />
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -234,7 +244,7 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                 file={state.detailFile}
                 open={state.detailOpen}
                 onOpenChange={state.setDetailOpen}
-                onRemediate={(f) => router.push(`/files/${f.upload_id}/quarantine`)}
+                onRemediate={(f) => router.push(`/files/${f.upload_id}/quarantine?returnTo=/jobs`)}
                 hideTabs={["details"]}
             />
 

@@ -46,6 +46,17 @@ function getStatusColor(status: string) {
     }
 }
 
+function getFileStatusColor(status: string | null | undefined) {
+    const s = (status || "").toUpperCase()
+    if (s.includes("FIXED") || s.includes("COMPLETED") || s.includes("PROCESSED"))
+        return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
+    if (s.includes("FAILED")) return "bg-red-500/15 text-red-600 border-red-500/25"
+    if (s.includes("RUNNING") || s.includes("PROCESSING") || s.includes("QUEUED"))
+        return "bg-blue-500/15 text-blue-600 border-blue-500/25"
+    if (s.includes("QUARANTINED")) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
+    return "bg-slate-500/15 text-slate-600 border-slate-500/25"
+}
+
 function getStatusIcon(status: string) {
     switch (status) {
         case "SUCCESS": return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -201,6 +212,7 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                         <TableBody>
                             {state.filteredRuns.map(run => {
                                 const avgScore = run.processing_metadata?.avg_dq_score
+                                const live = state.liveSummaries[run.run_id]
                                 return (
                                     <TableRow
                                         key={run.run_id}
@@ -208,14 +220,35 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                         onClick={() => state.handleViewRunDetail(run)}
                                     >
                                         <TableCell>
-                                            <div className="flex items-center gap-1.5">
-                                                {getStatusIcon(run.status)}
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn("text-[10px] px-1.5", getStatusColor(run.status))}
-                                                >
-                                                    {run.status}
-                                                </Badge>
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-1.5">
+                                                    {getStatusIcon(run.status)}
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn("text-[10px] px-1.5", getStatusColor(run.status))}
+                                                    >
+                                                        {run.status}
+                                                    </Badge>
+                                                </div>
+                                                {live?.status && live.status !== run.status && (
+                                                    <div className="flex items-center gap-1">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={cn("text-[9px] px-1.5", getFileStatusColor(live.status))}
+                                                        >
+                                                            {live.running && <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" />}
+                                                            File: {live.status}
+                                                        </Badge>
+                                                        {live.reprocessed && (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="text-[9px] px-1.5 border-violet-500/30 text-violet-600"
+                                                            >
+                                                                v{live.versionCount}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground tabular-nums">
@@ -234,16 +267,27 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                             {run.total_exported || 0}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {avgScore != null ? (
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn("text-[10px] tabular-nums", getScoreColor(Number(avgScore)))}
-                                                >
-                                                    {Number(avgScore).toFixed(1)}%
-                                                </Badge>
-                                            ) : (
-                                                <span className="text-[10px] text-muted-foreground">—</span>
-                                            )}
+                                            <div className="flex flex-col items-end gap-1">
+                                                {avgScore != null ? (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn("text-[10px] tabular-nums", getScoreColor(Number(avgScore)))}
+                                                    >
+                                                        {Number(avgScore).toFixed(1)}%
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="text-[10px] text-muted-foreground">—</span>
+                                                )}
+                                                {live?.dqScore != null && avgScore != null && Math.abs(Number(live.dqScore) - Number(avgScore)) >= 0.1 && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn("text-[9px] tabular-nums", getScoreColor(Number(live.dqScore)))}
+                                                        title="Current DQ score after reprocess"
+                                                    >
+                                                        → {Number(live.dqScore).toFixed(1)}%
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground">
                                             {run.trigger_source === "manual_trigger" ? (
@@ -317,6 +361,8 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                 onOpenChange={state.setDetailModalOpen}
                 jobId={jobId}
                 onRunResumed={state.handleRefresh}
+                onRefresh={state.handleRefresh}
+                refreshing={state.isRefreshing}
             />
 
             {/* File Viewer */}

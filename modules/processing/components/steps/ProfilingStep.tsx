@@ -239,20 +239,20 @@ export function ProfilingStep() {
                     return (
                       <div
                         key={col}
-                        className={cn("border border-muted rounded-lg p-4 space-y-3 max-h-[220px] overflow-y-auto", activeColumn === col && "border-primary")}
+                        className={cn("border border-muted rounded-lg p-4 space-y-3 max-h-[220px] overflow-y-auto min-w-0", activeColumn === col && "border-primary")}
                         onClick={() => setActiveColumn(col)}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{col}</h4>
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <h4 className="font-medium truncate" title={col}>{col}</h4>
                             {profile.key_type === "primary_key" && (
-                              <Badge variant="default" className="text-[10px] px-1.5 py-0">PK</Badge>
+                              <Badge variant="default" className="text-[10px] px-1.5 py-0 shrink-0">PK</Badge>
                             )}
                             {profile.key_type === "unique" && (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">UNIQUE</Badge>
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">UNIQUE</Badge>
                             )}
                           </div>
-                          <Badge variant="outline">
+                          <Badge variant="outline" className="shrink-0">
                             {profile.type_guess}
                           </Badge>
                         </div>

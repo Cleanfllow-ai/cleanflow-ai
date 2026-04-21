@@ -2,10 +2,23 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { jobsAPI, type JobRun } from "@/modules/jobs/api/jobs-api"
+import { useAuth } from "@/modules/auth"
+import { fileManagementAPI } from "@/modules/files/api/file-management-api"
+import type { FileStatusResponse } from "@/modules/files/types"
 
 export type SortField = "started_at" | "duration" | "imported" | "exported" | "status"
 export type SortDirection = "asc" | "desc"
 export type StatusFilter = "all" | "SUCCESS" | "FAILED" | "PARTIAL" | "AWAITING_REVIEW" | "NO_CHANGES"
+
+export interface RunLiveSummary {
+    status: string | null
+    dqScore: number | null
+    rowsClean: number | null
+    rowsQuarantined: number | null
+    versionCount: number
+    reprocessed: boolean
+    running: boolean
+}
 
 export interface JobRunsExplorerState {
     runs: JobRun[]
@@ -27,13 +40,80 @@ export interface JobRunsExplorerState {
     fileViewerOpen: boolean
     setFileViewerOpen: (open: boolean) => void
     handleViewRunFiles: (run: JobRun) => void
-    handleRefresh: () => void
+    handleRefresh: () => void | Promise<void>
     isRefreshing: boolean
     handleRetry: () => Promise<void>
     isRetrying: boolean
+    liveSummaries: Record<string, RunLiveSummary>
+}
+
+async function fetchLiveSummaryForRun(run: JobRun, token: string): Promise<RunLiveSummary> {
+    const entityResults = run.entity_results || {}
+    const uploadIds = Object.values(entityResults)
+        .map((r: any) => r?.upload_id as string | undefined)
+        .filter((u): u is string => !!u)
+
+    if (uploadIds.length === 0) {
+        return { status: null, dqScore: null, rowsClean: null, rowsQuarantined: null, versionCount: 0, reprocessed: false, running: false }
+    }
+
+    const files = await Promise.all(uploadIds.map(async (uid) => {
+        try {
+            const [file, versionsResp] = await Promise.all([
+                fileManagementAPI.getFileStatus(uid, token),
+                fileManagementAPI.getFileVersions(uid, token).catch(() => ({ versions: [] as any[], count: 0 })),
+            ])
+            const versions = versionsResp.versions || []
+            if (versions.length > 0) {
+                const latest = versions.find((v: any) => v.is_latest) ||
+                    versions.reduce((a: any, b: any) => ((a.version_number || 0) >= (b.version_number || 0) ? a : b))
+                if (latest.dq_score != null) file.dq_score = latest.dq_score
+                if (latest.status) file.status = latest.status as FileStatusResponse["status"]
+                if (latest.rows_clean != null) file.rows_clean = latest.rows_clean
+                if (latest.rows_quarantined != null) file.rows_quarantined = latest.rows_quarantined
+            }
+            return { file, versionCount: versions.length }
+        } catch {
+            return null
+        }
+    }))
+
+    const valid = files.filter((x): x is { file: FileStatusResponse; versionCount: number } => !!x)
+    if (valid.length === 0) {
+        return { status: null, dqScore: null, rowsClean: null, rowsQuarantined: null, versionCount: 0, reprocessed: false, running: false }
+    }
+
+    const statuses = valid.map(v => (v.file.status || "").toUpperCase())
+    const anyRunning = statuses.some(s => s.includes("RUNNING") || s.includes("PROCESSING") || s.includes("QUEUED"))
+    const anyFailed = statuses.some(s => s.includes("FAILED"))
+    const anyQuarantined = statuses.some(s => s.includes("QUARANTINED"))
+    const allFixed = statuses.every(s => s.includes("FIXED") || s.includes("COMPLETED") || s.includes("PROCESSED"))
+    const aggregateStatus = anyFailed ? "FAILED"
+        : anyRunning ? "PROCESSING"
+        : allFixed ? valid[0].file.status || "FIXED"
+        : anyQuarantined ? "QUARANTINED"
+        : valid[0].file.status || null
+
+    const dqScores = valid.map(v => v.file.dq_score).filter((s): s is number => s != null).map(Number)
+    const avgDq = dqScores.length > 0 ? dqScores.reduce((a, b) => a + b, 0) / dqScores.length : null
+
+    const rowsClean = valid.reduce((sum, v) => sum + (v.file.rows_clean ?? 0), 0)
+    const rowsQuarantined = valid.reduce((sum, v) => sum + (v.file.rows_quarantined ?? 0), 0)
+    const maxVersions = Math.max(...valid.map(v => v.versionCount))
+
+    return {
+        status: aggregateStatus,
+        dqScore: avgDq,
+        rowsClean,
+        rowsQuarantined,
+        versionCount: maxVersions,
+        reprocessed: maxVersions > 1,
+        running: anyRunning,
+    }
 }
 
 export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
+    const { idToken } = useAuth()
     const [runs, setRuns] = useState<JobRun[]>([])
     const [loading, setLoading] = useState(true)
     const [isRefreshing, setIsRefreshing] = useState(false)
@@ -45,6 +125,7 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
     const [detailModalOpen, setDetailModalOpen] = useState(false)
     const [fileViewerRun, setFileViewerRun] = useState<JobRun | null>(null)
     const [fileViewerOpen, setFileViewerOpen] = useState(false)
+    const [liveSummaries, setLiveSummaries] = useState<Record<string, RunLiveSummary>>({})
 
     const loadRuns = useCallback(async (isManual = false) => {
         if (isManual) setIsRefreshing(true)
@@ -77,6 +158,45 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         return () => clearInterval(interval)
     }, [runs, jobId])
 
+    // Refetch when the tab regains visibility (user returning from quarantine editor)
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === "visible") void loadRuns(true)
+        }
+        document.addEventListener("visibilitychange", onVisible)
+        return () => document.removeEventListener("visibilitychange", onVisible)
+    }, [loadRuns])
+
+    // Keep selectedRun in sync with the latest fetched run data so the detail
+    // modal shows fresh timing/DQ stats after a reprocess+resume.
+    useEffect(() => {
+        if (!selectedRun) return
+        const fresh = runs.find(r => r.run_id === selectedRun.run_id)
+        if (fresh && fresh !== selectedRun) setSelectedRun(fresh)
+    }, [runs, selectedRun])
+
+    // Fetch live file status per run so the row can reflect reprocess state
+    // (REPROCESSED, PROCESSING, FIXED, etc.) without waiting for a resume.
+    const refreshLiveSummaries = useCallback(async () => {
+        if (!idToken || runs.length === 0) return
+        const results = await Promise.all(
+            runs.map(async (run) => [run.run_id, await fetchLiveSummaryForRun(run, idToken)] as const)
+        )
+        setLiveSummaries(Object.fromEntries(results))
+    }, [runs, idToken])
+
+    useEffect(() => {
+        void refreshLiveSummaries()
+    }, [refreshLiveSummaries])
+
+    // Poll live summaries every 5s while any file is still processing.
+    useEffect(() => {
+        const anyRunning = Object.values(liveSummaries).some(s => s.running)
+        if (!anyRunning) return
+        const interval = setInterval(() => { void refreshLiveSummaries() }, 5000)
+        return () => clearInterval(interval)
+    }, [liveSummaries, refreshLiveSummaries])
+
     const handleSort = useCallback((field: SortField) => {
         if (sortField === field) {
             setSortDirection(prev => prev === "asc" ? "desc" : "asc")
@@ -96,7 +216,10 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         setFileViewerOpen(true)
     }, [])
 
-    const handleRefresh = useCallback(() => loadRuns(true), [loadRuns])
+    const handleRefresh = useCallback(async () => {
+        await loadRuns(true)
+        await refreshLiveSummaries()
+    }, [loadRuns, refreshLiveSummaries])
 
     const [isRetrying, setIsRetrying] = useState(false)
     const handleRetry = useCallback(async () => {
@@ -111,6 +234,7 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
             setIsRetrying(false)
         }
     }, [jobId, loadRuns])
+
 
     const filteredRuns = useMemo(() => {
         let result = [...runs]
@@ -181,5 +305,6 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         isRefreshing,
         handleRetry,
         isRetrying,
+        liveSummaries,
     }
 }
