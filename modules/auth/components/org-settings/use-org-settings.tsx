@@ -584,12 +584,35 @@ export function useOrgSettings() {
         let isMounted = true;
         const loadOrgData = async () => {
             setIsLoadingOrg(true);
-            try {
-                await reloadOrgData();
+            // Retry with backoff — after org registration, the DynamoDB GSI
+            // (eventually consistent) may not reflect the new membership yet.
+            const MAX_RETRIES = 3;
+            const RETRY_DELAYS = [1500, 3000, 5000];
+            let lastError: any = null;
+
+            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
                 if (!isMounted) return;
-            } catch (err: any) {
-                console.error("Failed to load org context", err);
-                const message = err?.message || "Could not load organization data.";
+                try {
+                    await reloadOrgData();
+                    if (!isMounted) return;
+                    lastError = null;
+                    break;
+                } catch (err: any) {
+                    lastError = err;
+                    const message = err?.message || "";
+                    const missingMembership = message.includes("Organization membership required");
+                    // Only retry transient membership-not-found errors
+                    if (missingMembership && attempt < MAX_RETRIES) {
+                        await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+                        continue;
+                    }
+                    break;
+                }
+            }
+
+            if (lastError && isMounted) {
+                console.error("Failed to load org context", lastError);
+                const message = lastError?.message || "Could not load organization data.";
                 const missingMembership = message.includes("Organization membership required");
                 toast({
                     title: "Organization not ready",
@@ -600,9 +623,8 @@ export function useOrgSettings() {
                 if (missingMembership) {
                     window.location.href = "/create-organization";
                 }
-            } finally {
-                if (isMounted) setIsLoadingOrg(false);
             }
+            if (isMounted) setIsLoadingOrg(false);
         };
 
         loadOrgData();

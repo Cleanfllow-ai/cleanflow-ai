@@ -163,7 +163,7 @@ export function SignUpForm() {
           if (pendingOrgRaw) {
             try {
               const pendingOrg = JSON.parse(pendingOrgRaw);
-              await orgAPI.registerOrg({
+              const regResult = await orgAPI.registerOrg({
                 name: pendingOrg.name,
                 email: pendingOrg.email,
                 phone: pendingOrg.phone,
@@ -175,6 +175,11 @@ export function SignUpForm() {
                 subscriptionPlan: "standard",
               });
               sessionStorage.removeItem("pending_org_details");
+              // Store the role from registration response so the dashboard
+              // doesn't need to wait for GSI replication to resolve permissions.
+              if (regResult?.membership?.role) {
+                window.localStorage.setItem("cleanflowai.currentRole", regResult.membership.role);
+              }
               toast({
                 title: "Organization registered",
                 description: "Your organization setup is complete.",

@@ -77,7 +77,7 @@ export function useLoginForm() {
                 if (pendingOrgRaw) {
                     try {
                         const pendingOrg = JSON.parse(pendingOrgRaw)
-                        await orgAPI.registerOrg({
+                        const regResult = await orgAPI.registerOrg({
                             name: pendingOrg.name,
                             email: pendingOrg.email || email,
                             phone: pendingOrg.phone,
@@ -89,6 +89,9 @@ export function useLoginForm() {
                             subscriptionPlan: "standard",
                         })
                         sessionStorage.removeItem("pending_org_details")
+                        if (regResult?.membership?.role) {
+                            window.localStorage.setItem("cleanflowai.currentRole", regResult.membership.role)
+                        }
                         window.location.href = "/dashboard"
                         return
                     } catch {
