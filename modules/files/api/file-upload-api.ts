@@ -79,11 +79,12 @@ export async function makeRequest(endpoint: string, authToken: string, options: 
 // ─── Upload & File Management ───
 
 export async function initUpload(filename: string, contentType: string, authToken: string, useAI: boolean = false): Promise<FileUploadInitResponse> {
-    console.log('🔄 Initializing upload:', filename, useAI ? '(AI Processing)' : '(Rules-Based)')
+    const safeFilename = filename.slice(0, 200)
+    console.log('🔄 Initializing upload:', safeFilename, useAI ? '(AI Processing)' : '(Rules-Based)')
     return makeRequest(ENDPOINTS.UPLOADS, authToken, {
         method: "POST",
         body: JSON.stringify({
-            filename,
+            filename: safeFilename,
             content_type: contentType,
             use_ai_processing: useAI
         })

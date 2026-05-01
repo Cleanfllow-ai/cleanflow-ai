@@ -901,6 +901,10 @@ export function useOrgSettings() {
             toast({ title: "Email required", description: "Enter a valid email address to send the invite." });
             return;
         }
+        if (!/^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{2,}$/.test(email)) {
+            toast({ title: "Invalid email", description: "Enter a valid email address." });
+            return;
+        }
         if (!allowedInviteRoles.includes(inviteRole)) {
             toast({ title: "Invalid role", description: `Allowed roles: ${allowedInviteRoles.join(", ")}` });
             return;

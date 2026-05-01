@@ -40,6 +40,10 @@ export function InviteSetPasswordForm() {
       setError("Password must be at least 8 characters long.");
       return;
     }
+    if (password.length > 256) {
+      setError("Password must be at most 256 characters long.");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
