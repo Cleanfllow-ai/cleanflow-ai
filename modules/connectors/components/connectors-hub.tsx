@@ -19,6 +19,16 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useToast } from "@/shared/hooks/use-toast"
 import { connectorsAPI } from "@/modules/connectors/api/connectors-api"
 import type {
@@ -87,6 +97,7 @@ export function ConnectorsHub() {
   const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null)
   const [savingConfig, setSavingConfig] = useState<string | null>(null)
   const [warehouseMeta, setWarehouseMeta] = useState<Record<string, { warehouses: WarehouseMetadataItem[]; databases: WarehouseMetadataItem[] }>>({})
+  const [pendingDisconnect, setPendingDisconnect] = useState<{ providerId: string; displayName: string } | null>(null)
   const { toast } = useToast()
 
   const loadProviders = useCallback(async () => {
@@ -166,8 +177,18 @@ export function ConnectorsHub() {
     } catch { /* popup closed */ } finally { setConnectingProvider(null) }
   }
 
-  const handleDisconnect = async (providerId: string, displayName: string) => {
-    if (!confirm(`Disconnect from ${displayName}? You can reconnect anytime.`)) return
+  const handleDisconnect = (providerId: string, displayName: string) => {
+    // Open shadcn AlertDialog instead of using window.confirm() — the native
+    // browser dialog is unstyled, fires synchronously, and breaks the design
+    // language. The actual disconnect runs in confirmDisconnect() once the
+    // user accepts.
+    setPendingDisconnect({ providerId, displayName })
+  }
+
+  const confirmDisconnect = async () => {
+    if (!pendingDisconnect) return
+    const { providerId } = pendingDisconnect
+    setPendingDisconnect(null)
     setDisconnectingProvider(providerId)
     try {
       await connectorsAPI.disconnect(providerId)
@@ -291,6 +312,33 @@ export function ConnectorsHub() {
           <p className="text-xs text-muted-foreground">Connectors will appear here once configured.</p>
         </div>
       )}
+
+      <AlertDialog
+        open={pendingDisconnect !== null}
+        onOpenChange={(open) => { if (!open) setPendingDisconnect(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Disconnect from {pendingDisconnect?.displayName}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revoke {pendingDisconnect?.displayName}'s access to your account.
+              Any in-progress imports or exports for this connector will stop. You can
+              reconnect at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDisconnect}
+              className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20"
+            >
+              Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

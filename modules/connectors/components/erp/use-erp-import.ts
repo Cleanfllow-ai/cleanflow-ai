@@ -6,6 +6,8 @@ import { connectorsAPI } from "@/modules/connectors/api/connectors-api"
 import { erpConnectorsAPI } from "@/modules/connectors/api/erp-connectors-api"
 import type { ERPConnectionStatus } from "@/modules/connectors/types"
 import { fileManagementAPI, type FileStatusResponse, filterDQColumns } from "@/modules/files"
+import { ApiError } from "@/modules/shared/api-error"
+import { mapErrorToToast } from "@/lib/error-toast"
 import {
   autoMapColumns,
   validateMapping,
@@ -299,8 +301,23 @@ export function useERPImport({
     }
   }
 
-  const disconnectProvider = async () => {
-    if (!confirm(`Are you sure you want to disconnect ${providerDisplayName}?`)) return
+  // Disconnect uses a two-phase confirmation flow so consumers can render a
+  // styled <AlertDialog> instead of the unstyled native confirm() dialog.
+  // Calling disconnectProvider() now opens the dialog by setting
+  // showDisconnectConfirm=true; consumers must render UI bound to that state
+  // and call confirmDisconnect() / cancelDisconnect().
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false)
+
+  const disconnectProvider = () => {
+    setShowDisconnectConfirm(true)
+  }
+
+  const cancelDisconnect = () => {
+    setShowDisconnectConfirm(false)
+  }
+
+  const confirmDisconnect = async () => {
+    setShowDisconnectConfirm(false)
     try {
       await connectorsAPI.disconnect(provider)
       setConnected(false)
@@ -450,12 +467,27 @@ export function useERPImport({
       setColumnModalOpen(false)
       onNotification?.(`Export to ${providerDisplayName} complete: ${total} succeeded${failed ? `, ${failed} failed` : ""}`, "success")
     } catch (err) {
-      const errorMsg = (err as Error).message || "Failed to export data"
-      let userMessage = "Export failed: " + errorMsg
-      if (errorMsg.includes("NoSuchKey") || errorMsg.includes("does not exist")) {
-        userMessage = "The processed data for this file is not available. Please ensure the file has been processed successfully before exporting."
-      } else if (errorMsg.includes("Connection")) {
-        userMessage = `Connection to ${providerDisplayName} failed. Please reconnect and try again.`
+      // Prefer the typed ApiError mapping (gives us 401 + reconnect copy,
+      // 502 + retry copy, validation hints, etc.). Fall back to the legacy
+      // string-sniffing only when we don't have typed info.
+      let userMessage: string
+      if (err instanceof ApiError) {
+        const desc = mapErrorToToast(err)
+        const parts = [desc.title, desc.description].filter(
+          (s) => !!s && s !== "Error",
+        )
+        const joined = parts.join(" — ")
+        userMessage = desc.action
+          ? `${joined} (Click ${desc.action.label} on the connectors page)`
+          : joined || `Export to ${providerDisplayName} failed`
+      } else {
+        const errorMsg = (err as Error).message || "Failed to export data"
+        userMessage = "Export failed: " + errorMsg
+        if (errorMsg.includes("NoSuchKey") || errorMsg.includes("does not exist")) {
+          userMessage = "The processed data for this file is not available. Please ensure the file has been processed successfully before exporting."
+        } else if (errorMsg.includes("Connection")) {
+          userMessage = `Connection to ${providerDisplayName} failed. Please reconnect and try again.`
+        }
       }
       setError(userMessage)
       if (!notifyPermissionDenied(err)) {
@@ -586,6 +618,9 @@ export function useERPImport({
     loading,
     connectProvider,
     disconnectProvider,
+    showDisconnectConfirm,
+    confirmDisconnect,
+    cancelDisconnect,
     config,
     setConfig,
     files,

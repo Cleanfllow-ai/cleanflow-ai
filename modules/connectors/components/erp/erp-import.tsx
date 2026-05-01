@@ -433,6 +433,33 @@ export default function ERPImport(props: UseERPImportProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={q.showDisconnectConfirm}
+        onOpenChange={(open) => { if (!open) q.cancelDisconnect() }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Disconnect from {q.providerDisplayName}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revoke {q.providerDisplayName}'s access to your account.
+              Any in-progress imports or exports for this connector will stop.
+              You can reconnect at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={q.confirmDisconnect}
+              className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20"
+            >
+              Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
