@@ -9,6 +9,8 @@ import {
     FileText,
     ChevronRight,
     CheckCircle2,
+    Unplug,
+    ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -80,12 +82,50 @@ export default function StorageImport({
     const g = useStorageImport({ provider, onImportComplete, onNotification })
     const [localSearch, setLocalSearch] = useState("")
 
-    // ── Not connected ─────────────────────────────────────────────────
+    // ── Checking status ───────────────────────────────────────────────
     if (g.isCheckingStatus) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[250px] p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
                 <p className="text-sm text-muted-foreground">Checking connection...</p>
+            </div>
+        )
+    }
+
+    // ── Not connected ─────────────────────────────────────────────────
+    // After a user disconnects (admin page) the file browser would otherwise
+    // show "No CSV, Excel, or spreadsheet files in this folder" — that copy
+    // is misleading because the real reason is "no connection." Render a
+    // dedicated empty-state with a Connect CTA instead of falling through.
+    if (!g.connectionStatus.connected) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[250px] p-8 text-center">
+                <div className="rounded-full bg-muted p-3 mb-3">
+                    <Unplug className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <h3 className="text-sm font-medium mb-1">
+                    {g.providerDisplayName} is not connected
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-sm mb-4">
+                    Connect your {g.providerDisplayName} account to browse and import files.
+                </p>
+                <Button
+                    onClick={g.connectOAuth}
+                    disabled={g.isConnecting}
+                    size="sm"
+                >
+                    {g.isConnecting ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Connecting...
+                        </>
+                    ) : (
+                        <>
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Connect {g.providerDisplayName}
+                        </>
+                    )}
+                </Button>
             </div>
         )
     }
