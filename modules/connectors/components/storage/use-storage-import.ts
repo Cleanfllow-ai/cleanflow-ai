@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { connectorsAPI } from "@/modules/connectors/api/connectors-api"
 import { storageConnectorsAPI } from "@/modules/connectors/api/storage-connectors-api"
+import { mapErrorToToast } from "@/lib/error-toast"
 import type {
     StorageConnectionStatus,
     StorageFile,
@@ -10,6 +11,24 @@ import type {
     StorageFoldersResponse,
     StorageImportResponse,
 } from "@/modules/connectors/types"
+
+/**
+ * Build a user-facing message from an unknown error using the typed-error
+ * mapper. If the mapper produces an actionable hint (Reconnect, Sign in, …)
+ * we append it to the description so users without an action-aware toast UI
+ * still get the guidance.
+ */
+function describeError(err: unknown, fallback: string): string {
+    const desc = mapErrorToToast(err)
+    const parts = [desc.title, desc.description].filter(
+        (s) => !!s && s !== "Error",
+    )
+    const joined = parts.join(" — ")
+    if (joined) {
+        return desc.action ? `${joined} (Click ${desc.action.label})` : joined
+    }
+    return fallback
+}
 
 interface BreadcrumbItem {
     id: string
@@ -94,7 +113,7 @@ export function useStorageImport({
                 onNotification?.(result.error || "Connection failed", "error")
             }
         } catch (error) {
-            onNotification?.((error as Error).message || "Connection failed", "error")
+            onNotification?.(describeError(error, "Connection failed"), "error")
         } finally {
             setIsConnecting(false)
         }
@@ -109,7 +128,7 @@ export function useStorageImport({
             setBreadcrumb([{ id: "root", name: "My Drive" }])
             onNotification?.(`Disconnected from ${providerDisplayName}`, "success")
         } catch (error) {
-            onNotification?.((error as Error).message || "Disconnect failed", "error")
+            onNotification?.(describeError(error, "Disconnect failed"), "error")
         }
     }, [provider, providerDisplayName, onNotification])
 
@@ -144,7 +163,7 @@ export function useStorageImport({
                 setNextPageToken(filesRes.next_page_token ?? null)
             } catch (error) {
                 onNotification?.(
-                    (error as Error).message || "Failed to load files",
+                    describeError(error, "Failed to load files"),
                     "error"
                 )
             } finally {
@@ -305,7 +324,7 @@ export function useStorageImport({
                 setImportProgress(0)
                 setImportStatus("")
                 onNotification?.(
-                    (error as Error).message || "Import failed",
+                    describeError(error, "Import failed"),
                     "error"
                 )
             }

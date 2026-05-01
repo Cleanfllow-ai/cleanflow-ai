@@ -1,9 +1,16 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth as useAuthHook } from "@/modules/auth/hooks/use-auth";
 import type { MfaSetupData } from "@/modules/auth/types/auth.types";
 import { orgAPI } from "@/modules/auth/api/org-api";
+import { setValidTokenGetter } from "@/modules/shared/auth-token-bridge";
+import {
+  setReconnectHandler,
+  setConnectHandler,
+  setSigninHandler,
+} from "@/lib/error-toast";
 
 interface AuthContextType {
   user: any;
@@ -42,9 +49,37 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const auth = useAuthHook();
+  const router = useRouter();
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [userRole, setUserRole] = useState<string | null>(null);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // ── Wire API-error toast handlers + 401 token-refresh bridge ──────
+  // These run once at boot; non-React code (api/base.ts, file-upload-api.ts,
+  // lib/error-toast.ts) calls into the registered functions.
+  useEffect(() => {
+    setValidTokenGetter(() => auth.getValidToken());
+    setReconnectHandler((provider: string | null) => {
+      const qs = provider ? `?reconnect=${encodeURIComponent(provider)}` : "";
+      router.push(`/connectors${qs}`);
+    });
+    setConnectHandler((provider: string | null) => {
+      const qs = provider ? `?connect=${encodeURIComponent(provider)}` : "";
+      router.push(`/connectors${qs}`);
+    });
+    setSigninHandler(() => {
+      router.push("/auth/login");
+    });
+    return () => {
+      setValidTokenGetter(null);
+      setReconnectHandler(null);
+      setConnectHandler(null);
+      setSigninHandler(null);
+    };
+    // `getValidToken` is recreated on every render of useAuthHook, so we
+    // intentionally re-register it whenever it changes to capture the
+    // latest auth state closure.
+  }, [auth.getValidToken, router]);
 
   const refreshPermissions = useCallback(async () => {
     if (!auth.isAuthenticated || !auth.idToken) return;

@@ -13,6 +13,8 @@ import {
 } from "@/modules/files/store/filesSlice";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/modules/auth";
+import { ApiError } from "@/modules/shared/api-error";
+import { toastFromError } from "@/lib/error-toast-jsx";
 import { buildPrefixedDataFilename, sanitizeFilenamePart } from "@/modules/files/utils/download-filenames";
 import { triggerBlobDownload, triggerPresignedDownload } from "@/modules/files/utils/trigger-download";
 import {
@@ -405,7 +407,11 @@ export function useFilesPage() {
 
     const doUpload = async (file: File) => {
         if (!idToken) {
-            toast({ title: "Error", description: "Not authenticated", variant: "destructive" });
+            toast({
+                title: "Session expired",
+                description: "Sign in again to continue.",
+                variant: "destructive",
+            });
             return;
         }
         setUploading(true);
@@ -432,14 +438,26 @@ export function useFilesPage() {
             }
         } catch (error) {
             console.error("Upload failed:", error);
+            // Prefer the typed ApiError mapping for actionable copy
+            // (Reconnect / Sign in / 422-validation / 500-server-error).
+            // Permission-denied keeps its custom message for org-admin context.
             const message = error instanceof Error ? error.message.toLowerCase() : "";
-            toast({
-                title: message.includes("permission denied") ? "Permission denied" : "Upload failed",
-                description: message.includes("permission denied")
-                    ? "You do not have permission for this action. Contact your organization admin."
-                    : "Please try again",
-                variant: "destructive",
-            });
+            if (message.includes("permission denied")) {
+                toast({
+                    title: "Permission denied",
+                    description:
+                        "You do not have permission for this action. Contact your organization admin.",
+                    variant: "destructive",
+                });
+            } else if (error instanceof ApiError) {
+                toast(toastFromError(error));
+            } else {
+                toast({
+                    title: "Upload failed",
+                    description: "Please try again",
+                    variant: "destructive",
+                });
+            }
         } finally {
             setUploading(false);
             updateUploadProgress(0);
@@ -449,7 +467,11 @@ export function useFilesPage() {
     const handleFileUpload = async (file: File) => {
         if (!ensureFilesPermission()) return;
         if (!idToken) {
-            toast({ title: "Error", description: "Not authenticated", variant: "destructive" });
+            toast({
+                title: "Session expired",
+                description: "Sign in again to continue.",
+                variant: "destructive",
+            });
             return;
         }
         const extension = `.${file.name.split(".").pop()?.toLowerCase() || ""}`;

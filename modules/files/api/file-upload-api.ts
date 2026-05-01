@@ -1,4 +1,6 @@
 import { AWS_CONFIG } from '@/shared/config/aws-config'
+import { ApiError, parseApiError } from '@/modules/shared/api-error'
+import { getValidTokenAsync } from '@/modules/shared/auth-token-bridge'
 import type {
     FileUploadInitResponse,
     FileStatusResponse,
@@ -24,7 +26,12 @@ const ENDPOINTS = {
 
 // ─── Shared HTTP helper ───
 
-export async function makeRequest(endpoint: string, authToken: string, options: RequestInit = {}): Promise<any> {
+export async function makeRequest(
+    endpoint: string,
+    authToken: string,
+    options: RequestInit = {},
+    didReauth: boolean = false,
+): Promise<any> {
     const url = `${API_BASE_URL}${endpoint}`
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -35,6 +42,10 @@ export async function makeRequest(endpoint: string, authToken: string, options: 
         headers['Authorization'] = `Bearer ${authToken}`
     }
 
+    // The OAuth callback page handles 401 in its own way; never silently
+    // refresh tokens for it.
+    const isOAuthCallback = endpoint.startsWith('/connectors/callback')
+
     console.log('📡 API Request:', url, options.method || 'GET')
 
     try {
@@ -44,21 +55,37 @@ export async function makeRequest(endpoint: string, authToken: string, options: 
         if (!response.ok) {
             const raw = await response.json().catch(() => ({}))
             const errorData = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {}
-            const fallbackMsg = typeof raw === "string" ? raw : `HTTP ${response.status}`
-            const error = new Error(errorData.error || errorData.message || fallbackMsg)
-            ;(error as any).status = response.status
+
+            // Transparent 401 token-refresh: try once if we haven't already.
+            if (response.status === 401 && !didReauth && !isOAuthCallback) {
+                try {
+                    const fresh = await getValidTokenAsync()
+                    if (fresh) {
+                        return makeRequest(endpoint, fresh, options, true)
+                    }
+                } catch {
+                    throw new ApiError({
+                        status: 401,
+                        message: 'Session expired',
+                        action: 'signin',
+                        raw: errorData,
+                    })
+                }
+            }
+
+            const apiError = parseApiError(response, errorData)
 
             // Don't log expected/handled errors to reduce console noise.
             const isSettingsNotFound = url.includes('/settings/presets') && response.status === 404
-            const errorMessage = (errorData.error || errorData.message || fallbackMsg || '').toLowerCase()
             const isPermissionDenied = response.status === 403
+            const errorMessage = apiError.message.toLowerCase()
             const isMembershipRequired = errorMessage.includes('organization membership required')
             const isStaleEtagConflict = response.status === 409 && url.includes('/quarantine')
             if (!isSettingsNotFound && !isPermissionDenied && !isMembershipRequired && !isStaleEtagConflict) {
-                console.error('❌ API Error:', error)
+                console.error('❌ API Error:', apiError)
             }
 
-            throw error
+            throw apiError
         }
 
         return await response.json()
@@ -69,7 +96,14 @@ export async function makeRequest(endpoint: string, authToken: string, options: 
         const messageLower = error instanceof Error ? error.message.toLowerCase() : ''
         const isPermissionDeniedError = messageLower.includes('permission denied')
         const isMembershipRequiredError = messageLower.includes('organization membership required')
-        if (!isSettingsError && !isPermissionDeniedError && !isMembershipRequiredError && !(error instanceof Error && error.message.includes('HTTP'))) {
+        const isApiErr = error instanceof ApiError
+        if (
+            !isSettingsError &&
+            !isPermissionDeniedError &&
+            !isMembershipRequiredError &&
+            !isApiErr &&
+            !(error instanceof Error && error.message.includes('HTTP'))
+        ) {
             console.error('❌ API Error:', error)
         }
         throw error
