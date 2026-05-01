@@ -18,5 +18,7 @@ export { DqIssuesPanel } from "./file-details/dq-issues-panel"
 export { FilePreloader } from "./file-preloader"
 export { FileVersionHistory } from "./file-version-history"
 export { PushToERPModal, PushToERPContent } from "./push-to-erp-modal"
+export { PartialCompletionBanner } from "./partial-completion-banner"
+export type { FailedShard } from "./partial-completion-banner"
 export { RowWiseIssues } from "./row-wise-issues"
 

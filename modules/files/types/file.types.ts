@@ -62,6 +62,13 @@ export interface FileStatusResponse {
   // ERP detection
   detected_erp?: string | null
   detected_entity?: string
+  // Phase 1 W1: partial completion / shard failures
+  partial_completion?: boolean
+  failed_shards?: Array<{
+    shard_id: string
+    error_code: string
+    error_message: string
+  }>
 }
 
 export interface FileListResponse {

@@ -18,6 +18,7 @@ import {
     RefreshCw,
     X,
     Plus,
+    AlertTriangle,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -455,22 +456,43 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         ? "REPROCESS_FAILED"
                                                         : file.status;
                                                 const active = isActiveStatus(effectiveStatus);
+                                                const showPartialWarning = file.partial_completion === true;
                                                 return (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={cn(
-                                                            "text-[10px] font-medium whitespace-nowrap px-2 py-0.5 gap-1.5",
-                                                            getStatusBadgeColor(effectiveStatus),
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={cn(
+                                                                "text-[10px] font-medium whitespace-nowrap px-2 py-0.5 gap-1.5",
+                                                                getStatusBadgeColor(effectiveStatus),
+                                                            )}
+                                                        >
+                                                            {active && (
+                                                                <span className="relative flex h-1.5 w-1.5">
+                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75" />
+                                                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-current" />
+                                                                </span>
+                                                            )}
+                                                            {getStatusLabel(effectiveStatus)}
+                                                        </Badge>
+                                                        {showPartialWarning && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <span
+                                                                        role="img"
+                                                                        aria-label="Processed with warnings — partial completion"
+                                                                        title="Processed with warnings — partial completion"
+                                                                        data-testid="partial-completion-warning-icon"
+                                                                        className="inline-flex shrink-0"
+                                                                    >
+                                                                        <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                                                    </span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    Processed with warnings — some shards encountered errors during DQ processing. Click for details.
+                                                                </TooltipContent>
+                                                            </Tooltip>
                                                         )}
-                                                    >
-                                                        {active && (
-                                                            <span className="relative flex h-1.5 w-1.5">
-                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75" />
-                                                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-current" />
-                                                            </span>
-                                                        )}
-                                                        {getStatusLabel(effectiveStatus)}
-                                                    </Badge>
+                                                    </div>
                                                 );
                                             })()}
                                         </TableCell>

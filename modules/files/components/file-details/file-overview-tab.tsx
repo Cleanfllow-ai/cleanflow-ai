@@ -19,6 +19,8 @@ import { Separator } from "@/components/ui/separator"
 import { formatBytes, formatToIST } from "@/shared/lib/utils"
 import type { FileStatusResponse } from "@/modules/files"
 
+import { PartialCompletionBanner } from "../partial-completion-banner"
+
 interface FileOverviewTabProps {
   file: FileStatusResponse
   versionInfo?: { versionNumber: number; totalVersions: number } | null
@@ -28,6 +30,11 @@ export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6">
+        <PartialCompletionBanner
+          partialCompletion={file.partial_completion === true}
+          failedShards={file.failed_shards}
+        />
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-muted/50 p-4 rounded-lg">
             <div className="flex items-center gap-2 text-muted-foreground mb-2">
