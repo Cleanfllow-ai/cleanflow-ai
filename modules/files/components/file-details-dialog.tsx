@@ -1,4 +1,4 @@
-import { FileText, GitBranch, PieChart as PieChartIcon, Server, Table as TableIcon } from "lucide-react"
+import { FileText, GitBranch, ListTree, PieChart as PieChartIcon, Server, Table as TableIcon, Tags } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -10,6 +10,8 @@ import { useFileDetails } from "@/modules/files/hooks/use-file-details"
 
 import { DqMatrixDialog } from "./dq-matrix-dialog"
 import { FileDqReportTab } from "./file-details/file-dq-report-tab"
+import { FileLineageTab } from "./file-details/file-lineage-tab"
+import { FileMetadataTab } from "./file-details/file-metadata-tab"
 import { FileOverviewTab } from "./file-details/file-overview-tab"
 import { FilePreviewTab } from "./file-details/file-preview-tab"
 import { FileVersionHistory } from "./file-version-history"
@@ -209,6 +211,34 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                     DQ Report
                   </button>
                 )}
+                {!hideTabs.includes("lineage") && (
+                  <button
+                    onClick={() => setActiveTab("lineage")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                      activeTab === "lineage"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <ListTree className="h-3.5 w-3.5" />
+                    Lineage
+                  </button>
+                )}
+                {!hideTabs.includes("metadata") && (
+                  <button
+                    onClick={() => setActiveTab("metadata")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                      activeTab === "metadata"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Tags className="h-3.5 w-3.5" />
+                    Metadata
+                  </button>
+                )}
                 {!hideTabs.includes("versions") && (
                   <button
                     onClick={() => setActiveTab("versions")}
@@ -255,6 +285,18 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                   handleDownloadDqReport={handleDownloadDqReport}
                   fetchIssues={fetchIssues}
                 />
+              )}
+              {activeTab === "lineage" && (
+                <FileLineageTab
+                  file={resolvedFile}
+                  versions={versions}
+                  versionsLoading={versionsLoading}
+                  selectedUploadId={selectedVersionUploadId || resolvedFile.upload_id}
+                  onSelectVersion={setSelectedVersionUploadId}
+                />
+              )}
+              {activeTab === "metadata" && (
+                <FileMetadataTab file={resolvedFile} versions={versions} />
               )}
               {activeTab === "versions" && idToken && (
                 <div className="px-6 py-4 overflow-auto">
