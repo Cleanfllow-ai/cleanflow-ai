@@ -1,13 +1,28 @@
 "use client";
 
-import { Building2, Loader2, Mail, MapPin, Phone, Upload } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, Building2, Loader2, Mail, MapPin, Phone, Trash2, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PermissionWrapper } from "@/modules/auth/components/permission-wrapper";
+import { orgAPI } from "@/modules/auth/api/org-api";
+import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { AppRole } from "./use-org-settings";
 
 interface OrgGeneralTabProps {
@@ -47,6 +62,39 @@ export function OrgGeneralTab({
   handleOrgChange,
   handleSaveOrg,
 }: OrgGeneralTabProps) {
+  const router = useRouter();
+  const { logout } = useAuth();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const isSuperAdmin = currentUserRole === "Super Admin";
+  const expectedConfirm = orgSettings.name?.trim() || "";
+  const canConfirmDelete =
+    expectedConfirm.length > 0 && confirmName.trim() === expectedConfirm;
+
+  const handleDeleteOrganization = async () => {
+    if (!canConfirmDelete) return;
+    setIsDeleting(true);
+    try {
+      const result = await orgAPI.deleteOrganization();
+      toast.success(
+        `Organization "${expectedConfirm}" deleted. ${result.members_deleted} members and ${result.invites_deleted} invites removed.`,
+      );
+      // Sign the user out and send to login. Their access has just been revoked.
+      try {
+        logout();
+      } catch {
+        // logout failures shouldn't block the redirect
+      }
+      router.replace("/auth/login");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Delete failed";
+      toast.error(`Failed to delete organization: ${message}`);
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <PermissionWrapper
       permission={canManageSettingsPermission}
@@ -199,6 +247,105 @@ export function OrgGeneralTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Danger Zone — Super Admin only ──────────────────────────── */}
+      {isSuperAdmin && (
+        <Card className="mt-6 border-destructive/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Irreversible actions that affect the entire organization.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Delete this organization</h4>
+                <p className="text-sm text-muted-foreground">
+                  Removes all members, invites, and role permissions. The
+                  organization record is retained for audit. Files, jobs, and
+                  connector data are queued for asynchronous cleanup.
+                </p>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setConfirmName("");
+                  setDeleteOpen(true);
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete organization
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Delete organization
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                You're about to permanently delete{" "}
+                <span className="font-semibold text-foreground">
+                  {expectedConfirm || "this organization"}
+                </span>
+                . This will immediately revoke access for all members and
+                invitees.
+              </span>
+              <span className="block text-destructive font-medium">
+                This action cannot be undone from the UI.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="confirm-org-name" className="text-sm">
+              To confirm, type the organization name:{" "}
+              <span className="font-mono font-semibold">{expectedConfirm}</span>
+            </Label>
+            <Input
+              id="confirm-org-name"
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              placeholder={expectedConfirm}
+              autoComplete="off"
+              disabled={isDeleting}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteOrganization();
+              }}
+              disabled={!canConfirmDelete || isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Permanently delete
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PermissionWrapper>
   );
 }

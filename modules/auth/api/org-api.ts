@@ -229,6 +229,19 @@ class OrgAPI {
     });
   }
 
+  deleteOrganization(authToken?: string | null): Promise<{
+    org_id: string;
+    status: string;
+    deleted_at: string;
+    deletion_requested_by: string;
+    members_deleted: number;
+    invites_deleted: number;
+    permissions_deleted: number;
+    pending_async_cleanup: string[];
+  }> {
+    return this.makeRequest("/org/me", authToken, { method: "DELETE" });
+  }
+
   listPermissions(authToken?: string | null): Promise<OrgPermissionsResponse> {
     return this.makeRequest("/org/permissions", authToken, { method: "GET" });
   }
