@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Building2, Loader2, Mail, MapPin, Phone, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Building2, Download, Loader2, Mail, MapPin, Phone, ShieldCheck, Trash2, UserX, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -72,6 +72,62 @@ export function OrgGeneralTab({
   const expectedConfirm = orgSettings.name?.trim() || "";
   const canConfirmDelete =
     expectedConfirm.length > 0 && confirmName.trim() === expectedConfirm;
+
+  // ── DSAR (Phase 5) handlers ─────────────────────────────────────
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [accountConfirmOpen, setAccountConfirmOpen] = useState(false);
+
+  const handleExportMyData = async () => {
+    setIsExporting(true);
+    try {
+      const data = await orgAPI.exportMyData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cleanflowai-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Your data export has been downloaded.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Export failed";
+      toast.error(`Export failed: ${msg}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDeleteMyAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const result = await orgAPI.deleteMyAccount();
+      if (result.status === "BLOCKED") {
+        toast.error(
+          `Account deletion blocked: you are the sole superadmin of ${result.blocking_orgs?.length ?? 0} organization(s). Transfer ownership or delete the org first.`,
+        );
+        setIsDeletingAccount(false);
+        return;
+      }
+      toast.success(
+        `Your account has been deleted. ${result.memberships_removed ?? 0} memberships removed.`,
+      );
+      try {
+        logout();
+      } catch {
+        /* ignore */
+      }
+      router.replace("/auth/login");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Delete failed";
+      toast.error(`Account deletion failed: ${msg}`);
+      setIsDeletingAccount(false);
+    }
+  };
 
   const handleDeleteOrganization = async () => {
     if (!canConfirmDelete) return;
@@ -247,6 +303,103 @@ export function OrgGeneralTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Privacy & Data (DSAR — Phase 5) ─────────────────────────── */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5" />
+            Your Data &amp; Privacy
+          </CardTitle>
+          <CardDescription>
+            Export or delete your personal data. Required by GDPR Art.
+            15-22 and India&apos;s DPDPA. Files you uploaded for the
+            organization remain with the organization.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">Export my data</h4>
+              <p className="text-sm text-muted-foreground">
+                Downloads a JSON of your account, memberships, invites,
+                and permissions.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportMyData}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              {isExporting ? "Exporting..." : "Export"}
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">Delete my account</h4>
+              <p className="text-sm text-muted-foreground">
+                Removes your access to all organizations and disables
+                your login. Audit logs are retained per legal basis.
+                Blocked if you&apos;re the sole superadmin of any org.
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setAccountConfirmOpen(true)}
+            >
+              <UserX className="w-4 h-4 mr-2" />
+              Delete account
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={accountConfirmOpen} onOpenChange={setAccountConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Delete your account
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revoke your access immediately. You can sign up
+              again with the same email later, but your old memberships
+              will not be restored.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingAccount}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteMyAccount();
+              }}
+              disabled={isDeletingAccount}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingAccount ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <UserX className="w-4 h-4 mr-2" />
+                  Delete my account
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Danger Zone — Super Admin only ──────────────────────────── */}
       {isSuperAdmin && (

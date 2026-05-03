@@ -2,6 +2,7 @@ import "./globals.css"
 
 import { Inter } from "next/font/google"
 import { AuthProvider } from "@/modules/auth"
+import { CookieBanner } from "@/modules/privacy/components/cookie-banner"
 import { FilePreloader } from "@/modules/files/components/file-preloader"
 import type { Metadata } from "next"
 import type React from "react"
@@ -49,6 +50,7 @@ export default function RootLayout({
             <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
               {children}
               <FilePreloader />
+              <CookieBanner />
             </ThemeProvider>
           </AuthProvider>
         </ReduxProvider>

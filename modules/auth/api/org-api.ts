@@ -242,6 +242,46 @@ class OrgAPI {
     return this.makeRequest("/org/me", authToken, { method: "DELETE" });
   }
 
+  // ── DSAR endpoints (Phase 5) ────────────────────────────────────────────
+  exportMyData(authToken?: string | null): Promise<unknown> {
+    return this.makeRequest("/me/data-export", authToken, { method: "GET" });
+  }
+
+  deleteMyAccount(authToken?: string | null): Promise<{
+    status: "DELETED" | "BLOCKED";
+    user_id?: string;
+    user_email?: string;
+    deleted_at?: string;
+    memberships_removed?: number;
+    cognito_disabled?: boolean;
+    blocking_orgs?: string[];
+    next_steps?: string[];
+    retained?: string[];
+  }> {
+    return this.makeRequest("/me/account", authToken, { method: "DELETE" });
+  }
+
+  submitDataCorrection(
+    payload: {
+      field: string;
+      current_value?: string;
+      proposed_value: string;
+      reason?: string;
+    },
+    authToken?: string | null,
+  ): Promise<{
+    status: string;
+    ticket_id: string;
+    submitted_at: string;
+    field: string;
+    proposed_value: string;
+  }> {
+    return this.makeRequest("/me/data-correction", authToken, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
   listPermissions(authToken?: string | null): Promise<OrgPermissionsResponse> {
     return this.makeRequest("/org/permissions", authToken, { method: "GET" });
   }
