@@ -14,6 +14,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { ERPImport, WarehouseImport, StorageImport } from "@/modules/connectors"
+import { ConnectorLogo } from "@/modules/connectors/components/connector-logo"
 import { useConnectedProviders } from "@/modules/connectors/hooks/use-connected-providers"
 
 interface ErpSourceFormProps {
@@ -145,6 +146,13 @@ export default function ErpSourceForm({
                 <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
                 <span>Loading connectors...</span>
               </span>
+            ) : selectedProvider ? (
+              <span className="flex items-center gap-2 truncate">
+                <ConnectorLogo provider={selectedProvider} size="sm" />
+                <span className="truncate uppercase">
+                  {selectedInfo?.display_name || selectedProvider}
+                </span>
+              </span>
             ) : (
               <SelectValue placeholder="Select connector" />
             )}
@@ -160,7 +168,10 @@ export default function ErpSourceForm({
                   </SelectLabel>
                   {catList.map((p) => (
                     <SelectItem key={p.provider_id} value={p.provider_id}>
-                      {p.display_name.toUpperCase()}
+                      <span className="flex items-center gap-2">
+                        <ConnectorLogo provider={p.provider_id} size="sm" />
+                        <span>{p.display_name.toUpperCase()}</span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectGroup>
