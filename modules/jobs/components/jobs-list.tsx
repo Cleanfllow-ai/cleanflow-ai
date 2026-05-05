@@ -127,25 +127,30 @@ export function JobsList() {
 
     // ─── Data Loading ───────────────────────────────────────────────────────
 
-    const loadJobs = useCallback(async () => {
-        setLoading(true)
+    // `silent` skips the loading-state toggle so auto-polls don't re-mount
+    // the skeleton (which causes a visible UI jerk every 10s).
+    const loadJobs = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true)
         try {
             const res = await jobsAPI.listJobs()
             setJobs(res.jobs || [])
         } catch (err) {
             console.error("Failed to load jobs:", err)
-            toast({ title: "Error", description: "Failed to load jobs", variant: "destructive" })
+            if (!silent) {
+                toast({ title: "Error", description: "Failed to load jobs", variant: "destructive" })
+            }
         } finally {
-            setLoading(false)
+            if (!silent) setLoading(false)
         }
     }, [toast])
 
-    // Load on mount
+    // Load on mount (with skeleton)
     useEffect(() => {
         loadJobs()
     }, [loadJobs])
 
-    // Auto-poll every 10s when any job was recently triggered or is running
+    // Auto-poll every 10s when any job was recently triggered or is running.
+    // Silent path so the table updates in place instead of re-mounting.
     useEffect(() => {
         const hasActiveRun = jobs.some(j =>
             j.last_run_status === "RUNNING" ||
@@ -153,7 +158,7 @@ export function JobsList() {
             (j.last_run_at && Date.now() - new Date(j.last_run_at).getTime() < 2 * 60 * 1000)
         )
         if (!hasActiveRun) return
-        const interval = setInterval(() => { loadJobs() }, 10_000)
+        const interval = setInterval(() => { void loadJobs(true) }, 10_000)
         return () => clearInterval(interval)
     }, [jobs, loadJobs])
 
