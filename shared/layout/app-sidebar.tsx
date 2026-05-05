@@ -175,7 +175,6 @@ function AppSidebarComponent() {
 						) : undefined
 					)}
 					{renderNavItem(mainNav[2])}
-					{renderNavItem(mainNav[3])}
 					{/* Settings section */}
 					{!collapsed && (
 						<p className="px-3 pt-3 pb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
