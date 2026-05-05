@@ -52,11 +52,15 @@ export function InviteSetPasswordForm() {
         title: "Password set",
         description: "Sign in to complete organization joining.",
       });
+      // Do NOT include the invite ``token`` in the redirect URL — that single-
+      // use secret should not appear in browser history, the address bar, or
+      // any Referer header sent from /auth/login. The login page only needs
+      // the email pre-fill; org_id + invite_id are kept for the post-login
+      // accept-invite step on the dashboard side.
       const params = new URLSearchParams({
         org_id: orgId,
         invite_id: inviteId,
         email,
-        token,
       });
       router.push(`/auth/login?${params.toString()}`);
     } catch (err: any) {

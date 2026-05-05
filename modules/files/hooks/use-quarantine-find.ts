@@ -101,7 +101,6 @@ export function useQuarantineFind({
           session_id: sessionId,
           column: state.column,
           match_case: state.matchCase,
-          limit: 500,
         }
       )
 

@@ -1,5 +1,5 @@
 "use client"
-import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sun, X } from "lucide-react"
+import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sun, Wrench, X } from "lucide-react"
 import { memo, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ const mainNav = [
 	{ name: "Dashboard", href: "/dashboard", icon: BarChart3 },
 	{ name: "Data Catalog", href: "/files", icon: FileText },
 	{ name: "Jobs", href: "/jobs", icon: CalendarClock },
+	{ name: "Data Tools", href: "/data-tools", icon: Wrench },
 ]
 const settingsNav = [
 	{ name: "Admin", href: "/admin", icon: Settings },
@@ -97,9 +98,11 @@ function AppSidebarComponent() {
 					variant="outline"
 					size="sm"
 					onClick={() => setMobileOpen(true)}
+					aria-label="Open navigation menu"
+					aria-expanded={mobileOpen}
 					className="fixed top-3 right-3 z-50 lg:hidden"
 				>
-					<Menu className="w-5 h-5" />
+					<Menu className="w-5 h-5" aria-hidden="true" />
 				</Button>
 			)}
 			{/* Mobile Overlay */}
@@ -127,9 +130,10 @@ function AppSidebarComponent() {
 						variant="ghost"
 						size="icon"
 						onClick={() => setMobileOpen(false)}
+						aria-label="Close navigation menu"
 						className="absolute top-3 right-2 lg:hidden h-7 w-7"
 					>
-						<X className="w-4 h-4" />
+						<X className="w-4 h-4" aria-hidden="true" />
 					</Button>
 				)}
 				{/* Logo */}
@@ -172,6 +176,7 @@ function AppSidebarComponent() {
 						) : undefined
 					)}
 					{renderNavItem(mainNav[2])}
+					{renderNavItem(mainNav[3])}
 					{/* Settings section */}
 					{!collapsed && (
 						<p className="px-3 pt-3 pb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
@@ -202,24 +207,27 @@ function AppSidebarComponent() {
 							)}
 							<button
 								onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+								aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
 								className="flex items-center gap-2.5 px-3 py-[6px] text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg w-full transition-colors"
 							>
-								{theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+								{theme === 'dark' ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
 								<span className="text-[12px]">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
 							</button>
 							<button
 								onClick={() => setChatOpen(true)}
+								aria-label="Open help and support"
 								className="flex items-center gap-2.5 px-3 py-[6px] text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg w-full transition-colors"
 							>
-								<HelpCircle className="w-4 h-4" />
+								<HelpCircle className="w-4 h-4" aria-hidden="true" />
 								<span className="text-[12px]">Help & Support</span>
 							</button>
 							{isAuthenticated && (
 								<button
 									onClick={handleLogout}
+									aria-label="Log out"
 									className="flex items-center gap-2.5 px-3 py-[6px] text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-lg w-full transition-colors"
 								>
-									<LogOut className="w-4 h-4" />
+									<LogOut className="w-4 h-4" aria-hidden="true" />
 									<span className="text-[12px]">Logout</span>
 								</button>
 							)}
@@ -256,9 +264,11 @@ function AppSidebarComponent() {
 					{!isMobile && (
 						<button
 							onClick={() => setCollapsed(!collapsed)}
+							aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+							aria-expanded={!collapsed}
 							className="flex items-center justify-center w-full py-1.5 mt-0.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
 						>
-							{collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+							{collapsed ? <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />}
 						</button>
 					)}
 				</div>

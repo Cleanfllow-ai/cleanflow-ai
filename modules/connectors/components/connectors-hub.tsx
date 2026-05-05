@@ -187,14 +187,21 @@ export function ConnectorsHub() {
 
   const confirmDisconnect = async () => {
     if (!pendingDisconnect) return
-    const { providerId } = pendingDisconnect
+    const { providerId, displayName } = pendingDisconnect
     setPendingDisconnect(null)
     setDisconnectingProvider(providerId)
     try {
       await connectorsAPI.disconnect(providerId)
       invalidateMetadataCache(providerId)
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: { connected: false } } : p))
-    } catch { /* ignore */ } finally { setDisconnectingProvider(null) }
+      toast({ title: "Disconnected", description: `${displayName} has been disconnected.` })
+    } catch (err) {
+      toast({
+        title: "Disconnect failed",
+        description: (err as Error)?.message || `Could not disconnect ${displayName}. Please try again.`,
+        variant: "destructive",
+      })
+    } finally { setDisconnectingProvider(null) }
   }
 
   const handleSaveConfig = async (providerId: string, key: string, value: string) => {
@@ -203,7 +210,13 @@ export function ConnectorsHub() {
       await connectorsAPI.saveConfig(providerId, { [key]: value })
       const status = await connectorsAPI.getConnectionStatus(providerId)
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: status } : p))
-    } catch { /* ignore */ } finally { setSavingConfig(null) }
+    } catch (err) {
+      toast({
+        title: "Could not save configuration",
+        description: (err as Error)?.message || "Please try again.",
+        variant: "destructive",
+      })
+    } finally { setSavingConfig(null) }
   }
 
   const handleSaveWarehouseDefault = async (providerId: string, key: "warehouse" | "database", value: string) => {
@@ -214,7 +227,13 @@ export function ConnectorsHub() {
       const status = await connectorsAPI.getConnectionStatus(providerId)
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: status } : p))
       if (key === "database" && value) prefetchDatabaseDeep(providerId, value).catch(() => {})
-    } catch { /* ignore */ } finally { setSavingConfig(null) }
+    } catch (err) {
+      toast({
+        title: `Could not save ${key}`,
+        description: (err as Error)?.message || "Please try again.",
+        variant: "destructive",
+      })
+    } finally { setSavingConfig(null) }
   }
 
   const grouped = providers.reduce<Record<string, ProviderWithStatus[]>>((acc, p) => {
@@ -323,9 +342,10 @@ export function ConnectorsHub() {
               Disconnect from {pendingDisconnect?.displayName}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will revoke {pendingDisconnect?.displayName}'s access to your account.
-              Any in-progress imports or exports for this connector will stop. You can
-              reconnect at any time.
+              CleanFlow AI will stop using this {pendingDisconnect?.displayName} connection.
+              Any in-progress imports or exports for this connector will stop, and you can
+              reconnect at any time. To fully revoke CleanFlow AI's access at the provider,
+              also remove the app from your {pendingDisconnect?.displayName} account.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

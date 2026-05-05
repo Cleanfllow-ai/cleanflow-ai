@@ -75,6 +75,7 @@ export function FileVersionHistory({
   const [previewVersion, setPreviewVersion] = useState<FileVersionSummary | null>(null)
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null)
   const [previewCache, setPreviewCache] = useState<Record<string, FilePreviewData>>({})
+  const [previewError, setPreviewError] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -154,14 +155,19 @@ export function FileVersionHistory({
 
   async function handleOpenPreview(v: FileVersionSummary) {
     setPreviewVersion(v)
+    setPreviewError(null)
     if (previewCache[v.upload_id]) return
     setPreviewLoadingId(v.upload_id)
     try {
       const data = await fileManagementAPI.getFilePreview(v.upload_id, authToken)
       setPreviewCache((prev) => ({ ...prev, [v.upload_id]: data as FilePreviewData }))
-    } catch {
-      toast({ title: 'Failed to load preview', variant: 'destructive' })
-      setPreviewVersion(null)
+    } catch (err: any) {
+      const message = err?.message || 'Failed to load preview'
+      // Surface the error inside the preview dialog instead of silently
+      // showing the empty-state, which made transient backend failures look
+      // like "this version has no data".
+      setPreviewError(message)
+      toast({ title: 'Failed to load preview', description: message, variant: 'destructive' })
     } finally {
       setPreviewLoadingId(null)
     }
@@ -313,7 +319,15 @@ export function FileVersionHistory({
       </div>
 
       {/* Preview Dialog */}
-      <Dialog open={!!previewVersion} onOpenChange={(open) => { if (!open) setPreviewVersion(null) }}>
+      <Dialog
+        open={!!previewVersion}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewVersion(null)
+            setPreviewError(null)
+          }
+        }}
+      >
         <DialogContent className="max-w-5xl w-full h-[80vh] flex flex-col p-0 gap-0">
           <DialogHeader className="px-6 py-4 border-b shrink-0">
             <div className="flex items-start justify-between gap-4">
@@ -376,7 +390,7 @@ export function FileVersionHistory({
           <div className="flex-1 overflow-hidden">
             <FilePreviewTab
               previewLoading={isPreviewLoading}
-              previewError={null}
+              previewError={previewError}
               previewData={previewData}
             />
           </div>

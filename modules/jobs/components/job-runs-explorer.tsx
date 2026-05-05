@@ -290,10 +290,15 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground">
-                                            {run.trigger_source === "manual_trigger" ? (
+                                            {run.trigger_source === "manual" ? (
                                                 <span className="flex items-center gap-1">
                                                     <Zap className="h-3 w-3" />
                                                     Manual
+                                                </span>
+                                            ) : run.trigger_source === "resume" ? (
+                                                <span className="flex items-center gap-1">
+                                                    <RotateCw className="h-3 w-3" />
+                                                    Resumed
                                                 </span>
                                             ) : (
                                                 <span className="flex items-center gap-1">

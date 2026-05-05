@@ -14,7 +14,7 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
-  const { user, logout, isAuthenticated, idToken } = useAuth()
+  const { user, isAuthenticated, idToken } = useAuth()
   const [exporting, setExporting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const { toast } = useToast()
@@ -38,11 +38,6 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
     } finally {
       setRefreshing(false)
     }
-  }
-
-  const handleLogout = () => {
-    logout()
-    window.location.href = '/auth/login'
   }
 
   const handleExportDashboard = async () => {

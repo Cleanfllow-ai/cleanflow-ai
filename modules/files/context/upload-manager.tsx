@@ -73,17 +73,20 @@ export function UploadManagerProvider({
       }, getToken, abortController.signal)
       resolvedUploadId = uploadId
 
-      // Mark completed
+      // Mark completed. Preserve the last reported parts total so the
+      // post-upload toast shows the real chunk count for multipart uploads
+      // instead of "1 of 1" (which is only correct for single-PUT files).
       const entry = uploadsRef.current.get(internalId)
       if (entry) {
+        const partsTotal = entry.progress?.partsTotal ?? 1
         entry.uploadId = uploadId
         entry.status = 'completed'
         entry.progress = {
           loaded: file.size,
           total: file.size,
           percent: 100,
-          partsComplete: 1,
-          partsTotal: 1,
+          partsComplete: partsTotal,
+          partsTotal,
         }
       }
       sync()
@@ -119,18 +122,24 @@ export function UploadManagerProvider({
   }, [sync])
 
   const cancelUpload = useCallback((uploadIdOrName: string) => {
+    // Prefer uploadId matches over filename matches: when two uploads share
+    // a filename, matching by name picks the FIRST entry, which is rarely
+    // the one the user clicked Cancel on.
+    let byId: string | null = null
+    let byName: string | null = null
     for (const [internalId, upload] of uploadsRef.current.entries()) {
-      if (
-        upload.status === 'uploading' &&
-        ((upload.uploadId && upload.uploadId === uploadIdOrName) ||
-         upload.fileName === uploadIdOrName)
-      ) {
-        const controller = abortControllersRef.current.get(internalId)
-        if (controller) {
-          controller.abort()
-        }
-        return
+      if (upload.status !== 'uploading') continue
+      if (upload.uploadId && upload.uploadId === uploadIdOrName) {
+        byId = internalId
+        break
       }
+      if (!byName && upload.fileName === uploadIdOrName) {
+        byName = internalId
+      }
+    }
+    const target = byId ?? byName
+    if (target) {
+      abortControllersRef.current.get(target)?.abort()
     }
   }, [])
 

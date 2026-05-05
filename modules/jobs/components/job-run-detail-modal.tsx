@@ -170,7 +170,11 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                         {run.trigger_source && (
                             <Badge variant="outline" className="text-[10px] text-muted-foreground">
                                 <Zap className="h-3 w-3 mr-1" />
-                                {run.trigger_source === "manual_trigger" ? "Manual" : "Scheduled"}
+                                {run.trigger_source === "manual"
+                                    ? "Manual"
+                                    : run.trigger_source === "resume"
+                                        ? "Resumed"
+                                        : "Scheduled"}
                             </Badge>
                         )}
                         <Button

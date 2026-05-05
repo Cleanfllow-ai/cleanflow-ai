@@ -23,12 +23,20 @@ export const parseJWT = (token: string) => {
   }
 }
 
-export const buildUserFromPayload = (payload: any): User => ({
-  email: payload.email,
-  sub: payload.sub,
-  username: payload["cognito:username"],
-  name: payload.name || payload.email.split("@")[0],
-})
+export const buildUserFromPayload = (payload: any): User => {
+  // Cognito always issues an ``email`` claim, but a malformed token (or a
+  // future federated identity) may not. Fall back through username → ""
+  // so the UI never crashes on ``payload.email.split`` when email is missing.
+  const email: string = payload?.email || ""
+  const username: string = payload?.["cognito:username"] || ""
+  const fallbackName = email ? email.split("@")[0] : (username || "user")
+  return {
+    email,
+    sub: payload?.sub || "",
+    username,
+    name: payload?.name || fallbackName,
+  }
+}
 
 export const loadStoredTokens = (): StoredTokens | null => {
   const raw = localStorage.getItem("authTokens")
