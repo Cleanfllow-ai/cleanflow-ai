@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Clock, Download, FileText, Upload, XCircle, AlertCircle } from "lucide-react"
+import { CheckCircle, Clock, FileText, Upload, XCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
