@@ -362,7 +362,15 @@ export function OrgGeneralTab({
         </CardContent>
       </Card>
 
-      <AlertDialog open={accountConfirmOpen} onOpenChange={setAccountConfirmOpen}>
+      <AlertDialog
+        open={accountConfirmOpen}
+        onOpenChange={(open) => {
+          // Prevent dismissing the dialog while the DELETE is in flight —
+          // the request keeps running but the user loses the confirmation UI.
+          if (isDeletingAccount) return;
+          setAccountConfirmOpen(open);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
@@ -439,7 +447,15 @@ export function OrgGeneralTab({
         </Card>
       )}
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          // Prevent dismissing the dialog while the DELETE is in flight —
+          // the request keeps running but the user loses the confirmation UI.
+          if (isDeleting) return;
+          setDeleteOpen(open);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
