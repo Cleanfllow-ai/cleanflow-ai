@@ -66,7 +66,7 @@ export function ProfilingStep() {
         setLoading(false)
       } else {
         // Backend may still be computing (LLM calls for many columns).
-        // Poll every 5s until profiles arrive, up to 2 minutes.
+        // Poll every 2s until profiles arrive, up to 10 minutes.
         setLoading(true)
         let attempts = 0
         const poll = async () => {

@@ -481,8 +481,12 @@ export function SettingsStep() {
         is_default: false
       })
       await fetchPresets()
-      const newId = created?.preset_id || newPresetName.trim().toLowerCase().replace(/\s+/g, "_")
-      handleSelectPreset(newId)
+      // Server is authoritative for the generated preset_id (preset_<uuid12>).
+      // Falling back to a slugified name yields an ID that won't match anything
+      // in the GSI lookup, so we skip auto-select instead of poisoning state.
+      if (created?.preset_id) {
+        handleSelectPreset(created.preset_id)
+      }
       setShowNewPresetDialog(false)
       setNewPresetName("")
       setUploadedConfig(null)

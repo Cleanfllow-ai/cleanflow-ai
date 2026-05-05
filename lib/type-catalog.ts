@@ -1,5 +1,5 @@
 // AUTO-GENERATED FROM docs/type_system_catalog.json
-// MD5: 67bf7cab7768fc346d60f175f5b5179d
+// MD5: 3751461970519e3811fa616dcebd8c25
 // Do not edit directly; run tools/generate_type_catalog.py
 
 export type RuleId = string;
@@ -36,7 +36,9 @@ export const CORE_TYPES: Record<string, any> = {
   },
   "boolean": {
     "name": "boolean",
-    "rules": [],
+    "rules": [
+      "R37"
+    ],
     "description": "True/False values"
   },
   "date": {
@@ -101,11 +103,13 @@ export const CORE_TYPES: Record<string, any> = {
   "identifier": {
     "name": "identifier",
     "rules": [
+      "R1",
       "R7",
       "R18",
-      "R21"
+      "R21",
+      "R36"
     ],
-    "description": "Unique business identifier (ID, number, code)"
+    "description": "Unique business identifier (ID, number, code) — must not contain null-like placeholders"
   },
   "money": {
     "name": "money",
@@ -125,7 +129,9 @@ export const CORE_TYPES: Record<string, any> = {
   },
   "flag": {
     "name": "flag",
-    "rules": [],
+    "rules": [
+      "R37"
+    ],
     "description": "Boolean-like flag (TRUE/FALSE/Y/N/1/0)"
   },
   "hierarchical_key": {
@@ -864,7 +870,9 @@ export const RULES: Record<string, any> = {
     "severity": "medium",
     "fixable": false,
     "description": "Value appears cut off or truncated",
-    "tags": []
+    "tags": [
+      "universal"
+    ]
   },
   "R22": {
     "id": "R22",
@@ -881,21 +889,27 @@ export const RULES: Record<string, any> = {
     "name": "HTML/XSS Injection",
     "severity": "critical",
     "fixable": true,
-    "tags": []
+    "tags": [
+      "universal"
+    ]
   },
   "R24": {
     "id": "R24",
     "name": "SQL Injection",
     "severity": "critical",
     "fixable": true,
-    "tags": []
+    "tags": [
+      "universal"
+    ]
   },
   "R25": {
     "id": "R25",
     "name": "Script/Command Injection",
     "severity": "critical",
     "fixable": true,
-    "tags": []
+    "tags": [
+      "universal"
+    ]
   },
   "R26": {
     "id": "R26",
@@ -964,6 +978,24 @@ export const RULES: Record<string, any> = {
     "severity": "medium",
     "fixable": false,
     "description": "No exchange rate found for currency pair",
+    "tags": []
+  },
+  "R36": {
+    "id": "R36",
+    "name": "Null-Like Placeholder Detected",
+    "severity": "high",
+    "fixable": false,
+    "description": "Null-like placeholder string (empty, --, N/A, null, undefined, nan, TBD, etc.) found in any column — should be treated as missing data and quarantined",
+    "tags": [
+      "universal"
+    ]
+  },
+  "R37": {
+    "id": "R37",
+    "name": "Invalid Boolean Value",
+    "severity": "high",
+    "fixable": false,
+    "description": "Value in a boolean/flag-typed column is not in the canonical set (true/false/yes/no/y/n/t/f/1/0/on/off). E.g. MAYBE, UNKNOWN, 2.",
     "tags": []
   }
 };
