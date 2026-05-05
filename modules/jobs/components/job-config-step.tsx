@@ -494,7 +494,7 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
 
                     {d.frequency === "cron" && (
                         <Input
-                            placeholder="e.g. 0 */2 * * *"
+                            placeholder="e.g. 0 */2 * * ? *  (min hour day month dow year)"
                             value={d.cronExpression}
                             onChange={(e) => d.setCronExpression(e.target.value)}
                             className="h-9 font-mono text-sm"

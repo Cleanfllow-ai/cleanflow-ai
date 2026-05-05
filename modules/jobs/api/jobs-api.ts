@@ -87,12 +87,12 @@ class JobsAPI {
     // ─── Job CRUD ────────────────────────────────────────────────────────────
 
     async listJobs(): Promise<{ jobs: Job[] }> {
+        // Surface real errors so the UI can show a toast / "failed to load"
+        // banner. Previously this swallowed ALL errors and returned an empty
+        // list, which made auth failures and 5xx responses look identical to
+        // "no jobs yet" — masking real outages.
         const token = this.getAuth()
-        try {
-            return await this.makeRequest("/jobs", token, { method: "GET" })
-        } catch {
-            return { jobs: [] }
-        }
+        return this.makeRequest("/jobs", token, { method: "GET" })
     }
 
     async getJob(jobId: string): Promise<Job> {
@@ -148,13 +148,12 @@ class JobsAPI {
     // ─── Job Runs ────────────────────────────────────────────────────────────
 
     async getJobRuns(jobId: string, limit: number = 50): Promise<{ runs: JobRun[] }> {
+        // Surface real errors so the run-history panel can render a "failed
+        // to load" message instead of silently showing "no runs yet" when
+        // the request was actually a 5xx or 401.
         const token = this.getAuth()
         const qs = limit ? `?limit=${limit}` : ""
-        try {
-            return await this.makeRequest(`/jobs/${jobId}/runs${qs}`, token, { method: "GET" })
-        } catch {
-            return { runs: [] }
-        }
+        return this.makeRequest(`/jobs/${jobId}/runs${qs}`, token, { method: "GET" })
     }
 
     async getProfilingPreview(payload: {
