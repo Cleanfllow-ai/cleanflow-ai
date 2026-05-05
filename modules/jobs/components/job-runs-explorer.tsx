@@ -219,6 +219,12 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                                         {run.status}
                                                     </Badge>
                                                 </div>
+                                                {/* Partial-success subtitle: "97/100 pushed" */}
+                                                {run.status === "PARTIAL" && (run.total_imported || 0) > 0 && (
+                                                    <span className="text-[10px] text-amber-600 tabular-nums">
+                                                        {run.total_exported || 0}/{run.total_imported} pushed
+                                                    </span>
+                                                )}
                                                 {live?.reprocessed && (
                                                     <Badge
                                                         variant="outline"

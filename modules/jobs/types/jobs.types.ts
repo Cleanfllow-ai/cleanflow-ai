@@ -90,6 +90,7 @@ export interface JobRun {
     total_imported: number
     total_exported: number
     total_quarantined: number
+    total_failed?: number
     entity_results: Record<string, EntityResult>
     pipeline_logs: PipelineLog[]
     processing_metadata?: {

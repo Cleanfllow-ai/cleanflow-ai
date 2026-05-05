@@ -157,6 +157,19 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
     const meta = run.processing_metadata
     const avgScore = meta?.avg_dq_score
 
+    // Partial-success CTA: when some rows pushed but some quarantined,
+    // surface a clear "97 of 100 pushed" banner with a one-click route to
+    // the quarantine editor for the FIRST entity that has remaining
+    // quarantined rows (most jobs only export one entity per run).
+    const showPartialBanner =
+        run.status === "PARTIAL" && (run.total_quarantined || 0) > 0
+    const firstQuarantinedEntity = entityEntries.find(
+        ([, r]) => (r.quarantined ?? 0) > 0 && (r as any).upload_id,
+    )
+    const partialQuarantineUploadId = firstQuarantinedEntity
+        ? ((firstQuarantinedEntity[1] as any).upload_id as string | undefined)
+        : undefined
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[750px] max-h-[85vh] overflow-y-auto">
@@ -222,6 +235,40 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                         </div>
                     )}
                 </div>
+
+                {/* ── Partial-success CTA ───────────────────────────────── */}
+                {showPartialBanner && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/5 p-3 space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                            <span>
+                                <span className="font-semibold tabular-nums">{run.total_exported || 0}</span>
+                                {" of "}
+                                <span className="font-semibold tabular-nums">{run.total_imported || 0}</span>
+                                {" records pushed to destination"}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                            <span>
+                                <span className="font-semibold tabular-nums">{run.total_quarantined}</span>
+                                {" record" + (run.total_quarantined === 1 ? "" : "s")}
+                                {" awaiting your review"}
+                            </span>
+                        </div>
+                        {partialQuarantineUploadId && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs gap-1.5 border-amber-500/40 text-amber-700 hover:bg-amber-100/70 dark:hover:bg-amber-500/10 mt-1"
+                                onClick={() => router.push(`/files/${partialQuarantineUploadId}/quarantine?returnTo=/jobs`)}
+                            >
+                                <ExternalLink className="h-3 w-3" />
+                                Open Quarantine Editor
+                            </Button>
+                        )}
+                    </div>
+                )}
 
                 {/* ── Summary Cards ────────────────────────────────────── */}
                 <div className="grid grid-cols-3 gap-3 pt-2">
