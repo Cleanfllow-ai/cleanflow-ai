@@ -575,9 +575,9 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                         </div>
                     )}
 
-                    {/* ── Responsible Person ───────────────────────────────── */}
+                    {/* ── Authorized Person ───────────────────────────────── */}
                     <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">Responsible Person</Label>
+                        <Label className="text-sm font-medium">Authorized Person</Label>
                         {d.orgMembersLoading ? (
                             <div className="flex items-center gap-2 h-9 px-3 border rounded-md text-muted-foreground text-sm">
                                 <Loader2 className="h-3 w-3 animate-spin" /> Loading members...
@@ -589,7 +589,7 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                         ) : (
                             <Select value={d.responsibleUserId} onValueChange={d.setResponsibleUserId}>
                                 <SelectTrigger className="h-9">
-                                    <SelectValue placeholder="Select responsible person" />
+                                    <SelectValue placeholder="Select authorized person" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {d.orgMembers.map(m => (
