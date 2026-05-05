@@ -158,7 +158,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
                   <div
                     key={file.upload_id}
                     className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer group"
-                    onClick={() => router.push(`/files?highlight=${file.upload_id}`)}
+                    onClick={() => router.push(`/files?file=${file.upload_id}&highlight=${file.upload_id}`)}
                   >
                     {/* Icon pill */}
                     <div className={`rounded-md p-1.5 ${getStatusBg(file.status)} transition-colors`}>

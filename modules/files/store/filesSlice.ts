@@ -28,6 +28,12 @@ export const fetchFiles = createAsyncThunk(
   }
 )
 
+// Per-session cache of upload IDs whose dq_report.json doesn't exist on the
+// backend (legacy artifacts, partial pipelines, etc). Skipping these on
+// subsequent poll cycles eliminates 404 console spam without changing
+// backend behavior.
+const _MISSING_REPORT_IDS = new Set<string>()
+
 export const enrichFiles = createAsyncThunk(
   "files/enrichFiles",
   async ({ files, authToken }: { files: FileStatusResponse[]; authToken: string }, { dispatch }) => {
@@ -35,7 +41,9 @@ export const enrichFiles = createAsyncThunk(
     const updates: { id: string; seconds: number }[] = []
 
     const _DQ_DONE_STATUSES = new Set(["DQ_FIXED", "COMPLETED", "DQ_COMPLETE"])
-    const processedFiles = files.filter(f => _DQ_DONE_STATUSES.has(f.status))
+    const processedFiles = files.filter(
+      f => _DQ_DONE_STATUSES.has(f.status) && !_MISSING_REPORT_IDS.has(f.upload_id),
+    )
     for (let i = 0; i < processedFiles.length; i += CHUNK_SIZE) {
       const chunk = processedFiles.slice(i, i + CHUNK_SIZE)
       await Promise.all(
@@ -53,8 +61,11 @@ export const enrichFiles = createAsyncThunk(
             if (seconds !== undefined) {
               updates.push({ id: file.upload_id, seconds })
             }
-          } catch (e) {
-            console.warn(`Failed to fetch report for time enrichment: ${file.upload_id}`)
+          } catch (e: any) {
+            const msg = String(e?.message || "")
+            if (/404|not found|not available/i.test(msg)) {
+              _MISSING_REPORT_IDS.add(file.upload_id)
+            }
           }
         })
       )
