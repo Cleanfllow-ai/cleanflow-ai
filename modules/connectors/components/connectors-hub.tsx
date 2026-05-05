@@ -45,6 +45,7 @@ import {
 } from "@/modules/connectors/hooks/use-connector-metadata-cache"
 import { warehouseConnectorsAPI } from "@/modules/connectors/api/warehouse-connectors-api"
 import type { WarehouseMetadataItem } from "@/modules/connectors/api/warehouse-connectors-api"
+import { ConnectorLogo } from "./connector-logo"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -75,10 +76,6 @@ const CATEGORIES: Record<string, { label: string; description: string; icon: typ
   erp: { label: "ERP & Business Platforms", description: "ERP, billing, payment, and finance systems", icon: Database },
   warehouse: { label: "Data Warehouses", description: "Cloud analytics platforms", icon: HardDrive },
   storage: { label: "Cloud Storage", description: "File storage & document management", icon: Cloud },
-}
-
-function getInitials(displayName: string): string {
-  return (displayName || "?").split(/[\s-]+/).filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "?"
 }
 
 function formatDate(iso: string): string {
@@ -420,9 +417,7 @@ function ConnectorCard({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-md bg-muted/60 flex items-center justify-center text-xs font-bold text-foreground/70">
-              {getInitials(displayName)}
-            </div>
+            <ConnectorLogo provider={pid} alt={displayName} size="lg" />
             <div>
               <h3 className="text-sm font-semibold text-foreground">{displayName}</h3>
               {provider.statusLoading ? (

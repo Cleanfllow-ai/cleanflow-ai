@@ -28,6 +28,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { connectorsAPI, erpConnectorsAPI } from '@/modules/connectors'
+import { ConnectorLogo } from '@/modules/connectors/components/connector-logo'
 import { useMultiEntityExport } from '@/modules/files/hooks/use-multi-entity-export'
 import type { FileStatusResponse } from '@/modules/files/api/file-management-api'
 
@@ -365,6 +366,7 @@ function ERPPushBody({
               <RadioGroupItem value={option.value} id={`erp-${option.value}`} disabled={!option.available} />
               <Label htmlFor={`erp-${option.value}`} className={`flex-1 ${option.available ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
                 <div className="flex items-center gap-2">
+                  <ConnectorLogo provider={option.provider || option.value} size="sm" />
                   <p className="font-medium">{option.label}</p>
                   <ConnectionBadge opt={option} checked={connectionChecked[option.value]} />
                 </div>
