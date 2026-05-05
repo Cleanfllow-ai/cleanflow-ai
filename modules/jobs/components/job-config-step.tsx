@@ -16,6 +16,7 @@ import type { JobFrequency } from "@/modules/jobs/types/jobs.types"
 import type { useJobDialog, ProviderCategory } from "./use-job-dialog"
 import { FREQUENCY_OPTIONS, getProviderDisplayName, CATEGORY_LABELS } from "./job-dialog-constants"
 import { ConnectorLogo } from "@/modules/connectors/components/connector-logo"
+import { CronBuilder, parseCron } from "./cron-builder"
 
 // ─── Category options ─────────────────────────────────────────────────────────
 
@@ -39,12 +40,15 @@ interface JobConfigStepProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCreateDirect, isCreating }: JobConfigStepProps) {
+    const cronValid = d.frequency !== "cron" || (
+        d.cronExpression.trim() !== "" && !parseCron(d.cronExpression).error
+    )
     const canProceed =
         d.name.trim() !== "" &&
         d.sourceProvider !== "" &&
         d.destinationProvider !== "" &&
         d.entities.length > 0 &&
-        (d.frequency !== "cron" || d.cronExpression.trim() !== "")
+        cronValid
 
     return (
         <div className="flex flex-col h-full">
@@ -493,11 +497,9 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                     </div>
 
                     {d.frequency === "cron" && (
-                        <Input
-                            placeholder="e.g. 0 */2 * * ? *  (min hour day month dow year)"
-                            value={d.cronExpression}
-                            onChange={(e) => d.setCronExpression(e.target.value)}
-                            className="h-9 font-mono text-sm"
+                        <CronBuilder
+                            value={d.cronExpression || "0 9 * * ? *"}
+                            onChange={(cron) => d.setCronExpression(cron)}
                         />
                     )}
 
