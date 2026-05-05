@@ -6,19 +6,20 @@
  * 
  * Usage:
  * 1. Make sure you have set the environment variables in .env.local:
- *    - OPENAI_API_KEY (for embeddings)
+ *    - GROQ_API_KEY (for chat completion)
+ *    - HUGGINGFACE_API_KEY (for embeddings — optional; falls back to a deterministic stub)
  *    - PINECONE_API_KEY
  *    - PINECONE_INDEX_NAME (default: cleanflowai-docs)
- * 
+ *
  * 2. Run the script:
  *    npx ts-node --skip-project scripts/seed-rag.ts
- *    
+ *
  *    Or use the API endpoint:
  *    curl -X POST http://localhost:3000/api/chat/embed \
  *      -F "file=@docs/application-flow.md" \
  *      -F "source=application-flow"
- * 
- * Note: The Pinecone index must be created first with dimension 1536 (for text-embedding-3-small)
+ *
+ * Note: The Pinecone index must be created with dimension 384 (for sentence-transformers/all-MiniLM-L6-v2).
  */
 
 import fs from 'fs'
