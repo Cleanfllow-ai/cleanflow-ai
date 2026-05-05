@@ -14,17 +14,158 @@ interface FilePreviewTabProps {
 // appear as visible columns in the preview table.
 const DQ_HIDDEN_COLUMNS = new Set([
   "dq_status", "dq_violations", "dq_cell_status", "fixes_applied",
-  "dq_score", "dq_row_id",
+  "dq_score", "dq_row_id", "row_id", "__row_idx", "__index_level_0__",
 ])
 
+const STATUS_VALUES = new Set(["clean", "fixed", "quarantined", "edited"])
+
+/**
+ * Resolve a single cell's DQ status from any of:
+ *   1. row.cell_status[column]                (preferred — built by backend)
+ *   2. row[`${column}_dq_status`]             (raw parquet sidecar)
+ *   3. row[`${column}_dq_quarantined`]        (rule-list — implies "quarantined")
+ *   4. row[`${column}_dq_fixed`]              (rule-list — implies "fixed")
+ *   5. inferred from row.dq_violations / row.fixes_applied text
+ *
+ * Any non-empty value that ISN'T explicitly "clean"/"fixed" is treated as
+ * "quarantined" (defensive fallback so unknown sidecar payloads still render
+ * red instead of silently disappearing).
+ */
+function resolveCellStatus(row: any, header: string): "clean" | "fixed" | "quarantined" | "" {
+  if (!row || typeof row !== "object") return ""
+
+  // 1. cell_status map
+  const csMap = row.cell_status
+  let raw = ""
+  if (csMap && typeof csMap === "object") {
+    raw = String(csMap[header] ?? "")
+  } else if (typeof csMap === "string") {
+    try {
+      const parsed = JSON.parse(csMap)
+      raw = String(parsed?.[header] ?? "")
+    } catch { /* not JSON */ }
+  }
+
+  // 2. {col}_dq_status sidecar
+  if (!raw) raw = String(row[`${header}_dq_status`] ?? "")
+
+  raw = raw.trim().toLowerCase()
+  if (raw && raw !== "nan" && raw !== "none" && raw !== "null") {
+    if (STATUS_VALUES.has(raw)) return raw as any
+    // Unknown but non-empty — assume it's a rule list / violation marker
+    return "quarantined"
+  }
+
+  // 3 & 4. {col}_dq_quarantined / {col}_dq_fixed payloads (lists of rule names)
+  const qPayload = String(row[`${header}_dq_quarantined`] ?? "").trim()
+  if (qPayload && qPayload.toLowerCase() !== "nan" && qPayload.toLowerCase() !== "none") {
+    return "quarantined"
+  }
+  const fPayload = String(row[`${header}_dq_fixed`] ?? "").trim()
+  if (fPayload && fPayload.toLowerCase() !== "nan" && fPayload.toLowerCase() !== "none") {
+    return "fixed"
+  }
+
+  // 5. infer from row-level dq_violations / fixes_applied strings
+  const colLower = header.toLowerCase()
+  const matches = (raw: string) => {
+    return raw.split(";").some((tok) => {
+      const lower = tok.trim().toLowerCase()
+      return (
+        lower.startsWith(`${colLower}:`) ||
+        lower.startsWith(`${colLower} :`) ||
+        lower.startsWith(`${colLower}=`) ||
+        lower.includes(`(${colLower})`) ||
+        lower.includes(` ${colLower}:`)
+      )
+    })
+  }
+  const vRaw = String(row.dq_violations ?? "")
+  const fRaw = String(row.fixes_applied ?? "")
+  if (vRaw && matches(vRaw)) return "quarantined"
+  if (fRaw && matches(fRaw)) return "fixed"
+
+  return ""
+}
+
+/** Build the tooltip lines for a DQ-flagged cell. */
+function buildTooltipLines(
+  row: any,
+  header: string,
+  status: "fixed" | "quarantined",
+): string[] {
+  const colLower = header.toLowerCase()
+  const stripColPrefix = (token: string) => {
+    let cleaned = token.trim()
+    const colonIdx = cleaned.indexOf(":")
+    if (colonIdx > 0 && cleaned.substring(0, colonIdx).trim().toLowerCase() === colLower) {
+      cleaned = cleaned.substring(colonIdx + 1).trim()
+    }
+    return cleaned
+  }
+  const stripColRef = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, "").trim()
+  const extractForCol = (raw: string) =>
+    raw.split(";").map((t) => t.trim()).filter((t) => {
+      if (!t) return false
+      const lower = t.toLowerCase()
+      return (
+        lower.includes(`(${colLower})`) ||
+        lower.startsWith(`${colLower}:`) ||
+        lower.startsWith(`${colLower} :`) ||
+        lower.startsWith(`${colLower}=`) ||
+        lower.includes(` ${colLower}:`) ||
+        lower.includes(` ${colLower} `)
+      )
+    }).map(stripColPrefix).map(stripColRef).filter(Boolean)
+
+  const lines: string[] = []
+  const vRaw = String(row?.dq_violations ?? "")
+  const fRaw = String(row?.fixes_applied ?? "")
+  const colViolations = extractForCol(vRaw)
+  const colFixes = extractForCol(fRaw)
+
+  if (colViolations.length > 0) lines.push(...colViolations)
+
+  if (status === "fixed") {
+    if (colFixes.length > 0) {
+      lines.push(...colFixes)
+    } else if (colViolations.length === 0) {
+      lines.push("Auto-fixed by DQ engine")
+    }
+  }
+
+  // Sidecar payload fallback ({col}_dq_quarantined / _dq_fixed contain rule lists)
+  if (lines.length === 0) {
+    const sidecar = status === "quarantined"
+      ? String(row?.[`${header}_dq_quarantined`] ?? "")
+      : String(row?.[`${header}_dq_fixed`] ?? "")
+    const parts = sidecar.split(";").map((t) => stripColRef(t.trim())).filter(Boolean)
+    if (parts.length > 0) lines.push(...parts)
+  }
+
+  // Final fallback: raw row-level violation string or generic label
+  if (lines.length === 0) {
+    const rawTrim = vRaw.trim()
+    if (rawTrim) {
+      lines.push(rawTrim)
+    } else {
+      lines.push(status === "fixed" ? "Auto-fixed" : "Quarantined")
+    }
+  }
+  return lines
+}
+
+function isHiddenHeader(h: string): boolean {
+  if (DQ_HIDDEN_COLUMNS.has(h)) return true
+  if (h.startsWith("_")) return true
+  if (h.endsWith("_dq_status")) return true
+  if (h.endsWith("_dq_fixed")) return true
+  if (h.endsWith("_dq_quarantined")) return true
+  return false
+}
+
 export function FilePreviewTab({ previewLoading, previewError, previewData }: FilePreviewTabProps) {
-  const visibleHeaders = previewData?.headers?.filter((h) =>
-    !DQ_HIDDEN_COLUMNS.has(h) &&
-    !h.endsWith("_dq_status") &&
-    !h.endsWith("_dq_fixed") &&
-    !h.endsWith("_dq_quarantined") &&
-    !h.startsWith("_")
-  ) ?? []
+  const visibleHeaders = previewData?.headers?.filter((h) => !isHiddenHeader(h)) ?? []
 
   return (
     <div className="h-full flex flex-col">
@@ -49,9 +190,20 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
 
       {!previewLoading && !previewError && previewData && (
         <TooltipProvider delayDuration={150}>
-          <div className="flex-1 overflow-auto relative bg-background mx-4 my-4 border rounded-lg">
+          {/* ── DQ status legend ──────────────────────────────────────── */}
+          <div className="px-4 pt-3 pb-2 flex flex-wrap items-center gap-4 border-b text-[11px] text-muted-foreground shrink-0">
+            <span className="font-medium uppercase tracking-wider text-[10px]">DQ Cell Status</span>
+            <LegendDot variant="clean" label="Clean" />
+            <LegendDot variant="fixed" label="Fixed (auto-corrected)" />
+            <LegendDot variant="quarantined" label="Quarantined (needs review)" />
+            <span className="ml-auto text-[10px] italic text-muted-foreground/70">
+              Hover a coloured cell for the rule that flagged it. This view is read-only — open the Quarantine Editor to make corrections.
+            </span>
+          </div>
+
+          <div className="flex-1 overflow-auto relative bg-background mx-4 my-3 border rounded-lg">
             <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 z-20 bg-muted shadow-sm ">
+              <thead className="sticky top-0 z-20 bg-muted shadow-sm">
                 <tr>
                   {visibleHeaders.map((header) => (
                     <th
@@ -71,94 +223,16 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                   >
                     {visibleHeaders.map((header) => {
                       const value = row && typeof row === "object" ? row[header] : ""
-
-                      // ── Per-cell DQ status resolution ─────────────────────
-                      // Backend returns cell_status map: { colName: "quarantined"|"fixed"|"clean" }
-                      const cellStatusMap = (row as any)?.cell_status
-                      let mapCellStatus = ""
-                      if (cellStatusMap && typeof cellStatusMap === "object") {
-                        mapCellStatus = String(cellStatusMap[header] || "").toLowerCase()
-                      } else if (typeof cellStatusMap === "string") {
-                        try {
-                          const parsed = JSON.parse(cellStatusMap)
-                          mapCellStatus = String(parsed?.[header] || "").toLowerCase()
-                        } catch { /* not JSON */ }
-                      }
-
-                      // 3. Infer from dq_violations / fixes_applied strings
-                      const violationsRaw = String((row as any)?.dq_violations || "")
-                      const fixesRaw = String((row as any)?.fixes_applied || "")
-                      const colLower = header.toLowerCase()
-
-                      const stripColPrefix = (token: string) => {
-                        let cleaned = token.trim()
-                        const colonIdx = cleaned.indexOf(":")
-                        if (colonIdx > 0 && cleaned.substring(0, colonIdx).trim().toLowerCase() === colLower) {
-                          cleaned = cleaned.substring(colonIdx + 1).trim()
-                        }
-                        return cleaned
-                      }
-                      const extractForCol = (raw: string) =>
-                        raw.split(";").map((t) => t.trim()).filter((t) => {
-                          if (!t) return false
-                          const lower = t.toLowerCase()
-                          return (
-                            lower.includes(`(${colLower})`) ||
-                            lower.startsWith(`${colLower}:`) ||
-                            lower.startsWith(`${colLower} :`) ||
-                            lower.startsWith(`${colLower}=`) ||
-                            lower.includes(` ${colLower}:`) ||
-                            lower.includes(` ${colLower} `)
-                          )
-                        }).map(stripColPrefix).filter(Boolean)
-
-                      const colViolations = extractForCol(violationsRaw)
-                      const colFixes = extractForCol(fixesRaw)
-
-                      // Resolve status: cell_status map > inferred from violation/fix strings
-                      const resolvedStatus =
-                        (mapCellStatus && mapCellStatus !== "nan" && mapCellStatus !== "none"
-                          ? mapCellStatus
-                          : "") ||
-                        (colViolations.length > 0 ? "quarantined" : "") ||
-                        (colFixes.length > 0 ? "fixed" : "")
+                      const status = resolveCellStatus(row, header)
 
                       const cellClass =
-                        resolvedStatus === "quarantined"
-                          ? "bg-red-500/10 text-red-800 dark:text-red-400"
-                          : resolvedStatus === "fixed"
-                          ? "bg-amber-500/10 text-amber-800 dark:text-amber-400"
-                          : resolvedStatus === "clean"
-                          ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400"
+                        status === "quarantined"
+                          ? "bg-red-500/10 text-red-900 dark:text-red-300 shadow-[inset_2px_0_0_#ef4444]"
+                          : status === "fixed"
+                          ? "bg-amber-500/10 text-amber-900 dark:text-amber-300 shadow-[inset_2px_0_0_#f97316]"
+                          : status === "clean"
+                          ? ""
                           : ""
-
-                      // ── Tooltip (only for quarantined/fixed cells) ──────────
-                      // Strip trailing "(ColumnName)" — redundant on a per-cell tooltip
-                      const stripColRef = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, "").trim()
-                      const tooltipLines: string[] = []
-                      if (resolvedStatus === "quarantined" || resolvedStatus === "fixed") {
-                        if (colViolations.length > 0) {
-                          tooltipLines.push(...colViolations.map(stripColRef).filter(Boolean))
-                        }
-                        if (resolvedStatus === "fixed") {
-                          const cleanedFixes = colFixes.map(stripColRef).filter(Boolean)
-                          if (cleanedFixes.length > 0) {
-                            tooltipLines.push(...cleanedFixes)
-                          } else if (colViolations.length === 0) {
-                            tooltipLines.push("Auto-fixed by DQ engine")
-                          }
-                        }
-                        // Fallback: if extraction found nothing but cell is flagged,
-                        // show raw row-level violation string (older data may lack column prefix)
-                        if (tooltipLines.length === 0) {
-                          const raw = violationsRaw.trim()
-                          if (raw) {
-                            tooltipLines.push(raw)
-                          } else {
-                            tooltipLines.push(resolvedStatus === "fixed" ? "Fixed" : "Quarantined")
-                          }
-                        }
-                      }
 
                       const cellContent = (
                         <td
@@ -171,16 +245,17 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                         </td>
                       )
 
-                      // Only wrap in tooltip for cells that have DQ info
-                      if (tooltipLines.length > 0) {
+                      if (status === "quarantined" || status === "fixed") {
+                        const lines = buildTooltipLines(row, header, status)
                         return (
                           <UiTooltip key={header}>
-                            <TooltipTrigger asChild>
-                              {cellContent}
-                            </TooltipTrigger>
+                            <TooltipTrigger asChild>{cellContent}</TooltipTrigger>
                             <TooltipContent align="start" className="max-w-xs break-words text-xs">
                               <div className="space-y-1">
-                                {tooltipLines.map((line, i) => (
+                                <div className="font-semibold uppercase tracking-wider text-[10px] opacity-80">
+                                  {status === "quarantined" ? "Quarantined" : "Auto-fixed"}
+                                </div>
+                                {lines.map((line, i) => (
                                   <div key={i}>{line}</div>
                                 ))}
                               </div>
@@ -189,7 +264,14 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
                         )
                       }
 
-                      return <td key={header} className="px-4 py-2.5 whitespace-nowrap border-r last:border-r-0 max-w-[260px] truncate">{value !== undefined ? String(value ?? "") : ""}</td>
+                      return (
+                        <td
+                          key={header}
+                          className="px-4 py-2.5 whitespace-nowrap border-r last:border-r-0 max-w-[260px] truncate"
+                        >
+                          {value !== undefined ? String(value ?? "") : ""}
+                        </td>
+                      )
                     })}
                   </tr>
                 ))}
@@ -214,3 +296,23 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
   )
 }
 
+function LegendDot({
+  variant,
+  label,
+}: {
+  variant: "clean" | "fixed" | "quarantined"
+  label: string
+}) {
+  const dotClass =
+    variant === "clean"
+      ? "bg-transparent border border-border"
+      : variant === "fixed"
+      ? "bg-amber-500"
+      : "bg-red-500"
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={cn("inline-block w-2.5 h-2.5 rounded-full", dotClass)} />
+      <span className="text-[11px] font-medium">{label}</span>
+    </div>
+  )
+}
