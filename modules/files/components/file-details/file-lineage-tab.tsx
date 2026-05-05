@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   AlertTriangle,
   Check,
@@ -12,6 +12,7 @@ import {
   ImageDown,
   Loader2,
   Maximize2,
+  Minimize2,
   Minus,
   Plus,
   Send,
@@ -29,7 +30,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/shared/hooks/use-toast"
 import { formatToIST } from "@/shared/lib/utils"
@@ -394,8 +394,19 @@ export function FileLineageTab({
 }: FileLineageTabProps) {
   const [zoom, setZoom] = useState(1)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
   const svgRef = useRef<SVGSVGElement>(null)
   const { toast } = useToast()
+
+  // ESC exits fullscreen
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [fullscreen])
 
   const nodes = useMemo(
     () => buildNodes(file, versions, selectedUploadId),
@@ -488,7 +499,12 @@ export function FileLineageTab({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex h-full min-h-0 flex-col">
+      <div
+        className={cn(
+          "flex h-full min-h-0 flex-col",
+          fullscreen && "fixed inset-0 z-50 bg-background",
+        )}
+      >
         {/* Toolbar */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-background/60 px-6 py-2.5 backdrop-blur-sm">
           <div className="flex items-center gap-2 text-sm">
@@ -509,9 +525,15 @@ export function FileLineageTab({
             >
               <Minus className="h-3.5 w-3.5" />
             </Button>
-            <span className="w-10 text-center font-mono text-xs text-muted-foreground">
+            <button
+              type="button"
+              onClick={() => setZoom(1)}
+              className="w-12 rounded text-center font-mono text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Reset zoom to 100%"
+              title="Reset zoom"
+            >
               {Math.round(zoom * 100)}%
-            </span>
+            </button>
             <Button
               size="icon"
               variant="ghost"
@@ -525,10 +547,15 @@ export function FileLineageTab({
               size="icon"
               variant="ghost"
               className="h-7 w-7"
-              onClick={() => setZoom(1)}
-              aria-label="Reset zoom"
+              onClick={() => setFullscreen((f) => !f)}
+              aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+              title={fullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"}
             >
-              <Maximize2 className="h-3.5 w-3.5" />
+              {fullscreen ? (
+                <Minimize2 className="h-3.5 w-3.5" />
+              ) : (
+                <Maximize2 className="h-3.5 w-3.5" />
+              )}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -548,20 +575,19 @@ export function FileLineageTab({
           </div>
         </div>
 
-        {/* Canvas — horizontal scroll, vertical scroll only if zoomed */}
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="px-6 py-6">
-              {/* Pipeline graph */}
-              <div className="relative">
-                <svg
-                  ref={svgRef}
-                  width={total_w * zoom}
-                  height={total_h * zoom}
-                  viewBox={`0 0 ${total_w} ${total_h}`}
-                  className="block"
-                  style={{ minHeight: total_h * zoom }}
-                >
+        {/* Canvas — vertical scroll for legend / zoomed-in graph; horizontal scroll wraps SVG only */}
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="px-6 py-6">
+            {/* Pipeline graph — horizontal overflow wrapper */}
+            <div className="relative -mx-6 overflow-x-auto overflow-y-hidden px-6">
+              <svg
+                ref={svgRef}
+                width={total_w * zoom}
+                height={total_h * zoom}
+                viewBox={`0 0 ${total_w} ${total_h}`}
+                className="block"
+                style={{ minHeight: total_h * zoom, maxWidth: "none" }}
+              >
                   <defs>
                     <marker
                       id="lineage-arrow"
@@ -800,8 +826,7 @@ export function FileLineageTab({
                 })}
                 <span className="ml-auto text-muted-foreground">Hover a stage for details · click a version node to load it.</span>
               </div>
-            </div>
-          </ScrollArea>
+          </div>
         </div>
       </div>
     </TooltipProvider>
