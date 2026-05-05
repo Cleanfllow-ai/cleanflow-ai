@@ -101,9 +101,34 @@ async function queryGroqLLM(
   }
 }
 
+// Render the page-context payload as a compact, model-friendly block.
+// Defensive: ignore malformed shapes silently so a bad client never breaks the route.
+function renderPageContext(context: unknown): string {
+  if (!context || typeof context !== 'object') return ''
+  try {
+    const ctx = context as Record<string, unknown>
+    const route = typeof ctx.route === 'string' ? ctx.route : null
+    if (!route) return ''
+    const lines: string[] = [`route: ${route}`]
+    // Only include `summary` and `file` blocks if they are plain objects.
+    for (const key of ['summary', 'file'] as const) {
+      const block = ctx[key]
+      if (block && typeof block === 'object' && !Array.isArray(block)) {
+        const pairs = Object.entries(block as Record<string, unknown>)
+          .filter(([, v]) => v !== undefined && v !== null && v !== '')
+          .map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+        if (pairs.length > 0) lines.push(`${key}: { ${pairs.join(', ')} }`)
+      }
+    }
+    return lines.join('\n')
+  } catch {
+    return ''
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { message, conversationHistory = [] } = await req.json()
+    const { message, conversationHistory = [], context: pageContext } = await req.json()
 
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
@@ -156,11 +181,19 @@ export async function POST(req: NextRequest) {
     }
 
     // Build system prompt
-    const systemPrompt = `You are a helpful assistant for the ERP Transform App. You help users understand how to use the application, transform data, improve quality, and integrate with ERP systems.
+    const pageContextBlock = renderPageContext(pageContext)
+    const systemPrompt = `You are CleanFlow AI's in-product assistant. You help users with file uploads, data quality (DQ), quarantine remediation, jobs, and ERP/warehouse/storage connectors.
 
-${context}
+Style rules:
+- Be concise. Keep answers under 4 sentences unless the user explicitly asks for more detail.
+- When you reference a feature, use the exact name shown in the UI sidebar (e.g. "Files", "Jobs", "Connectors", "Data Tools").
+- If the answer isn't covered by the documentation below, say "I don't see this in the documentation" rather than guessing.
+- Never invent file names, scores, or counts. Only reference numbers that appear in the page context block.
 
-Provide clear, concise, and helpful answers. If you don't know something, say so honestly. Always be professional and supportive.`
+Documentation (from knowledge base):
+${context}${pageContextBlock ? `\n\nCurrent page context (what the user is looking at right now):\n${pageContextBlock}` : ''}
+
+Be professional and supportive.`
 
     // Query Groq LLM for response
     console.log(`🚀 Calling Groq LLM...`)

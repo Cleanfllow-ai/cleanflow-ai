@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -11,19 +11,33 @@ import {
   Loader2,
   Sparkles,
   Trash2,
+  Copy,
+  Check as CheckIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/shared/lib/utils'
 import ReactMarkdown from 'react-markdown'
+import { useAppSelector } from '@/shared/store/store'
+import { selectFiles } from '@/modules/files/store/filesSlice'
+import { useToast } from '@/shared/hooks/use-toast'
+
+interface ChatSource {
+  score?: number
+  section?: string
+}
 
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  sources?: ChatSource[]
 }
+
+// Maximum messages to persist in localStorage. Older messages are trimmed.
+const MAX_PERSISTED_MESSAGES = 20
 
 interface ChatDrawerProps {
   isOpen: boolean
@@ -60,15 +74,74 @@ const getPageKey = (pathname: string): string => {
   return 'default'
 }
 
+// Match /files/{uploadId} or /files/{uploadId}/quarantine etc.
+// Captures the segment immediately after `/files/` only when it is not the bare list page.
+const FILE_DETAIL_RE = /^\/files\/([^/]+)(?:\/.*)?$/
+
+interface PageContextPayload {
+  route: string
+  summary?: Record<string, number | string>
+  // Aggregate-only file info — never includes raw rows or PII.
+  file?: Record<string, number | string>
+}
+
 export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const pathname = usePathname()
-  
+  const files = useAppSelector(selectFiles)
+  const { toast } = useToast()
+
   const suggestions = PAGE_SUGGESTIONS[getPageKey(pathname)] || PAGE_SUGGESTIONS.default
+
+  // Build a page-context payload from Redux + pathname. Aggregates only — no PII, no raw rows.
+  // Read from `selectFiles` (already populated by /files page); the chat may be opened
+  // before that, in which case `files` is [] and we just send route info.
+  const pageContext = useMemo<PageContextPayload>(() => {
+    const route = pathname || '/'
+
+    // File detail / quarantine route: surface that one file's aggregate metadata.
+    const fileMatch = route.match(FILE_DETAIL_RE)
+    if (fileMatch && fileMatch[1] && fileMatch[1] !== '') {
+      const uploadId = fileMatch[1]
+      const f = files.find((file) => file.upload_id === uploadId)
+      if (f) {
+        const fileBlock: Record<string, number | string> = {
+          name: f.original_filename || f.filename || 'unknown',
+          status: f.status,
+        }
+        if (typeof f.dq_score === 'number') fileBlock.dq_score = f.dq_score
+        if (typeof f.rows_in === 'number') fileBlock.rows_in = f.rows_in
+        if (typeof f.rows_out === 'number') fileBlock.rows_out = f.rows_out
+        if (typeof f.rows_quarantined === 'number') fileBlock.rows_quarantined = f.rows_quarantined
+        if (f.partial_completion) fileBlock.partial_completion = 'true'
+        return { route, file: fileBlock }
+      }
+      return { route }
+    }
+
+    // Dashboard or files-list: aggregate counts only.
+    if (route.startsWith('/dashboard') || route === '/files') {
+      const summary: Record<string, number | string> = {
+        files_total: files.length,
+      }
+      if (files.length > 0) {
+        const QUARANTINED = files.filter((f) => f.status === 'DQ_FIXED' && (f.rows_quarantined || 0) > 0).length
+        const RUNNING = files.filter((f) => f.status === 'DQ_RUNNING' || f.status === 'DQ_DISPATCHED').length
+        const FAILED = files.filter((f) => f.status === 'DQ_FAILED' || f.status === 'FAILED').length
+        if (QUARANTINED > 0) summary.files_with_quarantine = QUARANTINED
+        if (RUNNING > 0) summary.active_jobs = RUNNING
+        if (FAILED > 0) summary.failed = FAILED
+      }
+      return { route, summary }
+    }
+
+    return { route }
+  }, [pathname, files])
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -106,7 +179,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
   useEffect(() => {
     if (messages.length > 0) {
-      localStorage.setItem('cleanflowai-chat-history', JSON.stringify({ messages, storedAt: Date.now() }))
+      // Cap persisted history to last MAX_PERSISTED_MESSAGES so localStorage doesn't grow unboundedly.
+      const trimmed = messages.slice(-MAX_PERSISTED_MESSAGES)
+      localStorage.setItem('cleanflowai-chat-history', JSON.stringify({ messages: trimmed, storedAt: Date.now() }))
     }
   }, [messages])
 
@@ -136,6 +211,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
         body: JSON.stringify({
           message: userMessage.content,
           conversationHistory,
+          context: pageContext,
         }),
       })
 
@@ -150,22 +226,33 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
         role: 'assistant',
         content: data.reply,
         timestamp: new Date(),
+        sources: Array.isArray(data.sources) ? data.sources : undefined,
       }
 
       setMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
       console.error('Chat error:', error)
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: 'I apologize, but I encountered an error. Please try again.',
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, errorMessage])
+      // Show a toast instead of injecting a fake assistant message — keeps the thread clean.
+      toast({
+        title: 'Chat unavailable',
+        description: "I couldn't reach the assistant. Please try again in a moment.",
+        variant: 'destructive',
+      })
     } finally {
       setIsLoading(false)
     }
   }
+
+  const handleCopy = useCallback(async (id: string, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedId(id)
+      window.setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1500)
+    } catch (err) {
+      // navigator.clipboard can be undefined in non-secure contexts; fail silently.
+      console.warn('Clipboard write failed:', err)
+    }
+  }, [])
 
   const clearHistory = () => {
     setMessages([])
@@ -274,35 +361,73 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                           <Bot className="w-4 h-4 text-primary" />
                         </div>
                       )}
-                      <div
-                        className={cn(
-                          'max-w-[85%] rounded-2xl px-4 py-2.5',
-                          message.role === 'user'
-                            ? 'bg-primary text-primary-foreground rounded-br-md'
-                            : 'bg-muted rounded-bl-md'
-                        )}
-                      >
-                        {message.role === 'assistant' ? (
-                          <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <ReactMarkdown
-                              components={{
-                                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                ul: ({ children }) => <ul className="mb-2 ml-4 list-disc">{children}</ul>,
-                                ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal">{children}</ol>,
-                                li: ({ children }) => <li className="mb-1">{children}</li>,
-                                code: ({ children }) => (
-                                  <code className="px-1 py-0.5 bg-background/50 rounded text-xs">
-                                    {children}
-                                  </code>
-                                ),
-                                strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                              }}
+                      <div className="max-w-[85%] flex flex-col gap-1">
+                        <div
+                          className={cn(
+                            'rounded-2xl px-4 py-2.5',
+                            message.role === 'user'
+                              ? 'bg-primary text-primary-foreground rounded-br-md'
+                              : 'bg-muted rounded-bl-md'
+                          )}
+                        >
+                          {message.role === 'assistant' ? (
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                              <ReactMarkdown
+                                components={{
+                                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                  ul: ({ children }) => <ul className="mb-2 ml-4 list-disc">{children}</ul>,
+                                  ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal">{children}</ol>,
+                                  li: ({ children }) => <li className="mb-1">{children}</li>,
+                                  code: ({ children }) => (
+                                    <code className="px-1 py-0.5 bg-background/50 rounded text-xs">
+                                      {children}
+                                    </code>
+                                  ),
+                                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                }}
+                              >
+                                {message.content}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <p className="text-sm">{message.content}</p>
+                          )}
+                        </div>
+                        {message.role === 'assistant' && (
+                          <div className="flex items-center gap-1.5 flex-wrap px-1">
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(message.id, message.content)}
+                              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                              title="Copy message"
                             >
-                              {message.content}
-                            </ReactMarkdown>
+                              {copiedId === message.id ? (
+                                <>
+                                  <CheckIcon className="w-3 h-3" />
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3" />
+                                  Copy
+                                </>
+                              )}
+                            </button>
+                            {message.sources && message.sources.length > 0 && (
+                              <>
+                                <span className="text-[11px] text-muted-foreground/50">·</span>
+                                {message.sources.slice(0, 3).map((src, idx) => (
+                                  <span
+                                    key={`${message.id}-src-${idx}`}
+                                    className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full bg-primary/5 text-primary/80 border border-primary/10"
+                                    title={typeof src.score === 'number' ? `relevance: ${(src.score * 100).toFixed(0)}%` : undefined}
+                                  >
+                                    {src.section || 'docs'}
+                                  </span>
+                                ))}
+                              </>
+                            )}
                           </div>
-                        ) : (
-                          <p className="text-sm">{message.content}</p>
                         )}
                       </div>
                       {message.role === 'user' && (
