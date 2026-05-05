@@ -46,17 +46,6 @@ function getStatusColor(status: string) {
     }
 }
 
-function getFileStatusColor(status: string | null | undefined) {
-    const s = (status || "").toUpperCase()
-    if (s.includes("FIXED") || s.includes("COMPLETED") || s.includes("PROCESSED"))
-        return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
-    if (s.includes("FAILED")) return "bg-red-500/15 text-red-600 border-red-500/25"
-    if (s.includes("RUNNING") || s.includes("PROCESSING") || s.includes("QUEUED"))
-        return "bg-blue-500/15 text-blue-600 border-blue-500/25"
-    if (s.includes("QUARANTINED")) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-    return "bg-slate-500/15 text-slate-600 border-slate-500/25"
-}
-
 function getStatusIcon(status: string) {
     switch (status) {
         case "SUCCESS": return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -230,24 +219,13 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                                         {run.status}
                                                     </Badge>
                                                 </div>
-                                                {live?.status && live.status !== run.status && (
-                                                    <div className="flex items-center gap-1">
-                                                        <Badge
-                                                            variant="outline"
-                                                            className={cn("text-[9px] px-1.5", getFileStatusColor(live.status))}
-                                                        >
-                                                            {live.running && <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" />}
-                                                            File: {live.status}
-                                                        </Badge>
-                                                        {live.reprocessed && (
-                                                            <Badge
-                                                                variant="outline"
-                                                                className="text-[9px] px-1.5 border-violet-500/30 text-violet-600"
-                                                            >
-                                                                v{live.versionCount}
-                                                            </Badge>
-                                                        )}
-                                                    </div>
+                                                {live?.reprocessed && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="text-[9px] px-1.5 border-violet-500/30 text-violet-600 self-start"
+                                                    >
+                                                        v{live.versionCount}
+                                                    </Badge>
                                                 )}
                                             </div>
                                         </TableCell>
