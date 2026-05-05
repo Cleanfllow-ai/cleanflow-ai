@@ -16,10 +16,6 @@ export { default as WarehouseImport } from "./components/warehouse/warehouse-imp
 // ─── Storage Components ─────────────────────────────────────────────────────
 export { default as StorageImport } from "./components/storage/storage-import"
 
-// ─── Shared UI ──────────────────────────────────────────────────────────────
-export { ConnectorLogo } from "./components/connector-logo"
-export type { ConnectorLogoSize } from "./components/connector-logo"
-
 // ─── Hooks ──────────────────────────────────────────────────────────────────
 export { useAvailableProviders, invalidateProviderCache } from "./hooks/use-available-providers"
 export {

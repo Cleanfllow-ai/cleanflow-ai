@@ -15,7 +15,6 @@ import { cn } from "@/shared/lib/utils"
 import type { JobFrequency } from "@/modules/jobs/types/jobs.types"
 import type { useJobDialog, ProviderCategory } from "./use-job-dialog"
 import { FREQUENCY_OPTIONS, getProviderDisplayName, CATEGORY_LABELS } from "./job-dialog-constants"
-import { ConnectorLogo } from "@/modules/connectors/components/connector-logo"
 
 // ─── Category options ─────────────────────────────────────────────────────────
 
@@ -106,25 +105,12 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                                         onValueChange={d.setSourceProvider}
                                     >
                                         <SelectTrigger className="h-9">
-                                            {d.sourceProvider ? (
-                                                <span className="flex items-center gap-2 truncate">
-                                                    <ConnectorLogo provider={d.sourceProvider} size="sm" />
-                                                    <span className="truncate">
-                                                        {d.sourceProviders.find(p => p.provider_id === d.sourceProvider)?.display_name
-                                                            || getProviderDisplayName(d.sourceProvider)}
-                                                    </span>
-                                                </span>
-                                            ) : (
-                                                <SelectValue placeholder="Select provider" />
-                                            )}
+                                            <SelectValue placeholder="Select provider" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {d.sourceProviders.map(p => (
                                                 <SelectItem key={p.provider_id} value={p.provider_id}>
-                                                    <span className="flex items-center gap-2">
-                                                        <ConnectorLogo provider={p.provider_id} size="sm" />
-                                                        <span>{p.display_name || getProviderDisplayName(p.provider_id)}</span>
-                                                    </span>
+                                                    {p.display_name || getProviderDisplayName(p.provider_id)}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -322,25 +308,12 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                                         onValueChange={d.setDestinationProvider}
                                     >
                                         <SelectTrigger className="h-9">
-                                            {d.destinationProvider ? (
-                                                <span className="flex items-center gap-2 truncate">
-                                                    <ConnectorLogo provider={d.destinationProvider} size="sm" />
-                                                    <span className="truncate">
-                                                        {d.destinationProviders.find(p => p.provider_id === d.destinationProvider)?.display_name
-                                                            || getProviderDisplayName(d.destinationProvider)}
-                                                    </span>
-                                                </span>
-                                            ) : (
-                                                <SelectValue placeholder="Select provider" />
-                                            )}
+                                            <SelectValue placeholder="Select provider" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {d.destinationProviders.map(p => (
                                                 <SelectItem key={p.provider_id} value={p.provider_id}>
-                                                    <span className="flex items-center gap-2">
-                                                        <ConnectorLogo provider={p.provider_id} size="sm" />
-                                                        <span>{p.display_name || getProviderDisplayName(p.provider_id)}</span>
-                                                    </span>
+                                                    {p.display_name || getProviderDisplayName(p.provider_id)}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -602,9 +575,9 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                         </div>
                     )}
 
-                    {/* ── Authorized Person ───────────────────────────────── */}
+                    {/* ── Responsible Person ───────────────────────────────── */}
                     <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">Authorized Person</Label>
+                        <Label className="text-sm font-medium">Responsible Person</Label>
                         {d.orgMembersLoading ? (
                             <div className="flex items-center gap-2 h-9 px-3 border rounded-md text-muted-foreground text-sm">
                                 <Loader2 className="h-3 w-3 animate-spin" /> Loading members...
@@ -616,7 +589,7 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                         ) : (
                             <Select value={d.responsibleUserId} onValueChange={d.setResponsibleUserId}>
                                 <SelectTrigger className="h-9">
-                                    <SelectValue placeholder="Select authorized person" />
+                                    <SelectValue placeholder="Select responsible person" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {d.orgMembers.map(m => (

@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/shared/lib/utils"
 import { ERPImport } from "@/modules/connectors"
-import { ConnectorLogo } from "@/modules/connectors/components/connector-logo"
 import { UnifiedBridgeImport } from "@/modules/unified-bridge"
 import { fileManagementAPI } from "@/modules/files"
 import { useProcessingWizard } from "../WizardContext"
@@ -176,25 +175,13 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground shrink-0">ERP:</span>
                         <Select value={selectedErp} onValueChange={setSelectedErp}>
-                            <SelectTrigger className="w-[220px] h-9">
-                                {selectedErp ? (
-                                    <span className="flex items-center gap-2 truncate">
-                                        <ConnectorLogo provider={selectedErp} size="sm" />
-                                        <span className="truncate">
-                                            {ERP_OPTIONS.find(e => e.value === selectedErp)?.label || selectedErp}
-                                        </span>
-                                    </span>
-                                ) : (
-                                    <SelectValue placeholder="Select ERP" />
-                                )}
+                            <SelectTrigger className="w-[200px] h-9">
+                                <SelectValue placeholder="Select ERP" />
                             </SelectTrigger>
                             <SelectContent>
                                 {ERP_OPTIONS.map((opt) => (
                                     <SelectItem key={opt.value} value={opt.value}>
-                                        <span className="flex items-center gap-2">
-                                            <ConnectorLogo provider={opt.value} size="sm" />
-                                            <span>{opt.label}</span>
-                                        </span>
+                                        {opt.label}
                                     </SelectItem>
                                 ))}
                             </SelectContent>

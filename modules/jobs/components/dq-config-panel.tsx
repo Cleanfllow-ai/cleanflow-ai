@@ -135,7 +135,7 @@ export function DQConfigPanel({
                         <div>
                             <span className="text-sm font-medium">Block & Notify</span>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                Stop on quarantine, email authorized person for review
+                                Stop on quarantine, email responsible person for review
                             </p>
                         </div>
                     </label>
@@ -185,10 +185,10 @@ export function DQConfigPanel({
                 )}
             </div>
 
-            {/* ── Authorized Person (Block & Notify only) ──────────────── */}
+            {/* ── Responsible Person (Block & Notify only) ──────────────── */}
             {dqPolicy === "block_and_notify" && (
                 <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Authorized Person</Label>
+                    <Label className="text-xs text-muted-foreground">Responsible Person</Label>
                     {orgMembersLoading ? (
                         <div className="flex items-center gap-2 h-9 px-3 border rounded-md text-muted-foreground text-sm">
                             <Loader2 className="h-3 w-3 animate-spin" /> Loading members...
@@ -200,7 +200,7 @@ export function DQConfigPanel({
                     ) : (
                         <Select value={responsibleUserId} onValueChange={onResponsibleUserChange}>
                             <SelectTrigger className="h-9">
-                                <SelectValue placeholder="Select authorized person" />
+                                <SelectValue placeholder="Select responsible person" />
                             </SelectTrigger>
                             <SelectContent>
                                 {orgMembers.map(m => (
