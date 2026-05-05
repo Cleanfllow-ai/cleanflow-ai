@@ -199,7 +199,7 @@ export function QuarantineFindReplacePanel({
                     {totalMatches.toLocaleString()}
                   </span>
                   {' matches'}
-                  {truncated && ' (showing first 500)'}
+                  {truncated && ' (showing first 50,000)'}
                 </>
               )}
             </span>
