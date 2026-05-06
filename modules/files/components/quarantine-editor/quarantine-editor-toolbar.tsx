@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ClipboardCheck, Loader2, Play, Check, Save, Search, Shield, Users, Clock, X } from 'lucide-react'
+import { ClipboardCheck, Loader2, Play, Check, Save, Search, Shield, Users, Clock, X, GitCompare } from 'lucide-react'
 import type { QuarantineSession } from '@/modules/files/types'
 import type { CollaborationUser } from '@/modules/files/types'
 import type { ApprovalStatus } from '@/modules/auth/api/org-api'
@@ -26,6 +26,8 @@ interface QuarantineEditorToolbarProps {
   approvalLoading?: boolean
   onPrimaryAction: () => void | Promise<void>
   onFindReplace?: () => void
+  onCompare?: () => void
+  compareDisabled?: boolean
   columns?: string[]
   hiddenColumns?: Set<string>
   onToggleColumn?: (column: string) => void
@@ -47,6 +49,8 @@ export function QuarantineEditorToolbar({
   approvalLoading = false,
   onPrimaryAction,
   onFindReplace,
+  onCompare,
+  compareDisabled = false,
   columns,
   hiddenColumns,
   onToggleColumn,
@@ -167,6 +171,20 @@ export function QuarantineEditorToolbar({
             >
               <Search className="w-3 h-3 mr-1.5" />
               Find & Replace
+            </Button>
+          )}
+
+          {onCompare && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCompare}
+              disabled={compareDisabled}
+              className="h-7 text-xs font-medium px-3"
+              title={compareDisabled ? 'Click a row in the grid first' : 'Compare original vs cleaned values for the focused row'}
+            >
+              <GitCompare className="w-3 h-3 mr-1.5" />
+              Compare
             </Button>
           )}
 

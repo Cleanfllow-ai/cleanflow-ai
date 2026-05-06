@@ -24,6 +24,7 @@ import { PermissionWrapper } from "@/modules/auth/components/permission-wrapper"
 import { orgAPI } from "@/modules/auth/api/org-api";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { AppRole } from "./use-org-settings";
+import { TimezonePreferenceCard } from "./timezone-preference-card";
 
 interface OrgGeneralTabProps {
   currentUserRole: AppRole | undefined;
@@ -152,7 +153,12 @@ export function OrgGeneralTab({
   };
 
   return (
-    <PermissionWrapper
+    <>
+      {/* User-level timezone preference (UI only, stored in localStorage).
+          Rendered outside PermissionWrapper so every signed-in user can
+          set their own display timezone regardless of org-settings RBAC. */}
+      <TimezonePreferenceCard />
+      <PermissionWrapper
       permission={canManageSettingsPermission}
       permissionKey="settings"
       userRole={currentUserRole}
@@ -516,5 +522,6 @@ export function OrgGeneralTab({
         </AlertDialogContent>
       </AlertDialog>
     </PermissionWrapper>
+    </>
   );
 }

@@ -18,6 +18,7 @@ import { QuarantineEditorToolbar } from '@/modules/files/components/quarantine-e
 import { QuarantineAgGridTable } from '@/modules/files/components/quarantine-editor/quarantine-ag-grid-table'
 import { QuarantineVersionLineage } from '@/modules/files/components/quarantine-editor/quarantine-version-lineage'
 import { QuarantineFindReplacePanel } from '@/modules/files/components/quarantine-editor/quarantine-find-replace-panel'
+import { QuarantineCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-compare-dialog'
 import { ArrowLeft, ClipboardCheck, Check, Clock, Loader2, X } from 'lucide-react'
 import type { GridApi } from 'ag-grid-community'
 import type { QuarantineRow } from '@/modules/files/types'
@@ -102,6 +103,32 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     () => editor.columns.filter((c) => c === 'row_id' || !hiddenColumns.has(c)),
     [editor.columns, hiddenColumns],
   )
+
+  // Compare dialog state — captures the focused row at click-time so the diff
+  // is stable while open even if the user moves the grid cursor.
+  const [compareOpen, setCompareOpen] = useState(false)
+  const [compareRows, setCompareRows] = useState<QuarantineRow[]>([])
+
+  const handleOpenCompare = useCallback(() => {
+    const api = gridApiRef.current
+    if (!api) return
+    const collected: QuarantineRow[] = []
+    // Prefer multi-selection if any rows are selected (future-proof — grid
+    // currently has no checkbox column, but selection API still works).
+    const selected = api.getSelectedRows?.() ?? []
+    if (selected.length > 0) {
+      collected.push(...(selected as QuarantineRow[]))
+    } else {
+      const focused = api.getFocusedCell?.()
+      if (focused) {
+        const node = api.getDisplayedRowAtIndex(focused.rowIndex)
+        if (node?.data) collected.push(node.data as QuarantineRow)
+      }
+    }
+    if (collected.length === 0) return
+    setCompareRows(collected)
+    setCompareOpen(true)
+  }, [])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -259,6 +286,8 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         approvalLoading={editor.approvalLoading}
         onPrimaryAction={handlePrimaryAction}
         onFindReplace={() => find.setOpen(!find.open)}
+        onCompare={handleOpenCompare}
+        compareDisabled={!isGridReady}
         columns={editor.columns}
         hiddenColumns={hiddenColumns}
         onToggleColumn={toggleColumn}
@@ -363,6 +392,15 @@ export default function QuarantineEditorPage({ params }: PageProps) {
           />
         )}
       </div>
+
+      <QuarantineCompareDialog
+        open={compareOpen}
+        onOpenChange={setCompareOpen}
+        rows={compareRows}
+        columns={visibleColumns}
+        getCellValue={editor.getCellValue}
+        isCellEdited={editor.isCellEdited}
+      />
 
       <Dialog
         open={editor.approvalRequestDialogOpen}

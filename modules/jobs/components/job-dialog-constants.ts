@@ -11,7 +11,7 @@ export const FREQUENCY_OPTIONS = [
 ]
 
 export const CATEGORY_LABELS: Record<string, string> = {
-    erp: "ERP Systems",
+    erp: "Applications",
     warehouse: "Data Warehouses",
     storage: "Cloud Storage",
 }

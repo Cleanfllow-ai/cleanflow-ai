@@ -280,58 +280,58 @@ function JobProfilingStep({
                             </div>
                         )}
 
-                        {hasProfiles && (
-                            <div className="mt-4 border border-muted rounded-lg p-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <h3 className="font-medium text-sm">Business Consistency Rules</h3>
-                                    <Badge variant="outline" className="text-xs">{crossFieldRules.length}</Badge>
-                                </div>
-                                {crossFieldRules.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">No business consistency rules returned by DQ preview</p>
-                                ) : (
-                                    <div className="rounded-md border border-muted/60 overflow-hidden">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-muted/40 border-b border-muted/60">
-                                                    <tr className="text-left text-xs text-muted-foreground">
-                                                        <th className="w-40 px-3 py-2 font-medium">Rule</th>
-                                                        <th className="px-3 py-2 font-medium">Condition</th>
-                                                        <th className="px-3 py-2 font-medium">Columns</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {crossFieldRules.map((rule, i) => (
-                                                        <tr
-                                                            key={i}
-                                                            className={cn(
-                                                                "border-b border-muted/40 last:border-b-0 hover:bg-muted/20 transition-colors",
-                                                                i % 2 === 1 && "bg-muted/10"
-                                                            )}
-                                                        >
-                                                            <td className="px-3 py-2 align-top">
-                                                                <span className="font-mono text-xs font-medium">{rule.rule_id}</span>
-                                                            </td>
-                                                            <td className="px-3 py-2 align-top text-xs text-muted-foreground">
-                                                                {rule.condition || rule.predicate || "—"}
-                                                            </td>
-                                                            <td className="px-3 py-2 align-top">
-                                                                <div className="flex flex-wrap gap-1">
-                                                                    {rule.cols?.map((c: string) => (
-                                                                        <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
-                                                                    ))}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                    </div>
+                </div>
+
+                {/* ── Business Rules — sticky right panel ────────────────── */}
+                {/* Lifted out of the column-profile scroll area and pinned to the
+                    right so the user never has to scroll past their column list to
+                    see what cross-field rules the engine surfaced. Width capped at
+                    20rem so the column-profile grid keeps its 2-up layout. On
+                    narrower viewports it stacks underneath via lg: breakpoint. */}
+                <aside className="hidden lg:flex w-80 shrink-0 border border-muted rounded-lg flex-col overflow-hidden">
+                    <div className="p-3 border-b border-muted/40 bg-muted/20 flex items-center gap-2">
+                        <h3 className="font-medium text-sm">Business Rules</h3>
+                        <Badge variant="outline" className="text-xs">
+                            {hasProfiles ? crossFieldRules.length : "—"}
+                        </Badge>
+                        <span className="ml-auto text-[10px] text-muted-foreground/70">
+                            cross-field
+                        </span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-3">
+                        {!hasProfiles ? (
+                            <p className="text-xs text-muted-foreground text-center py-8">
+                                Profiling will surface cross-field business rules here.
+                            </p>
+                        ) : crossFieldRules.length === 0 ? (
+                            <p className="text-xs text-muted-foreground text-center py-8">
+                                No cross-field rules detected on the selected columns.
+                            </p>
+                        ) : (
+                            <div className="space-y-2">
+                                {crossFieldRules.map((rule, i) => (
+                                    <div
+                                        key={i}
+                                        className="rounded-md border border-muted/60 p-2.5 hover:bg-muted/20 transition-colors"
+                                    >
+                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                            <span className="font-mono text-[11px] font-medium">{rule.rule_id}</span>
+                                        </div>
+                                        <div className="text-[11px] text-muted-foreground mb-1.5 break-words">
+                                            {rule.condition || rule.predicate || "—"}
+                                        </div>
+                                        <div className="flex flex-wrap gap-1">
+                                            {rule.cols?.map((c: string) => (
+                                                <Badge key={c} variant="outline" className="text-[10px] px-1.5 py-0">{c}</Badge>
+                                            ))}
                                         </div>
                                     </div>
-                                )}
+                                ))}
                             </div>
                         )}
                     </div>
-                </div>
+                </aside>
             </div>
 
             {requiredColumns.length > 0 && (

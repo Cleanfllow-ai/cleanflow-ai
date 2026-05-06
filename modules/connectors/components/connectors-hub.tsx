@@ -73,7 +73,7 @@ const PROVIDER_ACCENT: Record<string, string> = {
 // ─── Category metadata ──────────────────────────────────────────────────────
 
 const CATEGORIES: Record<string, { label: string; description: string; icon: typeof Database }> = {
-  erp: { label: "ERP & Business Platforms", description: "ERP, billing, payment, and finance systems", icon: Database },
+  erp: { label: "Applications", description: "ERP, billing, payment, and finance systems", icon: Database },
   warehouse: { label: "Data Warehouses", description: "Cloud analytics platforms", icon: HardDrive },
   storage: { label: "Cloud Storage", description: "File storage & document management", icon: Cloud },
 }

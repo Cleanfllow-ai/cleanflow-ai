@@ -33,7 +33,7 @@ interface JobDialogProps {
 // ─── Category options ─────────────────────────────────────────────────────────
 
 const CATEGORY_OPTIONS: { label: string; value: ProviderCategory }[] = [
-    { label: "ERP Systems", value: "erp" },
+    { label: "Applications", value: "erp" },
     { label: "Data Warehouses", value: "warehouse" },
     { label: "Cloud Storage", value: "storage" },
 ]

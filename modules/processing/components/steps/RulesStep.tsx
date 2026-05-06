@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Play, ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Loader2, Code, ArrowRight } from "lucide-react"
 import { useProcessingWizard, type RuleWithState, type CrossFieldRuleWithState } from "../WizardContext"
 import { fileManagementAPI, type CustomRuleDefinition } from "@/modules/files"
@@ -394,8 +395,15 @@ export function RulesStep() {
         </div>
       </div>
 
-      {/* Main content area with internal scrolling */}
-      <div className="border border-muted rounded-lg overflow-hidden flex-1 min-h-0 mt-6">
+      {/* Main content area split into tabs so Business Consistency Rules
+          gets equal billing alongside per-column DQ rules instead of being
+          buried at the bottom of one long scroll list. */}
+      <Tabs defaultValue="dq" className="flex-1 min-h-0 mt-6 gap-3">
+      <TabsList className="h-9 w-fit">
+        <TabsTrigger value="dq" className="px-3">DQ Rules</TabsTrigger>
+        <TabsTrigger value="bcr" className="px-3">Business Consistency Rules</TabsTrigger>
+      </TabsList>
+      <TabsContent value="bcr" className="border border-muted rounded-lg overflow-hidden min-h-0 mt-0 data-[state=inactive]:hidden">
         <div className="h-full overflow-y-auto p-4">
           <div className="space-y-3">
             <div className="border border-muted rounded-md p-3">
@@ -753,7 +761,13 @@ export function RulesStep() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      </TabsContent>
 
+      <TabsContent value="dq" className="border border-muted rounded-lg overflow-hidden min-h-0 mt-0 data-[state=inactive]:hidden">
+        <div className="h-full overflow-y-auto p-4">
+          <div className="space-y-3">
             <h3 className="font-medium">Column Rules</h3>
             {selectedColumns.length === 0 && (
               <p className="text-sm text-muted-foreground">Select columns and profile them to see suggested rules.</p>
@@ -883,7 +897,8 @@ export function RulesStep() {
             })}
           </div>
         </div>
-      </div>
+      </TabsContent>
+      </Tabs>
 
       {/* Footer with navigation buttons - fixed at bottom */}
       <div className="flex items-center justify-between pt-4 border-t border-muted/40 mt-6">
