@@ -69,6 +69,15 @@ export interface FileStatusResponse {
     error_code: string
     error_message: string
   }>
+  // FileValidator output: auto-detect outcome ("AUTO_DETECT" when an ERP
+  // template matched, "GENERIC_FALLBACK" when headers didn't match any
+  // registered ERP entity). When in fallback mode, ERP-specific template
+  // checks were skipped — the file still goes through generic DQ.
+  validation?: {
+    mode?: 'AUTO_DETECT' | 'GENERIC_FALLBACK' | string
+    auto_detect_warning?: 'no_erp_match' | 'ambiguous_match' | 'unsupported_entity' | string
+    header_sample?: string[]
+  }
 }
 
 export interface FileListResponse {

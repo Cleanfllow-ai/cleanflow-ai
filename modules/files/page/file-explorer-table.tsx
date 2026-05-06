@@ -492,6 +492,26 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         )}
+                                                        {file.validation?.mode === "GENERIC_FALLBACK" && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="text-[9px] font-medium whitespace-nowrap px-1.5 py-0 h-4 border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                                                        data-testid="generic-fallback-badge"
+                                                                    >
+                                                                        Generic
+                                                                    </Badge>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    {file.validation?.auto_detect_warning === "no_erp_match"
+                                                                        ? "Headers didn't match any registered ERP template — DQ ran in generic mode (template checks skipped). The file is still validated against universal rules."
+                                                                        : file.validation?.auto_detect_warning === "ambiguous_match"
+                                                                        ? "Headers matched multiple ERP templates ambiguously — DQ ran in generic mode."
+                                                                        : "DQ ran in generic mode — ERP-specific template checks were skipped for this file."}
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        )}
                                                     </div>
                                                 );
                                             })()}
