@@ -14,7 +14,12 @@ export interface SettingsPreset {
     config: {
         currency_values?: string[]
         uom_values?: string[]
+        /** Strptime patterns the org accepts for dates, e.g.
+         *  ["%d/%m/%Y", "%Y.%m.%d"]. Honoured by R12/R13/R14/R15. */
         date_formats?: string[]
+        /** Where R12 normalizes dates to. Strptime pattern or legacy
+         *  alias ("ISO" | "DMY" | "MDY"). Defaults to "ISO". */
+        target_date_format?: string
         custom_patterns?: Record<string, string>
         required_columns?: string[]
         ruleset_version?: string
@@ -87,6 +92,10 @@ export interface WizardState {
     columnTypeAliases: Record<string, string | null>
     columnKeyTypes: Record<string, "none" | "primary_key" | "unique">
     columnNullable: Record<string, boolean>
+    /** ISO 4217 currency code per column. Populated by preset import or
+     *  the Currency Code selector (when present); R11 uses it for
+     *  per-currency precision caps (USD=2, JPY=0, KWD=3). */
+    columnCurrencyCodes: Record<string, string | null>
     backendVersion?: string
     crossFieldRules: CrossFieldRuleWithState[]
 
@@ -171,6 +180,7 @@ interface WizardActions {
     setColumnTypeAlias: (column: string, alias: string | null) => void
     setColumnKeyType: (column: string, key: "none" | "primary_key" | "unique") => void
     setColumnNullable: (column: string, nullable: boolean) => void
+    setColumnCurrencyCode: (column: string, code: string | null) => void
     setBackendVersion: (version: string | undefined) => void
     setCrossFieldRules: (rules: CrossFieldRuleWithState[]) => void
     toggleCrossFieldRule: (ruleId: string) => void
@@ -228,6 +238,7 @@ const initialState: WizardState = {
     columnTypeAliases: {},
     columnKeyTypes: {},
     columnNullable: {},
+    columnCurrencyCodes: {},
     backendVersion: undefined,
     crossFieldRules: [],
     fileStructure: undefined,
@@ -324,6 +335,14 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
             columnNullable: { ...s.columnNullable, [column]: nullable },
         })),
 
+        setColumnCurrencyCode: (column, code) => setState((s) => ({
+            ...s,
+            columnCurrencyCodes: {
+                ...s.columnCurrencyCodes,
+                [column]: code ? code.trim().toUpperCase() : null,
+            },
+        })),
+
         setBackendVersion: (version) => setState((s) => ({ ...s, backendVersion: version })),
 
         setCrossFieldRules: (rules) => setState((s) => ({ ...s, crossFieldRules: rules })),
@@ -406,6 +425,7 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
                 columnTypeAliases: Object.fromEntries(columns.map((c) => [c, null])),
                 columnKeyTypes: Object.fromEntries(columns.map((c) => [c, "none"] as const)),
                 columnNullable: Object.fromEntries(columns.map((c) => [c, true])),
+                columnCurrencyCodes: Object.fromEntries(columns.map((c) => [c, null])),
                 crossFieldRules: [],
             })
         },

@@ -25,6 +25,7 @@ export function ProcessStep({
     columnTypeAliases,
     columnKeyTypes,
     columnNullable,
+    columnCurrencyCodes,
     crossFieldRules,
     selectedPreset,
     presetOverrides,
@@ -104,12 +105,17 @@ export function ProcessStep({
 
       const columnTypeOverrides: Record<string, any> = {}
       selectedColumns.forEach((col) => {
-        columnTypeOverrides[col] = {
+        const override: Record<string, any> = {
           core_type: columnCoreTypes[col] || "string",
           type_alias: columnTypeAliases[col] || null,
           key_type: columnKeyTypes[col] || "none",
           nullable: columnNullable[col] !== undefined ? columnNullable[col] : true,
         }
+        // Only include currency_code when set — backend defaults R11 to
+        // global decimal_max_places when the field is absent.
+        const ccy = columnCurrencyCodes?.[col]
+        if (ccy) override.currency_code = ccy
+        columnTypeOverrides[col] = override
       })
 
       const compactCrossRules = crossFieldRules

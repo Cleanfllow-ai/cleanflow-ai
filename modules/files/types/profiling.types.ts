@@ -72,6 +72,13 @@ export interface ColumnTypeOverride {
     type_alias: string | null
     key_type: 'none' | 'primary_key' | 'unique'
     nullable: boolean
+    /**
+     * ISO 4217 currency code (e.g. "USD", "JPY", "KWD"). When present,
+     * R11 (decimal precision) uses the currency's minor-unit count
+     * instead of the global decimal_max_places. Null/undefined for
+     * non-currency columns.
+     */
+    currency_code?: string | null
 }
 
 // --- Schema Intelligence Layer V2 types ---
