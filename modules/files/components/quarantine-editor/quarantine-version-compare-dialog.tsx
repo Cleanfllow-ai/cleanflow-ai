@@ -115,9 +115,10 @@ async function loadAllRows(
   uploadId: string,
   authToken: string,
   versionUploadId: string,
-): Promise<QuarantineRow[]> {
+): Promise<{ rows: QuarantineRow[]; capped: boolean }> {
   const acc: QuarantineRow[] = []
   let cursor: string | undefined
+  let capped = false
   for (let i = 0; i < MAX_PAGES; i++) {
     const resp = await queryQuarantinedRows(uploadId, authToken, {
       version: versionUploadId,
@@ -130,8 +131,11 @@ async function loadAllRows(
     acc.push(...rows)
     if (!resp.next_cursor) break
     cursor = String(resp.next_cursor)
+    // If we've exhausted MAX_PAGES and the server still has more rows,
+    // mark capped so the dialog can warn the user that the diff is partial.
+    if (i === MAX_PAGES - 1 && resp.next_cursor) capped = true
   }
-  return acc
+  return { rows: acc, capped }
 }
 
 function buildDiff(
@@ -206,6 +210,9 @@ export function QuarantineVersionCompareDialog({
   const [error, setError] = useState<string | null>(null)
   const [aRows, setARows] = useState<QuarantineRow[] | null>(null)
   const [bRows, setBRows] = useState<QuarantineRow[] | null>(null)
+  // Sides whose row fetch hit the safety cap (5000 rows). Surfaced as a
+  // warning so users don't mistake a partial diff for a complete one.
+  const [cappedSides, setCappedSides] = useState<('A' | 'B')[]>([])
 
   // Reset selection whenever the dialog reopens with a fresh lineage.
   useEffect(() => {
@@ -217,6 +224,7 @@ export function QuarantineVersionCompareDialog({
     setError(null)
     setARows(null)
     setBRows(null)
+    setCappedSides([])
   }, [open, defaultA, defaultB])
 
   // Fetch rows for both versions whenever picker selection changes.
@@ -234,14 +242,19 @@ export function QuarantineVersionCompareDialog({
           loadAllRows(uploadId, authToken, versionB),
         ])
         if (cancelled) return
-        setARows(a)
-        setBRows(b)
+        setARows(a.rows)
+        setBRows(b.rows)
+        const capped: ('A' | 'B')[] = []
+        if (a.capped) capped.push('A')
+        if (b.capped) capped.push('B')
+        setCappedSides(capped)
         setPage(0)
       } catch (err: any) {
         if (cancelled) return
         setError(err?.message || 'Failed to load version data')
         setARows(null)
         setBRows(null)
+        setCappedSides([])
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -384,6 +397,26 @@ export function QuarantineVersionCompareDialog({
             </>
           )}
         </div>
+
+        {/* Truncation warning — when either side hit the 5000-row safety cap,
+            the diff is a partial view of the data. Make it loud so users
+            don't mistake the partial diff for a complete reconciliation. */}
+        {!loading && !error && cappedSides.length > 0 && (
+          <div className="px-5 py-2 border-b bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-center gap-2">
+            <span aria-hidden>⚠</span>
+            <span>
+              Partial diff —{' '}
+              {cappedSides.length === 2
+                ? 'both versions'
+                : `version ${cappedSides[0] === 'A' ? labelFor(versionA) : labelFor(versionB)}`}{' '}
+              {cappedSides.length === 2 ? 'have' : 'has'} more than{' '}
+              <span className="font-semibold">{(MAX_PAGES * FETCH_LIMIT).toLocaleString()}</span>{' '}
+              quarantined rows. Showing the first{' '}
+              {(MAX_PAGES * FETCH_LIMIT).toLocaleString()} per side; rows
+              beyond that are not included in this comparison.
+            </span>
+          </div>
+        )}
 
         {/* Table */}
         <div className="flex-1 overflow-auto">
