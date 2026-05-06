@@ -13,6 +13,8 @@ import {
 } from './job-dialog-constants'
 import { connectorsAPI, warehouseConnectorsAPI, erpConnectorsAPI } from '@/modules/connectors'
 import { ensureConnectorConfig } from '@/modules/connectors/hooks/use-connector-metadata-cache'
+import { isApiError } from '@/modules/shared/api-error'
+import { toastFromError } from '@/lib/error-toast-jsx'
 import type { ProviderInfo } from '@/modules/connectors/api/connectors-api'
 import type { WarehouseMetadataItem } from '@/modules/connectors/api/warehouse-connectors-api'
 import { getSettingsPresets } from '@/modules/files/api/file-settings-api'
@@ -49,6 +51,20 @@ export interface EntityOption {
 export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const isEdit = !!job
     const { toast } = useToast()
+
+    /**
+     * Surface connector reconnect/connect errors as toasts so users can act
+     * on them, while leaving 4xx/5xx of other shapes silent (avoids spam
+     * when a list is empty for legitimate reasons — e.g. user hasn't picked
+     * a database yet). Only fires for ApiErrors with `action="reconnect"`
+     * or `action="connect"` — exactly the cases where a user-visible CTA
+     * unblocks the workflow.
+     */
+    const _surfaceReconnectError = useCallback((err: unknown) => {
+        if (isApiError(err) && (err.action === 'reconnect' || err.action === 'connect')) {
+            toast(toastFromError(err))
+        }
+    }, [toast])
 
     // ── Providers & connections (fetched from backend) ─────────────────────────
     const [allProviders, setAllProviders] = useState<ProviderInfo[]>([])
@@ -351,9 +367,13 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         let cancelled = false
         warehouseConnectorsAPI.listSchemas(sourceProvider, sourceConfig.database).then(schemas => {
             if (!cancelled) setSchemaList(schemas)
-        }).catch(() => { if (!cancelled) setSchemaList([]) })
+        }).catch((err) => {
+            if (cancelled) return
+            setSchemaList([])
+            _surfaceReconnectError(err)
+        })
         return () => { cancelled = true }
-    }, [sourceCategory, sourceProvider, sourceConfig.database])
+    }, [sourceCategory, sourceProvider, sourceConfig.database, _surfaceReconnectError])
 
     // ── Destination warehouse config from admin connectors tab ────────────────
 
@@ -397,9 +417,13 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         let cancelled = false
         warehouseConnectorsAPI.listSchemas(destinationProvider, destinationConfig.database).then(schemas => {
             if (!cancelled) setDestSchemaList(schemas)
-        }).catch(() => { if (!cancelled) setDestSchemaList([]) })
+        }).catch((err) => {
+            if (cancelled) return
+            setDestSchemaList([])
+            _surfaceReconnectError(err)
+        })
         return () => { cancelled = true }
-    }, [destinationCategory, destinationProvider, destinationConfig.database])
+    }, [destinationCategory, destinationProvider, destinationConfig.database, _surfaceReconnectError])
 
     useEffect(() => {
         if (destinationCategory !== 'warehouse' || !destinationProvider || !destinationConfig.database || !destinationConfig.schema) {
@@ -409,9 +433,13 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         let cancelled = false
         warehouseConnectorsAPI.listTables(destinationProvider, destinationConfig.database, destinationConfig.schema).then(tables => {
             if (!cancelled) setDestTableList(tables)
-        }).catch(() => { if (!cancelled) setDestTableList([]) })
+        }).catch((err) => {
+            if (cancelled) return
+            setDestTableList([])
+            _surfaceReconnectError(err)
+        })
         return () => { cancelled = true }
-    }, [destinationCategory, destinationProvider, destinationConfig.database, destinationConfig.schema])
+    }, [destinationCategory, destinationProvider, destinationConfig.database, destinationConfig.schema, _surfaceReconnectError])
 
     // ── Destination ERP entity discovery ───────────────────────────────────────
 
