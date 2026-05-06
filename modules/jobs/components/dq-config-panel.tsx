@@ -1,9 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronRight, Loader2, Shield, ShieldCheck, FileWarning, Globe } from "lucide-react"
+import { Calculator, ChevronRight, Loader2, Plus, Shield, ShieldCheck, FileWarning, Globe, X } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
@@ -16,6 +19,15 @@ import { cn } from "@/shared/lib/utils"
 import { DQ_RULE_NAMES } from "@/shared/lib/dq-rules"
 import type { SettingsPreset } from "@/modules/files/types"
 import type { OrgMembership } from "@/modules/auth/api/org-api"
+
+/** A single formula rule editable in the DQ config panel.
+ *  Mirrors the backend FormulaRule shape from
+ *  `contexts/dq/.../dq_engine/rules/formula_rules.py`. */
+export interface FormulaRuleDraft {
+    target: string
+    expression: string
+    on_error?: "violate" | "skip"
+}
 
 // ─── Rule Categories ─────────────────────────────────────────────────────────
 
@@ -60,6 +72,10 @@ export interface DQConfigPanelProps {
     presetsLoading: boolean
     orgMembers: OrgMembership[]
     orgMembersLoading: boolean
+    /** Formula rules edited inline in the panel (#11). When the consumer
+     *  doesn't pass these, the Formula Columns section is hidden. */
+    formulaRules?: FormulaRuleDraft[]
+    onFormulaRulesChange?: (rules: FormulaRuleDraft[]) => void
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -79,6 +95,8 @@ export function DQConfigPanel({
     presetsLoading,
     orgMembers,
     orgMembersLoading,
+    formulaRules,
+    onFormulaRulesChange,
 }: DQConfigPanelProps) {
     const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({})
 
@@ -305,6 +323,192 @@ export function DQConfigPanel({
                         )
                     })}
                 </div>
+            </div>
+
+            {/* ── Formula Columns (#11) ────────────────────────────────────── */}
+            {onFormulaRulesChange && (
+                <FormulaColumnsSection
+                    rules={formulaRules || []}
+                    onChange={onFormulaRulesChange}
+                />
+            )}
+        </div>
+    )
+}
+
+
+// ─── FormulaColumnsSection (#11) ────────────────────────────────────────────
+//
+// Minimum-viable inline editor: list of rules + add/delete + per-rule
+// target/expression/on_error inputs. Validation is light (non-empty
+// target + expression with at least one `{...}` placeholder); the
+// backend's `parse_formula_rule` is the source of truth — this UI just
+// surfaces obvious typos before the user submits.
+
+const PLACEHOLDER_REGEX = /\{[^{}\n]+\}/
+
+interface FormulaColumnsSectionProps {
+    rules: FormulaRuleDraft[]
+    onChange: (rules: FormulaRuleDraft[]) => void
+}
+
+function FormulaColumnsSection({ rules, onChange }: FormulaColumnsSectionProps) {
+    const [draftTarget, setDraftTarget] = useState("")
+    const [draftExpression, setDraftExpression] = useState("")
+    const [error, setError] = useState<string | null>(null)
+
+    const handleAdd = () => {
+        const target = draftTarget.trim()
+        const expression = draftExpression.trim()
+        if (!target) {
+            setError("Target column name is required")
+            return
+        }
+        if (!expression) {
+            setError("Expression is required")
+            return
+        }
+        if (!PLACEHOLDER_REGEX.test(expression)) {
+            setError("Expression must reference at least one column via {column_name}")
+            return
+        }
+        if (rules.some((r) => r.target === target)) {
+            setError(`A formula already targets column \`${target}\``)
+            return
+        }
+        onChange([...rules, { target, expression, on_error: "violate" }])
+        setDraftTarget("")
+        setDraftExpression("")
+        setError(null)
+    }
+
+    const handleRemove = (idx: number) => {
+        const next = rules.slice()
+        next.splice(idx, 1)
+        onChange(next)
+    }
+
+    const handleEditExpression = (idx: number, expression: string) => {
+        const next = rules.slice()
+        next[idx] = { ...next[idx], expression }
+        onChange(next)
+    }
+
+    const handleEditOnError = (idx: number, on_error: "violate" | "skip") => {
+        const next = rules.slice()
+        next[idx] = { ...next[idx], on_error }
+        onChange(next)
+    }
+
+    return (
+        <div className="space-y-3 rounded-lg border border-border/50 p-3">
+            <div className="flex items-center gap-2">
+                <Calculator className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label className="text-sm font-medium">Formula Columns</Label>
+                {rules.length > 0 && (
+                    <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                        {rules.length}
+                    </Badge>
+                )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+                Synthesise new columns from existing data, e.g.{" "}
+                <code className="rounded bg-muted px-1 font-mono text-[10px]">
+                    {"{quantity} * {unit_price}"}
+                </code>
+                . Failed evaluations emit{" "}
+                <code className="rounded bg-muted px-1 font-mono text-[10px]">R-FORMULA-*</code>{" "}
+                violations.
+            </p>
+
+            {/* Existing rules */}
+            {rules.length > 0 && (
+                <div className="space-y-2">
+                    {rules.map((rule, idx) => (
+                        <div
+                            key={`${rule.target}-${idx}`}
+                            className="rounded-md border bg-card/50 p-2 text-xs"
+                        >
+                            <div className="flex items-start gap-2">
+                                <span className="mt-0.5 shrink-0 font-mono font-medium">
+                                    {rule.target}
+                                </span>
+                                <span className="mt-0.5 shrink-0 text-muted-foreground">:=</span>
+                                <Textarea
+                                    value={rule.expression}
+                                    onChange={(e) => handleEditExpression(idx, e.target.value)}
+                                    rows={1}
+                                    className="min-h-[28px] flex-1 resize-y font-mono text-[11px]"
+                                />
+                                <Select
+                                    value={rule.on_error || "violate"}
+                                    onValueChange={(v) =>
+                                        handleEditOnError(idx, v as "violate" | "skip")
+                                    }
+                                >
+                                    <SelectTrigger className="h-7 w-24 text-[11px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="violate" className="text-[11px]">
+                                            Violate
+                                        </SelectItem>
+                                        <SelectItem value="skip" className="text-[11px]">
+                                            Skip
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                    onClick={() => handleRemove(idx)}
+                                    title="Remove formula"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Add new rule */}
+            <div className="space-y-2 border-t border-border/40 pt-2">
+                <div className="flex flex-col gap-2 md:flex-row md:items-start">
+                    <Input
+                        value={draftTarget}
+                        onChange={(e) => setDraftTarget(e.target.value)}
+                        placeholder="target_column"
+                        className="h-8 md:max-w-[180px] font-mono text-xs"
+                    />
+                    <Input
+                        value={draftExpression}
+                        onChange={(e) => setDraftExpression(e.target.value)}
+                        placeholder="{quantity} * {unit_price}"
+                        className="h-8 flex-1 font-mono text-xs"
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                e.preventDefault()
+                                handleAdd()
+                            }
+                        }}
+                    />
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 shrink-0 text-xs"
+                        onClick={handleAdd}
+                    >
+                        <Plus className="mr-1 h-3 w-3" />
+                        Add formula
+                    </Button>
+                </div>
+                {error && (
+                    <p className="text-[11px] text-destructive">{error}</p>
+                )}
             </div>
         </div>
     )

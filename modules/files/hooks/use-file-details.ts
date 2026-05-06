@@ -265,7 +265,14 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
     if (activeTab === "preview" && !previewData && !previewLoading) {
       void loadPreview()
     }
-    if (activeTab === "dq-report" && !dqReport && !dqReportLoading) {
+    // Lazy-load the dq report on preview tab too (#11): we need
+    // `synthesised_columns` from there to render calculator icons on
+    // formula-derived headers. Cheap single S3 GET; no-op when already
+    // loaded.
+    if (
+      (activeTab === "preview" || activeTab === "dq-report") &&
+      !dqReport && !dqReportLoading
+    ) {
       void loadDqReport()
     }
   }, [

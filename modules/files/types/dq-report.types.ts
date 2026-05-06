@@ -47,6 +47,16 @@ export interface DqReportResponse {
     top_violations?: TopIssue[]
     processing_time?: string | number
     schema_intelligence?: SchemaIntelligenceReport
+    /** Names of columns synthesised by formula rules (#11). Optional —
+     *  empty / absent when no formulas ran. Backend writes this into
+     *  dq_report.json from `dq_matrix.metadata.synthesised_columns`. */
+    synthesised_columns?: string[]
+    /** Per-rule parse errors collected during formula application. */
+    formula_parse_errors?: Array<{
+        code: string
+        target?: string | null
+        message?: string
+    }>
 }
 
 export interface HybridSummary {

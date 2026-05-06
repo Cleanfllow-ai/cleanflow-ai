@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2, Table as TableIcon } from "lucide-react"
+import { AlertTriangle, Calculator, Loader2, Table as TableIcon } from "lucide-react"
 
 import { cn } from "@/shared/lib/utils"
 import type { FilePreviewData } from "@/modules/files/types"
@@ -8,6 +8,11 @@ interface FilePreviewTabProps {
   previewLoading: boolean
   previewError: string | null
   previewData: FilePreviewData | null
+  /** Columns that were synthesised by formula rules (#11). Names in
+   *  this set get a calculator icon next to the header so the operator
+   *  can tell at a glance which columns are derived. Empty when no
+   *  formulas ran. Read from dq_matrix.json's `synthesised_columns`. */
+  synthesisedColumns?: string[]
 }
 
 // DQ metadata columns are used internally for cell coloring but should not
@@ -164,8 +169,14 @@ function isHiddenHeader(h: string): boolean {
   return false
 }
 
-export function FilePreviewTab({ previewLoading, previewError, previewData }: FilePreviewTabProps) {
+export function FilePreviewTab({
+  previewLoading,
+  previewError,
+  previewData,
+  synthesisedColumns,
+}: FilePreviewTabProps) {
   const visibleHeaders = previewData?.headers?.filter((h) => !isHiddenHeader(h)) ?? []
+  const synthesisedSet = new Set(synthesisedColumns ?? [])
 
   return (
     <div className="h-full flex flex-col">
@@ -205,14 +216,29 @@ export function FilePreviewTab({ previewLoading, previewError, previewData }: Fi
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-20 bg-muted shadow-sm">
                 <tr>
-                  {visibleHeaders.map((header) => (
-                    <th
-                      key={header}
-                      className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap border-b border-r last:border-r-0 bg-muted select-none"
-                    >
-                      {header}
-                    </th>
-                  ))}
+                  {visibleHeaders.map((header) => {
+                    const isSynthesised = synthesisedSet.has(header)
+                    return (
+                      <th
+                        key={header}
+                        className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap border-b border-r last:border-r-0 bg-muted select-none"
+                      >
+                        <span className="inline-flex items-center gap-1.5">
+                          {isSynthesised && (
+                            <UiTooltip>
+                              <TooltipTrigger asChild>
+                                <Calculator className="h-3 w-3 shrink-0 text-violet-600" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                Derived column — value computed by a formula rule
+                              </TooltipContent>
+                            </UiTooltip>
+                          )}
+                          <span>{header}</span>
+                        </span>
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>

@@ -1,4 +1,4 @@
-import { FileText, GitBranch, ListTree, PieChart as PieChartIcon, Server, Table as TableIcon, Tags } from "lucide-react"
+import { FileText, GitBranch, History, ListTree, PieChart as PieChartIcon, Server, Table as TableIcon, Tags } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -9,6 +9,7 @@ import type { FileStatusResponse } from "@/modules/files/api/file-management-api
 import { useFileDetails } from "@/modules/files/hooks/use-file-details"
 
 import { DqMatrixDialog } from "./dq-matrix-dialog"
+import { FileAuditLogTab } from "./file-details/file-audit-log-tab"
 import { FileDqReportTab } from "./file-details/file-dq-report-tab"
 import { FileLineageTab } from "./file-details/file-lineage-tab"
 import { FileMetadataTab } from "./file-details/file-metadata-tab"
@@ -239,6 +240,20 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                     Metadata
                   </button>
                 )}
+                {!hideTabs.includes("audit") && (
+                  <button
+                    onClick={() => setActiveTab("audit" as any)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                      (activeTab as string) === "audit"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <History className="h-3.5 w-3.5" />
+                    Audit Log
+                  </button>
+                )}
                 {!hideTabs.includes("versions") && (
                   <button
                     onClick={() => setActiveTab("versions")}
@@ -263,6 +278,7 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                   previewLoading={previewLoading}
                   previewError={previewError}
                   previewData={previewData}
+                  synthesisedColumns={dqReport?.synthesised_columns}
                 />
               )}
               {activeTab === "dq-report" && (
@@ -297,6 +313,9 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
               )}
               {activeTab === "metadata" && (
                 <FileMetadataTab file={resolvedFile} versions={versions} />
+              )}
+              {(activeTab as string) === "audit" && (
+                <FileAuditLogTab uploadId={resolvedFile.upload_id} />
               )}
               {activeTab === "versions" && idToken && (
                 <div className="px-6 py-4 overflow-auto">

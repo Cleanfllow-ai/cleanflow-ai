@@ -55,6 +55,8 @@ const ENDPOINTS = {
     DOWNLOAD: (id: string) => `/files/${id}/download`,
     QUARANTINED_EXPORT: (id: string) => `/files/${id}/quarantined`,
     FIND: (id: string) => `/files/${id}/quarantined/find`,
+    AUDIT_LOG: (id: string) => `/files/${id}/audit-log`,
+    UNLOCK_ROW: (id: string, rowId: string) => `/files/${id}/rows/${rowId}/unlock`,
 }
 
 // ========== Quarantine Export ==========
@@ -445,6 +447,88 @@ export async function backfillQuarantineReadModel(
             method: 'POST',
             body: JSON.stringify({ version }),
         }
+    )
+}
+
+// ========== Audit Log + Lock-after-push (#6) ==========
+
+export type AuditLogSource =
+    | 'user_edit'
+    | 'auto_fix'
+    | 'find_replace'
+    | 'rule_correction'
+    | 'reprocess'
+    | 'unlock'
+    | 'system'
+
+export interface AuditLogEntry {
+    audit_id: string
+    org_id: string
+    upload_id: string
+    row_id: string
+    column: string | null
+    old_value: unknown
+    new_value: unknown
+    changed_by: string
+    changed_at: string
+    source: AuditLogSource
+    run_id: string | null
+    session_id: string | null
+    metadata: Record<string, unknown>
+}
+
+export interface AuditLogResponse {
+    entries: AuditLogEntry[]
+    next_cursor: string | null
+    count: number
+}
+
+export interface AuditLogFilters {
+    user?: string
+    row_id?: string
+    source?: AuditLogSource
+    column?: string
+    cursor?: string
+    limit?: number
+}
+
+/**
+ * Fetch the cell-edit audit log for a file (paginated, RBAC-scoped).
+ * Super-admins see every entry; members are post-filtered to their own.
+ */
+export async function getAuditLog(
+    uploadId: string,
+    authToken: string,
+    filters: AuditLogFilters = {},
+): Promise<AuditLogResponse> {
+    const params = new URLSearchParams()
+    if (filters.user) params.set('user', filters.user)
+    if (filters.row_id) params.set('row_id', filters.row_id)
+    if (filters.source) params.set('source', filters.source)
+    if (filters.column) params.set('column', filters.column)
+    if (filters.cursor) params.set('cursor', filters.cursor)
+    if (filters.limit) params.set('limit', String(filters.limit))
+    const qs = params.toString()
+    const path = qs
+        ? `${ENDPOINTS.AUDIT_LOG(uploadId)}?${qs}`
+        : ENDPOINTS.AUDIT_LOG(uploadId)
+    return makeRequest(path, authToken, { method: 'GET' })
+}
+
+/**
+ * Release the lock on a single row that was placed by a successful
+ * connector export. Super-admin only — the backend gates on role and
+ * returns 403 for non-super-admins.
+ */
+export async function unlockRow(
+    uploadId: string,
+    rowId: string,
+    authToken: string,
+): Promise<{ ok: true; row_id: string }> {
+    return makeRequest(
+        ENDPOINTS.UNLOCK_ROW(uploadId, rowId),
+        authToken,
+        { method: 'POST' },
     )
 }
 

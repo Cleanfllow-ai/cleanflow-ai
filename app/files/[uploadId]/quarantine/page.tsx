@@ -20,9 +20,11 @@ import { QuarantineVersionLineage } from '@/modules/files/components/quarantine-
 import { QuarantineFindReplacePanel } from '@/modules/files/components/quarantine-editor/quarantine-find-replace-panel'
 import { QuarantineCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-compare-dialog'
 import { QuarantineVersionCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-version-compare-dialog'
-import { ArrowLeft, ClipboardCheck, Check, Clock, Loader2, X } from 'lucide-react'
+import { ArrowLeft, ClipboardCheck, Check, Clock, Loader2, Unlock, X } from 'lucide-react'
 import type { GridApi } from 'ag-grid-community'
 import type { QuarantineRow } from '@/modules/files/types'
+import { unlockRow } from '@/modules/files/api/file-quarantine-api'
+import { toast } from 'sonner'
 
 interface PageProps {
   params: Promise<{ uploadId: string }>
@@ -112,6 +114,40 @@ export default function QuarantineEditorPage({ params }: PageProps) {
 
   // Between-VERSIONS comparison dialog (separate from the row-level Compare above).
   const [versionCompareOpen, setVersionCompareOpen] = useState(false)
+
+  // ── Unlock locked-row dialog state (#6) ─────────────────────────────────
+  const [unlockTargetRowId, setUnlockTargetRowId] = useState<string | null>(null)
+  const [unlocking, setUnlocking] = useState(false)
+  const isSuperAdmin = userRole === 'Super Admin'
+
+  const handleUnlockRowClick = useCallback((rowId: string) => {
+    if (!isSuperAdmin) return
+    setUnlockTargetRowId(rowId)
+  }, [isSuperAdmin])
+
+  const handleConfirmUnlock = useCallback(async () => {
+    if (!unlockTargetRowId || !idToken) return
+    setUnlocking(true)
+    try {
+      await unlockRow(uploadId, unlockTargetRowId, idToken)
+      // Optimistically clear is_locked locally so the badge disappears
+      // and editing re-enables without forcing a full reload.
+      const api = gridApiRef.current
+      if (api) {
+        const node = api.getRowNode(unlockTargetRowId)
+        if (node && node.data) {
+          node.setData({ ...node.data, is_locked: false })
+        }
+      }
+      toast.success(`Row ${unlockTargetRowId} unlocked`)
+      setUnlockTargetRowId(null)
+    } catch (e: any) {
+      const msg = String(e?.message || 'Unlock failed')
+      toast.error(msg)
+    } finally {
+      setUnlocking(false)
+    }
+  }, [unlockTargetRowId, idToken, uploadId])
 
   const handleOpenCompare = useCallback(() => {
     const api = gridApiRef.current
@@ -365,6 +401,8 @@ export default function QuarantineEditorPage({ params }: PageProps) {
                 onCellEditingStarted={handleCellEditStart}
                 onCellEditingStopped={handleCellEditStop}
                 onGridApiReady={handleGridApiReady}
+                onUnlockRowClick={handleUnlockRowClick}
+                canUnlock={isSuperAdmin}
                 filterComponent={(column) => (
                   <QuarantineColumnFilter
                     column={column}
@@ -415,6 +453,48 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         lineage={editor.lineage}
         columns={visibleColumns}
       />
+
+      {/* ── Unlock confirmation dialog (#6) ──────────────────────────── */}
+      <Dialog
+        open={unlockTargetRowId !== null}
+        onOpenChange={(open) => { if (!open) setUnlockTargetRowId(null) }}
+      >
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Unlock className="h-4 w-4 text-amber-600" />
+              Unlock pushed row
+            </DialogTitle>
+            <DialogDescription>
+              Row <span className="font-mono font-medium">{unlockTargetRowId}</span> was
+              pushed to a destination connector and is currently read-only. Unlocking
+              will let you edit it again, but the original push remains in the audit log
+              alongside an <span className="font-medium">unlock</span> event with your name.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setUnlockTargetRowId(null)}
+              disabled={unlocking}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmUnlock}
+              disabled={unlocking}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {unlocking ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Unlock className="mr-2 h-3.5 w-3.5" />
+              )}
+              Unlock row
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={editor.approvalRequestDialogOpen}

@@ -40,6 +40,13 @@ interface QuarantineAgGridTableProps {
   onCellEditingStarted?: (column: string, rowId: string) => void
   onCellEditingStopped?: (column: string, rowId: string) => void
   onGridApiReady?: (api: GridApi<QuarantineRow>) => void
+  /** Click handler invoked when the user clicks the lock badge on a
+   *  row that has `is_locked: true`. Only wired for super-admins;
+   *  members see the badge but no click target. */
+  onUnlockRowClick?: (rowId: string) => void
+  /** True when the caller has permission to unlock pushed rows. Drives
+   *  whether the lock badge is interactive. */
+  canUnlock?: boolean
 }
 
 const GRID_THEME = themeQuartz.withParams({
@@ -205,6 +212,8 @@ export function QuarantineAgGridTable({
   onCellEditingStarted: onCellEditStart,
   onCellEditingStopped: onCellEditStop,
   onGridApiReady,
+  onUnlockRowClick,
+  canUnlock = false,
 }: QuarantineAgGridTableProps) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const apiRef = useRef<GridApi<QuarantineRow> | null>(null)
@@ -262,8 +271,8 @@ export function QuarantineAgGridTable({
           editable: false,
           field: column,
           headerName: 'Row',
-          maxWidth: 120,
-          minWidth: 96,
+          maxWidth: 140,
+          minWidth: 110,
           pinned: 'left',
           sortable: false,
           suppressMovable: true,
@@ -271,8 +280,42 @@ export function QuarantineAgGridTable({
             if (!params.data) return ''
             return getCellValueRef.current(String(params.data.row_id), column, params.data)
           },
+          // Custom cellRenderer so locked rows show a 🔒 badge.
+          // Click on the badge (super-admin only) calls onUnlockRowClick.
+          cellRenderer: (params: any) => {
+            const rowId = String(params.data?.row_id ?? '')
+            const isLocked = !!params.data?.is_locked
+            return (
+              <span className="flex items-center gap-1.5">
+                <span className="font-mono">{params.valueFormatted ?? params.value ?? ''}</span>
+                {isLocked && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (canUnlock && rowId) onUnlockRowClick?.(rowId)
+                    }}
+                    title={
+                      canUnlock
+                        ? 'Row pushed to destination — click to unlock (super-admin only)'
+                        : 'Row pushed to destination — read-only'
+                    }
+                    className={
+                      'inline-flex h-4 w-4 items-center justify-center rounded text-[10px] ' +
+                      (canUnlock
+                        ? 'cursor-pointer text-amber-600 hover:bg-amber-100'
+                        : 'cursor-default text-amber-500')
+                    }
+                  >
+                    {/* lock glyph (lucide-style) */}
+                    🔒
+                  </button>
+                )}
+              </span>
+            )
+          },
           valueFormatter: (params: ValueFormatterParams<QuarantineRow>) => formatCellValue(params.value),
-          width: 104,
+          width: 124,
         }
       }
 
@@ -281,6 +324,10 @@ export function QuarantineAgGridTable({
           if (!editableColumnSet.has(column)) return false
           const rowId = String(params.data?.row_id ?? '')
           if (!rowId) return false
+          // Hard lock: the row was pushed to a destination — read-only
+          // until super-admin unlocks (FE source of truth: `is_locked`
+          // attached by the QueryQuarantineRowsUseCase).
+          if (params.data?.is_locked) return false
           const lockInfo = cellLocksRefInternal.current.get(`${column}:${rowId}`)
           return !lockInfo
         },
@@ -327,7 +374,7 @@ export function QuarantineAgGridTable({
         },
       }
     })
-  }, [columns, editableColumnSet, filterComponent])
+  }, [columns, editableColumnSet, filterComponent, canUnlock, onUnlockRowClick])
 
   // fetchRows is accessed via ref so the datasource object stays stable across
   // cell edits and row merges. AG Grid resets scroll/cache whenever datasource
