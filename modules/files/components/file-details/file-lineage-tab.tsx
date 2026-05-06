@@ -776,13 +776,13 @@ export function FileLineageTab({
                                   <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11px]">
                                     {node.details.map((d, idx) => (
                                       <div key={idx} className="contents">
-                                        <dt className="font-medium text-muted-foreground">{d.label}</dt>
-                                        <dd className="break-all font-mono">{d.value}</dd>
+                                        <dt className="font-medium text-primary-foreground/70">{d.label}</dt>
+                                        <dd className="break-all font-mono text-primary-foreground">{d.value}</dd>
                                       </div>
                                     ))}
                                   </dl>
                                   {node.uploadId ? (
-                                    <div className="mt-1 truncate font-mono text-[10px] text-muted-foreground/70">
+                                    <div className="mt-1 truncate font-mono text-[10px] text-primary-foreground/60">
                                       {node.uploadId}
                                     </div>
                                   ) : null}

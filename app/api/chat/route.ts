@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Pinecone } from '@pinecone-database/pinecone'
 import { generateFallbackEmbedding } from './_lib/embeddings'
+import { buildStaticKnowledgeBlock } from './_lib/product-context'
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
 const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || 'cleanflowai-docs'
@@ -145,39 +146,59 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Get the Pinecone index
-    const index = getPinecone().Index(PINECONE_INDEX_NAME)
+    // Resolve the page route up front — both RAG and the static fallback
+    // use it (RAG to filter sources by section, static to pick the right
+    // Q&A pack).
+    const pageRoute =
+      pageContext && typeof pageContext === 'object' && typeof (pageContext as { route?: unknown }).route === 'string'
+        ? ((pageContext as { route: string }).route)
+        : null
 
-    // Generate embedding for the user's message
-    console.log(`📝 Generating embedding...`)
-    const queryEmbedding = await generateEmbedding(message)
+    // RAG context retrieval is best-effort: if Pinecone isn't configured (or
+    // its query fails), fall through to a static product-knowledge block +
+    // per-route Q&A pack so the model still answers like RAG hit relevant chunks.
+    let context = ''
+    const sources: Array<{ score: number | undefined; section: string }> = []
+    let usedStaticFallback = false
 
-    // Query Pinecone for relevant documents
-    console.log(`🔍 Querying Pinecone index...`)
-    const queryResponse = await index.query({
-      vector: queryEmbedding,
-      topK: 5,
-      includeMetadata: true,
-    })
-
-    // Format retrieved context
-    let context = 'Based on the documentation:'
-    const sources = []
-
-    if (queryResponse.matches && queryResponse.matches.length > 0) {
-      console.log(`✅ Found ${queryResponse.matches.length} relevant documents`)
-      for (const match of queryResponse.matches) {
-        if (match.metadata?.text) {
-          context += `\n\n${match.metadata.text}`
-          sources.push({
-            score: match.score,
-            section: match.metadata.section || 'Unknown',
-          })
+    if (process.env.PINECONE_API_KEY) {
+      try {
+        const index = getPinecone().Index(PINECONE_INDEX_NAME)
+        console.log('📝 Generating embedding...')
+        const queryEmbedding = await generateEmbedding(message)
+        console.log('🔍 Querying Pinecone index...')
+        const queryResponse = await index.query({
+          vector: queryEmbedding,
+          topK: 5,
+          includeMetadata: true,
+        })
+        if (queryResponse.matches && queryResponse.matches.length > 0) {
+          console.log(`✅ Found ${queryResponse.matches.length} relevant documents`)
+          context = 'Based on the documentation:'
+          for (const match of queryResponse.matches) {
+            if (match.metadata?.text) {
+              context += `\n\n${match.metadata.text}`
+              sources.push({
+                score: match.score,
+                section: (match.metadata.section as string) || 'Unknown',
+              })
+            }
+          }
+        } else {
+          console.warn('⚠️  No Pinecone matches — using static product context')
+          usedStaticFallback = true
         }
+      } catch (ragErr) {
+        console.warn('Pinecone RAG lookup failed; using static product context:', ragErr)
+        usedStaticFallback = true
       }
     } else {
-      console.warn(`⚠️  No relevant documents found in Pinecone`)
-      context = 'I searched the knowledge base but found limited relevant information. '
+      console.log('ℹ️  PINECONE_API_KEY not set — using static product context')
+      usedStaticFallback = true
+    }
+
+    if (usedStaticFallback) {
+      context = buildStaticKnowledgeBlock(pageRoute)
     }
 
     // Build system prompt
@@ -186,11 +207,11 @@ export async function POST(req: NextRequest) {
 
 Style rules:
 - Be concise. Keep answers under 4 sentences unless the user explicitly asks for more detail.
-- When you reference a feature, use the exact name shown in the UI sidebar (e.g. "Files", "Jobs", "Connectors", "Data Tools").
-- If the answer isn't covered by the documentation below, say "I don't see this in the documentation" rather than guessing.
-- Never invent file names, scores, or counts. Only reference numbers that appear in the page context block.
+- When you reference a feature, use the exact name shown in the UI sidebar (e.g. "Dashboard", "Data Catalog", "Jobs", "Admin").
+- Prefer answers grounded in the product reference and per-page Q&A below. If the user's question matches one of the canonical Q&A entries closely, answer with that content (paraphrased naturally — don't quote verbatim).
+- If the user asks something the reference doesn't cover, say "That isn't covered in the in-product reference; check the Help docs" rather than guessing.
+- Never invent file names, scores, run IDs, or counts. Only reference numbers that appear in the page context block below.
 
-Documentation (from knowledge base):
 ${context}${pageContextBlock ? `\n\nCurrent page context (what the user is looking at right now):\n${pageContextBlock}` : ''}
 
 Be professional and supportive.`
