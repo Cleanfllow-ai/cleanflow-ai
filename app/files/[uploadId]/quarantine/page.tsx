@@ -6,16 +6,6 @@ import { useAuth } from '@/modules/auth'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useQuarantineEditor, useQuarantineFilters, useQuarantineFind } from '@/modules/files/hooks'
@@ -130,19 +120,15 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     }
   }, [collab.lockDeniedCell])
 
-  // Reprocess confirmation gate.  Super Admins / approved users see a
-  // count-aware "Push N rows" dialog before the delta reprocess actually
-  // runs.  Users still in the approval-request flow bypass the dialog so
-  // the existing approval-request modal opens directly.
-  const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false)
+  // Reprocess gate. Super Admins / approved users trigger the delta
+  // reprocess directly (no confirmation dialog). Users still in the
+  // approval-request flow defer to the editor hook's existing modal.
   const [reprocessRunning, setReprocessRunning] = useState(false)
   const reprocessGate = useMemo(() => {
     if (userRole === 'Super Admin') return 'CONFIRM' as const
     if (editor.approvalStatus === 'APPROVED') return 'CONFIRM' as const
     return 'APPROVAL_FLOW' as const
   }, [userRole, editor.approvalStatus])
-
-  const reprocessRowCount = editor.totalRows ?? 0
 
   const performReprocess = useCallback(async () => {
     setReprocessRunning(true)
@@ -151,7 +137,6 @@ export default function QuarantineEditorPage({ params }: PageProps) {
       if (result) navigateBack()
     } finally {
       setReprocessRunning(false)
-      setReprocessConfirmOpen(false)
     }
   }, [editor, navigateBack])
 
@@ -162,8 +147,8 @@ export default function QuarantineEditorPage({ params }: PageProps) {
       if (result) navigateBack()
       return
     }
-    // Open the confirmation dialog before pushing rows downstream.
-    setReprocessConfirmOpen(true)
+    // Trigger the delta reprocess immediately — no confirmation dialog.
+    void performReprocess()
   }
 
   const approvalStateLabel = (() => {
@@ -440,46 +425,6 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Reprocess confirmation dialog ─ count-aware push prompt */}
-      <AlertDialog
-        open={reprocessConfirmOpen}
-        onOpenChange={(open) => {
-          if (!reprocessRunning) setReprocessConfirmOpen(open)
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Push {reprocessRowCount} fixed row{reprocessRowCount === 1 ? '' : 's'} to destination?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              These {reprocessRowCount} row{reprocessRowCount === 1 ? '' : 's'} will be added to your
-              destination. Other rows already in the destination won't be changed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={reprocessRunning}>
-              Stay in editor
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(event) => {
-                event.preventDefault()
-                void performReprocess()
-              }}
-              disabled={reprocessRunning}
-            >
-              {reprocessRunning ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                  Pushing...
-                </>
-              ) : (
-                <>Push {reprocessRowCount} row{reprocessRowCount === 1 ? '' : 's'}</>
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
