@@ -43,6 +43,17 @@ interface UseQuarantineFindParams {
   columns: string[]
   onCellEdit: (rowId: string, column: string, value: string) => void
   saveEdits: () => Promise<boolean>
+  /** #7 — Optional bulk-lock acquire/release from the collab hook.
+   *  When provided, replaceAll uses these to coordinate concurrent F&R
+   *  with other users. When omitted, replaceAll falls back to the
+   *  best-effort "writer wins" behaviour. */
+  acquireBulkLocks?: (cells: string[]) => Promise<{
+    acquired: boolean
+    conflicting?: string[]
+    reason?: string
+  }>
+  releaseBulkLocks?: (cells: string[]) => void
+  onBulkLockConflict?: (conflictingCells: string[], reason?: string) => void
 }
 
 export function useQuarantineFind({
@@ -52,6 +63,9 @@ export function useQuarantineFind({
   columns,
   onCellEdit,
   saveEdits,
+  acquireBulkLocks,
+  releaseBulkLocks,
+  onBulkLockConflict,
 }: UseQuarantineFindParams) {
   const [state, setState] = useState<FindState>(INITIAL_STATE)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -197,22 +211,51 @@ export function useQuarantineFind({
   const replaceAll = useCallback(async () => {
     if (state.matches.length === 0) return 0
 
-    let replacedCount = 0
-    for (const match of state.matches) {
-      const oldValue = match.value
-      const newValue = state.matchCase
-        ? oldValue.replaceAll(state.searchTerm, state.replaceTerm)
-        : oldValue.replace(new RegExp(escapeRegex(state.searchTerm), 'gi'), state.replaceTerm)
-
-      if (newValue !== oldValue) {
-        onCellEdit(match.row_id, match.column, newValue)
-        replacedCount++
+    // ── #7 — Bulk-lock guard ─────────────────────────────────────────
+    // Before applying changes, ask the WS server to lock every cell
+    // we're about to write. If another peer holds any of them, abort
+    // cleanly with a conflict message rather than racing the write.
+    const cellsToLock = state.matches.map(
+      (m) => `${m.column}:${m.row_id}`,
+    )
+    let lockedAcquired: string[] = []
+    if (acquireBulkLocks) {
+      const result = await acquireBulkLocks(cellsToLock)
+      if (!result.acquired) {
+        onBulkLockConflict?.(
+          result.conflicting || [],
+          result.reason || 'Another user is editing some of these cells',
+        )
+        return 0
       }
+      lockedAcquired = cellsToLock
     }
 
-    // Trigger save for all edits
-    if (replacedCount > 0) {
-      await saveEdits()
+    let replacedCount = 0
+    try {
+      for (const match of state.matches) {
+        const oldValue = match.value
+        const newValue = state.matchCase
+          ? oldValue.replaceAll(state.searchTerm, state.replaceTerm)
+          : oldValue.replace(new RegExp(escapeRegex(state.searchTerm), 'gi'), state.replaceTerm)
+
+        if (newValue !== oldValue) {
+          onCellEdit(match.row_id, match.column, newValue)
+          replacedCount++
+        }
+      }
+
+      // Trigger save for all edits
+      if (replacedCount > 0) {
+        await saveEdits()
+      }
+    } finally {
+      // Always release the bulk lockset, even if save failed mid-way.
+      // The server's lock TTL would clean up eventually, but explicit
+      // release lets other peers edit those cells immediately.
+      if (releaseBulkLocks && lockedAcquired.length > 0) {
+        releaseBulkLocks(lockedAcquired)
+      }
     }
 
     // Clear matches after replace all
@@ -224,7 +267,11 @@ export function useQuarantineFind({
     }))
 
     return replacedCount
-  }, [state.matches, state.searchTerm, state.replaceTerm, state.matchCase, onCellEdit, saveEdits])
+  }, [
+    state.matches, state.searchTerm, state.replaceTerm, state.matchCase,
+    onCellEdit, saveEdits,
+    acquireBulkLocks, releaseBulkLocks, onBulkLockConflict,
+  ])
 
   // Current match for highlighting
   const currentMatch = state.currentIndex >= 0 ? state.matches[state.currentIndex] : null

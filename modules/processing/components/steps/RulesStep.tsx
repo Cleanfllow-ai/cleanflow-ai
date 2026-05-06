@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Play, ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Loader2, Code, ArrowRight } from "lucide-react"
 import { useProcessingWizard, type RuleWithState, type CrossFieldRuleWithState } from "../WizardContext"
 import { fileManagementAPI, type CustomRuleDefinition } from "@/modules/files"
@@ -52,10 +53,12 @@ export function RulesStep() {
     columnTypeAliases,
     columnKeyTypes,
     columnNullable,
+    columnCurrencyCodes,
     setColumnCoreType,
     setColumnTypeAlias,
     setColumnKeyType,
     setColumnNullable,
+    setColumnCurrencyCode,
     crossFieldRules,
     setCrossFieldRules,
     customRules,
@@ -793,6 +796,65 @@ export function RulesStep() {
                     </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-2 ml-6 space-y-3">
+                    {/* #12 — Currency code per column. Only shown for
+                        decimal / numeric columns where ISO 4217 precision
+                        applies. The selected code flows through
+                        column_type_overrides[col].currency_code and is
+                        consumed by R11 in the DQ engine. */}
+                    {(() => {
+                      const core = columnCoreTypes[col] || columnProfiles[col]?.type_guess || ""
+                      const alias = columnTypeAliases[col] || ""
+                      const isCurrencyEligible =
+                        core === "decimal" ||
+                        core === "integer" ||
+                        core === "numeric" ||
+                        core === "number" ||
+                        alias === "currency_amount" ||
+                        alias === "money" ||
+                        alias === "price"
+                      if (!isCurrencyEligible) return null
+                      const current = columnCurrencyCodes?.[col] || ""
+                      return (
+                        <div className="flex items-center gap-2 rounded border border-dashed border-muted px-3 py-2">
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            Currency code (ISO 4217):
+                          </span>
+                          <Select
+                            value={current || "__none__"}
+                            onValueChange={(v) =>
+                              setColumnCurrencyCode(col, v === "__none__" ? null : v)
+                            }
+                          >
+                            <SelectTrigger className="h-7 w-44 text-xs">
+                              <SelectValue placeholder="(use global default)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__" className="text-xs">
+                                (use global default)
+                              </SelectItem>
+                              <SelectItem value="USD" className="text-xs">USD — 2 dp</SelectItem>
+                              <SelectItem value="EUR" className="text-xs">EUR — 2 dp</SelectItem>
+                              <SelectItem value="GBP" className="text-xs">GBP — 2 dp</SelectItem>
+                              <SelectItem value="INR" className="text-xs">INR — 2 dp</SelectItem>
+                              <SelectItem value="AUD" className="text-xs">AUD — 2 dp</SelectItem>
+                              <SelectItem value="CAD" className="text-xs">CAD — 2 dp</SelectItem>
+                              <SelectItem value="JPY" className="text-xs">JPY — 0 dp</SelectItem>
+                              <SelectItem value="KRW" className="text-xs">KRW — 0 dp</SelectItem>
+                              <SelectItem value="VND" className="text-xs">VND — 0 dp</SelectItem>
+                              <SelectItem value="BHD" className="text-xs">BHD — 3 dp</SelectItem>
+                              <SelectItem value="JOD" className="text-xs">JOD — 3 dp</SelectItem>
+                              <SelectItem value="KWD" className="text-xs">KWD — 3 dp</SelectItem>
+                              <SelectItem value="OMR" className="text-xs">OMR — 3 dp</SelectItem>
+                              <SelectItem value="TND" className="text-xs">TND — 3 dp</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-[10px] text-muted-foreground">
+                            Drives R11 decimal-precision check
+                          </span>
+                        </div>
+                      )
+                    })()}
+
                     {rules.length === 0 && columnCustomRules.length === 0 && (
                       <div className="text-sm text-muted-foreground">
                         No suggested rules for this column. You can add custom rules below.

@@ -29,6 +29,36 @@ export interface FormulaRuleDraft {
     on_error?: "violate" | "skip"
 }
 
+/** ISO 4217 quick-pick list. Common currencies first; the input
+ *  accepts any 3-letter code so unlisted currencies work too. */
+const CURRENCY_CODE_OPTIONS = [
+    { code: "USD", name: "US Dollar (2 dp)" },
+    { code: "EUR", name: "Euro (2 dp)" },
+    { code: "GBP", name: "British Pound (2 dp)" },
+    { code: "INR", name: "Indian Rupee (2 dp)" },
+    { code: "AUD", name: "Australian Dollar (2 dp)" },
+    { code: "CAD", name: "Canadian Dollar (2 dp)" },
+    { code: "JPY", name: "Japanese Yen (0 dp)" },
+    { code: "KRW", name: "South Korean Won (0 dp)" },
+    { code: "VND", name: "Vietnamese Dong (0 dp)" },
+    { code: "BHD", name: "Bahraini Dinar (3 dp)" },
+    { code: "JOD", name: "Jordanian Dinar (3 dp)" },
+    { code: "KWD", name: "Kuwaiti Dinar (3 dp)" },
+    { code: "OMR", name: "Omani Rial (3 dp)" },
+    { code: "TND", name: "Tunisian Dinar (3 dp)" },
+]
+
+/** strftime/strptime quick-pick list for the date-formats editor (#9). */
+const DATE_FORMAT_PRESETS: Array<{ pattern: string; label: string }> = [
+    { pattern: "%Y-%m-%d", label: "%Y-%m-%d  (ISO — 2026-05-07)" },
+    { pattern: "%d/%m/%Y", label: "%d/%m/%Y  (DMY — 07/05/2026)" },
+    { pattern: "%m/%d/%Y", label: "%m/%d/%Y  (MDY — 05/07/2026)" },
+    { pattern: "%d-%m-%Y", label: "%d-%m-%Y  (DMY dashed)" },
+    { pattern: "%Y/%m/%d", label: "%Y/%m/%d  (ISO slashed)" },
+    { pattern: "%d.%m.%Y", label: "%d.%m.%Y  (European dotted)" },
+    { pattern: "%Y-%m-%dT%H:%M:%SZ", label: "%Y-%m-%dT%H:%M:%SZ  (ISO 8601 with time)" },
+]
+
 // ─── Rule Categories ─────────────────────────────────────────────────────────
 
 const RULE_CATEGORIES: { label: string; icon: React.ReactNode; rules: string[] }[] = [
@@ -76,6 +106,15 @@ export interface DQConfigPanelProps {
      *  doesn't pass these, the Formula Columns section is hidden. */
     formulaRules?: FormulaRuleDraft[]
     onFormulaRulesChange?: (rules: FormulaRuleDraft[]) => void
+    /** #9 — Strptime patterns the org accepts for dates (e.g.
+     *  ["%d/%m/%Y", "%Y.%m.%d"]). Passed through to backend as
+     *  preset_overrides.date_formats. */
+    dateFormats?: string[]
+    onDateFormatsChange?: (formats: string[]) => void
+    /** #9 — Where R12 normalizes dates to. strptime pattern or "ISO" |
+     *  "DMY" | "MDY" alias. Passed as preset_overrides.target_date_format. */
+    targetDateFormat?: string
+    onTargetDateFormatChange?: (format: string) => void
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -97,6 +136,10 @@ export function DQConfigPanel({
     orgMembersLoading,
     formulaRules,
     onFormulaRulesChange,
+    dateFormats,
+    onDateFormatsChange,
+    targetDateFormat,
+    onTargetDateFormatChange,
 }: DQConfigPanelProps) {
     const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({})
 
@@ -325,6 +368,16 @@ export function DQConfigPanel({
                 </div>
             </div>
 
+            {/* ── Date Formats (#9) ────────────────────────────────────────── */}
+            {onDateFormatsChange && (
+                <DateFormatsSection
+                    formats={dateFormats || []}
+                    onChange={onDateFormatsChange}
+                    targetFormat={targetDateFormat || "ISO"}
+                    onTargetChange={onTargetDateFormatChange || (() => {})}
+                />
+            )}
+
             {/* ── Formula Columns (#11) ────────────────────────────────────── */}
             {onFormulaRulesChange && (
                 <FormulaColumnsSection
@@ -332,6 +385,147 @@ export function DQConfigPanel({
                     onChange={onFormulaRulesChange}
                 />
             )}
+        </div>
+    )
+}
+
+
+// ─── DateFormatsSection (#9) ────────────────────────────────────────────────
+
+interface DateFormatsSectionProps {
+    formats: string[]
+    onChange: (formats: string[]) => void
+    targetFormat: string
+    onTargetChange: (format: string) => void
+}
+
+function DateFormatsSection({
+    formats,
+    onChange,
+    targetFormat,
+    onTargetChange,
+}: DateFormatsSectionProps) {
+    const [draft, setDraft] = useState("")
+
+    const addFormat = (pattern: string) => {
+        const trimmed = pattern.trim()
+        if (!trimmed) return
+        if (formats.includes(trimmed)) return
+        onChange([...formats, trimmed])
+        setDraft("")
+    }
+
+    const removeFormat = (idx: number) => {
+        const next = formats.slice()
+        next.splice(idx, 1)
+        onChange(next)
+    }
+
+    return (
+        <div className="space-y-3 rounded-lg border border-border/50 p-3">
+            <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium">Date Formats</Label>
+                {formats.length > 0 && (
+                    <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                        {formats.length}
+                    </Badge>
+                )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+                Strptime patterns the engine accepts as valid dates. Empty list
+                means {`"use the built-in DMY/MDY detector"`}. Values matching
+                <span className="font-mono"> any </span>
+                listed format are accepted; everything else flags as
+                <span className="font-mono"> R-FORMULA-* </span>
+                or <span className="font-mono">R14</span>.
+            </p>
+
+            {/* Existing formats */}
+            {formats.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                    {formats.map((f, idx) => (
+                        <Badge
+                            key={`${f}-${idx}`}
+                            variant="secondary"
+                            className="h-6 gap-1 px-2 font-mono text-[10px]"
+                        >
+                            {f}
+                            <button
+                                type="button"
+                                onClick={() => removeFormat(idx)}
+                                className="ml-0.5 text-muted-foreground hover:text-destructive"
+                                title="Remove format"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
+            )}
+
+            {/* Quick-pick row */}
+            <div className="flex flex-wrap items-center gap-2">
+                <Select value="" onValueChange={addFormat}>
+                    <SelectTrigger className="h-8 w-72 text-xs">
+                        <SelectValue placeholder="Quick-pick a format..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {DATE_FORMAT_PRESETS.map((p) => (
+                            <SelectItem key={p.pattern} value={p.pattern} className="text-xs">
+                                {p.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Input
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder="Custom strptime pattern"
+                    className="h-8 max-w-[220px] font-mono text-xs"
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            e.preventDefault()
+                            addFormat(draft)
+                        }
+                    }}
+                />
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => addFormat(draft)}
+                    disabled={!draft.trim()}
+                >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Add
+                </Button>
+            </div>
+
+            {/* Target format */}
+            <div className="flex items-center gap-2 border-t border-border/40 pt-2">
+                <Label className="text-xs text-muted-foreground">Normalize to:</Label>
+                <Select value={targetFormat} onValueChange={onTargetChange}>
+                    <SelectTrigger className="h-7 w-44 text-xs">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ISO" className="text-xs">ISO (%Y-%m-%d)</SelectItem>
+                        <SelectItem value="DMY" className="text-xs">DMY (%d-%m-%Y)</SelectItem>
+                        <SelectItem value="MDY" className="text-xs">MDY (%m-%d-%Y)</SelectItem>
+                        {DATE_FORMAT_PRESETS.map((p) => (
+                            <SelectItem
+                                key={`target-${p.pattern}`}
+                                value={p.pattern}
+                                className="text-xs"
+                            >
+                                {p.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
         </div>
     )
 }

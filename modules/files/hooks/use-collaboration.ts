@@ -19,6 +19,15 @@ import type {
 
 const MAX_ACTIVITY_ENTRIES = 50
 
+/** Server reply to a bulkLockAcquire/Release operation (#7). */
+export interface BulkLockResultMessage {
+  operationId: string
+  acquired: boolean
+  cells?: string[]
+  conflicting?: string[]
+  reason?: string
+}
+
 interface UseCollaborationParams {
   uploadId: string
   accessToken: string | null
@@ -52,6 +61,15 @@ export function useCollaboration({
   const cellLocksRef = useRef<Map<string, CellLockInfo>>(new Map())
 
   const usersRef = useRef<CollaborationUser[]>([])
+
+  // ── Bulk lock resolution registry (#7) ───────────────────────────────
+  // Each acquireBulkLocks call registers its operationId and waits on a
+  // Promise that resolves when the matching `bulkLockResult` message
+  // arrives from the server. Timeout-safe: caller can race against a
+  // setTimeout if the WS layer hangs.
+  const bulkLockResolversRef = useRef<
+    Map<string, (m: BulkLockResultMessage) => void>
+  >(new Map())
 
   // Stable ref for remote cell update callback to avoid re-creating WebSocket
   const onRemoteCellUpdateRef = useRef(onRemoteCellUpdate)
@@ -158,6 +176,51 @@ export function useCollaboration({
         // Auto-clear after 100ms (just a signal pulse)
         setTimeout(() => setLockDeniedCell(null), 100)
         break
+
+      // ── Bulk lock messages (#7) ─────────────────────────────────────
+      case 'bulkLocked':
+        // Peer acquired a bulk lockset (e.g. find-and-replace). Show
+        // lock badges on each cell in their colour.
+        setCellLocks((prev) => {
+          const next = new Map(prev)
+          for (const cell of (message.cells || [])) {
+            next.set(cell, {
+              userId: message.user.id,
+              displayName: message.user.display_name,
+              color: message.user.color,
+            })
+          }
+          cellLocksRef.current = next
+          return next
+        })
+        if (Array.isArray(message.cells)) {
+          addActivity(
+            `${message.user.display_name} locked ${message.cells.length} cells for find/replace`,
+          )
+        }
+        break
+
+      case 'bulkUnlocked':
+        setCellLocks((prev) => {
+          const next = new Map(prev)
+          for (const cell of (message.cells || [])) {
+            next.delete(cell)
+          }
+          cellLocksRef.current = next
+          return next
+        })
+        break
+
+      case 'bulkLockResult':
+        // Forwarded to the find/replace caller via a Promise registered
+        // when acquireBulkLocks was invoked.
+        // (See _resolveBulkLock below.)
+        const resolver = bulkLockResolversRef.current.get(message.operationId)
+        if (resolver) {
+          resolver(message)
+          bulkLockResolversRef.current.delete(message.operationId)
+        }
+        break
     }
   }, [addActivity, getUserName])
 
@@ -188,6 +251,58 @@ export function useCollaboration({
     return cellLocksRef.current.get(`${column}:${rowId}`) || null
   }, [])
 
+  // ── Bulk lock acquire/release (#7) ───────────────────────────────────
+  // Used by find-and-replace before applying changes to N cells. The
+  // server tries to lock all of them under our connection_id; if any
+  // is already held by another peer it rolls back and returns the
+  // conflict so the caller can abort with a clear message.
+  const acquireBulkLocks = useCallback(
+    async (
+      cells: string[],
+      timeoutMs: number = 5000,
+    ): Promise<BulkLockResultMessage> => {
+      if (!connected || cells.length === 0) {
+        return { operationId: 'noop', acquired: cells.length === 0 }
+      }
+      const operationId =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `op-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const result = new Promise<BulkLockResultMessage>((resolve) => {
+        bulkLockResolversRef.current.set(operationId, resolve)
+      })
+      send({ action: 'bulkLockAcquire', cells, operationId })
+      // Race against timeout — never let the F&R caller hang.
+      const timeout = new Promise<BulkLockResultMessage>((resolve) => {
+        setTimeout(() => {
+          if (bulkLockResolversRef.current.has(operationId)) {
+            bulkLockResolversRef.current.delete(operationId)
+            resolve({
+              operationId,
+              acquired: false,
+              reason: 'Timed out waiting for server response',
+              conflicting: [],
+            })
+          }
+        }, timeoutMs)
+      })
+      return Promise.race([result, timeout])
+    },
+    [connected, send],
+  )
+
+  const releaseBulkLocks = useCallback(
+    (cells: string[], operationId?: string) => {
+      if (!connected || cells.length === 0) return
+      send({
+        action: 'bulkLockRelease',
+        cells,
+        operationId: operationId || `release-${Date.now()}`,
+      })
+    },
+    [connected, send],
+  )
+
   return {
     connected,
     users,
@@ -202,5 +317,7 @@ export function useCollaboration({
     broadcastCellUpdate,
     broadcastBulkUpdate,
     isCellLockedByOther,
+    acquireBulkLocks,
+    releaseBulkLocks,
   }
 }

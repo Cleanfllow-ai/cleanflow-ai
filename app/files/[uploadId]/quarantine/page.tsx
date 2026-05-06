@@ -52,6 +52,21 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     filters: filterState.filters,
   })
 
+  // Forward refs from collab back into find (#7). Collab is created
+  // BELOW (it needs handleRemoteCellUpdate which closes over editor),
+  // but find needs collab's bulk-lock fns. Refs break the cycle: find
+  // calls into the ref, which is populated after collab initializes.
+  const collabAcquireBulkRef = useRef<
+    ((cells: string[]) => Promise<{
+      acquired: boolean
+      conflicting?: string[]
+      reason?: string
+    }>) | null
+  >(null)
+  const collabReleaseBulkRef = useRef<
+    ((cells: string[]) => void) | null
+  >(null)
+
   const find = useQuarantineFind({
     uploadId,
     authToken: idToken,
@@ -59,6 +74,33 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     columns: editor.columns,
     onCellEdit: editor.handleCellEdit,
     saveEdits: editor.saveEdits,
+    acquireBulkLocks: useCallback(
+      async (cells: string[]) => {
+        const fn = collabAcquireBulkRef.current
+        if (!fn) return { acquired: true }  // collab not ready → fall through
+        return fn(cells)
+      },
+      [],
+    ),
+    releaseBulkLocks: useCallback(
+      (cells: string[]) => {
+        const fn = collabReleaseBulkRef.current
+        if (fn) fn(cells)
+      },
+      [],
+    ),
+    onBulkLockConflict: useCallback(
+      (conflicting: string[], reason?: string) => {
+        const cellsLabel =
+          conflicting.length === 1
+            ? conflicting[0]
+            : `${conflicting.length} cells`
+        toast.error(
+          reason || `Find/replace blocked: ${cellsLabel} are being edited by another user`,
+        )
+      },
+      [],
+    ),
   })
 
   const handleRemoteCellUpdate = useCallback((column: string, rowId: string, value: string) => {
@@ -81,6 +123,13 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     enabled: Boolean(editor.sessionInfo),
     onRemoteCellUpdate: handleRemoteCellUpdate,
   })
+
+  // Populate the F&R bulk-lock refs once collab is initialized so
+  // useQuarantineFind can call them (#7).
+  useEffect(() => {
+    collabAcquireBulkRef.current = collab.acquireBulkLocks
+    collabReleaseBulkRef.current = collab.releaseBulkLocks
+  }, [collab.acquireBulkLocks, collab.releaseBulkLocks])
 
   const gridApiRef = useRef<GridApi<QuarantineRow> | null>(null)
 
