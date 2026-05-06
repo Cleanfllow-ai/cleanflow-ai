@@ -19,6 +19,7 @@ import { QuarantineAgGridTable } from '@/modules/files/components/quarantine-edi
 import { QuarantineVersionLineage } from '@/modules/files/components/quarantine-editor/quarantine-version-lineage'
 import { QuarantineFindReplacePanel } from '@/modules/files/components/quarantine-editor/quarantine-find-replace-panel'
 import { QuarantineCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-compare-dialog'
+import { QuarantineVersionCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-version-compare-dialog'
 import { ArrowLeft, ClipboardCheck, Check, Clock, Loader2, X } from 'lucide-react'
 import type { GridApi } from 'ag-grid-community'
 import type { QuarantineRow } from '@/modules/files/types'
@@ -108,6 +109,9 @@ export default function QuarantineEditorPage({ params }: PageProps) {
   // is stable while open even if the user moves the grid cursor.
   const [compareOpen, setCompareOpen] = useState(false)
   const [compareRows, setCompareRows] = useState<QuarantineRow[]>([])
+
+  // Between-VERSIONS comparison dialog (separate from the row-level Compare above).
+  const [versionCompareOpen, setVersionCompareOpen] = useState(false)
 
   const handleOpenCompare = useCallback(() => {
     const api = gridApiRef.current
@@ -304,6 +308,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         <QuarantineVersionLineage
           lineage={editor.lineage}
           baseUploadId={editor.manifest?.upload_id}
+          onCompareVersions={() => setVersionCompareOpen(true)}
         />
       )}
 
@@ -400,6 +405,15 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         columns={visibleColumns}
         getCellValue={editor.getCellValue}
         isCellEdited={editor.isCellEdited}
+      />
+
+      <QuarantineVersionCompareDialog
+        open={versionCompareOpen}
+        onOpenChange={setVersionCompareOpen}
+        uploadId={uploadId}
+        authToken={idToken}
+        lineage={editor.lineage}
+        columns={visibleColumns}
       />
 
       <Dialog

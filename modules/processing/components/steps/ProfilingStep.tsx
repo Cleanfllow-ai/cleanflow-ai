@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, ArrowLeft, ArrowRight, RefreshCw, Check, X, Layers, Database } from "lucide-react"
+import { Loader2, ArrowLeft, ArrowRight, RefreshCw, Check, X, Layers, Database, ChevronRight, Sparkles } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { useProcessingWizard } from "../WizardContext"
 import { fileManagementAPI } from "@/modules/files"
@@ -40,6 +40,7 @@ export function ProfilingStep() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeColumn, setActiveColumn] = useState<string | null>(null)
+  const [bcrExpanded, setBcrExpanded] = useState(true)
   const pollRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Clean up polling on unmount
@@ -368,40 +369,75 @@ export function ProfilingStep() {
               </div>
             )}
 
-            {/* Cross-field Rules Panel */}
-            {hasProfiles && (
-              <div className="mt-4 border border-muted rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="font-medium text-sm">Business Consistency Rules (CleanAI suggested)</h3>
+          </div>
+        </div>
+
+        {/* Right rail - Business Consistency Rules (always visible, glance-and-go) */}
+        {hasProfiles && (
+          <div
+            className={cn(
+              "border border-muted rounded-lg flex flex-col overflow-hidden transition-[width] duration-200 shrink-0",
+              bcrExpanded ? "w-96" : "w-12"
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => setBcrExpanded((v) => !v)}
+              className={cn(
+                "flex items-center gap-2 p-3 border-b border-muted/40 bg-muted/20 hover:bg-muted/30 transition-colors text-left",
+                !bcrExpanded && "justify-center"
+              )}
+              aria-expanded={bcrExpanded}
+              aria-label={bcrExpanded ? "Collapse business consistency rules" : "Expand business consistency rules"}
+            >
+              <Sparkles className="w-4 h-4 text-primary shrink-0" />
+              {bcrExpanded ? (
+                <>
+                  <h3 className="font-medium text-sm flex-1 truncate">Business Consistency Rules</h3>
                   <Badge variant="outline" className="text-xs">{crossFieldRules.length}</Badge>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground rotate-180" />
+                </>
+              ) : (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0">{crossFieldRules.length}</Badge>
+              )}
+            </button>
+
+            {bcrExpanded && (
+              <div className="flex-1 overflow-y-auto">
+                <div className="px-3 pt-2 pb-2 text-[11px] text-muted-foreground">
+                  CleanAI suggested
                 </div>
                 {crossFieldRules.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No business consistency rules returned by CleanAI</p>
+                  <p className="px-3 pb-3 text-sm text-muted-foreground">
+                    No business consistency rules returned by CleanAI
+                  </p>
                 ) : (
-                  <div className="border rounded-md overflow-hidden max-h-[300px] overflow-y-auto overflow-x-auto">
+                  <div className="px-3 pb-3">
                     <table className="min-w-full text-sm">
                       <thead>
                         <tr className="bg-muted/50 border-b">
-                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Rule</th>
-                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Condition</th>
-                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Type</th>
-                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Columns</th>
+                          <th className="text-left px-2 py-2 font-medium text-xs text-muted-foreground">Rule</th>
+                          <th className="text-left px-2 py-2 font-medium text-xs text-muted-foreground">Condition</th>
+                          <th className="text-left px-2 py-2 font-medium text-xs text-muted-foreground">Type</th>
+                          <th className="text-left px-2 py-2 font-medium text-xs text-muted-foreground">Columns</th>
                         </tr>
                       </thead>
                       <tbody>
                         {crossFieldRules.map((rule, i) => (
-                          <tr key={i} className="border-b last:border-0 hover:bg-muted/20">
-                            <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{rule.rule_id}</td>
-                            <td className="px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">{rule.condition || rule.predicate}</td>
-                            <td className="px-3 py-2">
+                          <tr key={i} className="border-b last:border-0 hover:bg-muted/20 align-top">
+                            <td className="px-2 py-2 font-mono text-xs">{rule.rule_id}</td>
+                            <td className="px-2 py-2 text-muted-foreground text-xs break-words">
+                              {rule.condition || rule.predicate}
+                            </td>
+                            <td className="px-2 py-2">
                               {rule.relationship && (
                                 <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>
                               )}
                             </td>
-                            <td className="px-3 py-2">
-                              <div className="flex gap-1 flex-nowrap">
+                            <td className="px-2 py-2">
+                              <div className="flex gap-1 flex-wrap">
                                 {rule.cols?.map((c: string) => (
-                                  <Badge key={c} variant="outline" className="text-[10px] whitespace-nowrap">{c}</Badge>
+                                  <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
                                 ))}
                               </div>
                             </td>
@@ -413,8 +449,19 @@ export function ProfilingStep() {
                 )}
               </div>
             )}
+
+            {!bcrExpanded && (
+              <div className="flex-1 flex items-start justify-center pt-3">
+                <span
+                  className="text-[10px] text-muted-foreground tracking-wider"
+                  style={{ writingMode: "vertical-rl" }}
+                >
+                  Business Rules
+                </span>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Required columns info */}
