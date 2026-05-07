@@ -37,6 +37,8 @@ import type {
     QuarantineFilters,
     QuarantineFindRequest,
     QuarantineFindResponse,
+    ReplaceInQuarantineRequest,
+    ReplaceInQuarantineResponse,
 } from '@/modules/files/types'
 
 // AWS Configuration
@@ -55,6 +57,7 @@ const ENDPOINTS = {
     DOWNLOAD: (id: string) => `/files/${id}/download`,
     QUARANTINED_EXPORT: (id: string) => `/files/${id}/quarantined`,
     FIND: (id: string) => `/files/${id}/quarantined/find`,
+    FIND_REPLACE: (id: string) => `/files/${id}/quarantined/find-replace`,
     AUDIT_LOG: (id: string) => `/files/${id}/audit-log`,
     UNLOCK_ROW: (id: string, rowId: string) => `/files/${id}/rows/${rowId}/unlock`,
 }
@@ -418,6 +421,26 @@ export async function findInQuarantineRows(
 ): Promise<QuarantineFindResponse> {
     return makeRequest(
         ENDPOINTS.FIND(uploadId),
+        authToken,
+        {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }
+    )
+}
+
+/**
+ * Bulk Find & Replace — cursor-paginated server-side rewrite.
+ * Frontend chains calls until `next_cursor` is null. Filters honoured;
+ * locked rows skipped + counted; audit entries tagged "find_replace".
+ */
+export async function replaceInQuarantineRows(
+    uploadId: string,
+    authToken: string,
+    payload: ReplaceInQuarantineRequest
+): Promise<ReplaceInQuarantineResponse> {
+    return makeRequest(
+        ENDPOINTS.FIND_REPLACE(uploadId),
         authToken,
         {
             method: 'POST',

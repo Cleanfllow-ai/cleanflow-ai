@@ -26,7 +26,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { Wand2, Loader2, Code2, ArrowRight, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { applyColumnRule, applyColumnRuleAll } from '@/modules/files/api/file-quarantine-api'
-import type { CrossRuleFix, QuarantineRow, QuarantineSession } from '@/modules/files/types'
+import type {
+  CrossRuleFix,
+  QuarantineFilters,
+  QuarantineRow,
+  QuarantineSession,
+} from '@/modules/files/types'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +44,9 @@ interface QuarantineCustomRuleDialogProps {
   authToken: string | null
   /** Active session — required for server-side apply-all */
   session: QuarantineSession | null
+  /** Active filter envelope — forwarded so apply-all stays scoped to the
+   *  user's filtered view (Bug #2 fix). */
+  filters?: QuarantineFilters
   /** Called after server-side apply-all so the editor can refresh */
   onApplied: (newEtag: string, rowsAffected: number) => void
 }
@@ -86,6 +94,7 @@ export function QuarantineCustomRuleDialog({
   uploadId,
   authToken,
   session,
+  filters,
   onApplied,
 }: QuarantineCustomRuleDialogProps) {
   const [description, setDescription] = useState('')
@@ -273,6 +282,7 @@ export function QuarantineCustomRuleDialog({
           session_id: session.session_id,
           cursor,
           if_match_etag: etag,
+          filters,  // Bug #2 — apply-all now respects active filter scope.
         })
         totalFixed += result.rows_affected
         cursor = result.next_cursor

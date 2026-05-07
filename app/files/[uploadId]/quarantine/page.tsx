@@ -71,9 +71,26 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     uploadId,
     authToken: idToken,
     sessionId: editor.sessionInfo?.session_id,
+    sessionEtag: editor.sessionInfo?.session_etag,
     columns: editor.columns,
+    // Bug #4 — forward filter scope to Find / Replace All.
+    filters: filterState.filters,
     onCellEdit: editor.handleCellEdit,
     saveEdits: editor.saveEdits,
+    onAfterReplaceAll: useCallback(
+      (_newEtag: string, replaced: number, skipped: number) => {
+        if (replaced > 0 || skipped > 0) {
+          toast.success(
+            skipped > 0
+              ? `Replaced ${replaced.toLocaleString()} cells · ${skipped.toLocaleString()} skipped (locked)`
+              : `Replaced ${replaced.toLocaleString()} cells`,
+          )
+        }
+        // Refresh session to pull the latest etag and re-fetch grid rows.
+        editor.refreshSession?.()
+      },
+      [editor],
+    ),
     acquireBulkLocks: useCallback(
       async (cells: string[]) => {
         const fn = collabAcquireBulkRef.current
@@ -418,6 +435,8 @@ export default function QuarantineEditorPage({ params }: PageProps) {
               truncated={find.truncated}
               loading={find.loading}
               columns={editor.columns}
+              hasMoreMatches={find.hasMoreMatches}
+              lockedRowIds={find.lockedRowIds}
               onSearchTermChange={find.setSearchTerm}
               onReplaceTermChange={find.setReplaceTerm}
               onColumnChange={find.setColumn}

@@ -27,9 +27,14 @@ interface QuarantineFindReplacePanelProps {
   matchCase: boolean
   totalMatches: number
   currentIndex: number
+  /** Legacy field; cursor-mode v2 always sets this false. */
   truncated: boolean
   loading: boolean
   columns: string[]
+  /** True when Find has a `next_cursor` and more matches are paginatable. */
+  hasMoreMatches?: boolean
+  /** Row ids whose matches are on locked rows (informational badge). */
+  lockedRowIds?: string[]
 
   onSearchTermChange: (value: string) => void
   onReplaceTermChange: (value: string) => void
@@ -38,7 +43,8 @@ interface QuarantineFindReplacePanelProps {
   onNext: () => void
   onPrevious: () => void
   onReplaceCurrent: () => void
-  onReplaceAll: () => Promise<number>
+  /** Returns `{ replaced, skipped }` after the chained server call. */
+  onReplaceAll: () => Promise<{ replaced: number; skipped: number } | number>
   onClose: () => void
 }
 
@@ -52,6 +58,8 @@ export function QuarantineFindReplacePanel({
   truncated,
   loading,
   columns,
+  hasMoreMatches,
+  lockedRowIds,
   onSearchTermChange,
   onReplaceTermChange,
   onColumnChange,
@@ -64,6 +72,7 @@ export function QuarantineFindReplacePanel({
 }: QuarantineFindReplacePanelProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [replaceAllCount, setReplaceAllCount] = useState<number | null>(null)
+  const [skippedCount, setSkippedCount] = useState<number>(0)
   const [replacing, setReplacing] = useState(false)
 
   // Auto-focus search input on mount
@@ -81,8 +90,14 @@ export function QuarantineFindReplacePanel({
   const handleReplaceAll = async () => {
     setReplacing(true)
     try {
-      const count = await onReplaceAll()
-      setReplaceAllCount(count)
+      const result = await onReplaceAll()
+      if (typeof result === 'number') {
+        setReplaceAllCount(result)
+        setSkippedCount(0)
+      } else {
+        setReplaceAllCount(result.replaced)
+        setSkippedCount(result.skipped || 0)
+      }
     } finally {
       setReplacing(false)
     }
@@ -198,8 +213,12 @@ export function QuarantineFindReplacePanel({
                   <span className="font-medium text-foreground">
                     {totalMatches.toLocaleString()}
                   </span>
-                  {' matches'}
-                  {truncated && ' (showing first 50,000)'}
+                  {hasMoreMatches ? '+ matches' : ' matches'}
+                  {(lockedRowIds?.length ?? 0) > 0 && (
+                    <span className="ml-1 text-amber-600">
+                      ({lockedRowIds!.length} locked)
+                    </span>
+                  )}
                 </>
               )}
             </span>
@@ -209,7 +228,12 @@ export function QuarantineFindReplacePanel({
 
           {replaceAllCount !== null && (
             <span className="text-emerald-600 font-medium">
-              Replaced {replaceAllCount}
+              Replaced {replaceAllCount.toLocaleString()}
+              {skippedCount > 0 && (
+                <span className="ml-1 text-amber-600">
+                  · {skippedCount.toLocaleString()} skipped (locked)
+                </span>
+              )}
             </span>
           )}
         </div>
