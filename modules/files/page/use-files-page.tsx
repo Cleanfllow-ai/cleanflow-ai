@@ -24,6 +24,7 @@ import {
     type CustomRuleDefinition,
     type CustomRuleSuggestionResponse,
 } from "@/modules/files";
+import { useImportingFilesPoll } from "@/modules/files/hooks/use-importing-files-poll";
 import {
     STATUS_OPTIONS,
 } from "@/modules/files/page/constants";
@@ -635,6 +636,13 @@ export function useFilesPage() {
             if (reprocessPollRef.current) clearInterval(reprocessPollRef.current);
         };
     }, []);
+
+    // Background polling for in-flight connector imports (Google Drive, …).
+    // Refreshes the file list every 2 s while ≥ 1 row is IMPORTING so the
+    // inline progress bar in the data-catalog row stays live even when the
+    // Import Data dialog has been closed (or the page was just reloaded
+    // mid-import). No-op once all imports terminate.
+    useImportingFilesPoll({ files, onRefresh: loadFiles });
 
     const handleQuarantineEditorComplete = () => {
         // Reload files to reflect new version

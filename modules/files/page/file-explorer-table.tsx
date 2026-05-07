@@ -52,6 +52,7 @@ import {
     STATUS_OPTIONS,
 } from "@/modules/files/page/constants";
 import { Progress } from "@/components/ui/progress";
+import { ImportProgressRow } from "@/modules/files/components/import-progress-row";
 import {
     calculateProcessingTime,
     getDqQualityLabel,
@@ -455,6 +456,45 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         : file.remediation_state === "REPROCESS_FAILED" && file.status === "DQ_FIXED"
                                                         ? "REPROCESS_FAILED"
                                                         : file.status;
+                                                // Inline progress bar for in-flight connector imports — replaces
+                                                // the static "IMPORTING" pill so the user sees real bytes / MB·s /
+                                                // ETA in the row, even after closing the Import Data dialog.
+                                                if (effectiveStatus === "IMPORTING") {
+                                                    const importStatus =
+                                                        file.import_status === "downloading" ||
+                                                        file.import_status === "uploading" ||
+                                                        file.import_status === "completed" ||
+                                                        file.import_status === "failed"
+                                                            ? file.import_status
+                                                            : "downloading";
+                                                    const bytesDownloaded =
+                                                        typeof file.bytes_downloaded === "number"
+                                                            ? file.bytes_downloaded
+                                                            : typeof file.bytes_transferred === "number"
+                                                            ? file.bytes_transferred
+                                                            : 0;
+                                                    const bytesTotal =
+                                                        typeof file.bytes_total === "number" && file.bytes_total > 0
+                                                            ? file.bytes_total
+                                                            : typeof file.file_size === "number" && file.file_size > 0
+                                                            ? file.file_size
+                                                            : typeof file.input_size_bytes === "number" && file.input_size_bytes > 0
+                                                            ? file.input_size_bytes
+                                                            : 0;
+                                                    return (
+                                                        <ImportProgressRow
+                                                            importStatus={importStatus}
+                                                            bytesDownloaded={bytesDownloaded}
+                                                            bytesTotal={bytesTotal}
+                                                            updatedAt={
+                                                                file.download_updated_at ||
+                                                                file.updated_at ||
+                                                                file.status_timestamp ||
+                                                                ""
+                                                            }
+                                                        />
+                                                    );
+                                                }
                                                 const active = isActiveStatus(effectiveStatus);
                                                 const showPartialWarning = file.partial_completion === true;
                                                 return (
@@ -556,11 +596,45 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                             <div className="flex justify-start gap-0.5 sm:gap-1">
                                                 {(() => {
                                                     const isUploading = file.status === "UPLOADING";
+                                                    const isImporting = file.status === "IMPORTING";
                                                     const isProcessing =
                                                         file.status === "DQ_RUNNING" ||
                                                         file.status === "DQ_DISPATCHED" ||
-                                                        isUploading;
+                                                        isUploading ||
+                                                        isImporting;
                                                     const isProcessed = file.status === "DQ_FIXED" || file.status === "COMPLETED";
+                                                    // For an in-flight connector import we collapse the actions
+                                                    // column to a single "Cancel Import" icon button. There's no
+                                                    // dedicated backend cancel endpoint (see audit notes in the
+                                                    // PR description), so we reuse `DELETE /uploads/{id}` —
+                                                    // the same path the trash button uses. Effect: the row
+                                                    // disappears from the catalog immediately; the Lambda
+                                                    // continues running until it tries to commit the next chunk
+                                                    // and discovers the row is gone (best-effort cancel).
+                                                    if (isImporting) {
+                                                        return (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-7 w-7 sm:h-8 sm:w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                                                        onClick={() => handleDeleteClick(file)}
+                                                                        disabled={deleting === file.upload_id}
+                                                                        data-testid="cancel-import-button"
+                                                                        aria-label="Cancel import"
+                                                                    >
+                                                                        {deleting === file.upload_id ? (
+                                                                            <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                                                        ) : (
+                                                                            <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                        )}
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>Cancel Import</TooltipContent>
+                                                            </Tooltip>
+                                                        );
+                                                    }
                                                     return (
                                                         <>
                                                 {!isUploading && (file.status === "UPLOADED" ||

@@ -18,7 +18,7 @@ export interface FileUploadInitResponse {
 
 export interface FileStatusResponse {
   upload_id: string
-  status: 'QUEUED' | 'DQ_RUNNING' | 'DQ_FIXED' | 'FAILED' | 'COMPLETED' | 'UPLOADING' | 'NORMALIZING' | 'DQ_FAILED' | 'UPLOAD_FAILED' | 'UPLOADED' | 'VALIDATED' | 'REJECTED' | 'DQ_DISPATCHED' | 'SHARDING' | 'SHARDED' | 'SHARD_FAILED'
+  status: 'QUEUED' | 'DQ_RUNNING' | 'DQ_FIXED' | 'FAILED' | 'COMPLETED' | 'UPLOADING' | 'NORMALIZING' | 'DQ_FAILED' | 'UPLOAD_FAILED' | 'UPLOADED' | 'VALIDATED' | 'REJECTED' | 'DQ_DISPATCHED' | 'SHARDING' | 'SHARDED' | 'SHARD_FAILED' | 'IMPORTING' | 'IMPORT_FAILED'
   filename?: string
   original_filename?: string
   content_type?: string
@@ -78,6 +78,20 @@ export interface FileStatusResponse {
     auto_detect_warning?: 'no_erp_match' | 'ambiguous_match' | 'unsupported_entity' | string
     header_sample?: string[]
   }
+  // ── Connector-import progress (Chrome-style) — populated by storage
+  // connectors (Google Drive today) on the FileRegistry-V3 row while the
+  // status is IMPORTING. Once the import completes the row transitions to
+  // UPLOADED and these fields stop changing. Surfaced inline in the
+  // data-catalog table row so closing the import dialog doesn't hide
+  // progress (and so progress survives a page reload).
+  import_status?: 'downloading' | 'uploading' | 'completed' | 'failed'
+  bytes_downloaded?: number
+  bytes_total?: number
+  bytes_transferred?: number
+  download_started_at?: string
+  download_updated_at?: string
+  download_finished_at?: string
+  error_message?: string
 }
 
 export interface FileListResponse {
