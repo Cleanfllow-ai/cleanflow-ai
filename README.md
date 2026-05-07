@@ -27,16 +27,17 @@ pnpm install --frozen-lockfile
 
 Do **not** delete `pnpm-lock.yaml` — that's the canonical lockfile.
 
-### Build gotcha (pnpm 11)
+### Native-build packages (pnpm 11)
 
-`pnpm-workspace.yaml` may carry an `allowBuilds:` map with placeholder values
-for native-build packages. pnpm 11's pre-script `runDepsStatusCheck` aborts
-`pnpm build` with `ERR_PNPM_IGNORED_BUILDS` until those are resolved. Until
-the workspace file is updated, bypass with:
-
-```bash
-pnpm --config.verify-deps-before-run=false exec next build
-```
+`pnpm-workspace.yaml` declares `allowBuilds:` per package — pnpm 11 won't run
+postinstall scripts for native-build packages unless explicitly allowed there.
+Current settings: only `msw` runs (it copies the Service Worker JS into
+`public/`); `@tailwindcss/oxide`, `sharp`, `cypress`, `aws-sdk`, and
+`@vercel/speed-insights` are skipped because their postinstalls aren't needed
+for our build (Tailwind v4 uses prebuilt wasm, Next.js Image works without
+sharp, Cypress binary is downloaded by CI's separate Docker image, etc.).
+See the comment block at the top of `pnpm-workspace.yaml` for full per-package
+rationale.
 
 ## Environment
 
