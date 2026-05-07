@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, CalendarClock, Check, Settings2, Sparkles } from "lucide-react"
+import { ArrowLeft, CalendarClock, Check, Settings2, Sparkles, Workflow, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/shared/lib/utils"
 import { useToast } from "@/shared/hooks/use-toast"
@@ -10,7 +10,9 @@ import { useAuth } from "@/modules/auth"
 
 import { JobConfigStep } from "./job-config-step"
 import { JobDQStep } from "./job-dq-step"
-import { useJobDialog } from "./use-job-dialog"
+import { EndpointsStep } from "./endpoints-step"
+import { MappingStep } from "./mapping-step"
+import { usePipelineBuilder } from "./use-pipeline-builder"
 import {
     jobsAPI,
     frequencyToBackend,
@@ -19,10 +21,12 @@ import type { DQConfig } from "@/modules/jobs/types/jobs.types"
 
 // ─── Stepper steps ────────────────────────────────────────────────────────────
 
-type StepperStep = "config" | "dq"
+type StepperStep = "endpoints" | "config" | "mapping" | "dq"
 
 const STEPPER_STEPS: { key: StepperStep; label: string; icon: React.ReactNode }[] = [
+    { key: "endpoints", label: "Source & Destination", icon: <Workflow className="h-4 w-4" /> },
     { key: "config", label: "Job Configuration", icon: <Settings2 className="h-4 w-4" /> },
+    { key: "mapping", label: "Field Mapping", icon: <Wand2 className="h-4 w-4" /> },
     { key: "dq", label: "DQ Configuration", icon: <Sparkles className="h-4 w-4" /> },
 ]
 
@@ -31,84 +35,110 @@ const STEPPER_STEPS: { key: StepperStep; label: string; icon: React.ReactNode }[
 export function JobCreationStepper() {
     const router = useRouter()
     const { toast } = useToast()
-    const { idToken, getValidToken } = useAuth()
-    const [currentStep, setCurrentStep] = useState<StepperStep>("config")
+    const { idToken } = useAuth()
+    const [currentStep, setCurrentStep] = useState<StepperStep>("endpoints")
     const [isCreating, setIsCreating] = useState(false)
     const [advancedDQ, setAdvancedDQ] = useState(false)
 
-    // Reuse the existing job dialog hook for step 1 state
-    // We pass open=true to trigger data fetching
-    const d = useJobDialog({ open: true, job: null, onSuccess: () => {} })
+    // The new pipeline builder COMPOSES the legacy useJobDialog hook.
+    // `pipeline.dialog` is the legacy hook surface (still used by JobConfigStep).
+    const pipeline = usePipelineBuilder({ open: true, job: null, onSuccess: () => {} })
+    const d = pipeline.dialog
 
-    const visibleSteps = advancedDQ ? STEPPER_STEPS : [STEPPER_STEPS[0]]
+    // Visible steps: mapping is unconditional; DQ is gated by advancedDQ.
+    const visibleSteps = advancedDQ
+        ? STEPPER_STEPS
+        : STEPPER_STEPS.filter(s => s.key !== "dq")
     const currentIndex = visibleSteps.findIndex((s) => s.key === currentStep)
 
-    // ── Step 1 → Step 2 ──────────────────────────────────────────────────────
+    // ── Step transitions ─────────────────────────────────────────────────────
 
-    const handleNextToStep2 = useCallback(() => {
-        // Validate step 1 fields
+    const handleEndpointsNext = useCallback(() => {
+        if (pipeline.pipelineSteps.length === 0) {
+            toast({ title: "Pipeline incomplete", description: "Configure at least one source-destination pair", variant: "destructive" })
+            return
+        }
+        setCurrentStep("config")
+    }, [pipeline.pipelineSteps.length, toast])
+
+    const handleConfigNext = useCallback(() => {
         if (!d.name.trim()) {
             toast({ title: "Name required", description: "Please enter a job name", variant: "destructive" })
-            return
-        }
-        if (!d.sourceProvider) {
-            toast({ title: "Source required", description: "Please select a source provider", variant: "destructive" })
-            return
-        }
-        if (!d.destinationProvider) {
-            toast({ title: "Destination required", description: "Please select a destination provider", variant: "destructive" })
-            return
-        }
-        if (d.entities.length === 0) {
-            toast({ title: "Entity required", description: "Please select at least one entity", variant: "destructive" })
             return
         }
         if (d.frequency === "cron" && !d.cronExpression.trim()) {
             toast({ title: "Cron expression required", variant: "destructive" })
             return
         }
+        setCurrentStep("mapping")
+    }, [d.name, d.frequency, d.cronExpression, toast])
 
-        setCurrentStep("dq")
-    }, [d, toast])
+    const handleMappingNext = useCallback(() => {
+        // Mapping is optional — but if user enabled advancedDQ, head to DQ step.
+        if (advancedDQ) {
+            setCurrentStep("dq")
+        } else {
+            // Direct create with default DQ
+            void handleCreateDirect()
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [advancedDQ])
 
-    // ── Step 2 → Create Job ──────────────────────────────────────────────────
+    // ── Build payload (with pipeline_steps[]) ────────────────────────────────
+
+    const buildPayload = useCallback((dqConfig: DQConfig): Record<string, any> => {
+        const freqBackend = frequencyToBackend(d.frequency, d.cronExpression.trim())
+
+        const finalDqConfig: Record<string, any> = {
+            ...dqConfig,
+            policy: d.dqPolicy,
+        }
+
+        // Primary source/dest mirror the first pipeline step for backwards compat.
+        const firstStep = pipeline.pipelineSteps[0]
+        const allSourceEntities = Array.from(new Set(
+            pipeline.pipelineSteps.map(s => s.source_entity).filter(Boolean),
+        ))
+
+        const payload: Record<string, any> = {
+            name: d.name.trim(),
+            source_provider: firstStep?.source_provider || d.sourceProvider,
+            source_category: firstStep?.source_category || d.sourceCategory,
+            destination_provider: firstStep?.dest_provider || d.destinationProvider,
+            destination_category: firstStep?.dest_category || d.destinationCategory,
+            entities: allSourceEntities.length > 0 ? allSourceEntities : d.entities,
+            ...freqBackend,
+            dq_config: finalDqConfig,
+            // NEW — multi-cardinality pipeline payload (Agent 2's contract).
+            pipeline_steps: pipeline.buildPipelineStepsPayload(),
+        }
+
+        if (d.dqPolicy === "block_and_notify" && d.responsibleUserId) {
+            payload.responsible_user_id = d.responsibleUserId
+        }
+
+        if (firstStep?.source_config && Object.keys(firstStep.source_config).length > 0) {
+            payload.source_config = firstStep.source_config
+        }
+        if (firstStep?.dest_config && Object.keys(firstStep.dest_config).length > 0) {
+            payload.destination_config = firstStep.dest_config
+        }
+
+        // Legacy column_mapping field — populate from the FIRST pair so existing
+        // 1:1 readers (migration in flight) still work. Multi-pair clients should
+        // read pipeline_steps[].inline_mapping instead.
+        const firstMapping = firstStep ? pipeline.mappingsByPair[firstStep.step_id]?.column_mapping : null
+        if (firstMapping && Object.keys(firstMapping).length > 0) {
+            payload.column_mapping = firstMapping
+        }
+
+        return payload
+    }, [pipeline, d])
 
     const handleCreateJob = useCallback(async (dqConfig: DQConfig) => {
         setIsCreating(true)
         try {
-            const freqBackend = frequencyToBackend(d.frequency, d.cronExpression.trim())
-
-            // Merge DQ policy from step 1 DQ config fields
-            const finalDqConfig: Record<string, any> = {
-                ...dqConfig,
-                policy: d.dqPolicy,
-            }
-
-            const payload: Record<string, any> = {
-                name: d.name.trim(),
-                source_provider: d.sourceProvider,
-                source_category: d.sourceCategory,
-                destination_provider: d.destinationProvider,
-                destination_category: d.destinationCategory,
-                entities: d.entities,
-                ...freqBackend,
-                dq_config: finalDqConfig,
-            }
-
-            if (d.dqPolicy === "block_and_notify" && d.responsibleUserId) {
-                payload.responsible_user_id = d.responsibleUserId
-            }
-
-            if (Object.keys(d.sourceConfig).length > 0) {
-                payload.source_config = d.sourceConfig
-            }
-            if (Object.keys(d.destinationConfig).length > 0) {
-                payload.destination_config = d.destinationConfig
-            }
-            if (Object.keys(d.columnMapping).length > 0) {
-                payload.column_mapping = d.columnMapping
-            }
-
+            const payload = buildPayload(dqConfig)
             const created = await jobsAPI.createJob(payload as any)
 
             if (d.frequency === "batch" && created?.job_id) {
@@ -137,7 +167,7 @@ export function JobCreationStepper() {
         } finally {
             setIsCreating(false)
         }
-    }, [d, router, toast])
+    }, [buildPayload, d.frequency, d.name, router, toast])
 
     // ── Direct creation (default DQ) ─────────────────────────────────────────
 
@@ -146,8 +176,8 @@ export function JobCreationStepper() {
             toast({ title: "Name required", variant: "destructive" })
             return
         }
-        if (!d.sourceProvider || !d.destinationProvider || d.entities.length === 0) {
-            toast({ title: "Incomplete", description: "Fill in all required fields", variant: "destructive" })
+        if (pipeline.pipelineSteps.length === 0) {
+            toast({ title: "Incomplete", description: "Configure at least one source-destination pair", variant: "destructive" })
             return
         }
         if (d.frequency === "cron" && !d.cronExpression.trim()) {
@@ -166,7 +196,7 @@ export function JobCreationStepper() {
             },
         }
         await handleCreateJob(defaultDqConfig)
-    }, [d, toast, handleCreateJob])
+    }, [d.name, d.frequency, d.cronExpression, pipeline.pipelineSteps.length, toast, handleCreateJob])
 
     // ── Build source config params for DQ step ───────────────────────────────
 
@@ -246,7 +276,7 @@ export function JobCreationStepper() {
                                             isActive ? "text-primary" : "text-muted-foreground/60"
                                         )}
                                     >
-                                        {visibleSteps.length === 1 ? "Configuration" : `Step ${index + 1} of ${visibleSteps.length}`}
+                                        {`Step ${index + 1} of ${visibleSteps.length}`}
                                     </span>
                                     <span
                                         className={cn(
@@ -273,13 +303,25 @@ export function JobCreationStepper() {
 
             {/* Step content */}
             <div className="flex-1 overflow-hidden">
+                {currentStep === "endpoints" && (
+                    <EndpointsStep pipeline={pipeline} onNext={handleEndpointsNext} />
+                )}
                 {currentStep === "config" && (
                     <JobConfigStep
                         d={d}
-                        onNext={handleNextToStep2}
+                        onNext={handleConfigNext}
                         advancedDQ={advancedDQ}
                         onAdvancedDQChange={setAdvancedDQ}
                         onCreateDirect={handleCreateDirect}
+                        isCreating={isCreating}
+                    />
+                )}
+                {currentStep === "mapping" && (
+                    <MappingStep
+                        pipeline={pipeline}
+                        onBack={() => setCurrentStep("config")}
+                        onNext={handleMappingNext}
+                        isFinalStep={!advancedDQ}
                         isCreating={isCreating}
                     />
                 )}
@@ -290,7 +332,7 @@ export function JobCreationStepper() {
                         entity={d.entities[0] || ""}
                         sourceConfig={Object.keys(sourceConfigParams).length > 0 ? sourceConfigParams : undefined}
                         authToken={idToken || ""}
-                        onBack={() => setCurrentStep("config")}
+                        onBack={() => setCurrentStep(advancedDQ ? "mapping" : "config")}
                         onCreateJob={handleCreateJob}
                         isCreating={isCreating}
                     />

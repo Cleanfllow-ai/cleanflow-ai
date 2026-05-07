@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Cable, ClipboardCheck, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Building2, Cable, ClipboardCheck, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { OrgPermissionsTab } from "./org-settings/org-permissions-tab";
 import { OrgServicesTab } from "./org-settings/org-services-tab";
 import { OrgApprovalsTab } from "./org-settings/org-approvals-tab";
 import { ConnectorsHub } from "@/modules/connectors/components/connectors-hub";
+import { MappingTemplatesTab } from "@/modules/settings/components/mapping-templates-tab";
 
 export function OrganizationSettings() {
   const hookData = useOrgSettings();
@@ -172,6 +173,14 @@ export function OrganizationSettings() {
             <Cable className="w-3.5 h-3.5" />
             Connectors
           </TabsTrigger>
+          <TabsTrigger
+            value="mapping-templates"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Workflow className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Mapping Templates</span>
+            <span className="sm:hidden">Templates</span>
+          </TabsTrigger>
           {hookData.currentUserRole === "Super Admin" && (
             <TabsTrigger
               value="approvals"
@@ -272,6 +281,10 @@ export function OrganizationSettings() {
 
       <TabsContent value="connectors" className="space-y-6">
         <ConnectorsHub />
+      </TabsContent>
+
+      <TabsContent value="mapping-templates" className="space-y-6">
+        <MappingTemplatesTab />
       </TabsContent>
 
       {hookData.currentUserRole === "Super Admin" && (
