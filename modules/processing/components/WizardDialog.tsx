@@ -450,7 +450,7 @@ export function WizardDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className={mode === "new"
                 ? "max-w-xl flex flex-col p-0 gap-0 overflow-hidden"
-                : "max-w-5xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
+                : "sm:max-w-[min(1280px,95vw)] w-[min(1280px,95vw)] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
             }>
                 <DialogHeader className="px-6 py-3 border-b shrink-0">
                     <DialogTitle className="text-base font-semibold tracking-tight">
