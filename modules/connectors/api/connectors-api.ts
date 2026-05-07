@@ -348,7 +348,17 @@ class ConnectorsAPI extends ConnectorAPIBase {
         `/connectors/${provider}/connections`,
         { method: "GET" },
       )
-    } catch {
+    } catch (err) {
+      // We swallow the error here so consumers don't have to distinguish
+      // "not connected" from "endpoint failed" — but log the original so
+      // support can diagnose 401/5xx vs a genuine 404. Without this, a
+      // Cognito JWT expiry on this endpoint is indistinguishable from an
+      // intentional "no connection yet" reply.
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[connectors] getConnectionStatus(${provider}) failed; treating as disconnected:`,
+        err,
+      )
       return { connected: false }
     }
   }

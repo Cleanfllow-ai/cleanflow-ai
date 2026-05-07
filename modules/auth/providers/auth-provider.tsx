@@ -10,6 +10,7 @@ import {
   setReconnectHandler,
   setConnectHandler,
   setSigninHandler,
+  setSignOutHandler,
 } from "@/lib/error-toast";
 
 interface AuthContextType {
@@ -70,16 +71,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setSigninHandler(() => {
       router.push("/auth/login");
     });
+    // Sign-out helper invoked BEFORE redirect to /auth/login. Clears stored
+    // tokens + in-memory auth state so a "Back" press can't land the user
+    // in the same broken-JWT loop. `auth.logout()` is synchronous (just
+    // clears localStorage + resets useState), so this returns synchronously.
+    setSignOutHandler(() => {
+      auth.logout();
+    });
     return () => {
       setValidTokenGetter(null);
       setReconnectHandler(null);
       setConnectHandler(null);
       setSigninHandler(null);
+      setSignOutHandler(null);
     };
-    // `getValidToken` is recreated on every render of useAuthHook, so we
-    // intentionally re-register it whenever it changes to capture the
-    // latest auth state closure.
-  }, [auth.getValidToken, router]);
+    // `getValidToken` / `logout` are recreated on every render of
+    // useAuthHook, so we intentionally re-register them whenever they
+    // change to capture the latest auth state closure.
+  }, [auth.getValidToken, auth.logout, router]);
 
   const refreshPermissions = useCallback(async () => {
     if (!auth.isAuthenticated || !auth.idToken) return;

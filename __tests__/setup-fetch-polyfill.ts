@@ -20,6 +20,12 @@ if (!process.env.GROQ_API_KEY) process.env.GROQ_API_KEY = 'test-groq-key'
 if (!process.env.PINECONE_API_KEY) process.env.PINECONE_API_KEY = 'test-pinecone-key'
 if (!process.env.PINECONE_INDEX_NAME) process.env.PINECONE_INDEX_NAME = 'test-index'
 if (!process.env.HUGGINGFACE_API_KEY) process.env.HUGGINGFACE_API_KEY = 'test-hf-key'
+// shared/config/aws-config.ts captures these at module-load time and throws
+// if any are missing — populate with placeholders so test imports work.
+if (!process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID) process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID = 'ap-south-1_TESTPOOL'
+if (!process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID) process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID = 'test-client-id'
+if (!process.env.NEXT_PUBLIC_API_BASE_URL) process.env.NEXT_PUBLIC_API_BASE_URL = 'https://test.example.com/prod'
+if (!process.env.NEXT_PUBLIC_S3_BUCKET_NAME) process.env.NEXT_PUBLIC_S3_BUCKET_NAME = 'cleanflowai-test-bucket'
 
 // Try to pull web API classes from undici (bundled in Node 18+)
 try {

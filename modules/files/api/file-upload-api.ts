@@ -1,6 +1,30 @@
 import { AWS_CONFIG } from '@/shared/config/aws-config'
 import { ApiError, parseApiError } from '@/modules/shared/api-error'
 import { getValidTokenAsync } from '@/modules/shared/auth-token-bridge'
+
+/**
+ * Refresh the Cognito ID token with ONE retry on transient errors.
+ * Mirrors `connectors/api/base.ts::refreshTokenWithRetry` — kept inline to
+ * avoid pulling the connectors module into the files module's import graph.
+ * See that function's docstring for the rationale + retry rules.
+ */
+async function refreshTokenWithRetry(): Promise<string> {
+    try {
+        return await getValidTokenAsync()
+    } catch (err) {
+        const name = (err as { name?: string })?.name
+        const message = (err as Error)?.message || ""
+        const isTerminal =
+            name === "NotAuthorizedException" ||
+            message === "No token getter registered" ||
+            message === "Not authenticated"
+        if (isTerminal) {
+            throw err
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        return await getValidTokenAsync()
+    }
+}
 import type {
     FileUploadInitResponse,
     FileStatusResponse,
@@ -57,16 +81,17 @@ export async function makeRequest(
             const errorData = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {}
 
             // Transparent 401 token-refresh: try once if we haven't already.
+            // The refresh helper itself retries once on transient errors.
             if (response.status === 401 && !didReauth && !isOAuthCallback) {
                 try {
-                    const fresh = await getValidTokenAsync()
+                    const fresh = await refreshTokenWithRetry()
                     if (fresh) {
                         return makeRequest(endpoint, fresh, options, true)
                     }
                 } catch {
                     throw new ApiError({
                         status: 401,
-                        message: 'Session expired',
+                        message: 'Your sign-in session has expired',
                         action: 'signin',
                         raw: errorData,
                     })

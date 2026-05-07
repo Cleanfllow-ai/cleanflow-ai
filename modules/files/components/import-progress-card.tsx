@@ -49,6 +49,14 @@ export interface ImportProgressCardProps {
   updatedAt: string
   finishedAt?: string
   errorMessage?: string
+  /**
+   * Optional machine-readable error identifier surfaced as a small
+   * monospace suffix in the failed subtitle. Use `ApiError.code` (e.g.
+   * `ConnectionExpiredError`) where available, or the HTTP status as a
+   * fallback. This lets support distinguish "session expired (Cognito)"
+   * from "GoogleDrive OAuth poison" without opening the Network tab.
+   */
+  errorCode?: string | number | null
   onCancel?: () => void
   onRetry?: () => void
   /** Optional providerlabel ("Google Drive", "Snowflake"); defaults to "Google Drive". */
@@ -133,6 +141,7 @@ export function ImportProgressCard({
   updatedAt,
   finishedAt,
   errorMessage,
+  errorCode,
   onCancel,
   onRetry,
   providerLabel = "Google Drive",
@@ -329,7 +338,17 @@ export function ImportProgressCard({
             className="text-xs text-destructive flex-1 min-w-0"
             data-testid="import-progress-error"
           >
-            {errorMessage || "Import failed"}
+            <span>{errorMessage || "Import failed"}</span>
+            {errorCode !== undefined && errorCode !== null && errorCode !== "" && (
+              <span
+                className="ml-1.5 font-mono text-[10px] opacity-70"
+                data-testid="import-progress-error-code"
+                aria-label="Error code"
+                title="Error code (for support)"
+              >
+                ({String(errorCode)})
+              </span>
+            )}
           </div>
           {onRetry && (
             <Button

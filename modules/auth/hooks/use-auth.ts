@@ -547,12 +547,23 @@ export function useAuth() {
     })
   }
 
-  /** Return a guaranteed-valid idToken (refreshes if <10 min left). */
+  /**
+   * Return a guaranteed-valid idToken (refreshes if <5 min left).
+   *
+   * Threshold rationale: this MUST match the auto-refresh interval at line 76
+   * (`expiresIn < 300`). Previously this was 10 min (`> 600`), creating a
+   * 5-minute window where on-demand `getValidToken` would call
+   * `refreshSession` while the periodic refresher hadn't yet — and
+   * `cognitoApi.refreshSession` is NOT idempotent (calling it concurrently
+   * with the same refresh token yields one success and one
+   * `NotAuthorizedException` from Cognito's rotation invariant).
+   */
   const getValidToken = async (): Promise<string> => {
     const token = authState.idToken
     if (!token) throw new Error('Not authenticated')
     const payload = parseJWT(token)
-    if (payload && payload.exp - Date.now() / 1000 > 600) return token
+    // 300 s = 5 min — must match the auto-refresh interval threshold.
+    if (payload && payload.exp - Date.now() / 1000 > 300) return token
     // Token expires soon — refresh first
     if (authState.refreshToken) {
       const res = await refreshSession(authState.refreshToken)

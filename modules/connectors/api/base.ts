@@ -5,6 +5,41 @@ import { getValidTokenAsync } from "@/modules/shared/auth-token-bridge"
 const API_BASE_URL = AWS_CONFIG.API_BASE_URL || ""
 
 /**
+ * Refresh the Cognito ID token with ONE retry on transient errors.
+ *
+ * Why: a transient `cognitoApi.refreshSession` failure (network blip, AWS
+ * Cognito 5xx, throttling) was previously converted into a permanent
+ * "Session expired — sign in again" UX even though a single retry would
+ * have succeeded.
+ *
+ * Retry rules:
+ *   - Retry once with 500 ms backoff for transient errors.
+ *   - Do NOT retry `NotAuthorizedException` (refresh token genuinely
+ *     expired/revoked) — surrender immediately so the user re-auths.
+ *   - Do NOT retry if the bridge has no getter registered (boot race).
+ */
+export async function refreshTokenWithRetry(): Promise<string> {
+    try {
+        return await getValidTokenAsync()
+    } catch (err) {
+        // Genuinely expired/revoked refresh token — re-auth required.
+        // Cognito throws an Error whose `.name` is "NotAuthorizedException".
+        const name = (err as { name?: string })?.name
+        const message = (err as Error)?.message || ""
+        const isTerminal =
+            name === "NotAuthorizedException" ||
+            message === "No token getter registered" ||
+            message === "Not authenticated"
+        if (isTerminal) {
+            throw err
+        }
+        // Transient: one retry after 500 ms.
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        return await getValidTokenAsync()
+    }
+}
+
+/**
  * Shared base for all connector API modules.
  * Provides auth-token retrieval, timeout, and retry logic.
  *
@@ -68,15 +103,17 @@ export class ConnectorAPIBase {
           !isOAuthCallback
         ) {
           try {
-            const fresh = await getValidTokenAsync()
+            const fresh = await refreshTokenWithRetry()
             if (fresh) {
               return this.makeRequest<T>(endpoint, options, skipAuth, retries, true)
             }
           } catch {
-            // Refresh failed — fall through and throw the typed ApiError below
+            // Refresh definitely failed (after one retry) — fall through and
+            // throw the typed ApiError below so the toast surfaces the
+            // Cognito-session-expired UX.
             throw new ApiError({
               status: 401,
-              message: "Session expired",
+              message: "Your sign-in session has expired",
               action: "signin",
               raw: errorData,
             })

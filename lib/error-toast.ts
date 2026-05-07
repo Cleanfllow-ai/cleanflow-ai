@@ -53,10 +53,12 @@ function providerLabel(provider: string | null | undefined): string {
 
 type ProviderHandler = (provider: string | null) => void
 type SignoutHandler = () => void
+type SignOutBeforeRedirect = () => void | Promise<void>
 
 let reconnectHandler: ProviderHandler | null = null
 let connectHandler: ProviderHandler | null = null
 let signinHandler: SignoutHandler | null = null
+let signOutHandler: SignOutBeforeRedirect | null = null
 
 /** Wire the "Reconnect" button. Called once at app boot from `AuthProvider`. */
 export function setReconnectHandler(fn: ProviderHandler | null): void {
@@ -71,6 +73,18 @@ export function setConnectHandler(fn: ProviderHandler | null): void {
 /** Wire the "Sign in" button. Called once at app boot from `AuthProvider`. */
 export function setSigninHandler(fn: SignoutHandler | null): void {
     signinHandler = fn
+}
+
+/**
+ * Wire the sign-out helper invoked BEFORE redirecting to /auth/login.
+ * Without this, a stale (broken) JWT remains in localStorage, and a user
+ * who hits "Back" after the redirect lands in the same broken state.
+ *
+ * The handler must clear all auth tokens + reset in-memory state. Called
+ * once at app boot from `AuthProvider`.
+ */
+export function setSignOutHandler(fn: SignOutBeforeRedirect | null): void {
+    signOutHandler = fn
 }
 
 function navigateToReconnect(provider: string | null): void {
@@ -98,6 +112,26 @@ function navigateToConnect(provider: string | null): void {
 }
 
 function goToLogin(): void {
+    // CRITICAL: clear stale JWT + auth state BEFORE navigating, otherwise
+    // a "Back" button press lands the user in the same broken-session loop.
+    // We invoke the sign-out helper synchronously and don't await — the
+    // navigation should not be blocked on token revocation, and the local
+    // store clearing happens synchronously inside the helper anyway.
+    if (signOutHandler) {
+        try {
+            const maybePromise = signOutHandler()
+            // If the handler returns a Promise (network revoke etc.), don't
+            // block navigation on it — we've already cleared local tokens.
+            if (maybePromise && typeof (maybePromise as Promise<void>).catch === "function") {
+                ;(maybePromise as Promise<void>).catch(() => {
+                    // Best-effort sign-out — local storage already cleared.
+                })
+            }
+        } catch {
+            // Best-effort — never let sign-out failure block the redirect.
+        }
+    }
+
     if (signinHandler) {
         signinHandler()
         return
@@ -139,9 +173,22 @@ export function mapErrorToToast(err: unknown): ErrorToastDescriptor {
         }
 
         if (err.action === "signin") {
+            // Default copy makes it clear this is the *app* sign-in session,
+            // NOT a connector OAuth session. Without this distinction, a
+            // Cognito JWT refresh failure that bubbled up through (e.g.) the
+            // GoogleDrive Import dialog reads as "the GoogleDrive connector
+            // session expired" — which is misleading and sends users to the
+            // wrong remediation flow.
+            //
+            // If the backend explicitly tags the 401 with a provider, surface
+            // that in the title — useful for genuine provider-scoped 401s
+            // that should still re-auth via Cognito (rare, but possible).
+            const titleProvider = err.provider ? providerLabel(err.provider) : null
             return {
-                title: "Session expired",
-                description: "Sign in again to continue.",
+                title: titleProvider
+                    ? `${titleProvider} requires sign-in`
+                    : "Your sign-in session has expired",
+                description: "Please sign in again to continue.",
                 variant: "destructive",
                 action: {
                     label: "Sign in",
