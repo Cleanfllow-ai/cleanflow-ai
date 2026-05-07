@@ -96,6 +96,8 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         actionsErpMode, setActionsErpMode, actionsErpTarget, setActionsErpTarget,
         // Delete
         showDeleteModal, setShowDeleteModal, fileToDelete, handleDeleteConfirm,
+        // Stop (cancel in-flight import / processing)
+        showStopModal, setShowStopModal, fileToStop, handleStopConfirm, stopping,
         // Bulk Delete
         showBulkDeleteModal, setShowBulkDeleteModal, handleBulkDeleteConfirm, selectedFiles,
         // Display columns
@@ -532,6 +534,38 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Stop (cancel in-flight) Confirmation */}
+            <AlertDialog open={showStopModal} onOpenChange={setShowStopModal}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Stop import?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will cancel the in-progress operation for{" "}
+                            <strong>{fileToStop?.original_filename || fileToStop?.filename}</strong>.
+                            Existing partial data will be discarded. The file row will remain in
+                            the catalog (marked as failed) so you can delete it afterwards.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep going</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleStopConfirm}
+                            disabled={Boolean(stopping)}
+                            className="bg-destructive text-destructive-foreground"
+                        >
+                            {stopping ? (
+                                <>
+                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                    Stopping…
+                                </>
+                            ) : (
+                                "Stop"
+                            )}
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

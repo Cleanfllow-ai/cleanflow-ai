@@ -78,6 +78,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         handleViewDetails, handleStartProcessing, handleQuickProcess,
         openActionsDialog, handleDeleteClick,
         downloading, deleting,
+        handleStopClick, stopping,
         handleOpenQuarantineEditor, highlightedFileId,
         selectedFiles, handleSelectFile, handleSelectAll, handleBulkDeleteClick, bulkDeleting,
         recentlyUploaded, setRecentlyUploaded,
@@ -597,21 +598,37 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                 {(() => {
                                                     const isUploading = file.status === "UPLOADING";
                                                     const isImporting = file.status === "IMPORTING";
-                                                    const isProcessing =
-                                                        file.status === "DQ_RUNNING" ||
-                                                        file.status === "DQ_DISPATCHED" ||
-                                                        isUploading ||
-                                                        isImporting;
+                                                    // In-flight states share a single "Stop" affordance. Anything
+                                                    // here is non-terminal — Delete is intentionally hidden so the
+                                                    // user can't trip the backend's Phase-1 in-flight delete guard
+                                                    // (which returns 409 and produced the "unstoppable download"
+                                                    // bug this commit fixes).
+                                                    const inFlightStates = new Set([
+                                                        "UPLOADING",
+                                                        "IMPORTING",
+                                                        "INITIATING",
+                                                        "DQ_DISPATCHED",
+                                                        "DQ_RUNNING",
+                                                        "NORMALIZING",
+                                                        "SHARDING",
+                                                        "QUEUED",
+                                                        "REPROCESSING",
+                                                    ]);
+                                                    const isInFlight = inFlightStates.has(file.status);
                                                     const isProcessed = file.status === "DQ_FIXED" || file.status === "COMPLETED";
-                                                    // For an in-flight connector import we collapse the actions
-                                                    // column to a single "Cancel Import" icon button. There's no
-                                                    // dedicated backend cancel endpoint (see audit notes in the
-                                                    // PR description), so we reuse `DELETE /uploads/{id}` —
-                                                    // the same path the trash button uses. Effect: the row
-                                                    // disappears from the catalog immediately; the Lambda
-                                                    // continues running until it tries to commit the next chunk
-                                                    // and discovers the row is gone (best-effort cancel).
-                                                    if (isImporting) {
+
+                                                    // ─── In-flight: collapse to a single Stop button ───
+                                                    // This is the bug fix — previously this branch (for IMPORTING)
+                                                    // wired the X icon to handleDeleteClick, which then hit
+                                                    // DELETE /uploads/{id} and got blocked by the backend's
+                                                    // in-flight guard (409). Now X → POST /uploads/{id}/cancel,
+                                                    // which transitions the row to IMPORT_FAILED / DQ_FAILED so
+                                                    // the trash icon shows up on the next poll tick.
+                                                    if (isInFlight) {
+                                                        const tooltipLabel =
+                                                            isImporting ? "Stop import" :
+                                                            isUploading ? "Cancel upload" :
+                                                            "Stop processing";
                                                         return (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
@@ -619,28 +636,40 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                         variant="ghost"
                                                                         size="icon"
                                                                         className="h-7 w-7 sm:h-8 sm:w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                                                                        onClick={() => handleDeleteClick(file)}
-                                                                        disabled={deleting === file.upload_id}
-                                                                        data-testid="cancel-import-button"
-                                                                        aria-label="Cancel import"
+                                                                        onClick={() => {
+                                                                            // For an in-browser XHR upload, also abort the
+                                                                            // local upload tracker so we don't keep streaming
+                                                                            // bytes to S3 after the user clicked Stop.
+                                                                            if (isUploading) {
+                                                                                cancelUpload(file.upload_id);
+                                                                                cancelUpload(file.original_filename || file.filename || "");
+                                                                            }
+                                                                            handleStopClick(file);
+                                                                        }}
+                                                                        disabled={stopping === file.upload_id}
+                                                                        data-testid="stop-import-button"
+                                                                        aria-label={tooltipLabel}
                                                                     >
-                                                                        {deleting === file.upload_id ? (
+                                                                        {stopping === file.upload_id ? (
                                                                             <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                                                                         ) : (
                                                                             <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                                         )}
                                                                     </Button>
                                                                 </TooltipTrigger>
-                                                                <TooltipContent>Cancel Import</TooltipContent>
+                                                                <TooltipContent>{tooltipLabel}</TooltipContent>
                                                             </Tooltip>
                                                         );
                                                     }
+
+                                                    // ─── Terminal: full actions bar (incl. Delete) ───
                                                     return (
                                                         <>
-                                                {!isUploading && (file.status === "UPLOADED" ||
+                                                {(file.status === "UPLOADED" ||
                                                     file.status === "DQ_FAILED" ||
                                                     file.status === "FAILED" ||
-                                                    file.status === "UPLOAD_FAILED") && (
+                                                    file.status === "UPLOAD_FAILED" ||
+                                                    file.status === "IMPORT_FAILED") && (
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <Button
@@ -655,22 +684,20 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                             <TooltipContent>Start Processing</TooltipContent>
                                                         </Tooltip>
                                                     )}
-                                                {!isProcessing && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className={cn("h-7 w-7 sm:h-8 sm:w-8", isProcessed ? "text-muted-foreground hover:text-foreground" : "text-muted-foreground/40 cursor-not-allowed")}
-                                                                disabled={!isProcessed}
-                                                                onClick={() => isProcessed && handleViewDetails(file)}
-                                                            >
-                                                                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>{isProcessed ? "Details" : "Available after processing"}</TooltipContent>
-                                                    </Tooltip>
-                                                )}
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className={cn("h-7 w-7 sm:h-8 sm:w-8", isProcessed ? "text-muted-foreground hover:text-foreground" : "text-muted-foreground/40 cursor-not-allowed")}
+                                                            disabled={!isProcessed}
+                                                            onClick={() => isProcessed && handleViewDetails(file)}
+                                                        >
+                                                            <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>{isProcessed ? "Details" : "Available after processing"}</TooltipContent>
+                                                </Tooltip>
                                                 {isProcessed && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -702,41 +729,34 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                     </Tooltip>
                                                 )}
                                                 {/* Export button */}
-                                                {!isProcessing && !isUploading && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className={cn("h-7 w-7 sm:h-8 sm:w-8", isProcessed ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground/40 cursor-not-allowed")}
-                                                                disabled={!isProcessed || downloading === file.upload_id}
-                                                                onClick={() => isProcessed && openActionsDialog(file)}
-                                                            >
-                                                                {downloading === file.upload_id ? (
-                                                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                                                                ) : (
-                                                                    <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                                )}
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>{isProcessed ? "Export" : "Available after processing"}</TooltipContent>
-                                                    </Tooltip>
-                                                )}
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className={cn("h-7 w-7 sm:h-8 sm:w-8", isProcessed ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground/40 cursor-not-allowed")}
+                                                            disabled={!isProcessed || downloading === file.upload_id}
+                                                            onClick={() => isProcessed && openActionsDialog(file)}
+                                                        >
+                                                            {downloading === file.upload_id ? (
+                                                                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                                            ) : (
+                                                                <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                            )}
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>{isProcessed ? "Export" : "Available after processing"}</TooltipContent>
+                                                </Tooltip>
+                                                {/* Delete (terminal states only) */}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
                                                             className="h-7 w-7 sm:h-8 sm:w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                                                            onClick={() => {
-                                                                // Cancel active upload if file is still uploading
-                                                                if (file.status === "UPLOADING") {
-                                                                    cancelUpload(file.upload_id);
-                                                                    cancelUpload(file.original_filename || file.filename || "");
-                                                                }
-                                                                handleDeleteClick(file);
-                                                            }}
+                                                            onClick={() => handleDeleteClick(file)}
                                                             disabled={deleting === file.upload_id}
+                                                            aria-label="Delete file"
                                                         >
                                                             {deleting === file.upload_id ? (
                                                                 <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
@@ -745,7 +765,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                             )}
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>{file.status === "UPLOADING" ? "Cancel & Delete" : "Delete"}</TooltipContent>
+                                                    <TooltipContent>Delete</TooltipContent>
                                                 </Tooltip>
                                                         </>
                                                     );

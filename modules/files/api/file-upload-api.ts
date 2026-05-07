@@ -184,6 +184,34 @@ export async function deleteUpload(uploadId: string, authToken: string): Promise
     })
 }
 
+/**
+ * Cancel an in-flight upload / import / DQ run.
+ *
+ * Functionally distinct from `deleteUpload`: the row is preserved in the
+ * catalog but transitioned to a terminal failed state (IMPORT_FAILED or
+ * DQ_FAILED) by the backend. Idempotent — a second call on an
+ * already-terminal row returns 200 with `new_status` reflecting the
+ * existing terminal state.
+ *
+ *   POST /uploads/{upload_id}/cancel       (empty body)
+ *   200 → { status: "cancelling", upload_id, new_status }
+ *   403 → caller is not Super Admin / Admin
+ *   404 → upload row does not exist
+ *   409 → never thrown by this endpoint (delete-only guard)
+ */
+export interface CancelUploadResponse {
+    status: string
+    upload_id: string
+    new_status?: string
+}
+
+export async function cancelUpload(uploadId: string, authToken: string): Promise<CancelUploadResponse> {
+    return makeRequest(`/uploads/${uploadId}/cancel`, authToken, {
+        method: 'POST',
+        body: JSON.stringify({}),
+    })
+}
+
 export async function confirmUpload(uploadId: string, authToken: string, totalSize: number): Promise<void> {
     return makeRequest(`/uploads/${uploadId}/confirm`, authToken, {
         method: 'POST',

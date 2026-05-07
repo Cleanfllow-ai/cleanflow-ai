@@ -69,6 +69,12 @@ export function useFilesPage() {
     const [deleting, setDeleting] = useState<string | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [fileToDelete, setFileToDelete] = useState<FileStatusResponse | null>(null);
+    // ─── Stop (cancel in-flight import / processing) ─────────────────────
+    // Functionally distinct from delete: hits POST /uploads/{id}/cancel and
+    // transitions the row to IMPORT_FAILED / DQ_FAILED instead of removing it.
+    const [stopping, setStopping] = useState<string | null>(null);
+    const [showStopModal, setShowStopModal] = useState(false);
+    const [fileToStop, setFileToStop] = useState<FileStatusResponse | null>(null);
     const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
     const [bulkDeleting, setBulkDeleting] = useState(false);
     const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -1050,14 +1056,98 @@ export function useFilesPage() {
             await loadFiles();
         } catch (error) {
             console.error("Delete error:", error);
-            const message =
-                error instanceof Error && error.message.toLowerCase().includes("permission denied")
-                    ? "You do not have permission for this action. Contact your organization admin."
-                    : "Unable to delete file";
-            toast({ title: "Delete failed", description: message, variant: "destructive" });
+            // 409 = backend's in-flight delete guard (Phase 1) or the file was
+            // already removed concurrently. Treat both as a soft success — the
+            // user's intent (row gone) is satisfied either way; if the row is
+            // still there, the polling loop will refresh it and the user can
+            // click Stop instead.
+            if (error instanceof ApiError && error.status === 409) {
+                const msg = (error.message || "").toLowerCase();
+                if (msg.includes("in progress") || msg.includes("uploading") || msg.includes("importing") || msg.includes("processing")) {
+                    toast({
+                        title: "Cannot delete while in progress",
+                        description: "Stop the import first, then delete.",
+                        variant: "destructive",
+                    });
+                } else {
+                    toast({ title: "Already deleted", description: "The file is no longer in the catalog." });
+                    await loadFiles();
+                }
+            } else if (error instanceof Error && error.message.toLowerCase().includes("permission denied")) {
+                toast({
+                    title: "Delete failed",
+                    description: "You do not have permission for this action. Contact your organization admin.",
+                    variant: "destructive",
+                });
+            } else {
+                toast({ title: "Delete failed", description: "Unable to delete file", variant: "destructive" });
+            }
         } finally {
             setDeleting(null);
             setFileToDelete(null);
+        }
+    };
+
+    // ─── Stop (cancel in-flight import / processing) ─────────────────────
+    const handleStopClick = (file: FileStatusResponse) => {
+        setFileToStop(file);
+        setShowStopModal(true);
+    };
+
+    const handleStopConfirm = async () => {
+        if (!fileToStop || !idToken) return;
+        if (!ensureFilesPermission()) return;
+        const target = fileToStop;
+        setStopping(target.upload_id);
+        setShowStopModal(false);
+        try {
+            const result = await fileManagementAPI.cancelUpload(target.upload_id, idToken);
+            // Idempotent path: the row was already terminal (e.g. user clicked
+            // twice, or the worker happened to fail at the same moment).
+            const newStatus = (result?.new_status || "").toUpperCase();
+            const alreadyStopped =
+                newStatus === "IMPORT_FAILED" ||
+                newStatus === "DQ_FAILED" ||
+                newStatus === "UPLOAD_FAILED" ||
+                newStatus === "REJECTED" ||
+                newStatus === "DQ_FIXED";
+            const reqStatusFresh = (result?.status || "").toLowerCase() === "cancelling";
+            if (alreadyStopped && !reqStatusFresh) {
+                toast({ title: "Already stopped", description: "This file is no longer in progress." });
+            } else {
+                toast({
+                    title: "Import stopped",
+                    description: "The in-progress operation has been cancelled.",
+                });
+            }
+            await loadFiles();
+        } catch (error) {
+            console.error("Cancel error:", error);
+            if (error instanceof ApiError && error.status === 403) {
+                toast({
+                    title: "Permission denied",
+                    description: "Only Super Admin or Admin can stop imports.",
+                    variant: "destructive",
+                });
+            } else if (error instanceof ApiError && error.status === 404) {
+                toast({ title: "File not found", description: "This file no longer exists in the catalog." });
+                await loadFiles();
+            } else {
+                const code =
+                    error instanceof ApiError && error.code
+                        ? ` (${error.code})`
+                        : error instanceof ApiError
+                          ? ` (HTTP ${error.status})`
+                          : "";
+                toast({
+                    title: "Failed to stop import",
+                    description: `Could not cancel the operation${code}. Please try again.`,
+                    variant: "destructive",
+                });
+            }
+        } finally {
+            setStopping(null);
+            setFileToStop(null);
         }
     };
 
@@ -1417,6 +1507,8 @@ export function useFilesPage() {
         profilingFileId, setProfilingFileId, profilingData, loadingProfiling, handleViewProfiling,
         // Delete
         deleting, showDeleteModal, setShowDeleteModal, fileToDelete, handleDeleteClick, handleDeleteConfirm,
+        // Stop (cancel in-flight import / processing)
+        stopping, showStopModal, setShowStopModal, fileToStop, handleStopClick, handleStopConfirm,
         // Multi-select & Bulk Delete
         selectedFiles, handleSelectFile, handleSelectAll, handleBulkDeleteClick,
         showBulkDeleteModal, setShowBulkDeleteModal, handleBulkDeleteConfirm, bulkDeleting,

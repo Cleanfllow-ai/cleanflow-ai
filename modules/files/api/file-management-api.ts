@@ -57,6 +57,7 @@ export {
   getFileStatus,
   getFileColumns,
   deleteUpload,
+  cancelUpload,
   uploadToS3,
   uploadToS3Post,
   pollFileStatus,
@@ -66,6 +67,8 @@ export {
   suggestCrossColumnRule,
   uploadFileComplete,
 } from './file-upload-api'
+
+export type { CancelUploadResponse } from './file-upload-api'
 
 export {
   downloadDqReport,
@@ -155,6 +158,7 @@ export const fileManagementAPI = {
   getFileStatus: uploadApi.getFileStatus,
   getFileColumns: uploadApi.getFileColumns,
   deleteUpload: uploadApi.deleteUpload,
+  cancelUpload: uploadApi.cancelUpload,
   uploadToS3: uploadApi.uploadToS3,
   uploadToS3Post: uploadApi.uploadToS3Post,
   pollFileStatus: uploadApi.pollFileStatus,
