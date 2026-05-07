@@ -98,7 +98,13 @@ class StorageConnectorsAPI extends ConnectorAPIBase {
     )
   }
 
-  /** Poll import status (IMPORTING → UPLOADED / IMPORT_FAILED). */
+  /** Poll import status (IMPORTING → UPLOADED / IMPORT_FAILED).
+   *
+   * The backend (FileRegistry-V3) writes Chrome-download-tray progress fields
+   * during async storage imports; consumers can use either the legacy
+   * `bytes_transferred` field or the unified `bytes_downloaded`/`bytes_total`
+   * pair depending on which the connector emits.
+   */
   async getImportStatus(
     provider: string,
     uploadId: string,
@@ -107,8 +113,16 @@ class StorageConnectorsAPI extends ConnectorAPIBase {
     status: string
     filename?: string
     file_size?: number
+    /** @deprecated use bytes_downloaded / bytes_total (Chrome-style fields). */
     bytes_transferred?: number
     error_message?: string
+    // ── Chrome-style download progress (FileRegistry-V3) ────────────────
+    import_status?: "downloading" | "uploading" | "completed" | "failed"
+    bytes_downloaded?: number
+    bytes_total?: number
+    download_started_at?: string
+    download_updated_at?: string
+    download_finished_at?: string
   }> {
     return await this.makeRequest(
       `/connectors/storage/${provider}/import?upload_id=${encodeURIComponent(uploadId)}`,
