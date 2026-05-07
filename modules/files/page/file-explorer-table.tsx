@@ -625,10 +625,13 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                     // which transitions the row to IMPORT_FAILED / DQ_FAILED so
                                                     // the trash icon shows up on the next poll tick.
                                                     if (isInFlight) {
+                                                        // Tooltip mirrors the new "Stop & Delete" semantics —
+                                                        // clicking opens the confirm dialog whose primary action
+                                                        // cancels the in-flight op AND removes the catalog row.
                                                         const tooltipLabel =
-                                                            isImporting ? "Stop import" :
-                                                            isUploading ? "Cancel upload" :
-                                                            "Stop processing";
+                                                            isImporting ? "Stop import & delete" :
+                                                            isUploading ? "Cancel upload & delete" :
+                                                            "Stop processing & delete";
                                                         return (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>

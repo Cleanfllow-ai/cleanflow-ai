@@ -44,11 +44,20 @@ interface UseImportingFilesPollArgs {
   files: FileStatusResponse[]
   /** No-arg refresh callback — typically the page-level `loadFiles`. */
   onRefresh: () => void | Promise<void>
+  /**
+   * When true, the poll loop is suspended even if IMPORTING rows exist.
+   * Used by the page to prevent the auto-refresh from racing a manual
+   * stop+delete combined operation (the cancel + delete chain mutates
+   * the same row and we don't want a mid-flight list refresh to clobber
+   * the optimistic UI state).
+   */
+  isPaused?: boolean
 }
 
 export function useImportingFilesPoll({
   files,
   onRefresh,
+  isPaused = false,
 }: UseImportingFilesPollArgs) {
   const onRefreshRef = useRef(onRefresh)
 
@@ -62,6 +71,7 @@ export function useImportingFilesPoll({
 
   useEffect(() => {
     if (!hasImporting) return
+    if (isPaused) return
 
     let cancelled = false
 
@@ -100,7 +110,7 @@ export function useImportingFilesPoll({
         document.removeEventListener("visibilitychange", onVisibilityChange)
       }
     }
-  }, [hasImporting])
+  }, [hasImporting, isPaused])
 }
 
 export default useImportingFilesPoll

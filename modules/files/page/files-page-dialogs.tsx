@@ -538,20 +538,19 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Stop (cancel in-flight) Confirmation */}
+            {/* Stop & Delete (cancel in-flight + remove from catalog) Confirmation */}
             <AlertDialog open={showStopModal} onOpenChange={setShowStopModal}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Stop import?</AlertDialogTitle>
+                        <AlertDialogTitle>Stop and delete?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will cancel the in-progress operation for{" "}
-                            <strong>{fileToStop?.original_filename || fileToStop?.filename}</strong>.
-                            Existing partial data will be discarded. The file row will remain in
-                            the catalog (marked as failed) so you can delete it afterwards.
+                            This will cancel the import for{" "}
+                            <strong>{fileToStop?.original_filename || fileToStop?.filename}</strong>{" "}
+                            and remove the file from your catalog. This cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Keep going</AlertDialogCancel>
+                        <AlertDialogCancel>Keep import running</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleStopConfirm}
                             disabled={Boolean(stopping)}
@@ -563,7 +562,7 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                                     Stopping…
                                 </>
                             ) : (
-                                "Stop"
+                                "Stop & Delete"
                             )}
                         </AlertDialogAction>
                     </AlertDialogFooter>

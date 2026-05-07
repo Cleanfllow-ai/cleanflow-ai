@@ -648,7 +648,10 @@ export function useFilesPage() {
     // inline progress bar in the data-catalog row stays live even when the
     // Import Data dialog has been closed (or the page was just reloaded
     // mid-import). No-op once all imports terminate.
-    useImportingFilesPoll({ files, onRefresh: loadFiles });
+    // While the user-initiated Stop & Delete chain is mid-flight we pause the
+    // 2-second IMPORTING refresh so a stale list response doesn't clobber the
+    // optimistic local state between the cancel and delete API calls.
+    useImportingFilesPoll({ files, onRefresh: loadFiles, isPaused: stopping !== null });
 
     const handleQuarantineEditorComplete = () => {
         // Reload files to reflect new version
@@ -1094,33 +1097,53 @@ export function useFilesPage() {
         setShowStopModal(true);
     };
 
+    /**
+     * Stop & Delete in one click.
+     *
+     * Flow:
+     *   1. POST /uploads/{id}/cancel   — transitions the row to a terminal
+     *      state (IMPORT_FAILED / DQ_FAILED / UPLOAD_FAILED). Idempotent
+     *      ("noop" + new_status terminal also counts as success).
+     *   2. DELETE /uploads/{id}        — clears the row from the catalog.
+     *      Only attempted if (1) succeeded.
+     *
+     * Toasts:
+     *   • Success path        → "Import stopped and deleted"
+     *   • cancel 403          → "Only Super Admin or Admin can stop imports"
+     *   • cancel 404          → "Already deleted" (skip delete, refresh list)
+     *   • cancel other error  → "Failed to stop import" (skip delete)
+     *   • cancel ok, delete err → "Import stopped (delete failed: …)" so the
+     *                              user can manually delete via trash later.
+     *
+     * The IMPORTING poll loop is suspended for the duration of this chain
+     * (see `useImportingFilesPoll({ isPaused: stopping !== null })`) so a
+     * stale list refresh between the two HTTP calls can't reintroduce a row
+     * that's about to be deleted.
+     */
     const handleStopConfirm = async () => {
         if (!fileToStop || !idToken) return;
         if (!ensureFilesPermission()) return;
         const target = fileToStop;
         setStopping(target.upload_id);
         setShowStopModal(false);
+
+        // ── Step 1: cancel ──────────────────────────────────────────────
+        let cancelOk = false;
         try {
             const result = await fileManagementAPI.cancelUpload(target.upload_id, idToken);
-            // Idempotent path: the row was already terminal (e.g. user clicked
-            // twice, or the worker happened to fail at the same moment).
             const newStatus = (result?.new_status || "").toUpperCase();
-            const alreadyStopped =
+            const isTerminal =
                 newStatus === "IMPORT_FAILED" ||
                 newStatus === "DQ_FAILED" ||
                 newStatus === "UPLOAD_FAILED" ||
                 newStatus === "REJECTED" ||
                 newStatus === "DQ_FIXED";
-            const reqStatusFresh = (result?.status || "").toLowerCase() === "cancelling";
-            if (alreadyStopped && !reqStatusFresh) {
-                toast({ title: "Already stopped", description: "This file is no longer in progress." });
-            } else {
-                toast({
-                    title: "Import stopped",
-                    description: "The in-progress operation has been cancelled.",
-                });
-            }
-            await loadFiles();
+            const reqStatusCancelling = (result?.status || "").toLowerCase() === "cancelling";
+            const reqStatusNoop = (result?.status || "").toLowerCase() === "noop";
+            // Treat a fresh cancel OR a no-op-on-terminal as successful — both
+            // mean it's safe to follow up with delete. (The row is or will be
+            // in a deletable state.)
+            cancelOk = reqStatusCancelling || (reqStatusNoop && isTerminal) || isTerminal;
         } catch (error) {
             console.error("Cancel error:", error);
             if (error instanceof ApiError && error.status === 403) {
@@ -1130,7 +1153,8 @@ export function useFilesPage() {
                     variant: "destructive",
                 });
             } else if (error instanceof ApiError && error.status === 404) {
-                toast({ title: "File not found", description: "This file no longer exists in the catalog." });
+                // The upload row is already gone — there is nothing to delete.
+                toast({ title: "Already deleted", description: "This file no longer exists in the catalog." });
                 await loadFiles();
             } else {
                 const code =
@@ -1145,7 +1169,50 @@ export function useFilesPage() {
                     variant: "destructive",
                 });
             }
+            setStopping(null);
+            setFileToStop(null);
+            return;
+        }
+
+        if (!cancelOk) {
+            // Defensive: cancel returned an unexpected shape — treat as
+            // partial success and surface the ambiguity to the user.
+            toast({
+                title: "Import stop status unclear",
+                description: "The cancel call returned unexpectedly. Please refresh and retry the trash icon.",
+                variant: "destructive",
+            });
+            await loadFiles();
+            setStopping(null);
+            setFileToStop(null);
+            return;
+        }
+
+        // ── Step 2: delete ──────────────────────────────────────────────
+        try {
+            await fileManagementAPI.deleteUpload(target.upload_id, idToken);
+            toast({
+                title: "Import stopped and deleted",
+                description: "The in-progress operation was cancelled and the file removed.",
+            });
+        } catch (error) {
+            console.error("Post-cancel delete error:", error);
+            // Cancel succeeded but delete didn't — surface a partial-success
+            // toast and let the user retry the trash icon manually. The row
+            // is now in a terminal state so the trash icon will be visible.
+            const reason =
+                error instanceof ApiError && error.message
+                    ? error.message
+                    : error instanceof Error && error.message
+                      ? error.message
+                      : "unknown error";
+            toast({
+                title: "Import stopped",
+                description: `Cancelled — but delete failed (${reason}). You can retry from the trash icon.`,
+                variant: "destructive",
+            });
         } finally {
+            await loadFiles();
             setStopping(null);
             setFileToStop(null);
         }
