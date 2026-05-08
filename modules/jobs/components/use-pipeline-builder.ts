@@ -27,7 +27,7 @@
  * override the pairing via `setManualPair(sourceIndex, destIndex, srcEntity, dstEntity)`.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useJobDialog, type UseJobDialogProps, type ProviderCategory } from './use-job-dialog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -102,6 +102,39 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
     const [extraSources, setExtraSources] = useState<SourceEndpoint[]>([])
     const [extraDestinations, setExtraDestinations] = useState<DestEndpoint[]>([])
 
+    // Primary destination entities (warehouse tables / storage files) — the
+    // legacy useJobDialog hook only stores ONE table in `destinationConfig.table`,
+    // so we maintain a multi-element array here. ERP destinations still use
+    // `dialog.destinationEntity` (single string). The first element of this
+    // array is mirrored back into `destinationConfig.table` so existing
+    // backend code paths + the JobDialog editor keep working.
+    const [primaryDestEntities, setPrimaryDestEntities] = useState<string[]>([])
+    const lastSyncedTableRef = useRef<string>('')
+
+    // Reset the primary-dest entity list whenever the destination provider or
+    // category changes (e.g. switching from QB → Snowflake clears stale tables).
+    useEffect(() => {
+        setPrimaryDestEntities([])
+        lastSyncedTableRef.current = ''
+    }, [dialog.destinationProvider, dialog.destinationCategory])
+
+    // Sync the FIRST element of primaryDestEntities into the legacy
+    // dialog.destinationConfig.table field so existing backend code paths
+    // continue to work. Guarded by a ref to avoid useEffect → setState loops.
+    useEffect(() => {
+        if (dialog.destinationCategory !== 'warehouse' && dialog.destinationCategory !== 'storage') {
+            return
+        }
+        const desired = primaryDestEntities[0] || ''
+        if (lastSyncedTableRef.current === desired) return
+        lastSyncedTableRef.current = desired
+        const current = dialog.destinationConfig?.table
+        if (typeof current !== 'string' || current !== desired) {
+            dialog.updateDestinationConfig('table', desired)
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [primaryDestEntities, dialog.destinationCategory])
+
     // Manual pair overrides, keyed by `${srcEndpointId}::${dstEndpointId}`.
     // Default: auto-pair by entity name. When a user picks an explicit pairing
     // we record `(sourceEntity, destEntity)` here and the derive uses it.
@@ -124,14 +157,14 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
     }, [dialog.sourceProvider, dialog.sourceCategory, dialog.entities, dialog.sourceConfig, extraSources])
 
     const destinations: DestEndpoint[] = useMemo(() => {
-        // The legacy hook stores ONE destination ERP entity in `destinationEntity`.
-        // We treat the primary destination's `entities` as
-        // [dialog.destinationEntity] (or [] for warehouse target which uses table).
         const primaryEntities: string[] = (() => {
-            if (dialog.destinationCategory === 'erp' && dialog.destinationEntity) {
-                return [dialog.destinationEntity]
+            if (dialog.destinationCategory === 'erp') {
+                return dialog.destinationEntity ? [dialog.destinationEntity] : []
             }
-            // Warehouse/storage: use config.table or config.file_id as the entity
+            // Warehouse / storage: prefer the multi-element array; fall back to
+            // the legacy single-table field so jobs loaded from the API still
+            // render their existing table on first open.
+            if (primaryDestEntities.length > 0) return primaryDestEntities
             const tbl = dialog.destinationConfig?.table
             if (typeof tbl === 'string' && tbl) return [tbl]
             return []
@@ -144,7 +177,7 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
             config: dialog.destinationConfig,
         }
         return [primary, ...extraDestinations]
-    }, [dialog.destinationProvider, dialog.destinationCategory, dialog.destinationEntity, dialog.destinationConfig, extraDestinations])
+    }, [dialog.destinationProvider, dialog.destinationCategory, dialog.destinationEntity, dialog.destinationConfig, primaryDestEntities, extraDestinations])
 
     // ── Cardinality (derived) ────────────────────────────────────────────────
 
@@ -317,9 +350,18 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
 
     const toggleDestinationEntity = useCallback((endpoint_id: string, entityValue: string) => {
         if (endpoint_id === 'dst-0') {
-            // Primary destination ERP is single-select today; toggling mirrors
-            // either set or clear.
-            dialog.setDestinationEntity(dialog.destinationEntity === entityValue ? '' : entityValue)
+            if (dialog.destinationCategory === 'erp') {
+                // Primary ERP destination — single-select via legacy field.
+                dialog.setDestinationEntity(dialog.destinationEntity === entityValue ? '' : entityValue)
+                return
+            }
+            // Warehouse / storage primary — multi-select via our managed array.
+            // The first element is mirrored to dialog.destinationConfig.table by
+            // the syncing useEffect above so backend payload stays correct.
+            setPrimaryDestEntities(prev => prev.includes(entityValue)
+                ? prev.filter(e => e !== entityValue)
+                : [...prev, entityValue],
+            )
             return
         }
         setExtraDestinations(prev => prev.map(d => d.endpoint_id === endpoint_id
