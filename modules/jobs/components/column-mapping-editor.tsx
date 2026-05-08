@@ -378,6 +378,21 @@ function VisualMapper({
     const [selectedSource, setSelectedSource] = useState<string | null>(null)
     const [lines, setLines] = useState<Array<{ src: string; dst: string; d: string; mid: { x: number; y: number } }>>([])
 
+    // Drag-to-connect state. When the user mousedowns on a source card, we
+    // record the field key + the start coordinates. If the pointer moves > 5px
+    // we enter "active drag" mode, render a ghost line that follows the
+    // cursor, and on pointerup hit-test against any destination card.
+    const [drag, setDrag] = useState<{
+        srcKey: string
+        startX: number     // start pointer X (relative to container)
+        startY: number
+        currentX: number
+        currentY: number
+        active: boolean    // true once moved > threshold
+        hoveredDest: string | null
+    } | null>(null)
+    const DRAG_THRESHOLD = 5
+
     const usedDestKeys = useMemo(
         () => new Set(Object.values(mapping).filter(Boolean)),
         [mapping],
@@ -438,16 +453,104 @@ function VisualMapper({
         return () => window.removeEventListener('resize', handler)
     }, [recompute])
 
+    // ── Drag-to-connect: pointermove + pointerup at the document level ────────
+    // We attach listeners only while a drag is in progress, so the source card's
+    // pointerdown is what kicks the whole flow off.
+    useEffect(() => {
+        if (!drag) return
+
+        const onMove = (e: PointerEvent) => {
+            const c = containerRef.current
+            if (!c) return
+            const cb = c.getBoundingClientRect()
+            const x = e.clientX - cb.left
+            const y = e.clientY - cb.top
+
+            // Active drag once we've moved past the threshold.
+            const dist = Math.hypot(x - drag.startX, y - drag.startY)
+            const active = drag.active || dist > DRAG_THRESHOLD
+
+            // Hit-test against destination cards.
+            let hovered: string | null = null
+            if (active) {
+                for (const [key, el] of Object.entries(destRefs.current)) {
+                    if (!el) continue
+                    const rb = el.getBoundingClientRect()
+                    if (e.clientX >= rb.left && e.clientX <= rb.right
+                        && e.clientY >= rb.top && e.clientY <= rb.bottom) {
+                        hovered = key
+                        break
+                    }
+                }
+            }
+
+            setDrag({ ...drag, currentX: x, currentY: y, active, hoveredDest: hovered })
+        }
+
+        const onUp = (_e: PointerEvent) => {
+            if (drag.active && drag.hoveredDest) {
+                // Don't allow mapping to a dest already used by another source.
+                const conflict = Object.entries(mapping).find(
+                    ([s, d]) => d === drag.hoveredDest && s !== drag.srcKey,
+                )
+                if (!conflict) {
+                    onMappingChange({ ...mapping, [drag.srcKey]: drag.hoveredDest })
+                }
+            } else if (!drag.active) {
+                // Pointer never moved past threshold — treat as click-select.
+                setSelectedSource(prev => prev === drag.srcKey ? null : drag.srcKey)
+            }
+            setDrag(null)
+        }
+
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setDrag(null)
+                setSelectedSource(null)
+            }
+        }
+
+        document.addEventListener('pointermove', onMove)
+        document.addEventListener('pointerup', onUp)
+        document.addEventListener('keydown', onKey)
+        return () => {
+            document.removeEventListener('pointermove', onMove)
+            document.removeEventListener('pointerup', onUp)
+            document.removeEventListener('keydown', onKey)
+        }
+    }, [drag, mapping, onMappingChange])
+
+    const handleSourcePointerDown = useCallback((srcKey: string, e: React.PointerEvent) => {
+        const c = containerRef.current
+        if (!c) return
+        // Don't preventDefault on left-button — the click might still be
+        // useful for accessibility (Enter / Space toggles selection).
+        const cb = c.getBoundingClientRect()
+        const x = e.clientX - cb.left
+        const y = e.clientY - cb.top
+        setDrag({
+            srcKey,
+            startX: x,
+            startY: y,
+            currentX: x,
+            currentY: y,
+            active: false,
+            hoveredDest: null,
+        })
+    }, [])
+
     return (
         <div className="rounded-md border border-border/60 bg-muted/10 p-3">
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-2">
                 <span className="font-medium">
-                    {selectedSource
-                        ? <>Now click a <strong className="text-primary">{destLabel.toLowerCase()}</strong> field to connect <code className="bg-muted px-1 rounded">{selectedSource}</code></>
-                        : <>Click a <strong>{sourceLabel.toLowerCase()}</strong> field, then a <strong>{destLabel.toLowerCase()}</strong> field to connect them</>
+                    {drag?.active
+                        ? <>Drag to a <strong className="text-primary">{destLabel.toLowerCase()}</strong> field… release to connect, or release in empty space to cancel.</>
+                        : selectedSource
+                            ? <>Click a <strong className="text-primary">{destLabel.toLowerCase()}</strong> field to connect <code className="bg-muted px-1 rounded">{selectedSource}</code></>
+                            : <>Click a <strong>{sourceLabel.toLowerCase()}</strong> field, then a <strong>{destLabel.toLowerCase()}</strong> field to connect — or drag from source straight to destination.</>
                     }
                 </span>
-                {selectedSource && (
+                {selectedSource && !drag?.active && (
                     <button
                         type="button"
                         onClick={() => setSelectedSource(null)}
@@ -467,16 +570,19 @@ function VisualMapper({
                     {sourceFields.map(f => {
                         const isSelected = selectedSource === f.key
                         const isMapped = Boolean(mapping[f.key])
+                        const isDragging = drag?.active && drag.srcKey === f.key
                         return (
                             <div
                                 key={f.key}
                                 ref={el => { sourceRefs.current[f.key] = el }}
-                                onClick={() => handleSourceClick(f.key)}
+                                onPointerDown={e => handleSourcePointerDown(f.key, e)}
+                                style={{ touchAction: 'none' }}
                                 className={cn(
-                                    'flex items-center justify-between px-2 py-1.5 rounded-md border text-xs cursor-pointer transition-all',
-                                    isSelected && 'ring-2 ring-primary border-primary bg-primary/5',
-                                    !isSelected && isMapped && 'border-emerald-300 bg-emerald-50/40',
-                                    !isSelected && !isMapped && 'border-border/60 bg-card hover:border-primary/40',
+                                    'flex items-center justify-between px-2 py-1.5 rounded-md border text-xs cursor-grab active:cursor-grabbing transition-all select-none',
+                                    isDragging && 'ring-2 ring-primary border-primary bg-primary/10 shadow-md',
+                                    isSelected && !isDragging && 'ring-2 ring-primary border-primary bg-primary/5',
+                                    !isSelected && !isDragging && isMapped && 'border-emerald-300 bg-emerald-50/40',
+                                    !isSelected && !isDragging && !isMapped && 'border-border/60 bg-card hover:border-primary/40',
                                 )}
                             >
                                 <span className="truncate">
@@ -486,7 +592,7 @@ function VisualMapper({
                                 {/* connection node — visual hint */}
                                 <span className={cn(
                                     'h-2 w-2 rounded-full ml-2 flex-shrink-0',
-                                    isMapped ? 'bg-emerald-500' : isSelected ? 'bg-primary' : 'bg-muted-foreground/30',
+                                    isMapped ? 'bg-emerald-500' : (isSelected || isDragging) ? 'bg-primary' : 'bg-muted-foreground/30',
                                 )} />
                             </div>
                         )
@@ -501,6 +607,7 @@ function VisualMapper({
                     {destFields.map(f => {
                         const isUsed = usedDestKeys.has(f.key)
                         const isClickable = Boolean(selectedSource)
+                        const isHoveredDuringDrag = drag?.active && drag.hoveredDest === f.key
                         return (
                             <div
                                 key={f.key}
@@ -509,13 +616,14 @@ function VisualMapper({
                                 className={cn(
                                     'flex items-center px-2 py-1.5 rounded-md border text-xs transition-all',
                                     isClickable ? 'cursor-pointer hover:border-primary/60' : 'cursor-default',
-                                    isUsed && 'border-emerald-300 bg-emerald-50/40',
-                                    !isUsed && 'border-border/60 bg-card',
+                                    isHoveredDuringDrag && 'ring-2 ring-primary border-primary bg-primary/10 scale-[1.02]',
+                                    !isHoveredDuringDrag && isUsed && 'border-emerald-300 bg-emerald-50/40',
+                                    !isHoveredDuringDrag && !isUsed && 'border-border/60 bg-card',
                                 )}
                             >
                                 <span className={cn(
                                     'h-2 w-2 rounded-full mr-2 flex-shrink-0',
-                                    isUsed ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+                                    isUsed ? 'bg-emerald-500' : isHoveredDuringDrag ? 'bg-primary' : 'bg-muted-foreground/30',
                                 )} />
                                 <span className="truncate">
                                     {f.label || f.key}
@@ -526,7 +634,7 @@ function VisualMapper({
                     })}
                 </div>
 
-                {/* SVG line overlay */}
+                {/* SVG line overlay (committed mappings + in-flight ghost) */}
                 <svg
                     className="absolute inset-0 pointer-events-none"
                     style={{ width: '100%', height: '100%' }}
@@ -543,6 +651,44 @@ function VisualMapper({
                             />
                         </g>
                     ))}
+                    {drag?.active && (() => {
+                        // Ghost line: from the source card's right-middle to the
+                        // current cursor position. If the cursor is over a dest
+                        // card, snap the endpoint to its left-middle for a
+                        // cleaner "this is where it'll connect" preview.
+                        const c = containerRef.current
+                        if (!c) return null
+                        const cb = c.getBoundingClientRect()
+                        const srcEl = sourceRefs.current[drag.srcKey]
+                        if (!srcEl) return null
+                        const sb = srcEl.getBoundingClientRect()
+                        const x1 = sb.right - cb.left
+                        const y1 = sb.top + sb.height / 2 - cb.top
+
+                        let x2 = drag.currentX
+                        let y2 = drag.currentY
+                        if (drag.hoveredDest) {
+                            const dstEl = destRefs.current[drag.hoveredDest]
+                            if (dstEl) {
+                                const db = dstEl.getBoundingClientRect()
+                                x2 = db.left - cb.left
+                                y2 = db.top + db.height / 2 - cb.top
+                            }
+                        }
+                        const dx = Math.max(40, (x2 - x1) * 0.45)
+                        const path = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`
+                        return (
+                            <path
+                                d={path}
+                                fill="none"
+                                stroke={drag.hoveredDest ? 'rgb(99 102 241)' : 'rgb(148 163 184)'}  /* indigo-500 / slate-400 */
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeDasharray={drag.hoveredDest ? '0' : '4 3'}
+                                opacity={drag.hoveredDest ? '0.95' : '0.7'}
+                            />
+                        )
+                    })()}
                 </svg>
 
                 {/* Per-line "X" remove buttons placed at midpoint */}
