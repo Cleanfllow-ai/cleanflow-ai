@@ -24,21 +24,26 @@ async function gotoNewJobWizard(page: Page) {
 }
 
 test.describe("multi-cardinality wizard — structural smoke", () => {
-    test("wizard opens with 3-step stepper in NEW order (Endpoints → Mapping → Config)", async ({ page }) => {
+    test("wizard opens with 2-step stepper (Configure Job → Field Mapping). DQ is conditional.", async ({ page }) => {
         await gotoNewJobWizard(page)
 
-        await expect(page.getByText(/step 1 of 3/i)).toBeVisible()
-        await expect(page.getByText(/step 2 of 3/i)).toBeVisible()
-        await expect(page.getByText(/step 3 of 3/i)).toBeVisible()
+        // Default flow has only 2 visible steps; DQ appears as step 3 only when
+        // the user toggles Advanced DQ at the end of the Mapping step.
+        await expect(page.getByText(/step 1 of 2/i)).toBeVisible()
+        await expect(page.getByText(/step 2 of 2/i)).toBeVisible()
 
-        // Order matters: step 1 must be Source & Destination, step 2 must be
-        // Field Mapping (not Job Configuration), step 3 is Job Configuration.
-        const stepLabels = await page.locator(":text-matches('Step \\\\d+ of \\\\d+', 'i')")
-            .locator('..').locator('span:last-child').allTextContents()
-        // Defensive: if the DOM shape changes, just assert all 3 expected labels appear.
-        await expect(page.getByText(/source.{0,3}destination/i).first()).toBeVisible()
+        await expect(page.getByText(/configure job/i).first()).toBeVisible()
         await expect(page.getByText(/field mapping/i).first()).toBeVisible()
-        await expect(page.getByText(/job configuration/i).first()).toBeVisible()
+    })
+
+    test("Step 1 inlines Job Basics (name, frequency, authorized person)", async ({ page }) => {
+        await gotoNewJobWizard(page)
+
+        // The combined step 1 must show endpoint panels AND job-basics fields.
+        await expect(page.getByText(/job basics/i).first()).toBeVisible()
+        await expect(page.getByLabel(/job name/i)).toBeVisible()
+        await expect(page.getByText(/frequency/i).first()).toBeVisible()
+        await expect(page.getByText(/authorized person/i).first()).toBeVisible()
     })
 
     test("M:N is now ALLOWED — Add source visible while destinations > 1", async ({ page }) => {

@@ -105,6 +105,14 @@ interface EndpointEntryProps {
     onConfigChange: (key: string, value: any) => void
     onToggleEntity: (entityValue: string) => void
     onRemove?: () => void
+    /** When this is the primary endpoint, the parent passes pre-fetched
+     *  schema/table lists from the dialog so we don't re-issue the same API
+     *  calls (which were silently failing). Also passes the admin-saved
+     *  connector config (warehouse/database) so we render those as read-only. */
+    presetConnectorConfig?: { warehouse?: string; database?: string }
+    presetSchemas?: WarehouseMetadataItem[]
+    presetTables?: WarehouseMetadataItem[]
+    configMissing?: boolean
 }
 
 function EndpointEntry({
@@ -119,6 +127,10 @@ function EndpointEntry({
     onConfigChange,
     onToggleEntity,
     onRemove,
+    presetConnectorConfig,
+    presetSchemas,
+    presetTables,
+    configMissing,
 }: EndpointEntryProps) {
     const filteredProviders = availableProviders
         .filter(p => p.category === endpoint.category)
@@ -213,6 +225,10 @@ function EndpointEntry({
                     endpoint={endpoint}
                     onConfigChange={onConfigChange}
                     onToggleEntity={onToggleEntity}
+                    presetConnectorConfig={presetConnectorConfig}
+                    presetSchemas={presetSchemas}
+                    presetTables={presetTables}
+                    configMissing={configMissing}
                 />
             )}
         </div>
@@ -226,11 +242,19 @@ function CategoryEntityPicker({
     endpoint,
     onConfigChange,
     onToggleEntity,
+    presetConnectorConfig,
+    presetSchemas,
+    presetTables,
+    configMissing,
 }: {
     side: "source" | "destination"
     endpoint: SourceEndpoint | DestEndpoint
     onConfigChange: (key: string, value: any) => void
     onToggleEntity: (entityValue: string) => void
+    presetConnectorConfig?: { warehouse?: string; database?: string }
+    presetSchemas?: WarehouseMetadataItem[]
+    presetTables?: WarehouseMetadataItem[]
+    configMissing?: boolean
 }) {
     if (endpoint.category === "erp") {
         return <ErpEntityPicker endpoint={endpoint} onToggleEntity={onToggleEntity} />
@@ -242,6 +266,10 @@ function CategoryEntityPicker({
                 endpoint={endpoint}
                 onConfigChange={onConfigChange}
                 onToggleEntity={onToggleEntity}
+                presetConnectorConfig={presetConnectorConfig}
+                presetSchemas={presetSchemas}
+                presetTables={presetTables}
+                configMissing={configMissing}
             />
         )
     }
@@ -346,18 +374,37 @@ function WarehouseEntityPicker({
     endpoint,
     onConfigChange,
     onToggleEntity,
+    presetConnectorConfig,
+    presetSchemas,
+    presetTables,
+    configMissing,
 }: {
     side: "source" | "destination"
     endpoint: SourceEndpoint | DestEndpoint
     onConfigChange: (key: string, value: any) => void
     onToggleEntity: (entityValue: string) => void
+    presetConnectorConfig?: { warehouse?: string; database?: string }
+    presetSchemas?: WarehouseMetadataItem[]
+    presetTables?: WarehouseMetadataItem[]
+    configMissing?: boolean
 }) {
+    // For PRIMARY endpoints (`presetConnectorConfig` is provided), the parent
+    // dialog has already fetched databases/schemas/tables and pre-filled
+    // endpoint.config from the connector's admin record. We use those instead
+    // of issuing duplicate API calls (which were sometimes failing silently
+    // and leaving the schema dropdown empty).
+    const isPrimaryWithPreset = presetConnectorConfig !== undefined
+
     const [databases, setDatabases] = useState<WarehouseMetadataItem[]>([])
-    const [schemas, setSchemas] = useState<WarehouseMetadataItem[]>([])
-    const [tables, setTables] = useState<WarehouseMetadataItem[]>([])
+    const [extraSchemas, setExtraSchemas] = useState<WarehouseMetadataItem[]>([])
+    const [extraTables, setExtraTables] = useState<WarehouseMetadataItem[]>([])
     const [dbLoading, setDbLoading] = useState(false)
     const [schLoading, setSchLoading] = useState(false)
     const [tblLoading, setTblLoading] = useState(false)
+
+    // Effective lists: use parent-provided when available, otherwise fetch our own.
+    const schemas = isPrimaryWithPreset ? (presetSchemas ?? []) : extraSchemas
+    const tables = isPrimaryWithPreset ? (presetTables ?? []) : extraTables
 
     // Create-new-table input (destinations only)
     const [showNewTableInput, setShowNewTableInput] = useState(false)
@@ -366,7 +413,11 @@ function WarehouseEntityPicker({
     const db = endpoint.config.database || ""
     const schema = endpoint.config.schema || ""
 
+    // Fetch databases ourselves only for non-primary endpoints (extras don't
+    // route through the dialog). For primary, the dialog auto-populates
+    // endpoint.config.database from the admin connector record.
     useEffect(() => {
+        if (isPrimaryWithPreset) return
         if (!endpoint.provider) return
         let cancelled = false
         setDbLoading(true)
@@ -378,65 +429,112 @@ function WarehouseEntityPicker({
             if (!cancelled) setDbLoading(false)
         })
         return () => { cancelled = true }
-    }, [endpoint.provider])
+    }, [endpoint.provider, isPrimaryWithPreset])
 
     useEffect(() => {
+        if (isPrimaryWithPreset) return    // primary uses presetSchemas
         if (!endpoint.provider || !db) {
-            setSchemas([])
+            setExtraSchemas([])
             return
         }
         let cancelled = false
         setSchLoading(true)
         warehouseConnectorsAPI.listSchemas(endpoint.provider, db).then(items => {
-            if (!cancelled) setSchemas(items)
+            if (!cancelled) setExtraSchemas(items)
         }).catch(() => {
-            if (!cancelled) setSchemas([])
+            if (!cancelled) setExtraSchemas([])
         }).finally(() => {
             if (!cancelled) setSchLoading(false)
         })
         return () => { cancelled = true }
-    }, [endpoint.provider, db])
+    }, [endpoint.provider, db, isPrimaryWithPreset])
 
     useEffect(() => {
+        if (isPrimaryWithPreset) return    // primary uses presetTables
         if (!endpoint.provider || !db || !schema) {
-            setTables([])
+            setExtraTables([])
             return
         }
         let cancelled = false
         setTblLoading(true)
         warehouseConnectorsAPI.listTables(endpoint.provider, db, schema).then(items => {
-            if (!cancelled) setTables(items)
+            if (!cancelled) setExtraTables(items)
         }).catch(() => {
-            if (!cancelled) setTables([])
+            if (!cancelled) setExtraTables([])
         }).finally(() => {
             if (!cancelled) setTblLoading(false)
         })
         return () => { cancelled = true }
-    }, [endpoint.provider, db, schema])
+    }, [endpoint.provider, db, schema, isPrimaryWithPreset])
 
     return (
         <div className="space-y-1.5">
-            <div className="grid grid-cols-2 gap-1.5">
-                <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">Database</Label>
-                    <Select value={db} onValueChange={v => onConfigChange("database", v)}>
-                        <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder={dbLoading ? "Loading..." : "Database"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {databases.map(d => (
-                                <SelectItem key={d.name} value={d.name} className="text-xs">
-                                    {d.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+            {/* Admin-config indicator (primary only). Read-only chips for the
+                pre-configured warehouse + database; "Change" link goes to admin. */}
+            {isPrimaryWithPreset && configMissing && (
+                <Alert className="border-amber-200 bg-amber-50 py-2">
+                    <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                    <AlertDescription className="text-xs text-amber-900">
+                        Warehouse / database not configured.{" "}
+                        <a href="/admin" className="font-medium underline">Configure in Admin &gt; Connectors</a>
+                    </AlertDescription>
+                </Alert>
+            )}
+            {isPrimaryWithPreset && !configMissing && (presetConnectorConfig?.warehouse || presetConnectorConfig?.database) && (
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/30 border border-border/40">
+                    <FileText className="h-3 w-3 text-muted-foreground/60 flex-shrink-0" />
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        {presetConnectorConfig?.warehouse && (
+                            <span className="inline-flex items-center gap-0.5">
+                                <HardDrive className="h-2.5 w-2.5" />
+                                {presetConnectorConfig.warehouse}
+                            </span>
+                        )}
+                        {presetConnectorConfig?.warehouse && presetConnectorConfig?.database && (
+                            <span className="text-muted-foreground/30">/</span>
+                        )}
+                        {presetConnectorConfig?.database && (
+                            <span className="inline-flex items-center gap-0.5">
+                                <Database className="h-2.5 w-2.5" />
+                                {presetConnectorConfig.database}
+                            </span>
+                        )}
+                    </div>
+                    <a href="/admin" className="ml-auto text-[9px] text-primary hover:underline">
+                        Change in Admin
+                    </a>
                 </div>
+            )}
+
+            <div className={cn("grid gap-1.5", isPrimaryWithPreset ? "grid-cols-1" : "grid-cols-2")}>
+                {/* Database — only as a dropdown for non-primary endpoints. Primary
+                    inherits from admin (read-only chip above). */}
+                {!isPrimaryWithPreset && (
+                    <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Database</Label>
+                        <Select value={db} onValueChange={v => onConfigChange("database", v)}>
+                            <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder={dbLoading ? "Loading..." : "Database"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {databases.map(d => (
+                                    <SelectItem key={d.name} value={d.name} className="text-xs">
+                                        {d.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
                 <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Schema</Label>
                     <Select value={schema} onValueChange={v => onConfigChange("schema", v)} disabled={!db}>
                         <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder={schLoading ? "Loading..." : "Schema"} />
+                            <SelectValue placeholder={
+                                !db ? "Pick database first" :
+                                schemas.length === 0 ? "Loading schemas..." :
+                                "Schema"
+                            } />
                         </SelectTrigger>
                         <SelectContent>
                             {schemas.map(s => (
@@ -444,6 +542,11 @@ function WarehouseEntityPicker({
                                     {s.name}
                                 </SelectItem>
                             ))}
+                            {schemas.length === 0 && (
+                                <div className="px-2 py-1 text-[10px] text-muted-foreground italic">
+                                    No schemas returned. Check the connector's permissions in Admin.
+                                </div>
+                            )}
                         </SelectContent>
                     </Select>
                 </div>
@@ -652,9 +755,16 @@ function StorageEntityPicker({
 export interface EndpointsStepProps {
     pipeline: PipelineState
     onNext: () => void
+    /** Optional content rendered BELOW the source/destination panels but ABOVE
+     *  the footer Next button. Used to combine name / frequency / responsible-
+     *  person fields into the same wizard step (per UX feedback). */
+    additionalContent?: React.ReactNode
+    /** When `additionalContent` provides extra validation, the stepper passes
+     *  the resolved canProceed flag here so the Next button respects it. */
+    extraCanProceed?: boolean
 }
 
-export function EndpointsStep({ pipeline, onNext }: EndpointsStepProps) {
+export function EndpointsStep({ pipeline, onNext, additionalContent, extraCanProceed = true }: EndpointsStepProps) {
     const { dialog, sources, destinations, cardinality } = pipeline
 
     // Build a flat available-providers list for the entry-row dropdowns.
@@ -685,22 +795,32 @@ export function EndpointsStep({ pipeline, onNext }: EndpointsStepProps) {
                             <span className="text-[10px] text-muted-foreground">{sources.length} configured</span>
                         </div>
                         <div className="space-y-2">
-                            {sources.map((s, i) => (
-                                <EndpointEntry
-                                    key={s.endpoint_id}
-                                    side="source"
-                                    endpoint={s}
-                                    availableProviders={availableProviders}
-                                    providersLoading={dialog.providersLoading}
-                                    isPrimary={i === 0}
-                                    canRemove={i > 0}
-                                    onCategoryChange={cat => pipeline.updateSource(s.endpoint_id, { category: cat })}
-                                    onProviderChange={p => pipeline.updateSource(s.endpoint_id, { provider: p })}
-                                    onConfigChange={(k, v) => pipeline.updateSource(s.endpoint_id, { config: { ...s.config, [k]: v } })}
-                                    onToggleEntity={(e) => pipeline.toggleSourceEntity(s.endpoint_id, e)}
-                                    onRemove={() => pipeline.removeSource(s.endpoint_id)}
-                                />
-                            ))}
+                            {sources.map((s, i) => {
+                                const isPrimary = i === 0
+                                return (
+                                    <EndpointEntry
+                                        key={s.endpoint_id}
+                                        side="source"
+                                        endpoint={s}
+                                        availableProviders={availableProviders}
+                                        providersLoading={dialog.providersLoading}
+                                        isPrimary={isPrimary}
+                                        canRemove={i > 0}
+                                        onCategoryChange={cat => pipeline.updateSource(s.endpoint_id, { category: cat })}
+                                        onProviderChange={p => pipeline.updateSource(s.endpoint_id, { provider: p })}
+                                        onConfigChange={(k, v) => pipeline.updateSource(s.endpoint_id, { config: { ...s.config, [k]: v } })}
+                                        onToggleEntity={(e) => pipeline.toggleSourceEntity(s.endpoint_id, e)}
+                                        onRemove={() => pipeline.removeSource(s.endpoint_id)}
+                                        // Wire admin connector config + dialog's pre-fetched lists for primary only
+                                        {...(isPrimary && s.category === "warehouse" ? {
+                                            presetConnectorConfig: dialog.sourceConnectorConfig,
+                                            presetSchemas: dialog.schemaList,
+                                            presetTables: undefined,
+                                            configMissing: dialog.sourceConfigMissing,
+                                        } : {})}
+                                    />
+                                )
+                            })}
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -719,22 +839,32 @@ export function EndpointsStep({ pipeline, onNext }: EndpointsStepProps) {
                             <span className="text-[10px] text-muted-foreground">{destinations.length} configured</span>
                         </div>
                         <div className="space-y-2">
-                            {destinations.map((d, i) => (
-                                <EndpointEntry
-                                    key={d.endpoint_id}
-                                    side="destination"
-                                    endpoint={d}
-                                    availableProviders={availableProviders}
-                                    providersLoading={dialog.providersLoading}
-                                    isPrimary={i === 0}
-                                    canRemove={i > 0}
-                                    onCategoryChange={cat => pipeline.updateDestination(d.endpoint_id, { category: cat })}
-                                    onProviderChange={p => pipeline.updateDestination(d.endpoint_id, { provider: p })}
-                                    onConfigChange={(k, v) => pipeline.updateDestination(d.endpoint_id, { config: { ...d.config, [k]: v } })}
-                                    onToggleEntity={(e) => pipeline.toggleDestinationEntity(d.endpoint_id, e)}
-                                    onRemove={() => pipeline.removeDestination(d.endpoint_id)}
-                                />
-                            ))}
+                            {destinations.map((d, i) => {
+                                const isPrimary = i === 0
+                                return (
+                                    <EndpointEntry
+                                        key={d.endpoint_id}
+                                        side="destination"
+                                        endpoint={d}
+                                        availableProviders={availableProviders}
+                                        providersLoading={dialog.providersLoading}
+                                        isPrimary={isPrimary}
+                                        canRemove={i > 0}
+                                        onCategoryChange={cat => pipeline.updateDestination(d.endpoint_id, { category: cat })}
+                                        onProviderChange={p => pipeline.updateDestination(d.endpoint_id, { provider: p })}
+                                        onConfigChange={(k, v) => pipeline.updateDestination(d.endpoint_id, { config: { ...d.config, [k]: v } })}
+                                        onToggleEntity={(e) => pipeline.toggleDestinationEntity(d.endpoint_id, e)}
+                                        onRemove={() => pipeline.removeDestination(d.endpoint_id)}
+                                        // Wire admin connector config + dialog's pre-fetched lists for primary only
+                                        {...(isPrimary && d.category === "warehouse" ? {
+                                            presetConnectorConfig: dialog.destConnectorConfig,
+                                            presetSchemas: dialog.destSchemaList,
+                                            presetTables: dialog.destTableList,
+                                            configMissing: dialog.destConfigMissing,
+                                        } : {})}
+                                    />
+                                )
+                            })}
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -756,11 +886,14 @@ export function EndpointsStep({ pipeline, onNext }: EndpointsStepProps) {
                         </AlertDescription>
                     </Alert>
                 )}
+
+                {/* Inline job basics (name / frequency / responsible person) */}
+                {additionalContent}
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border/50 flex justify-end">
-                <Button onClick={onNext} disabled={!canProceed}>Next →</Button>
+                <Button onClick={onNext} disabled={!canProceed || !extraCanProceed}>Next →</Button>
             </div>
         </div>
     )

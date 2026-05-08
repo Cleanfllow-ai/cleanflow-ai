@@ -50,15 +50,26 @@ interface JobConfigStepProps {
     isCreating?: boolean
     /** Hint to the footer button label — when true, says "Configure DQ →" instead of "Create job". */
     advancedDQ?: boolean
+    /** When true, render only the form fields (no scroll container, no footer).
+     *  Used to inline this step's fields into the EndpointsStep. */
+    embedded?: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function JobConfigStep({ d, onNext, isCreating, advancedDQ }: JobConfigStepProps) {
+export function JobConfigStep({ d, onNext, isCreating, advancedDQ, embedded }: JobConfigStepProps) {
     const cronValid = d.frequency !== "cron" || (
         d.cronExpression.trim() !== "" && !parseCron(d.cronExpression).error
     )
     const canProceed = d.name.trim() !== "" && cronValid
+
+    if (embedded) {
+        // Inline mode: no flex/overflow chrome, no footer. Caller (EndpointsStep)
+        // owns the surrounding scroll container + Next button.
+        return (
+            <EmbeddedJobBasics d={d} />
+        )
+    }
 
     return (
         <div className="flex flex-col h-full">
@@ -576,6 +587,91 @@ export function JobConfigStep({ d, onNext, isCreating, advancedDQ }: JobConfigSt
                         <>Create Job</>
                     )}
                 </Button>
+            </div>
+        </div>
+    )
+}
+
+// ─── Embedded job-basics form ─────────────────────────────────────────────────
+// Renders just the visible config fields (Name + Frequency + Authorized Person)
+// without any scroll container or footer, so EndpointsStep can inline them.
+
+function EmbeddedJobBasics({ d }: { d: ReturnType<typeof useJobDialog> }) {
+    return (
+        <div className="space-y-4 pt-4 mt-4 border-t border-border/40">
+            <h3 className="text-sm font-medium text-muted-foreground">Job Basics</h3>
+
+            {/* Job Name */}
+            <div className="space-y-2">
+                <Label htmlFor="job-name-inline" className="text-sm font-medium">Job Name</Label>
+                <Input
+                    id="job-name-inline"
+                    placeholder="e.g. Invoice Sync QB to Snowflake"
+                    value={d.name}
+                    onChange={e => d.setName(e.target.value)}
+                    className="h-10"
+                />
+            </div>
+
+            {/* Frequency */}
+            <div className="space-y-2">
+                <Label className="text-sm font-medium">Frequency</Label>
+                <Select value={d.frequency} onValueChange={v => d.setFrequency(v as JobFrequency)}>
+                    <SelectTrigger className="h-10">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {FREQUENCY_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {d.frequency === "cron" && (
+                <CronBuilder
+                    value={d.cronExpression || "0 9 * * ? *"}
+                    onChange={cron => d.setCronExpression(cron)}
+                />
+            )}
+
+            {d.frequency === "batch" && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+                    <Zap className="h-4 w-4 flex-shrink-0" />
+                    <p className="text-xs">
+                        One-time transfer. Data will be transferred immediately after creation.
+                    </p>
+                </div>
+            )}
+
+            {/* Authorized Person */}
+            <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Authorized Person</Label>
+                {d.orgMembersLoading ? (
+                    <div className="flex items-center gap-2 h-9 px-3 border rounded-md text-muted-foreground text-sm">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Loading members...
+                    </div>
+                ) : d.orgMembers.length === 0 ? (
+                    <div className="flex items-center h-9 px-3 border rounded-md text-muted-foreground text-xs border-dashed">
+                        No organization members found
+                    </div>
+                ) : (
+                    <Select value={d.responsibleUserId} onValueChange={d.setResponsibleUserId}>
+                        <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select authorized person" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {d.orgMembers.map(m => (
+                                <SelectItem key={m.user_id} value={m.user_id}>
+                                    {m.email || m.user_id}
+                                    <span className="text-xs text-muted-foreground ml-1">({m.role})</span>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
             </div>
         </div>
     )

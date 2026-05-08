@@ -21,12 +21,14 @@ import type { DQConfig } from "@/modules/jobs/types/jobs.types"
 
 // ─── Stepper steps ────────────────────────────────────────────────────────────
 
-type StepperStep = "endpoints" | "config" | "mapping" | "dq"
+type StepperStep = "endpoints" | "mapping" | "dq"
 
+// Endpoints + Job basics (name / freq / owner) are combined into step 1 per UX
+// feedback. Mapping is step 2. DQ is conditional step 3 (only when Advanced
+// DQ toggle in MappingStep is enabled).
 const STEPPER_STEPS: { key: StepperStep; label: string; icon: React.ReactNode }[] = [
-    { key: "endpoints", label: "Source & Destination", icon: <Workflow className="h-4 w-4" /> },
+    { key: "endpoints", label: "Configure Job", icon: <Workflow className="h-4 w-4" /> },
     { key: "mapping", label: "Field Mapping", icon: <Wand2 className="h-4 w-4" /> },
-    { key: "config", label: "Job Configuration", icon: <Settings2 className="h-4 w-4" /> },
     { key: "dq", label: "DQ Configuration", icon: <Sparkles className="h-4 w-4" /> },
 ]
 
@@ -58,15 +60,6 @@ export function JobCreationStepper() {
             toast({ title: "Pipeline incomplete", description: "Configure at least one source-destination pair", variant: "destructive" })
             return
         }
-        setCurrentStep("mapping")
-    }, [pipeline.pipelineSteps.length, toast])
-
-    const handleMappingNext = useCallback(() => {
-        // After mapping, always proceed to job configuration (name/schedule/owner).
-        setCurrentStep("config")
-    }, [])
-
-    const handleConfigNext = useCallback(() => {
         if (!d.name.trim()) {
             toast({ title: "Name required", description: "Please enter a job name", variant: "destructive" })
             return
@@ -75,15 +68,19 @@ export function JobCreationStepper() {
             toast({ title: "Cron expression required", variant: "destructive" })
             return
         }
-        // If user opted-in to Advanced DQ (toggle lives in MappingStep), head to DQ step.
-        // Otherwise create the job directly with default DQ.
+        setCurrentStep("mapping")
+    }, [pipeline.pipelineSteps.length, d.name, d.frequency, d.cronExpression, toast])
+
+    const handleMappingNext = useCallback(() => {
+        // If user opted-in to Advanced DQ (toggle lives in MappingStep), head to
+        // DQ step. Otherwise create the job directly with default DQ.
         if (advancedDQ) {
             setCurrentStep("dq")
         } else {
             void handleCreateDirect()
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [d.name, d.frequency, d.cronExpression, advancedDQ, toast])
+    }, [advancedDQ])
 
     // ── Build payload (with pipeline_steps[]) ────────────────────────────────
 
@@ -305,25 +302,36 @@ export function JobCreationStepper() {
             {/* Step content */}
             <div className="flex-1 overflow-hidden">
                 {currentStep === "endpoints" && (
-                    <EndpointsStep pipeline={pipeline} onNext={handleEndpointsNext} />
+                    <EndpointsStep
+                        pipeline={pipeline}
+                        onNext={handleEndpointsNext}
+                        // Job basics (name / freq / owner) are inlined into the
+                        // same step per UX feedback — see JobConfigStep with
+                        // `embedded={true}`.
+                        additionalContent={
+                            <JobConfigStep
+                                d={d}
+                                onNext={() => { /* no-op: footer is in EndpointsStep */ }}
+                                advancedDQ={advancedDQ}
+                                isCreating={isCreating}
+                                embedded
+                            />
+                        }
+                        extraCanProceed={
+                            d.name.trim() !== "" &&
+                            (d.frequency !== "cron" || d.cronExpression.trim() !== "")
+                        }
+                    />
                 )}
                 {currentStep === "mapping" && (
                     <MappingStep
                         pipeline={pipeline}
                         onBack={() => setCurrentStep("endpoints")}
                         onNext={handleMappingNext}
-                        isFinalStep={false /* config step always follows mapping */}
+                        isFinalStep={!advancedDQ}
                         isCreating={isCreating}
                         advancedDQ={advancedDQ}
                         onAdvancedDQChange={setAdvancedDQ}
-                    />
-                )}
-                {currentStep === "config" && (
-                    <JobConfigStep
-                        d={d}
-                        onNext={handleConfigNext}
-                        advancedDQ={advancedDQ}
-                        isCreating={isCreating}
                     />
                 )}
                 {currentStep === "dq" && (
@@ -333,7 +341,7 @@ export function JobCreationStepper() {
                         entity={d.entities[0] || ""}
                         sourceConfig={Object.keys(sourceConfigParams).length > 0 ? sourceConfigParams : undefined}
                         authToken={idToken || ""}
-                        onBack={() => setCurrentStep("config")}
+                        onBack={() => setCurrentStep("mapping")}
                         onCreateJob={handleCreateJob}
                         isCreating={isCreating}
                     />
