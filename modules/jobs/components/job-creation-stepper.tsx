@@ -111,6 +111,15 @@ export function JobCreationStepper() {
             pipeline_steps: pipeline.buildPipelineStepsPayload(),
         }
 
+        // NEW — when the user set a custom priority (Priority dialog in
+        // MappingStep), switch run_mode to "custom" and forward entity_order.
+        // The backend's `_run_custom` honours this. Empty priority leaves
+        // run_mode as the default ("sequential").
+        if (pipeline.entityPriority.length > 0) {
+            payload.run_mode = "custom"
+            payload.entity_order = pipeline.entityPriority
+        }
+
         if (d.dqPolicy === "block_and_notify" && d.responsibleUserId) {
             payload.responsible_user_id = d.responsibleUserId
         }

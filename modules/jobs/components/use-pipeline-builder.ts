@@ -143,6 +143,11 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
     // Per-step mapping data, keyed by step_id.
     const [mappingsByPair, setMappingsByPair] = useState<Record<string, MappingData>>({})
 
+    // Entity-level execution priority (e.g. Customers BEFORE Invoices). Empty
+    // = default derived order. When non-empty the wizard sets the job's
+    // `run_mode = "custom"` and forwards this list as `entity_order`.
+    const [entityPriority, setEntityPriority] = useState<string[]>([])
+
     // ── Build full source/destination arrays (legacy 0th + extras) ───────────
 
     const sources: SourceEndpoint[] = useMemo(() => {
@@ -495,6 +500,10 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
         setMappingForStep,
         updateMappingForStep,
         clearMappingForStep,
+
+        // Priority (entity-level execution order)
+        entityPriority,
+        setEntityPriority,
 
         // Submit helpers
         buildPipelineStepsPayload,

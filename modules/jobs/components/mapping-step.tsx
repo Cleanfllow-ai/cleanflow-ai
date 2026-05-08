@@ -9,10 +9,11 @@
  * `pipeline.mappingsByPair` keyed by step_id.
  */
 
-import { useCallback } from "react"
-import { Loader2, AlertCircle, SlidersHorizontal, Shield } from "lucide-react"
+import { useCallback, useMemo, useState } from "react"
+import { Loader2, AlertCircle, SlidersHorizontal, Shield, ListOrdered } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
     Accordion, AccordionContent, AccordionItem, AccordionTrigger,
@@ -20,6 +21,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/shared/lib/utils"
 import { MappingPanel } from "./mapping-panel"
+import { PriorityDialog } from "./priority-dialog"
 import { ConnectorLogo } from "@/modules/connectors/components/connector-logo"
 import { getProviderDisplayName } from "./job-dialog-constants"
 import type { PipelineState } from "./use-pipeline-builder"
@@ -42,6 +44,21 @@ export function MappingStep({ pipeline, onBack, onNext, isFinalStep, isCreating,
     const { pipelineSteps, mappingsByPair, dialog } = pipeline
 
     const isOnePair = pipelineSteps.length === 1
+    const [priorityOpen, setPriorityOpen] = useState(false)
+
+    // Distinct source entities across all steps — that's what the user reorders
+    // when they want FK/loading priority. Order = first-seen in pipelineSteps.
+    const availableEntities = useMemo(() => {
+        const seen = new Set<string>()
+        const out: string[] = []
+        for (const s of pipelineSteps) {
+            if (s.source_entity && !seen.has(s.source_entity)) {
+                seen.add(s.source_entity)
+                out.push(s.source_entity)
+            }
+        }
+        return out
+    }, [pipelineSteps])
 
     const handleCopyFromPair = useCallback((targetStepId: string, sourceStepId: string) => {
         const src = mappingsByPair[sourceStepId]
@@ -64,9 +81,36 @@ export function MappingStep({ pipeline, onBack, onNext, isFinalStep, isCreating,
                             <h2 className="text-base font-semibold">Field Mapping</h2>
                             <p className="text-xs text-muted-foreground mt-0.5">
                                 {pipelineSteps.length} pair{pipelineSteps.length !== 1 ? "s" : ""} · cardinality {pipeline.cardinality}
+                                {pipeline.entityPriority.length > 0 && (
+                                    <> · <Badge variant="outline" className="text-[10px] ml-1">custom priority</Badge></>
+                                )}
                             </p>
                         </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPriorityOpen(true)}
+                            disabled={availableEntities.length === 0}
+                            className="text-xs gap-1.5"
+                            title="Set entity execution order (e.g. Customers BEFORE Invoices)"
+                        >
+                            <ListOrdered className="h-3.5 w-3.5" />
+                            Priority
+                            {pipeline.entityPriority.length > 0 && (
+                                <Badge variant="default" className="text-[9px] ml-1 h-4 px-1">
+                                    {pipeline.entityPriority.length}
+                                </Badge>
+                            )}
+                        </Button>
                     </div>
+
+                    <PriorityDialog
+                        open={priorityOpen}
+                        onOpenChange={setPriorityOpen}
+                        availableEntities={availableEntities}
+                        value={pipeline.entityPriority}
+                        onChange={pipeline.setEntityPriority}
+                    />
 
                     {pipelineSteps.length === 0 ? (
                         <Alert className="border-amber-200 bg-amber-50">
