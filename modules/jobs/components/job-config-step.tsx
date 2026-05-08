@@ -1,11 +1,21 @@
 "use client"
 
-// NOTE: column-mapping is no longer rendered in this step. Mapping has been
-// promoted to its own wizard step (`MappingStep`). The DQ block remains gated
-// behind the `advancedDQ` toggle per user decision.
+/**
+ * JobConfigStep — wizard step 3 (now AFTER mapping).
+ *
+ * Source / destination / entities / mapping are NOT rendered here — those
+ * belong to the EndpointsStep and MappingStep respectively. This step only
+ * owns:
+ *   - Job name
+ *   - Frequency / cron
+ *   - Authorized person (responsible_user_id)
+ *
+ * The Advanced DQ toggle is owned by `MappingStep` now (per UX feedback —
+ * users opt-in to a deeper DQ step right after they finish mapping). The
+ * stepper drives the conditional `dq` step from that flag.
+ */
 
-import { Loader2, Zap, X, SlidersHorizontal, Shield, Settings2, HardDrive, Database, AlertCircle } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
+import { Loader2, Zap, X, Settings2, HardDrive, Database, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +32,9 @@ import { ConnectorLogo } from "@/modules/connectors/components/connector-logo"
 import { CronBuilder, parseCron } from "./cron-builder"
 
 // ─── Category options ─────────────────────────────────────────────────────────
+// Kept here only to keep the dead-code block (`<div className="hidden">…</div>`)
+// below from referencing an undefined identifier. Will be deleted alongside the
+// dead block in a follow-up cleanup pass.
 
 const CATEGORY_OPTIONS: { label: string; value: ProviderCategory }[] = [
     { label: "Applications", value: "erp" },
@@ -34,24 +47,18 @@ const CATEGORY_OPTIONS: { label: string; value: ProviderCategory }[] = [
 interface JobConfigStepProps {
     d: ReturnType<typeof useJobDialog>
     onNext: () => void
-    advancedDQ: boolean
-    onAdvancedDQChange: (val: boolean) => void
-    onCreateDirect: () => void
     isCreating?: boolean
+    /** Hint to the footer button label — when true, says "Configure DQ →" instead of "Create job". */
+    advancedDQ?: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCreateDirect, isCreating }: JobConfigStepProps) {
+export function JobConfigStep({ d, onNext, isCreating, advancedDQ }: JobConfigStepProps) {
     const cronValid = d.frequency !== "cron" || (
         d.cronExpression.trim() !== "" && !parseCron(d.cronExpression).error
     )
-    const canProceed =
-        d.name.trim() !== "" &&
-        d.sourceProvider !== "" &&
-        d.destinationProvider !== "" &&
-        d.entities.length > 0 &&
-        cronValid
+    const canProceed = d.name.trim() !== "" && cronValid
 
     return (
         <div className="flex flex-col h-full">
@@ -71,8 +78,10 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                         />
                     </div>
 
-                    {/* ── Source ───────────────────────────────────────────── */}
-                    <div className="space-y-3">
+                    {/* Source / destination / entities / mapping are owned by the
+                        EndpointsStep + MappingStep — DO NOT duplicate them here.
+                        This step is purely Name + Schedule + Authorized Person. */}
+                    <div className="hidden">
                         <Label className="text-sm font-medium">Source</Label>
 
                         <div className="grid grid-cols-2 gap-3">
@@ -288,6 +297,7 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                     </div>
 
                     {/* ── Destination ──────────────────────────────────────── */}
+                    <div className="hidden">
                     <div className="space-y-3">
                         <Label className="text-sm font-medium">Destination</Label>
 
@@ -478,6 +488,7 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                             </div>
                         )}
                     </div>
+                    </div>{/* end hidden destination wrapper */}
 
                     {/* ── Frequency ────────────────────────────────────────── */}
                     <div className="space-y-2">
@@ -545,65 +556,24 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                         )}
                     </div>
 
-                    {/* ── Advanced DQ Configuration Toggle ──────────────────── */}
-                    <div
-                        className={cn(
-                            "rounded-xl border p-4 transition-all duration-200",
-                            advancedDQ
-                                ? "border-primary/30 bg-primary/[0.03]"
-                                : "border-border/60 bg-muted/20"
-                        )}
-                    >
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className={cn(
-                                    "flex items-center justify-center w-9 h-9 rounded-lg transition-colors",
-                                    advancedDQ ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                                )}>
-                                    <SlidersHorizontal className="h-4 w-4" />
-                                </div>
-                                <div>
-                                    <span className="text-sm font-medium block">Advanced DQ Configuration</span>
-                                    <span className="text-xs text-muted-foreground">
-                                        {advancedDQ
-                                            ? "Customize column selection, profiling, rules, and settings"
-                                            : "Using default DQ rules -- all columns, balanced strictness"
-                                        }
-                                    </span>
-                                </div>
-                            </div>
-                            <Switch
-                                checked={advancedDQ}
-                                onCheckedChange={onAdvancedDQChange}
-                            />
-                        </div>
-
-                        {!advancedDQ && (
-                            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-background/60 border border-border/40">
-                                <Shield className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
-                                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    All columns selected, DQ rules applied with auto-fix, and columns auto-mapped by name. Enable Advanced for manual mapping, business consistency rules, and column selection.
-                                </p>
-                            </div>
-                        )}
-                    </div>
+                    {/* Advanced DQ toggle moved to MappingStep — when enabled there,
+                        this step's footer button label switches to "Configure DQ →"
+                        and routes to the DQ step. */}
                 </div>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border/50 flex justify-end gap-3">
-                {/* Always advance to the Mapping step — the mapping step is
-                    unconditional in the new wizard. The DQ step still gates
-                    behind `advancedDQ`, but that decision is made in the
-                    parent stepper's `handleMappingNext`. */}
                 <Button
                     onClick={onNext}
                     disabled={!canProceed || isCreating}
                 >
                     {isCreating ? (
                         <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</>
+                    ) : advancedDQ ? (
+                        <>Configure DQ &rarr;</>
                     ) : (
-                        <>Next &rarr;</>
+                        <>Create Job</>
                     )}
                 </Button>
             </div>

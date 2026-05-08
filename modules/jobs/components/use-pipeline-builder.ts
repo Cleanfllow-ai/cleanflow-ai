@@ -4,13 +4,15 @@
  * use-pipeline-builder
  * --------------------
  * Composes (does NOT replace) the existing `useJobDialog` hook to add
- * multi-cardinality (1:1, 1:N, N:1) source/destination pipelines.
+ * multi-cardinality (1:1, 1:N, N:1, M:N) source/destination pipelines.
  *
  * Cardinality rules (enforced at derive level — see `pipelineSteps`):
  *   - 1:1  → 1 source AND 1 destination     → one PipelineStep per (src,dst) pair
  *   - 1:N  → 1 source AND N destinations    → N steps sharing the source
  *   - N:1  → N sources AND 1 destination    → N steps sharing the destination
- *   - M:N  → BLOCKED. The hook throws if asked to derive when both > 1.
+ *   - M:N  → M sources AND N destinations   → cartesian product (auto-pair-by-name
+ *                                              with single-pair fallback). Manual
+ *                                              column mapping per pair is required.
  *
  * Anti-patterns this hook intentionally fixes (without removing the legacy
  * fields that the old JobDialog still reads):
@@ -48,7 +50,7 @@ export interface DestEndpoint {
     config: Record<string, any>
 }
 
-export type Cardinality = '1:1' | '1:N' | 'N:1'
+export type Cardinality = '1:1' | '1:N' | 'N:1' | 'M:N'
 
 /**
  * One concrete (sourceEntity → destEntity) pair derived from the
@@ -147,12 +149,7 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
     // ── Cardinality (derived) ────────────────────────────────────────────────
 
     const cardinality: Cardinality = useMemo(() => {
-        if (sources.length > 1 && destinations.length > 1) {
-            // M:N is blocked at the UI level — but if some bug lets state slip
-            // through we still report 1:1 to avoid throwing during render.
-            // The derive step below WILL throw to make the bug loud.
-            return '1:1'
-        }
+        if (sources.length > 1 && destinations.length > 1) return 'M:N'
         if (destinations.length > 1) return '1:N'
         if (sources.length > 1) return 'N:1'
         return '1:1'
@@ -165,19 +162,13 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
     //
     //   1. Manual override (if `pairOverrides[srcId::dstId]` is set)
     //   2. Same-name auto-pair  (e.g. both ends have `customers`)
-    //   3. Cross-product fallback for 1:1 — pair the first entity on each side
+    //   3. Single-on-each-side fallback — pair them even with different names
     //
-    // M:N is rejected with a thrown error so the caller has no choice but to
-    // fix the state.
+    // M:N is allowed: the user maps columns manually for each derived pair via
+    // the MappingStep. Cartesian product is the default; users can prune via
+    // pair-overrides on the mapping panel.
 
     const pipelineSteps: PipelineStep[] = useMemo(() => {
-        if (sources.length > 1 && destinations.length > 1) {
-            throw new Error(
-                'use-pipeline-builder: M:N pipelines are not supported. ' +
-                'Reduce sources or destinations to 1.',
-            )
-        }
-
         const steps: PipelineStep[] = []
 
         for (const src of sources) {
@@ -231,12 +222,8 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
 
     // ── Source mutations ─────────────────────────────────────────────────────
 
-    /** Add a new (empty) source endpoint. Blocked when destinations.length > 1. */
+    /** Add a new (empty) source endpoint. M:N is allowed — manual mapping per pair. */
     const addSource = useCallback(() => {
-        if (destinations.length > 1) {
-            // M:N guard — UI also hides the button, this is the safety net.
-            return
-        }
         setExtraSources(prev => [
             ...prev,
             {
@@ -247,7 +234,7 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
                 config: {},
             },
         ])
-    }, [destinations.length])
+    }, [])
 
     const removeSource = useCallback((endpoint_id: string) => {
         setExtraSources(prev => prev.filter(s => s.endpoint_id !== endpoint_id))
@@ -294,9 +281,8 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
 
     // ── Destination mutations ────────────────────────────────────────────────
 
-    /** Add a new (empty) destination endpoint. Blocked when sources.length > 1. */
+    /** Add a new (empty) destination endpoint. M:N is allowed — manual mapping per pair. */
     const addDestination = useCallback(() => {
-        if (sources.length > 1) return
         setExtraDestinations(prev => [
             ...prev,
             {
@@ -307,7 +293,7 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
                 config: {},
             },
         ])
-    }, [sources.length])
+    }, [])
 
     const removeDestination = useCallback((endpoint_id: string) => {
         setExtraDestinations(prev => prev.filter(d => d.endpoint_id !== endpoint_id))

@@ -25,8 +25,8 @@ type StepperStep = "endpoints" | "config" | "mapping" | "dq"
 
 const STEPPER_STEPS: { key: StepperStep; label: string; icon: React.ReactNode }[] = [
     { key: "endpoints", label: "Source & Destination", icon: <Workflow className="h-4 w-4" /> },
-    { key: "config", label: "Job Configuration", icon: <Settings2 className="h-4 w-4" /> },
     { key: "mapping", label: "Field Mapping", icon: <Wand2 className="h-4 w-4" /> },
+    { key: "config", label: "Job Configuration", icon: <Settings2 className="h-4 w-4" /> },
     { key: "dq", label: "DQ Configuration", icon: <Sparkles className="h-4 w-4" /> },
 ]
 
@@ -58,8 +58,13 @@ export function JobCreationStepper() {
             toast({ title: "Pipeline incomplete", description: "Configure at least one source-destination pair", variant: "destructive" })
             return
         }
-        setCurrentStep("config")
+        setCurrentStep("mapping")
     }, [pipeline.pipelineSteps.length, toast])
+
+    const handleMappingNext = useCallback(() => {
+        // After mapping, always proceed to job configuration (name/schedule/owner).
+        setCurrentStep("config")
+    }, [])
 
     const handleConfigNext = useCallback(() => {
         if (!d.name.trim()) {
@@ -70,19 +75,15 @@ export function JobCreationStepper() {
             toast({ title: "Cron expression required", variant: "destructive" })
             return
         }
-        setCurrentStep("mapping")
-    }, [d.name, d.frequency, d.cronExpression, toast])
-
-    const handleMappingNext = useCallback(() => {
-        // Mapping is optional — but if user enabled advancedDQ, head to DQ step.
+        // If user opted-in to Advanced DQ (toggle lives in MappingStep), head to DQ step.
+        // Otherwise create the job directly with default DQ.
         if (advancedDQ) {
             setCurrentStep("dq")
         } else {
-            // Direct create with default DQ
             void handleCreateDirect()
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [advancedDQ])
+    }, [d.name, d.frequency, d.cronExpression, advancedDQ, toast])
 
     // ── Build payload (with pipeline_steps[]) ────────────────────────────────
 
@@ -306,22 +307,22 @@ export function JobCreationStepper() {
                 {currentStep === "endpoints" && (
                     <EndpointsStep pipeline={pipeline} onNext={handleEndpointsNext} />
                 )}
+                {currentStep === "mapping" && (
+                    <MappingStep
+                        pipeline={pipeline}
+                        onBack={() => setCurrentStep("endpoints")}
+                        onNext={handleMappingNext}
+                        isFinalStep={false /* config step always follows mapping */}
+                        isCreating={isCreating}
+                        advancedDQ={advancedDQ}
+                        onAdvancedDQChange={setAdvancedDQ}
+                    />
+                )}
                 {currentStep === "config" && (
                     <JobConfigStep
                         d={d}
                         onNext={handleConfigNext}
                         advancedDQ={advancedDQ}
-                        onAdvancedDQChange={setAdvancedDQ}
-                        onCreateDirect={handleCreateDirect}
-                        isCreating={isCreating}
-                    />
-                )}
-                {currentStep === "mapping" && (
-                    <MappingStep
-                        pipeline={pipeline}
-                        onBack={() => setCurrentStep("config")}
-                        onNext={handleMappingNext}
-                        isFinalStep={!advancedDQ}
                         isCreating={isCreating}
                     />
                 )}
@@ -332,7 +333,7 @@ export function JobCreationStepper() {
                         entity={d.entities[0] || ""}
                         sourceConfig={Object.keys(sourceConfigParams).length > 0 ? sourceConfigParams : undefined}
                         authToken={idToken || ""}
-                        onBack={() => setCurrentStep(advancedDQ ? "mapping" : "config")}
+                        onBack={() => setCurrentStep("config")}
                         onCreateJob={handleCreateJob}
                         isCreating={isCreating}
                     />

@@ -6,9 +6,9 @@
  * Side-by-side panels: Source (left), Destination (right). Each panel renders
  * a vertical stack of `EndpointEntry` rows with a "+ Add" footer.
  *
- * **M:N block:** when destinations.length > 1, the "+ Add source" button is
- * hidden, and vice versa. The hook also rejects M:N at the derive level — but
- * the UI guard prevents users from ever reaching that error path.
+ * **M:N is supported** — the cardinality is derived from the count of
+ * configured endpoints on each side; manual column mapping per (src, dst)
+ * pair is handled in the next wizard step.
  *
  * Live cardinality banner at the top reads from `pipelineState.cardinality`
  * and shows a one-line summary like "1:1 — QB customers → Zoho customers".
@@ -78,6 +78,7 @@ function CardinalityBanner({
             cardinality === "1:1" && "bg-emerald-50 border-emerald-200 text-emerald-800",
             cardinality === "1:N" && "bg-blue-50 border-blue-200 text-blue-800",
             cardinality === "N:1" && "bg-purple-50 border-purple-200 text-purple-800",
+            cardinality === "M:N" && "bg-amber-50 border-amber-200 text-amber-900",
         )}>
             <Badge variant="outline" className="font-mono text-[10px] bg-white/60">
                 {cardinality}
@@ -237,6 +238,7 @@ function CategoryEntityPicker({
     if (endpoint.category === "warehouse") {
         return (
             <WarehouseEntityPicker
+                side={side}
                 endpoint={endpoint}
                 onConfigChange={onConfigChange}
                 onToggleEntity={onToggleEntity}
@@ -340,10 +342,12 @@ function ErpEntityPicker({
 // ─── Warehouse picker — Database → Schema → Tables (multi) ───────────────────
 
 function WarehouseEntityPicker({
+    side,
     endpoint,
     onConfigChange,
     onToggleEntity,
 }: {
+    side: "source" | "destination"
     endpoint: SourceEndpoint | DestEndpoint
     onConfigChange: (key: string, value: any) => void
     onToggleEntity: (entityValue: string) => void
@@ -354,6 +358,10 @@ function WarehouseEntityPicker({
     const [dbLoading, setDbLoading] = useState(false)
     const [schLoading, setSchLoading] = useState(false)
     const [tblLoading, setTblLoading] = useState(false)
+
+    // Create-new-table input (destinations only)
+    const [showNewTableInput, setShowNewTableInput] = useState(false)
+    const [newTableName, setNewTableName] = useState("")
 
     const db = endpoint.config.database || ""
     const schema = endpoint.config.schema || ""
@@ -442,17 +450,20 @@ function WarehouseEntityPicker({
             </div>
 
             <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">Tables (multi-select)</Label>
+                <Label className="text-[10px] text-muted-foreground">
+                    Tables {side === "destination" ? "(pick existing or create new)" : "(multi-select)"}
+                </Label>
                 {tblLoading ? (
                     <div className="flex items-center gap-1.5 h-8 px-2 border rounded-md text-[11px] text-muted-foreground">
                         <Loader2 className="h-3 w-3 animate-spin" /> Loading tables...
                     </div>
-                ) : tables.length === 0 ? (
-                    <div className="flex items-center h-8 px-2 border rounded-md text-[10px] text-muted-foreground border-dashed">
-                        {db && schema ? "No tables found" : "Pick database + schema first"}
-                    </div>
                 ) : (
-                    <div className="border rounded-md max-h-28 overflow-y-auto p-1 space-y-0.5">
+                    <div className="border rounded-md max-h-32 overflow-y-auto p-1 space-y-0.5">
+                        {tables.length === 0 && !showNewTableInput && (
+                            <div className="px-2 py-1 text-[10px] text-muted-foreground italic">
+                                {db && schema ? "No existing tables — create one below." : "Pick database + schema first."}
+                            </div>
+                        )}
                         {tables.map(t => {
                             const selected = endpoint.entities.includes(t.name)
                             return (
@@ -473,6 +484,93 @@ function WarehouseEntityPicker({
                                     </span>
                                     {t.name}
                                 </button>
+                            )
+                        })}
+
+                        {/* Create-new-table — destination only */}
+                        {side === "destination" && db && schema && (
+                            showNewTableInput ? (
+                                <div className="flex items-center gap-1 px-1.5 py-1 border-t border-border/40 mt-1 pt-1.5">
+                                    <input
+                                        type="text"
+                                        value={newTableName}
+                                        onChange={e => setNewTableName(e.target.value.toUpperCase())}
+                                        placeholder="NEW_TABLE_NAME"
+                                        className="flex-1 h-6 px-1.5 text-[11px] font-mono bg-background border border-border/60 rounded outline-none focus:border-primary"
+                                        autoFocus
+                                        onKeyDown={e => {
+                                            if (e.key === "Enter" && newTableName.trim()) {
+                                                onToggleEntity(newTableName.trim())
+                                                setNewTableName("")
+                                                setShowNewTableInput(false)
+                                            }
+                                            if (e.key === "Escape") {
+                                                setNewTableName("")
+                                                setShowNewTableInput(false)
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        size="sm"
+                                        onClick={() => {
+                                            if (newTableName.trim()) {
+                                                onToggleEntity(newTableName.trim())
+                                                setNewTableName("")
+                                                setShowNewTableInput(false)
+                                            }
+                                        }}
+                                        className="h-6 px-2 text-[10px]"
+                                        disabled={!newTableName.trim()}
+                                    >
+                                        Add
+                                    </Button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setNewTableName("")
+                                            setShowNewTableInput(false)
+                                        }}
+                                        className="text-[10px] text-muted-foreground hover:text-foreground px-1"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNewTableInput(true)}
+                                    className="flex items-center gap-1.5 px-1.5 py-1 rounded text-xs text-primary hover:bg-primary/5 transition-colors w-full text-left border-t border-border/40 mt-1 pt-1.5"
+                                >
+                                    <Plus className="h-3 w-3" />
+                                    <span className="font-mono">Create new table…</span>
+                                </button>
+                            )
+                        )}
+                    </div>
+                )}
+
+                {/* Pills for created-but-not-yet-listed tables */}
+                {endpoint.entities.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                        {endpoint.entities.map(e => {
+                            const isExisting = tables.some(t => t.name === e)
+                            return (
+                                <Badge
+                                    key={e}
+                                    variant={isExisting ? "secondary" : "default"}
+                                    className="text-[10px] gap-0.5 pr-0.5 font-mono"
+                                    title={isExisting ? "existing table" : "will be created on first run"}
+                                >
+                                    {!isExisting && <span className="text-[8px] mr-0.5">+NEW</span>}
+                                    {e}
+                                    <button
+                                        type="button"
+                                        onClick={() => onToggleEntity(e)}
+                                        className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                                    >
+                                        <span className="text-[9px]">×</span>
+                                    </button>
+                                </Badge>
                             )
                         })}
                     </div>
@@ -567,11 +665,8 @@ export function EndpointsStep({ pipeline, onNext }: EndpointsStepProps) {
         connected: dialog.connectedProviderIds.has(p.provider_id),
     }))
 
-    // M:N guards — only one side can have multiple endpoints at a time.
-    // When destinations.length > 1, the "+ Add source" button is hidden.
-    // When sources.length > 1, the "+ Add destination" button is hidden.
-    const canAddSource = destinations.length === 1
-    const canAddDestination = sources.length === 1
+    // M:N is supported. Mapping is manual per (src, dst) pair so cartesian
+    // product is tractable. The "+ Add" buttons are always available.
 
     const canProceed = pipeline.pipelineSteps.length > 0
 
@@ -606,21 +701,14 @@ export function EndpointsStep({ pipeline, onNext }: EndpointsStepProps) {
                                     onRemove={() => pipeline.removeSource(s.endpoint_id)}
                                 />
                             ))}
-                            {canAddSource && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={pipeline.addSource}
-                                    className="w-full h-8 text-xs gap-1.5 border-dashed"
-                                >
-                                    <Plus className="h-3 w-3" /> Add source
-                                </Button>
-                            )}
-                            {!canAddSource && (
-                                <p className="text-[10px] text-muted-foreground text-center py-1">
-                                    Cannot add another source while multiple destinations exist (M:N is not supported).
-                                </p>
-                            )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={pipeline.addSource}
+                                className="w-full h-8 text-xs gap-1.5 border-dashed"
+                            >
+                                <Plus className="h-3 w-3" /> Add source
+                            </Button>
                         </div>
                     </div>
 
@@ -647,21 +735,14 @@ export function EndpointsStep({ pipeline, onNext }: EndpointsStepProps) {
                                     onRemove={() => pipeline.removeDestination(d.endpoint_id)}
                                 />
                             ))}
-                            {canAddDestination && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={pipeline.addDestination}
-                                    className="w-full h-8 text-xs gap-1.5 border-dashed"
-                                >
-                                    <Plus className="h-3 w-3" /> Add destination
-                                </Button>
-                            )}
-                            {!canAddDestination && (
-                                <p className="text-[10px] text-muted-foreground text-center py-1">
-                                    Cannot add another destination while multiple sources exist (M:N is not supported).
-                                </p>
-                            )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={pipeline.addDestination}
+                                className="w-full h-8 text-xs gap-1.5 border-dashed"
+                            >
+                                <Plus className="h-3 w-3" /> Add destination
+                            </Button>
                         </div>
                     </div>
                 </div>
