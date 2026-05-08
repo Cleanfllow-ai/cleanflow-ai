@@ -219,19 +219,31 @@ export function usePipelineBuilder(props: UsePipelineBuilderProps) {
                 } else if (src.entities.length === 0 || dst.entities.length === 0) {
                     // Endpoint not yet fully configured — emit nothing for this leg.
                     pairs = []
+                } else if (dst.entities.length === 1) {
+                    // Single destination entity — every source entity unions
+                    // into it. Common N:1 warehouse target case (e.g. QB
+                    // Customers + Zoho Customers → Snowflake CUSTOMERS).
+                    for (const sEntity of src.entities) {
+                        pairs.push({ srcEntity: sEntity, dstEntity: dst.entities[0] })
+                    }
+                } else if (src.entities.length === 1) {
+                    // Single source entity → fans out to every destination
+                    // entity. Common 1:N split.
+                    const sEntity = src.entities[0]
+                    for (const dEntity of dst.entities) {
+                        pairs.push({ srcEntity: sEntity, dstEntity: dEntity })
+                    }
                 } else {
-                    // Auto-pair by entity name (case-insensitive). For each
-                    // source entity, find a dest entity with the same key.
+                    // Multi on both sides — auto-pair by entity name (case-
+                    // insensitive). When names mismatch the user must use the
+                    // "Pair manually" override.
                     const dstByLower = new Map(dst.entities.map(e => [e.toLowerCase(), e]))
                     for (const sEntity of src.entities) {
                         const match = dstByLower.get(sEntity.toLowerCase())
                         if (match) {
                             pairs.push({ srcEntity: sEntity, dstEntity: match })
-                        } else if (src.entities.length === 1 && dst.entities.length === 1) {
-                            // Single-on-each-side: pair them even with different names.
-                            pairs.push({ srcEntity: sEntity, dstEntity: dst.entities[0] })
                         }
-                        // else: skip — UI must surface a "Pair manually" picker.
+                        // else: skip — UI surfaces a "Pair manually" picker.
                     }
                 }
 
