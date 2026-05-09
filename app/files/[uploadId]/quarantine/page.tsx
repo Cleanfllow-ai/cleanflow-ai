@@ -40,7 +40,8 @@ export default function QuarantineEditorPage({ params }: PageProps) {
   // Only honor safe, in-app relative paths to prevent open-redirect abuse.
   const returnTo = ALLOWED_RETURN_TO.has(rawReturnTo) ? rawReturnTo : '/files'
   const navigateBack = useCallback(() => router.push(returnTo), [router, returnTo])
-  const { idToken, accessToken, userRole } = useAuth()
+  const { idToken, accessToken, userRole, user } = useAuth()
+  const currentUserId = user?.sub
 
   const file = { upload_id: uploadId, filename: '', original_filename: '' }
 
@@ -499,6 +500,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
             users={collab.users}
             activity={collab.activity}
             connected={collab.connected}
+            currentUserId={currentUserId}
             onClose={() => collab.setPanelOpen(false)}
           />
         )}

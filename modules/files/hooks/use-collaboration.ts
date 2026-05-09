@@ -35,14 +35,49 @@ interface UseCollaborationParams {
   onRemoteCellUpdate?: (column: string, rowId: string, value: string) => void
 }
 
+/**
+ * resolveDisplayName — defence-in-depth fallback for the FE.
+ *
+ * The backend now populates display_name from OrgMembers (with email-local-part
+ * and a User-XXXX fallback), so this should rarely fire. We keep the chain
+ * here so a stale Lambda or a partial deploy never surfaces a literal "?":
+ *   display_name → email local-part → "User-XXXX" (first 4 of id) → "User"
+ */
+function resolveDisplayName(u: WsUserInfo): string {
+  if (u.display_name && u.display_name.trim()) return u.display_name.trim()
+  if (u.email) {
+    const at = u.email.indexOf('@')
+    if (at > 0) return u.email.slice(0, at)
+    if (u.email.trim()) return u.email
+  }
+  if (u.id && u.id.length >= 4) return `User-${u.id.slice(0, 4)}`
+  return 'User'
+}
+
 function toCollabUser(u: WsUserInfo): CollaborationUser {
   return {
     id: u.id,
-    email: u.email,
-    displayName: u.display_name,
+    email: u.email || '',
+    displayName: resolveDisplayName(u),
     color: u.color,
     activeCell: u.active_cell || '',
   }
+}
+
+/**
+ * mergePresenceSnapshot — replaces the local users list with the server
+ * snapshot WITHOUT losing local-only state (nothing today, but a guard for
+ * future per-user UI flags). Stable user identity = `id`.
+ */
+function mergePresenceSnapshot(snapshot: WsUserInfo[]): CollaborationUser[] {
+  const seen = new Set<string>()
+  const out: CollaborationUser[] = []
+  for (const u of snapshot) {
+    if (!u.id || seen.has(u.id)) continue
+    seen.add(u.id)
+    out.push(toCollabUser(u))
+  }
+  return out
 }
 
 export function useCollaboration({
@@ -87,19 +122,56 @@ export function useCollaboration({
     switch (message.type) {
       case 'presence':
         {
-          const mapped = message.users.map(toCollabUser)
+          const mapped = mergePresenceSnapshot(message.users)
           setUsers(mapped)
           usersRef.current = mapped
         }
         break
 
+      case 'presenceSync':
+        {
+          // Server-authoritative peer list pushed every heartbeat (~30s).
+          // Replaces local state to self-heal any missed userJoined/userLeft
+          // deltas. We diff against the previous list to surface join/leave
+          // activity even when the original delta was lost in flight.
+          const incoming = mergePresenceSnapshot(message.users)
+          const prev = usersRef.current
+          const prevIds = new Set(prev.map((u) => u.id))
+          const nextIds = new Set(incoming.map((u) => u.id))
+          for (const u of incoming) {
+            if (!prevIds.has(u.id)) addActivity(`${u.displayName} joined`)
+          }
+          for (const u of prev) {
+            if (!nextIds.has(u.id)) addActivity(`${u.displayName} left`)
+          }
+          setUsers(incoming)
+          usersRef.current = incoming
+          // Drop cell locks belonging to peers no longer in the room.
+          setCellLocks((locks) => {
+            let mutated = false
+            const next = new Map(locks)
+            for (const [key, lock] of next) {
+              if (!nextIds.has(lock.userId)) {
+                next.delete(key)
+                mutated = true
+              }
+            }
+            if (mutated) cellLocksRef.current = next
+            return mutated ? next : locks
+          })
+        }
+        break
+
       case 'userJoined':
-        setUsers((prev) => {
-          const next = [...prev.filter((u) => u.id !== message.user.id), toCollabUser(message.user)]
-          usersRef.current = next
-          return next
-        })
-        addActivity(`${message.user.display_name} joined`)
+        {
+          const joining = toCollabUser(message.user)
+          setUsers((prev) => {
+            const next = [...prev.filter((u) => u.id !== joining.id), joining]
+            usersRef.current = next
+            return next
+          })
+          addActivity(`${joining.displayName} joined`)
+        }
         break
 
       case 'userLeft':
@@ -123,24 +195,35 @@ export function useCollaboration({
         break
 
       case 'cellLocked':
-        setCellLocks((prev) => {
-          const next = new Map(prev)
-          next.set(message.cell, {
-            userId: message.user.id,
-            displayName: message.user.display_name,
+        {
+          // Use the FE fallback chain for the lock badge label so peers whose
+          // display_name didn't propagate render with a meaningful initial
+          // (e.g. "U" from "User-abcd") instead of "?".
+          const lockedName = resolveDisplayName({
+            id: message.user.id,
+            email: '',
+            display_name: message.user.display_name,
             color: message.user.color,
           })
-          cellLocksRef.current = next
-          return next
-        })
-        // Update user's active cell
-        setUsers((prev) => {
-          const next = prev.map((u) =>
-            u.id === message.user.id ? { ...u, activeCell: message.cell } : u,
-          )
-          usersRef.current = next
-          return next
-        })
+          setCellLocks((prev) => {
+            const next = new Map(prev)
+            next.set(message.cell, {
+              userId: message.user.id,
+              displayName: lockedName,
+              color: message.user.color,
+            })
+            cellLocksRef.current = next
+            return next
+          })
+          // Update user's active cell
+          setUsers((prev) => {
+            const next = prev.map((u) =>
+              u.id === message.user.id ? { ...u, activeCell: message.cell } : u,
+            )
+            usersRef.current = next
+            return next
+          })
+        }
         break
 
       case 'cellUnlocked':
@@ -179,24 +262,32 @@ export function useCollaboration({
 
       // ── Bulk lock messages (#7) ─────────────────────────────────────
       case 'bulkLocked':
-        // Peer acquired a bulk lockset (e.g. find-and-replace). Show
-        // lock badges on each cell in their colour.
-        setCellLocks((prev) => {
-          const next = new Map(prev)
-          for (const cell of (message.cells || [])) {
-            next.set(cell, {
-              userId: message.user.id,
-              displayName: message.user.display_name,
-              color: message.user.color,
-            })
+        {
+          // Peer acquired a bulk lockset (e.g. find-and-replace). Show
+          // lock badges on each cell in their colour.
+          const bulkName = resolveDisplayName({
+            id: message.user.id,
+            email: '',
+            display_name: message.user.display_name,
+            color: message.user.color,
+          })
+          setCellLocks((prev) => {
+            const next = new Map(prev)
+            for (const cell of (message.cells || [])) {
+              next.set(cell, {
+                userId: message.user.id,
+                displayName: bulkName,
+                color: message.user.color,
+              })
+            }
+            cellLocksRef.current = next
+            return next
+          })
+          if (Array.isArray(message.cells)) {
+            addActivity(
+              `${bulkName} locked ${message.cells.length} cells for find/replace`,
+            )
           }
-          cellLocksRef.current = next
-          return next
-        })
-        if (Array.isArray(message.cells)) {
-          addActivity(
-            `${message.user.display_name} locked ${message.cells.length} cells for find/replace`,
-          )
         }
         break
 

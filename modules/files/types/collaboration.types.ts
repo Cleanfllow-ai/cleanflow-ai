@@ -16,13 +16,24 @@ export interface WsUserInfo {
 
 export type WsServerMessage =
   | { type: 'presence'; users: WsUserInfo[] }
+  // presenceSync: authoritative peer snapshot pushed by the server on every
+  // heartbeat (every 30s). Used to self-heal missed userJoined / userLeft
+  // deltas — without it, the Collaborators panel can drift permanently
+  // (one user sees the other but the reverse side shows "No other users").
+  | { type: 'presenceSync'; users: WsUserInfo[] }
   | { type: 'userJoined'; user: WsUserInfo }
   | { type: 'userLeft'; userId: string }
   | { type: 'cellLocked'; cell: string; user: Pick<WsUserInfo, 'id' | 'display_name' | 'color'> }
   | { type: 'cellUnlocked'; cell: string }
   | { type: 'cellChanged'; cell: string; value: string; userId: string }
   | { type: 'bulkChanged'; count: number; summary: string; userId: string }
+  | { type: 'bulkLocked'; cells: string[]; user: Pick<WsUserInfo, 'id' | 'display_name' | 'color'>; operationId?: string }
+  | { type: 'bulkUnlocked'; cells: string[]; operationId?: string; userId?: string }
+  | { type: 'bulkLockResult'; operationId: string; acquired: boolean; cells?: string[]; conflicting?: string[]; reason?: string }
   | { type: 'cellLockDenied'; cell: string; reason: string }
+  | { type: 'rowLocked'; cell: string; reason: string }
+  | { type: 'duplicate'; client_op_id: string; action: string }
+  | { type: 'error'; code: string; action?: string }
 
 // ── Client → Server messages ────────────────────────────────────────────────
 
