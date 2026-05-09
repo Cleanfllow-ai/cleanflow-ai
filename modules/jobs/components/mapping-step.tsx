@@ -9,8 +9,8 @@
  * `pipeline.mappingsByPair` keyed by step_id.
  */
 
-import { useCallback, useMemo, useState } from "react"
-import { Loader2, AlertCircle, SlidersHorizontal, Shield, ListOrdered } from "lucide-react"
+import { lazy, Suspense, useCallback, useMemo, useState } from "react"
+import { Loader2, AlertCircle, SlidersHorizontal, Shield, ListOrdered, LayoutList, Network } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +25,13 @@ import { PriorityDialog } from "./priority-dialog"
 import { ConnectorLogo } from "@/modules/connectors/components/connector-logo"
 import { getProviderDisplayName } from "./job-dialog-constants"
 import type { PipelineState } from "./use-pipeline-builder"
+
+// Lazy-load the canvas mapper so the accordion view's first paint isn't blocked.
+// If hierarchical-mapper.tsx isn't shipped yet, the accordion view continues to
+// work — only the canvas tab fails at import time (caught by Suspense fallback).
+const HierarchicalMapper = lazy(() =>
+    import("./hierarchical-mapper").then(m => ({ default: m.HierarchicalMapper }))
+)
 
 export interface MappingStepProps {
     pipeline: PipelineState
@@ -45,6 +52,7 @@ export function MappingStep({ pipeline, onBack, onNext, isFinalStep, isCreating,
 
     const isOnePair = pipelineSteps.length === 1
     const [priorityOpen, setPriorityOpen] = useState(false)
+    const [viewMode, setViewMode] = useState<'accordion' | 'canvas'>('accordion')
 
     // Distinct source entities across all steps — that's what the user reorders
     // when they want FK/loading priority. Order = first-seen in pipelineSteps.
@@ -86,22 +94,51 @@ export function MappingStep({ pipeline, onBack, onNext, isFinalStep, isCreating,
                                 )}
                             </p>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPriorityOpen(true)}
-                            disabled={availableEntities.length === 0}
-                            className="text-xs gap-1.5"
-                            title="Set entity execution order (e.g. Customers BEFORE Invoices)"
-                        >
-                            <ListOrdered className="h-3.5 w-3.5" />
-                            Priority
-                            {pipeline.entityPriority.length > 0 && (
-                                <Badge variant="default" className="text-[9px] ml-1 h-4 px-1">
-                                    {pipeline.entityPriority.length}
-                                </Badge>
-                            )}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            {/* View toggle: per-pair accordion (default) vs canvas (hierarchical mapper) */}
+                            <div className="flex items-center rounded-md border border-border/60 overflow-hidden">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('accordion')}
+                                    disabled={pipelineSteps.length === 0}
+                                    className={cn(
+                                        'flex items-center gap-1 px-2 py-1 text-[11px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                                        viewMode === 'accordion' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted/40 text-muted-foreground',
+                                    )}
+                                    title="Per-pair accordion — one expandable panel per source/destination pair"
+                                >
+                                    <LayoutList className="h-3 w-3" /> Per-pair
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('canvas')}
+                                    disabled={pipelineSteps.length === 0}
+                                    className={cn(
+                                        'flex items-center gap-1 px-2 py-1 text-[11px] transition-colors border-l border-border/60 disabled:opacity-50 disabled:cursor-not-allowed',
+                                        viewMode === 'canvas' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted/40 text-muted-foreground',
+                                    )}
+                                    title="Canvas — hierarchical mapper across all pairs"
+                                >
+                                    <Network className="h-3 w-3" /> Canvas
+                                </button>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPriorityOpen(true)}
+                                disabled={availableEntities.length === 0}
+                                className="text-xs gap-1.5"
+                                title="Set entity execution order (e.g. Customers BEFORE Invoices)"
+                            >
+                                <ListOrdered className="h-3.5 w-3.5" />
+                                Priority
+                                {pipeline.entityPriority.length > 0 && (
+                                    <Badge variant="default" className="text-[9px] ml-1 h-4 px-1">
+                                        {pipeline.entityPriority.length}
+                                    </Badge>
+                                )}
+                            </Button>
+                        </div>
                     </div>
 
                     <PriorityDialog
@@ -120,55 +157,71 @@ export function MappingStep({ pipeline, onBack, onNext, isFinalStep, isCreating,
                             </AlertDescription>
                         </Alert>
                     ) : (
-                        <Accordion
-                            type="multiple"
-                            defaultValue={[pipelineSteps[0]?.step_id]}
-                            className="space-y-2"
-                        >
-                            {pipelineSteps.map(step => {
-                                const otherPairs = pipelineSteps
-                                    .filter(s => s.step_id !== step.step_id)
-                                    .map(s => ({
-                                        step_id: s.step_id,
-                                        label: `${getProviderDisplayName(s.source_provider)}.${s.source_entity} → ${getProviderDisplayName(s.dest_provider)}.${s.dest_entity}`,
-                                    }))
+                        <>
+                            {viewMode === 'accordion' && (
+                                <Accordion
+                                    type="multiple"
+                                    defaultValue={[pipelineSteps[0]?.step_id]}
+                                    className="space-y-2"
+                                >
+                                    {pipelineSteps.map(step => {
+                                        const otherPairs = pipelineSteps
+                                            .filter(s => s.step_id !== step.step_id)
+                                            .map(s => ({
+                                                step_id: s.step_id,
+                                                label: `${getProviderDisplayName(s.source_provider)}.${s.source_entity} → ${getProviderDisplayName(s.dest_provider)}.${s.dest_entity}`,
+                                            }))
 
-                                const mapping = mappingsByPair[step.step_id]
-                                const mappedCount = Object.keys(mapping?.column_mapping || {}).length
+                                        const mapping = mappingsByPair[step.step_id]
+                                        const mappedCount = Object.keys(mapping?.column_mapping || {}).length
 
-                                return (
-                                    <AccordionItem
-                                        key={step.step_id}
-                                        value={step.step_id}
-                                        className="border rounded-lg px-3 bg-card"
-                                    >
-                                        <AccordionTrigger className="hover:no-underline py-3">
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <ConnectorLogo provider={step.source_provider} size="sm" />
-                                                <span className="font-medium">{step.source_entity}</span>
-                                                <span className="text-muted-foreground">→</span>
-                                                <ConnectorLogo provider={step.dest_provider} size="sm" />
-                                                <span className="font-medium">{step.dest_entity}</span>
-                                                <span className="text-[10px] text-muted-foreground ml-2">
-                                                    {mappedCount > 0 ? `${mappedCount} mapped` : "no mapping"}
-                                                </span>
-                                            </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent>
-                                            <MappingPanel
-                                                step={step}
-                                                mapping={mapping}
-                                                onMappingChange={m => pipeline.setMappingForStep(step.step_id, m)}
-                                                otherPairs={otherPairs}
-                                                onCopyFromPair={(srcId) => handleCopyFromPair(step.step_id, srcId)}
-                                                isOnePair={isOnePair}
-                                                onAutoMap={dialog.autoMapPair}
-                                            />
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                )
-                            })}
-                        </Accordion>
+                                        return (
+                                            <AccordionItem
+                                                key={step.step_id}
+                                                value={step.step_id}
+                                                className="border rounded-lg px-3 bg-card"
+                                            >
+                                                <AccordionTrigger className="hover:no-underline py-3">
+                                                    <div className="flex items-center gap-2 text-sm">
+                                                        <ConnectorLogo provider={step.source_provider} size="sm" />
+                                                        <span className="font-medium">{step.source_entity}</span>
+                                                        <span className="text-muted-foreground">→</span>
+                                                        <ConnectorLogo provider={step.dest_provider} size="sm" />
+                                                        <span className="font-medium">{step.dest_entity}</span>
+                                                        <span className="text-[10px] text-muted-foreground ml-2">
+                                                            {mappedCount > 0 ? `${mappedCount} mapped` : "no mapping"}
+                                                        </span>
+                                                    </div>
+                                                </AccordionTrigger>
+                                                <AccordionContent>
+                                                    <MappingPanel
+                                                        step={step}
+                                                        mapping={mapping}
+                                                        onMappingChange={m => pipeline.setMappingForStep(step.step_id, m)}
+                                                        otherPairs={otherPairs}
+                                                        onCopyFromPair={(srcId) => handleCopyFromPair(step.step_id, srcId)}
+                                                        isOnePair={isOnePair}
+                                                        onAutoMap={dialog.autoMapPair}
+                                                    />
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        )
+                                    })}
+                                </Accordion>
+                            )}
+
+                            {viewMode === 'canvas' && (
+                                <Suspense fallback={<div className="text-xs text-muted-foreground py-12 text-center">Loading canvas…</div>}>
+                                    <HierarchicalMapper
+                                        pipelineSteps={pipelineSteps}
+                                        mappingsByPair={mappingsByPair}
+                                        setMappingForStep={pipeline.setMappingForStep}
+                                        entityPriority={pipeline.entityPriority}
+                                        setEntityPriority={pipeline.setEntityPriority}
+                                    />
+                                </Suspense>
+                            )}
+                        </>
                     )}
 
                     {/* ── Advanced DQ Configuration toggle ─────────────────────
