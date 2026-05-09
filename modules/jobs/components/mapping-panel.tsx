@@ -341,30 +341,19 @@ export function MappingPanel({
 
     return (
         <div className="space-y-3">
-            {/* Header */}
-            <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                    <ConnectorLogo provider={step.source_provider} size="sm" />
-                    <span className="font-medium text-sm truncate">
-                        {getProviderDisplayName(step.source_provider)}.{step.source_entity}
-                    </span>
-                    <span className="text-muted-foreground">→</span>
-                    <ConnectorLogo provider={step.dest_provider} size="sm" />
-                    <span className="font-medium text-sm truncate">
-                        {getProviderDisplayName(step.dest_provider)}.{step.dest_entity}
-                    </span>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                    <Badge variant="outline" className="text-[10px]">{cardinalityChip}</Badge>
-                    <Badge variant="outline" className="text-[10px] gap-1">
-                        {CATEGORY_ICON[step.source_category]}
-                        {CATEGORY_LABELS[step.source_category]}
-                    </Badge>
-                    <Badge variant="outline" className="text-[10px] gap-1">
-                        {CATEGORY_ICON[step.dest_category]}
-                        {CATEGORY_LABELS[step.dest_category]}
-                    </Badge>
-                </div>
+            {/* Compact metadata row — the AccordionTrigger above already shows
+                the source.entity → dest.entity path with logos, so we just
+                add the cardinality + category badges here. */}
+            <div className="flex items-center gap-1 flex-wrap">
+                <Badge variant="outline" className="text-[10px]">{cardinalityChip}</Badge>
+                <Badge variant="outline" className="text-[10px] gap-1">
+                    {CATEGORY_ICON[step.source_category]}
+                    {CATEGORY_LABELS[step.source_category]} source
+                </Badge>
+                <Badge variant="outline" className="text-[10px] gap-1">
+                    {CATEGORY_ICON[step.dest_category]}
+                    {CATEGORY_LABELS[step.dest_category]} dest
+                </Badge>
             </div>
 
             {/* Toolbar */}

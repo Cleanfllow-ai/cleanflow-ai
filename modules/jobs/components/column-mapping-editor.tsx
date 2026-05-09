@@ -99,6 +99,18 @@ export function ColumnMappingEditor({
         )
     }, [sourceFields, search, filterMode, mapping])
 
+    /** Same search query also filters the destination options each row's
+     *  dropdown shows, so users can type "name" and quickly map customer name
+     *  → contact name without scrolling through 40+ ERP fields. */
+    const filteredDestFields = useMemo(() => {
+        if (!search) return destFields
+        const q = search.toLowerCase()
+        return destFields.filter(
+            f => (f.key || '').toLowerCase().includes(q)
+                || (f.label || '').toLowerCase().includes(q),
+        )
+    }, [destFields, search])
+
     const handleFieldMap = (sourceKey: string, destKey: string) => {
         const next = { ...mapping }
         if (destKey === '__none__') {
@@ -175,7 +187,7 @@ export function ColumnMappingEditor({
                 <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
-                        placeholder={`Search ${sourceLabel.toLowerCase()} field by name...`}
+                        placeholder={`Search ${sourceLabel.toLowerCase()} or ${destLabel.toLowerCase()} field by name...`}
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         className="pl-8 h-9 text-xs"
@@ -208,7 +220,7 @@ export function ColumnMappingEditor({
             {viewMode === 'visual' && (
                 <VisualMapper
                     sourceFields={filteredSourceFields}
-                    destFields={destFields}
+                    destFields={filteredDestFields}
                     mapping={mapping}
                     onMappingChange={onMappingChange}
                     sourceLabel={sourceLabel}
@@ -309,7 +321,7 @@ export function ColumnMappingEditor({
                                     <SelectItem value="__none__" className="text-xs text-muted-foreground">
                                         — Not mapped —
                                     </SelectItem>
-                                    {destFields.map(df => {
+                                    {filteredDestFields.map(df => {
                                         const isUsed = usedDestKeys.has(df.key) && df.key !== currentDest
                                         return (
                                             <SelectItem
@@ -323,6 +335,11 @@ export function ColumnMappingEditor({
                                             </SelectItem>
                                         )
                                     })}
+                                    {search && filteredDestFields.length === 0 && (
+                                        <div className="px-2 py-1 text-[10px] text-muted-foreground italic">
+                                            No {destLabel.toLowerCase()} fields match "{search}"
+                                        </div>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
