@@ -53,6 +53,7 @@ import {
 } from "@/modules/files/page/constants";
 import { Progress } from "@/components/ui/progress";
 import { ImportProgressRow } from "@/modules/files/components/import-progress-row";
+import { OptimizingBadge } from "@/modules/files/components/optimizing-badge";
 import {
     calculateProcessingTime,
     getDqQualityLabel,
@@ -460,6 +461,22 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                 // Inline progress bar for in-flight connector imports — replaces
                                                 // the static "IMPORTING" pill so the user sees real bytes / MB·s /
                                                 // ETA in the row, even after closing the Import Data dialog.
+                                                // Phase 7B (logical sharding): the backend may emit OPTIMIZING
+                                                // / OPTIMIZE_FAILED while it repacks an upload into shard-aligned
+                                                // form. Render the dedicated badge component (amber pill +
+                                                // spinner / red pill + tooltip) and bail out before falling
+                                                // through to the generic status-pill renderer.
+                                                if (
+                                                    effectiveStatus === "OPTIMIZING" ||
+                                                    effectiveStatus === "OPTIMIZE_FAILED"
+                                                ) {
+                                                    return (
+                                                        <OptimizingBadge
+                                                            status={effectiveStatus}
+                                                            errorReason={file.error_reason}
+                                                        />
+                                                    );
+                                                }
                                                 if (effectiveStatus === "IMPORTING") {
                                                     const importStatus =
                                                         file.import_status === "downloading" ||
@@ -624,6 +641,66 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                     // in-flight guard (409). Now X → POST /uploads/{id}/cancel,
                                                     // which transitions the row to IMPORT_FAILED / DQ_FAILED so
                                                     // the trash icon shows up on the next poll tick.
+                                                    // ─── Phase 7B: optimizer states ───
+                                                    // OPTIMIZING / OPTIMIZE_FAILED show a disabled Play (Process)
+                                                    // button with a contextual tooltip per spec, then defer to
+                                                    // the standard Delete affordance below. These are kept OUT
+                                                    // of `inFlightStates` because we want Process gating, not
+                                                    // the in-flight Stop button (the optimizer Lambda owns the
+                                                    // lifecycle and is not user-cancellable).
+                                                    const isOptimizing = file.status === "OPTIMIZING";
+                                                    const isOptimizeFailed = file.status === "OPTIMIZE_FAILED";
+                                                    if (isOptimizing || isOptimizeFailed) {
+                                                        const tooltip = isOptimizing
+                                                            ? "File is being optimized — please wait"
+                                                            : "Cannot process — optimize failed. Re-upload or contact support.";
+                                                        return (
+                                                            <>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <span className="inline-flex">
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground/40 cursor-not-allowed"
+                                                                                disabled
+                                                                                aria-label={tooltip}
+                                                                                data-testid="optimize-process-disabled"
+                                                                            >
+                                                                                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                            </Button>
+                                                                        </span>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>{tooltip}</TooltipContent>
+                                                                </Tooltip>
+                                                                {/* Allow delete on OPTIMIZE_FAILED so user can re-upload;
+                                                                    suppress on OPTIMIZING — the optimizer is mid-flight
+                                                                    and an in-flight delete would race the backend. */}
+                                                                {isOptimizeFailed && (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                                                                onClick={() => handleDeleteClick(file)}
+                                                                                disabled={deleting === file.upload_id}
+                                                                                aria-label="Delete file"
+                                                                            >
+                                                                                {deleting === file.upload_id ? (
+                                                                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                                                                ) : (
+                                                                                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                                )}
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>Delete</TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </>
+                                                        );
+                                                    }
+
                                                     if (isInFlight) {
                                                         // Tooltip mirrors the new "Stop & Delete" semantics —
                                                         // clicking opens the confirm dialog whose primary action

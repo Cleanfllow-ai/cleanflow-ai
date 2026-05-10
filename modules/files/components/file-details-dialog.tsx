@@ -16,6 +16,7 @@ import { FileMetadataTab } from "./file-details/file-metadata-tab"
 import { FileOverviewTab } from "./file-details/file-overview-tab"
 import { FilePreviewTab } from "./file-details/file-preview-tab"
 import { FileVersionHistory } from "./file-version-history"
+import { OptimizingBadge } from "./optimizing-badge"
 import { RowWiseIssues } from "./row-wise-issues"
 
 export { DqMatrixDialog } from "./dq-matrix-dialog"
@@ -116,9 +117,21 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                     <DialogTitle className="flex items-center gap-2.5 font-sans text-base font-semibold tracking-tight truncate">
                       <span className="truncate">{resolvedFile.original_filename || resolvedFile.filename || "File"}</span>
                     </DialogTitle>
-                    <Badge className={cn("shrink-0 text-[10px] font-medium", getStatusColor(resolvedFile.status))} variant="outline">
-                      {resolvedFile.status}
-                    </Badge>
+                    {/* Phase 7B: OPTIMIZING / OPTIMIZE_FAILED render via the
+                        dedicated badge so the spinner + failure tooltip stay
+                        consistent between the file list and detail header.
+                        Anything else falls back to the legacy text pill. */}
+                    {resolvedFile.status === "OPTIMIZING" || resolvedFile.status === "OPTIMIZE_FAILED" ? (
+                      <OptimizingBadge
+                        status={resolvedFile.status}
+                        errorReason={resolvedFile.error_reason}
+                        className="shrink-0"
+                      />
+                    ) : (
+                      <Badge className={cn("shrink-0 text-[10px] font-medium", getStatusColor(resolvedFile.status))} variant="outline">
+                        {resolvedFile.status}
+                      </Badge>
+                    )}
                     {versionInfo && (
                       <Badge variant="outline" className="shrink-0 text-[10px] font-medium">
                         v{versionInfo.versionNumber}

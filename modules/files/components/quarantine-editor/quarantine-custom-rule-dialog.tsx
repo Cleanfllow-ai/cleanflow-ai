@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Wand2, Loader2, Code2, ArrowRight, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { applyColumnRule, applyColumnRuleAll } from '@/modules/files/api/file-quarantine-api'
+import { detectGeneratedRuleFormat } from './rule-format'
 import type {
   CrossRuleFix,
   QuarantineFilters,
@@ -84,6 +85,7 @@ const TEXTAREA_STYLE: React.CSSProperties = {
   wordBreak: 'break-word',
   overflowWrap: 'break-word',
 }
+
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -527,24 +529,45 @@ export function QuarantineCustomRuleDialog({
                 </div>
               )}
 
-              {/* Generated rule code (collapsible) */}
-              {ruleCode && (
-                <div className="border-t">
-                  <button
-                    type="button"
-                    onClick={() => setShowCode((v) => !v)}
-                    className="flex items-center gap-1.5 w-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Code2 className="h-3.5 w-3.5" />
-                    {showCode ? 'Hide' : 'Show'} generated rule
-                  </button>
-                  {showCode && (
-                    <pre className="px-3 pb-3 text-[11px] font-mono bg-muted/30 whitespace-pre-wrap break-all">
-                      {ruleCode}
-                    </pre>
-                  )}
-                </div>
-              )}
+              {/* Generated rule code (collapsible) — Phase 8: render either
+                  the DSL JSON document or the legacy Python source, picked
+                  by the payload shape (see detectGeneratedRuleFormat). */}
+              {ruleCode && (() => {
+                const { format, display } = detectGeneratedRuleFormat(ruleCode)
+                const label =
+                  format === 'dsl'
+                    ? 'Generated rule (DSL)'
+                    : 'Generated rule (Python — legacy)'
+                return (
+                  <div className="border-t">
+                    <button
+                      type="button"
+                      onClick={() => setShowCode((v) => !v)}
+                      className="flex items-center gap-1.5 w-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Code2 className="h-3.5 w-3.5" />
+                      {showCode ? 'Hide' : 'Show'} generated rule
+                    </button>
+                    {showCode && (
+                      <div className="px-3 pb-3 space-y-1">
+                        <p
+                          className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium"
+                          data-testid="rule-format-label"
+                        >
+                          {label}
+                        </p>
+                        <pre
+                          className="text-[11px] font-mono bg-muted/30 whitespace-pre-wrap break-all rounded-sm p-2"
+                          data-testid="rule-code-block"
+                          data-format={format}
+                        >
+                          {display}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 

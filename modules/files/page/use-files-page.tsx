@@ -25,6 +25,7 @@ import {
     type CustomRuleSuggestionResponse,
 } from "@/modules/files";
 import { useImportingFilesPoll } from "@/modules/files/hooks/use-importing-files-poll";
+import { useOptimizingFilesPoll } from "@/modules/files/hooks/use-optimizing-files-poll";
 import {
     STATUS_OPTIONS,
 } from "@/modules/files/page/constants";
@@ -652,6 +653,13 @@ export function useFilesPage() {
     // 2-second IMPORTING refresh so a stale list response doesn't clobber the
     // optimistic local state between the cancel and delete API calls.
     useImportingFilesPoll({ files, onRefresh: loadFiles, isPaused: stopping !== null });
+
+    // Phase 7B (logical sharding): while ≥ 1 file is OPTIMIZING, refresh the
+    // catalog list every 5 s so the badge transitions out promptly when the
+    // optimizer Lambda finishes (→ UPLOADED / VALIDATED / OPTIMIZE_FAILED).
+    // Same pause semantics as the IMPORTING poller — suspend during a
+    // user-initiated stop+delete to avoid clobbering optimistic state.
+    useOptimizingFilesPoll({ files, onRefresh: loadFiles, isPaused: stopping !== null });
 
     const handleQuarantineEditorComplete = () => {
         // Reload files to reflect new version

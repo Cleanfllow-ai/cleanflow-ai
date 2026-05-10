@@ -4,6 +4,7 @@ export { useFileDetails } from "./use-file-details"
 export { useFileUpload } from "./use-file-upload"
 export { useFilePolling } from "./use-file-polling"
 export { useImportingFilesPoll } from "./use-importing-files-poll"
+export { useOptimizingFilesPoll } from "./use-optimizing-files-poll"
 
 // Quarantine editor hooks
 export { useQuarantineEditor } from "./use-quarantine-editor"

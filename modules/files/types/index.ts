@@ -2,6 +2,7 @@
 
 export type {
     FileUploadInitResponse,
+    FileStatus,
     FileStatusResponse,
     FileListResponse,
     FileItem,

@@ -16,9 +16,36 @@ export interface FileUploadInitResponse {
   usePost?: boolean   // Flag to indicate which upload method to use
 }
 
+// Phase 7B (logical sharding): Files transition through OPTIMIZING while the
+// backend repacks them into shard-aligned form. OPTIMIZE_FAILED is the
+// terminal failure state. Both are treated defensively by the UI — if the
+// backend is older and never emits these, the UI degrades to its previous
+// behavior.
+export type FileStatus =
+  | 'QUEUED'
+  | 'DQ_RUNNING'
+  | 'DQ_FIXED'
+  | 'FAILED'
+  | 'COMPLETED'
+  | 'UPLOADING'
+  | 'NORMALIZING'
+  | 'DQ_FAILED'
+  | 'UPLOAD_FAILED'
+  | 'UPLOADED'
+  | 'VALIDATED'
+  | 'REJECTED'
+  | 'DQ_DISPATCHED'
+  | 'SHARDING'
+  | 'SHARDED'
+  | 'SHARD_FAILED'
+  | 'IMPORTING'
+  | 'IMPORT_FAILED'
+  | 'OPTIMIZING'
+  | 'OPTIMIZE_FAILED'
+
 export interface FileStatusResponse {
   upload_id: string
-  status: 'QUEUED' | 'DQ_RUNNING' | 'DQ_FIXED' | 'FAILED' | 'COMPLETED' | 'UPLOADING' | 'NORMALIZING' | 'DQ_FAILED' | 'UPLOAD_FAILED' | 'UPLOADED' | 'VALIDATED' | 'REJECTED' | 'DQ_DISPATCHED' | 'SHARDING' | 'SHARDED' | 'SHARD_FAILED' | 'IMPORTING' | 'IMPORT_FAILED'
+  status: FileStatus
   filename?: string
   original_filename?: string
   content_type?: string
@@ -92,6 +119,10 @@ export interface FileStatusResponse {
   download_updated_at?: string
   download_finished_at?: string
   error_message?: string
+  // Phase 7B: populated by the optimizer Lambda when status transitions to
+  // OPTIMIZE_FAILED. Surfaced in the status-badge tooltip on the file list
+  // and detail view. Falls back to a generic message if absent.
+  error_reason?: string
 }
 
 export interface FileListResponse {
