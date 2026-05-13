@@ -178,10 +178,122 @@ export async function getFileColumns(uploadId: string, authToken: string): Promi
     return makeRequest(ENDPOINTS.FILES_COLUMNS(uploadId), authToken, { method: 'GET' })
 }
 
-export async function deleteUpload(uploadId: string, authToken: string): Promise<void> {
-    return makeRequest(`/uploads/${uploadId}`, authToken, {
-        method: 'DELETE'
-    })
+/**
+ * Result of a DELETE /uploads/{id} call.
+ *
+ * Backend may respond synchronously (2xx, `accepted: false`) for back-compat
+ * paths, OR with 202 + `Location: /operations/{op_id}` for async cascade
+ * delete. Callers should poll `pollDeleteOperation(operation_id)` when
+ * `accepted === true` before removing the row from UI state.
+ */
+export interface DeleteUploadResult {
+    accepted: boolean
+    operation_location?: string
+    operation_id?: string
+}
+
+/**
+ * DELETE /uploads/{id} — supports both legacy sync (2xx body discarded) and
+ * the new async 202 + Location header protocol.
+ *
+ * Extracts `operation_id` from the Location header (`/operations/{op_id}`)
+ * or — if the backend embedded it in the JSON body — from `body.operation_id`.
+ * Falls back to parsing the trailing path segment.
+ */
+export async function deleteUpload(
+    uploadId: string,
+    authToken: string,
+): Promise<DeleteUploadResult> {
+    const url = `${API_BASE_URL}/uploads/${uploadId}`
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    }
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`
+
+    const response = await fetch(url, { method: 'DELETE', headers })
+
+    if (!response.ok) {
+        const raw = await response.json().catch(() => ({}))
+        const errorData =
+            raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
+        throw parseApiError(response, errorData)
+    }
+
+    if (response.status === 202) {
+        const location = response.headers.get('Location') || ''
+        let body: Record<string, any> = {}
+        try {
+            body = await response.json()
+        } catch {
+            body = {}
+        }
+        const fromBody =
+            typeof body.operation_id === 'string' ? body.operation_id : ''
+        const fromHeader = location.split('/').filter(Boolean).pop() || ''
+        const operation_id = fromBody || fromHeader || ''
+        return {
+            accepted: true,
+            operation_location: location || `/operations/${operation_id}`,
+            operation_id,
+        }
+    }
+
+    // Drain body for legacy sync path
+    try { await response.json() } catch { /* noop */ }
+    return { accepted: false }
+}
+
+/**
+ * Operation status payload returned by GET /operations/{op_id}.
+ *
+ * `status === 'completed' | 'succeeded'` → operation finished cleanly.
+ * `status === 'failed'`                  → terminal error (caller surfaces it).
+ * Anything else                          → still pending; keep polling.
+ */
+export interface OperationStatus {
+    operation_id: string
+    status: string
+    error?: string | null
+    [k: string]: any
+}
+
+const OPERATION_TERMINAL_OK = new Set(['completed', 'succeeded', 'success'])
+const OPERATION_TERMINAL_FAIL = new Set(['failed', 'error', 'rejected'])
+
+/**
+ * Poll GET /operations/{operation_id} until terminal. Throws on failure.
+ *
+ * Intervals: 750ms, max 40 attempts (~30s). Aborts early on terminal status.
+ */
+export async function pollDeleteOperation(
+    operationId: string,
+    authToken: string,
+    opts?: { intervalMs?: number; maxAttempts?: number },
+): Promise<OperationStatus> {
+    const intervalMs = opts?.intervalMs ?? 750
+    const maxAttempts = opts?.maxAttempts ?? 40
+    if (!operationId) {
+        throw new Error('pollDeleteOperation: empty operationId')
+    }
+    for (let i = 0; i < maxAttempts; i++) {
+        const status: OperationStatus = await makeRequest(
+            `/operations/${operationId}`,
+            authToken,
+            { method: 'GET' },
+        )
+        const s = String(status?.status || '').toLowerCase()
+        if (OPERATION_TERMINAL_OK.has(s)) return status
+        if (OPERATION_TERMINAL_FAIL.has(s)) {
+            throw new ApiError({
+                status: 500,
+                message: status?.error || `Delete operation ${s}`,
+                code: 'OperationFailed',
+                raw: status,
+            })
+        }
+        await new Promise((r) => setTimeout(r, intervalMs))
+    }
+    throw new Error(`Delete operation ${operationId} did not complete in time`)
 }
 
 /**

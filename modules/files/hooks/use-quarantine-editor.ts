@@ -678,6 +678,7 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
     handleCellEdit,
     applyRemoteEdit: rows.updateRow,
     setActiveCell: edits.setActiveCell,
+    hydrateEdits: edits.hydrateEdits,
     saveEdits,
     submitReprocess,
     handleReprocessAction: handlePrimaryReprocessAction,

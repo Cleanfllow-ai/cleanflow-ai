@@ -16,6 +16,7 @@ export { useQuarantineAutosave } from "./use-quarantine-autosave"
 export { useQuarantineFilters } from "./use-quarantine-filters"
 export type { ActiveFilterChip } from "./use-quarantine-filters"
 export { useQuarantineFind } from "./use-quarantine-find"
-export { useQuarantineFindReplace } from "./use-quarantine-find-replace"
+export { useOverlayPersist } from "./use-overlay-persist"
+export type { PersistedOverlay } from "./use-overlay-persist"
 export { useWebSocket } from './use-websocket'
 export { useCollaboration } from './use-collaboration'

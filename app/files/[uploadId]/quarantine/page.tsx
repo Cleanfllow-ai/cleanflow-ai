@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { useQuarantineEditor, useQuarantineFilters, useQuarantineFind } from '@/modules/files/hooks'
+import { useQuarantineEditor, useQuarantineFilters, useQuarantineFind, useOverlayPersist } from '@/modules/files/hooks'
 import { useCollaboration } from '@/modules/files/hooks'
 import { QuarantineCollaborationPanel } from '@/modules/files/components/quarantine-editor/quarantine-collaboration-panel'
 import { QuarantineFilterBar } from '@/modules/files/components/quarantine-editor/quarantine-filter-bar'
@@ -52,6 +52,38 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     authToken: idToken,
     filters: filterState.filters,
   })
+
+  // ── Optimistic overlay restore (sessionStorage) ─────────────────────
+  // Persist in-progress edits per {file_id, session_id} so an accidental
+  // browser refresh doesn't lose them. Hydrated below once the user
+  // confirms "Restore"; cleared on successful save (lastSavedAt change).
+  const overlay = useOverlayPersist({
+    fileId: uploadId,
+    sessionId: editor.sessionInfo?.session_id,
+    editsMap: editor.editsMap,
+  })
+  const [overlayBannerVisible, setOverlayBannerVisible] = useState(false)
+  useEffect(() => {
+    if (overlay.restoredCount > 0) setOverlayBannerVisible(true)
+  }, [overlay.restoredCount])
+  const lastSavedRef = useRef<Date | null>(null)
+  useEffect(() => {
+    if (editor.lastSavedAt && editor.lastSavedAt !== lastSavedRef.current) {
+      lastSavedRef.current = editor.lastSavedAt
+      overlay.clearPersisted()
+    }
+  }, [editor.lastSavedAt, overlay])
+  const handleOverlayRestore = useCallback(() => {
+    if (overlay.restored?.edits_map) {
+      editor.hydrateEdits(overlay.restored.edits_map)
+    }
+    setOverlayBannerVisible(false)
+  }, [overlay.restored, editor])
+  const handleOverlayDiscard = useCallback(() => {
+    overlay.discardRestored()
+    setOverlayBannerVisible(false)
+    editor.refreshSession?.()
+  }, [overlay, editor])
 
   // Forward refs from collab back into find (#7). Collab is created
   // BELOW (it needs handleRemoteCellUpdate which closes over editor),
@@ -420,6 +452,27 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         onRemoveFilter={filterState.removeFilter}
         onClearAll={filterState.clearAllFilters}
       />
+
+      {overlayBannerVisible && overlay.restoredCount > 0 && (
+        <div
+          role="alert"
+          data-testid="overlay-restore-banner"
+          className="flex items-center justify-between gap-3 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900"
+        >
+          <span>
+            Restored {overlay.restoredCount} unsaved edit
+            {overlay.restoredCount === 1 ? '' : 's'} from previous session — Save or Discard
+          </span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={handleOverlayRestore}>
+              Restore
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleOverlayDiscard}>
+              Discard
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Grid */}
       <div className="relative min-h-0 flex-1 flex overflow-hidden">

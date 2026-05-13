@@ -1062,7 +1062,11 @@ export function useFilesPage() {
         setDeleting(fileToDelete.upload_id);
         setShowDeleteModal(false);
         try {
-            await fileManagementAPI.deleteUpload(fileToDelete.upload_id, idToken);
+            const result = await fileManagementAPI.deleteUpload(fileToDelete.upload_id, idToken);
+            // 202 path: poll the operation until terminal before clearing the row.
+            if (result?.accepted && result.operation_id) {
+                await fileManagementAPI.pollDeleteOperation(result.operation_id, idToken);
+            }
             toast({ title: "File deleted", description: "File removed successfully" });
             await loadFiles();
         } catch (error) {
@@ -1198,7 +1202,10 @@ export function useFilesPage() {
 
         // ── Step 2: delete ──────────────────────────────────────────────
         try {
-            await fileManagementAPI.deleteUpload(target.upload_id, idToken);
+            const result = await fileManagementAPI.deleteUpload(target.upload_id, idToken);
+            if (result?.accepted && result.operation_id) {
+                await fileManagementAPI.pollDeleteOperation(result.operation_id, idToken);
+            }
             toast({
                 title: "Import stopped and deleted",
                 description: "The in-progress operation was cancelled and the file removed.",
@@ -1258,10 +1265,16 @@ export function useFilesPage() {
         let failCount = 0;
         for (const id of ids) {
             try {
-                await fileManagementAPI.deleteUpload(id, idToken);
+                setDeleting(id);
+                const result = await fileManagementAPI.deleteUpload(id, idToken);
+                if (result?.accepted && result.operation_id) {
+                    await fileManagementAPI.pollDeleteOperation(result.operation_id, idToken);
+                }
                 successCount++;
             } catch {
                 failCount++;
+            } finally {
+                setDeleting(null);
             }
         }
         setSelectedFiles(new Set());
