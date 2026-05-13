@@ -22,8 +22,10 @@ if (!process.env.PINECONE_INDEX_NAME) process.env.PINECONE_INDEX_NAME = 'test-in
 if (!process.env.HUGGINGFACE_API_KEY) process.env.HUGGINGFACE_API_KEY = 'test-hf-key'
 // shared/config/aws-config.ts captures these at module-load time and throws
 // if any are missing — populate with placeholders so test imports work.
-if (!process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID) process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID = 'ap-south-1_TESTPOOL'
-if (!process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID) process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID = 'test-client-id'
+// Force-override Cognito test values: tests assert against these exact placeholders,
+// so .env.local (loaded by next/jest) must not leak real prod values into the suite.
+process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID = 'ap-south-1_TESTPOOL'
+process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID = 'test-client-id-abc123'
 if (!process.env.NEXT_PUBLIC_API_BASE_URL) process.env.NEXT_PUBLIC_API_BASE_URL = 'https://test.example.com/prod'
 if (!process.env.NEXT_PUBLIC_S3_BUCKET_NAME) process.env.NEXT_PUBLIC_S3_BUCKET_NAME = 'cleanflowai-test-bucket'
 
