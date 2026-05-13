@@ -545,6 +545,80 @@ export async function submitFindReplaceAsync(
     }
 }
 
+// ── Dry-run preview (K5) ──────────────────────────────────────────────
+/** Sample match for the dry-run preview side-panel. */
+export interface FindReplacePreviewMatch {
+    row_id: string
+    column: string
+    old_value: string
+    new_value: string
+    locked?: boolean
+    reason?: string | null
+}
+
+export interface FindReplacePreviewResponse {
+    sample_matches: FindReplacePreviewMatch[]
+    total_count: number
+    truncated: boolean
+}
+
+/**
+ * POST /files/{id}/quarantined/find-replace with `dry_run: true`.
+ *
+ * Backend returns up to 100 sample matches WITHOUT writing any cells. The
+ * shape is best-effort — older backends may inline matches under
+ * `result.sample_matches`, return `matches`, or surface them via the async
+ * poll under `result`. This adapter normalises whichever variant comes back.
+ */
+export async function previewFindReplace(
+    uploadId: string,
+    authToken: string,
+    body: AsyncFindReplaceRequest,
+): Promise<FindReplacePreviewResponse> {
+    const wire = {
+        type: body.type ?? 'find_replace',
+        scope: body.scope || 'ENTIRE_QUARANTINE',
+        session_id: body.session_id,
+        if_match_etag: body.if_match_etag ?? '',
+        search: body.find_pattern,
+        replace: body.replace_pattern,
+        column: body.column ?? null,
+        match_case: !!body.match_case,
+        regex: !!body.regex,
+        whole_cell: !!body.whole_cell,
+        dry_run: true,
+        filters: body.filters,
+        estimated_cells: body.estimated_cells,
+    }
+    const resp = await makeRequest(
+        ENDPOINTS.FIND_REPLACE(uploadId),
+        authToken,
+        { method: 'POST', body: JSON.stringify(wire) },
+    )
+    // Variant A: inline 200 response with sample_matches at root.
+    const rawMatches =
+        (Array.isArray(resp?.sample_matches) && resp.sample_matches) ||
+        (Array.isArray(resp?.matches) && resp.matches) ||
+        (Array.isArray(resp?.result?.sample_matches) && resp.result.sample_matches) ||
+        []
+    const total = Number(
+        resp?.total_count ?? resp?.total_matches ?? resp?.result?.total_count ?? rawMatches.length,
+    ) || 0
+    const sample_matches: FindReplacePreviewMatch[] = rawMatches.slice(0, 100).map((m: any) => ({
+        row_id: String(m?.row_id ?? ''),
+        column: String(m?.column ?? ''),
+        old_value: String(m?.old_value ?? m?.value ?? ''),
+        new_value: String(m?.new_value ?? m?.replacement ?? ''),
+        locked: !!m?.locked,
+        reason: m?.reason ?? null,
+    }))
+    return {
+        sample_matches,
+        total_count: total,
+        truncated: total > sample_matches.length,
+    }
+}
+
 /** GET /files/{id}/quarantined/operations/{op_id}. */
 export async function pollFindReplaceOperation(
     uploadId: string,

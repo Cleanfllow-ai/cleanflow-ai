@@ -8,7 +8,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { X, ChevronUp, ChevronDown, Search, Replace, Loader2 } from 'lucide-react'
+import { X, ChevronUp, ChevronDown, Search, Replace, Loader2, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -26,6 +26,14 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import { useQuarantineFindReplace } from '@/modules/files/hooks/use-quarantine-find-replace'
+import {
+  previewFindReplace,
+  type FindReplacePreviewMatch,
+} from '@/modules/files/api/file-quarantine-api'
+import {
+  QuarantineSkippedRowsPanel,
+  type SkippedRow,
+} from './quarantine-skipped-rows-panel'
 
 interface QuarantineFindReplacePanelProps {
   searchTerm: string
@@ -70,6 +78,13 @@ interface QuarantineFindReplacePanelProps {
   /** Callback fired once the async op terminates (so the editor can
    *  refresh the grid + etag). */
   onAsyncComplete?: (result: { applied: number; skipped: number; failed: number }) => void
+
+  // ── K5 dry-run preview + skipped inspector ───────────────────────────
+  /** When a row in the Skipped panel is clicked, the editor scrolls AG-Grid
+   *  to that row id. */
+  onScrollToRow?: (rowId: string) => void
+  /** Stem used to name the skipped-rows CSV export (`<stem>_skipped_<ts>.csv`). */
+  filenameStem?: string
 }
 
 export function QuarantineFindReplacePanel({
@@ -100,6 +115,8 @@ export function QuarantineFindReplacePanel({
   filters,
   asyncScope = 'ENTIRE_QUARANTINE',
   onAsyncComplete,
+  onScrollToRow,
+  filenameStem,
 }: QuarantineFindReplacePanelProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [replaceAllCount, setReplaceAllCount] = useState<number | null>(null)
@@ -119,6 +136,45 @@ export function QuarantineFindReplacePanel({
       asyncState.status === 'RUNNING')
   const summary = asyncState.result
   const [activeTab, setActiveTab] = useState<'applied' | 'skipped' | 'failed'>('applied')
+
+  // ── K5 dry-run preview state ─────────────────────────────────────────
+  const [previewing, setPreviewing] = useState(false)
+  const [previewMatches, setPreviewMatches] = useState<FindReplacePreviewMatch[] | null>(null)
+  const [previewTotal, setPreviewTotal] = useState(0)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const previewConfirmed = useMemo(() => previewMatches !== null, [previewMatches])
+
+  const handlePreview = async () => {
+    if (!asyncEnabled || !sessionId || !searchTerm) return
+    setPreviewing(true); setPreviewError(null)
+    try {
+      const resp = await previewFindReplace(uploadId!, authToken!, {
+        type: 'find_replace',
+        scope: asyncScope,
+        session_id: sessionId,
+        if_match_etag: sessionEtag,
+        find_pattern: searchTerm,
+        replace_pattern: replaceTerm,
+        column: column ?? null,
+        match_case: matchCase,
+        regex: false,
+        whole_cell: false,
+        dry_run: true,
+        filters,
+      })
+      setPreviewMatches(resp.sample_matches)
+      setPreviewTotal(resp.total_count)
+    } catch (e) {
+      setPreviewError((e as Error)?.message || 'Preview failed')
+      setPreviewMatches(null)
+    } finally {
+      setPreviewing(false)
+    }
+  }
+
+  const dismissPreview = () => {
+    setPreviewMatches(null); setPreviewTotal(0); setPreviewError(null)
+  }
 
   // Auto-focus search input on mount
   useEffect(() => {
@@ -166,6 +222,8 @@ export function QuarantineFindReplacePanel({
             failed: r.failed_count,
           })
         }
+        // Clear the dry-run preview once the commit is in flight.
+        dismissPreview()
       } else {
         // ── Legacy sync path (back-compat) ────────────────────────────
         const result = await onReplaceAll()
@@ -376,18 +434,11 @@ export function QuarantineFindReplacePanel({
                   {summary.applied_count} cells rewritten.
                 </TabsContent>
                 <TabsContent value="skipped" data-testid="skipped-rows-tab" className="text-[10px] text-muted-foreground">
-                  {summary.skipped_rows.length === 0
-                    ? `${summary.skipped_count} cells skipped (no row detail).`
-                    : (
-                      <ul className="max-h-24 overflow-auto space-y-0.5">
-                        {summary.skipped_rows.slice(0, 50).map((r, i) => (
-                          <li key={`${r.row_id}-${i}`} className="truncate">
-                            <span className="font-mono">{r.row_id}</span>
-                            {r.reason ? ` — ${r.reason}` : ''}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                  <QuarantineSkippedRowsPanel
+                    rows={summary.skipped_rows as SkippedRow[]}
+                    filenameStem={filenameStem}
+                    onScrollToRow={onScrollToRow}
+                  />
                 </TabsContent>
                 <TabsContent value="failed" className="text-[10px] text-rose-600">
                   {summary.error_msg
@@ -414,6 +465,63 @@ export function QuarantineFindReplacePanel({
           </div>
         )}
 
+        {/* K5 — dry-run preview panel */}
+        {asyncEnabled && previewMatches && (
+          <div
+            data-testid="fnr-preview-panel"
+            className="space-y-1.5 pt-1 border-t border-border"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-medium text-foreground">
+                Preview — {previewMatches.length.toLocaleString()} of{' '}
+                {previewTotal.toLocaleString()} sample matches
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-1.5 text-[10px]"
+                onClick={dismissPreview}
+              >
+                Clear
+              </Button>
+            </div>
+            {previewMatches.length === 0 ? (
+              <div className="text-[10px] text-muted-foreground">
+                No matches would be replaced.
+              </div>
+            ) : (
+              <ul className="max-h-32 overflow-auto space-y-0.5 text-[10px]">
+                {previewMatches.map((m, i) => (
+                  <li
+                    key={`${m.row_id}-${m.column}-${i}`}
+                    data-testid="fnr-preview-match"
+                    className="flex items-center gap-1.5 truncate"
+                  >
+                    <span className="font-mono text-muted-foreground shrink-0">
+                      {m.row_id}
+                    </span>
+                    <span className="text-foreground shrink-0">·</span>
+                    <span className="text-foreground shrink-0">{m.column}</span>
+                    <span className="text-rose-600 line-through truncate">
+                      {m.old_value}
+                    </span>
+                    <span className="text-muted-foreground shrink-0">→</span>
+                    <span className="text-emerald-600 truncate">{m.new_value}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        {previewError && (
+          <div
+            data-testid="fnr-preview-error"
+            className="text-[10px] text-rose-600 pt-1 border-t border-border"
+          >
+            {previewError}
+          </div>
+        )}
+
         {/* Action buttons */}
         <div className="flex items-center gap-2 pt-1 border-t border-border">
           <Button
@@ -425,19 +533,58 @@ export function QuarantineFindReplacePanel({
           >
             Replace
           </Button>
-          <Button
-            data-testid="replace-all-btn"
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs flex-1"
-            disabled={(!asyncEnabled && totalMatches === 0) || !replaceTerm || replacing || isAsyncRunning}
-            onClick={handleReplaceAll}
-          >
-            {(replacing || isAsyncRunning) ? (
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            ) : null}
-            Replace All
-          </Button>
+          {asyncEnabled ? (
+            previewConfirmed ? (
+              <Button
+                data-testid="confirm-replace-all-btn"
+                variant="default"
+                size="sm"
+                className="h-7 text-xs flex-1"
+                disabled={
+                  !replaceTerm ||
+                  replacing ||
+                  isAsyncRunning ||
+                  previewMatches?.length === 0
+                }
+                onClick={handleReplaceAll}
+              >
+                {(replacing || isAsyncRunning) ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : null}
+                Confirm replace all
+              </Button>
+            ) : (
+              <Button
+                data-testid="preview-matches-btn"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs flex-1"
+                disabled={!searchTerm || previewing || replacing || isAsyncRunning}
+                onClick={handlePreview}
+              >
+                {previewing ? (
+                  <Loader2 data-testid="preview-spinner" className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <Eye className="h-3 w-3 mr-1" />
+                )}
+                Preview matches
+              </Button>
+            )
+          ) : (
+            <Button
+              data-testid="replace-all-btn"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs flex-1"
+              disabled={totalMatches === 0 || !replaceTerm || replacing}
+              onClick={handleReplaceAll}
+            >
+              {replacing ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : null}
+              Replace All
+            </Button>
+          )}
         </div>
       </div>
     </div>
