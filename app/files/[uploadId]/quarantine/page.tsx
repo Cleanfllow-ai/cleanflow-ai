@@ -20,6 +20,8 @@ import { QuarantineVersionLineage } from '@/modules/files/components/quarantine-
 import { QuarantineFindReplacePanel } from '@/modules/files/components/quarantine-editor/quarantine-find-replace-panel'
 import { QuarantineCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-compare-dialog'
 import { QuarantineVersionCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-version-compare-dialog'
+import { useEditHistory } from '@/modules/files/hooks/use-edit-history'
+import { QuarantineUndoToast } from '@/modules/files/components/quarantine-editor/quarantine-undo-toast'
 import { ArrowLeft, ClipboardCheck, Check, Clock, Loader2, Unlock, X } from 'lucide-react'
 import type { GridApi } from 'ag-grid-community'
 import type { QuarantineRow } from '@/modules/files/types'
@@ -381,11 +383,43 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     collab.blurCell(column, rowId)
   }, [collab.blurCell])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Undo per-cell (20-edit ring buffer + Ctrl+Z) ────────────────────
+  const history = useEditHistory()
+  const [undoToast, setUndoToast] = useState<{ open: boolean; column: string | null }>({
+    open: false,
+    column: null,
+  })
+  useEffect(() => { history.clear() }, [uploadId, history])
+
   const handleCellEditWithBroadcast = useCallback((rowId: string, column: string, value: string) => {
-    console.log('[Collab] handleCellEditWithBroadcast called:', { rowId, column, value })
+    const oldValue = editor.getCellValue(rowId, column, {} as Record<string, any>)
     editor.handleCellEdit(rowId, column, value)
     collab.broadcastCellUpdate(column, rowId, value)
-  }, [editor.handleCellEdit, collab.broadcastCellUpdate])  // eslint-disable-line react-hooks/exhaustive-deps
+    history.push({ file_id: uploadId, row_id: rowId, column, old_value: oldValue, new_value: value })
+    setUndoToast({ open: true, column })
+  }, [editor.handleCellEdit, editor.getCellValue, collab.broadcastCellUpdate, history, uploadId])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleUndo = useCallback(() => {
+    const entry = history.undo()
+    if (!entry) return
+    editor.handleCellEdit(entry.row_id, entry.column, entry.old_value)
+    collab.broadcastCellUpdate(entry.column, entry.row_id, entry.old_value)
+  }, [history, editor.handleCellEdit, collab.broadcastCellUpdate])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        if (history.size === 0) return
+        const active = document.activeElement as HTMLElement | null
+        const tag = active?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || active?.isContentEditable) return
+        e.preventDefault()
+        handleUndo()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handleUndo, history.size])
 
   const handleGridApiReady = useCallback((api: GridApi<QuarantineRow>) => {
     gridApiRef.current = api
@@ -679,6 +713,14 @@ export default function QuarantineEditorPage({ params }: PageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Per-cell undo toast (8s auto-dismiss; Ctrl+Z is the keyboard equivalent) */}
+      <QuarantineUndoToast
+        column={undoToast.column}
+        open={undoToast.open}
+        onOpenChange={(open) => setUndoToast((s) => ({ ...s, open }))}
+        onUndo={handleUndo}
+      />
 
     </div>
   )
