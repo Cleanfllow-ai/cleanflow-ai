@@ -430,9 +430,13 @@ export async function findInQuarantineRows(
 }
 
 /**
- * Bulk Find & Replace — cursor-paginated server-side rewrite.
+ * Bulk Find & Replace — cursor-paginated server-side rewrite (sync path).
  * Frontend chains calls until `next_cursor` is null. Filters honoured;
  * locked rows skipped + counted; audit entries tagged "find_replace".
+ *
+ * @deprecated For large/whole-quarantine scopes prefer
+ * {@link submitFindReplaceAsync} + {@link pollFindReplaceOperation}.
+ * Kept for back-compat with small in-view replace calls.
  */
 export async function replaceInQuarantineRows(
     uploadId: string,
@@ -447,6 +451,115 @@ export async function replaceInQuarantineRows(
             body: JSON.stringify(payload),
         }
     )
+}
+
+// ========== Async Find & Replace (Phase 3D — operations poll) ==========
+
+/** Wire body for the async submit. Maps to `POST /quarantined/find-replace`
+ *  with `scope=ENTIRE_QUARANTINE` (or `estimated_cells > threshold`) flipping
+ *  the backend into async-worker mode. */
+export interface AsyncFindReplaceRequest {
+    type?: 'find_replace'
+    scope: 'ENTIRE_QUARANTINE' | 'column' | 'row'
+    session_id: string
+    if_match_etag?: string
+    find_pattern: string
+    replace_pattern: string
+    column?: string | null
+    match_case?: boolean
+    regex?: boolean
+    whole_cell?: boolean
+    dry_run?: boolean
+    filters?: unknown
+    estimated_cells?: number
+}
+
+export interface AsyncFindReplaceSubmitResponse {
+    operation_id: string
+    status: string
+    /** Synthesised by the client (Location header from 202). */
+    location: string
+    async: true
+}
+
+export type OperationStatus =
+    | 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED_TERMINAL' | 'CANCELLED'
+    | string
+
+export interface OperationStatusResponse {
+    operation_id: string
+    operation_type?: string
+    status: OperationStatus
+    kind: string
+    progress: { done: number; total: number; percent: number }
+    started_at: string | null
+    finished_at: string | null
+    audit_initiator?: string
+    result: {
+        applied_count?: number; skipped_count?: number; failed_count?: number
+        results?: Array<Record<string, unknown>>
+        skipped_rows?: Array<{ row_id: string; reason: string }>
+        error_msg?: string
+        [k: string]: unknown
+    }
+}
+
+const TERMINAL_OP_STATUSES: ReadonlySet<string> = new Set([
+    'COMPLETED', 'FAILED_TERMINAL', 'CANCELLED',
+])
+
+/** POST /files/{id}/quarantined/find-replace (async branch). 202 → {operation_id}. */
+export async function submitFindReplaceAsync(
+    uploadId: string,
+    authToken: string,
+    body: AsyncFindReplaceRequest,
+): Promise<AsyncFindReplaceSubmitResponse> {
+    // Backend keys are `search`/`replace`; map the UI-friendly aliases here.
+    const wire = {
+        type: body.type ?? 'find_replace',
+        scope: body.scope || 'ENTIRE_QUARANTINE',
+        session_id: body.session_id,
+        if_match_etag: body.if_match_etag ?? '',
+        search: body.find_pattern,
+        replace: body.replace_pattern,
+        column: body.column ?? null,
+        match_case: !!body.match_case,
+        regex: !!body.regex,
+        whole_cell: !!body.whole_cell,
+        dry_run: !!body.dry_run,
+        filters: body.filters,
+        estimated_cells: body.estimated_cells,
+    }
+    const resp = await makeRequest(
+        ENDPOINTS.FIND_REPLACE(uploadId),
+        authToken,
+        { method: 'POST', body: JSON.stringify(wire) },
+    )
+    const opId = String(resp?.operation_id || '')
+    if (!opId) throw new Error('Async F&R submit returned no operation_id')
+    return {
+        operation_id: opId,
+        status: String(resp?.status || 'PENDING'),
+        location: `/files/${uploadId}/quarantined/operations/${opId}`,
+        async: true,
+    }
+}
+
+/** GET /files/{id}/quarantined/operations/{op_id}. */
+export async function pollFindReplaceOperation(
+    uploadId: string,
+    operationId: string,
+    authToken: string,
+): Promise<OperationStatusResponse> {
+    return makeRequest(
+        `/files/${uploadId}/quarantined/operations/${operationId}`,
+        authToken,
+        { method: 'GET' },
+    )
+}
+
+export function isOperationTerminal(status: string): boolean {
+    return TERMINAL_OP_STATUSES.has(status)
 }
 
 // ========== Maintenance Operations ==========

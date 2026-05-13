@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, ChevronUp, ChevronDown, Search, Replace, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
+import { useQuarantineFindReplace } from '@/modules/files/hooks/use-quarantine-find-replace'
 
 interface QuarantineFindReplacePanelProps {
   searchTerm: string
@@ -43,9 +50,26 @@ interface QuarantineFindReplacePanelProps {
   onNext: () => void
   onPrevious: () => void
   onReplaceCurrent: () => void
-  /** Returns `{ replaced, skipped }` after the chained server call. */
+  /** Returns `{ replaced, skipped }` after the chained server call.
+   *  Used as the sync fallback when `uploadId` + `authToken` are not
+   *  provided (back-compat). */
   onReplaceAll: () => Promise<{ replaced: number; skipped: number } | number>
   onClose: () => void
+
+  // ── Async F&R opt-in (Phase 3D — operations poll wiring) ──────────────
+  /** When present alongside `authToken`, Replace All goes async via
+   *  `useQuarantineFindReplace`. Falls back to `onReplaceAll` otherwise. */
+  uploadId?: string
+  authToken?: string | null
+  sessionId?: string
+  sessionEtag?: string
+  filters?: unknown
+  /** Whole-quarantine scope override. Defaults to ENTIRE_QUARANTINE which
+   *  forces the async worker path (see backend `_use_async` guard). */
+  asyncScope?: 'ENTIRE_QUARANTINE' | 'column' | 'row'
+  /** Callback fired once the async op terminates (so the editor can
+   *  refresh the grid + etag). */
+  onAsyncComplete?: (result: { applied: number; skipped: number; failed: number }) => void
 }
 
 export function QuarantineFindReplacePanel({
@@ -69,11 +93,32 @@ export function QuarantineFindReplacePanel({
   onReplaceCurrent,
   onReplaceAll,
   onClose,
+  uploadId,
+  authToken,
+  sessionId,
+  sessionEtag,
+  filters,
+  asyncScope = 'ENTIRE_QUARANTINE',
+  onAsyncComplete,
 }: QuarantineFindReplacePanelProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [replaceAllCount, setReplaceAllCount] = useState<number | null>(null)
   const [skippedCount, setSkippedCount] = useState<number>(0)
   const [replacing, setReplacing] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
+  const asyncEnabled = !!uploadId && !!authToken
+  const asyncHook = useQuarantineFindReplace({
+    uploadId: uploadId ?? '',
+    authToken: authToken ?? null,
+  })
+  const { state: asyncState, submitAndPoll, reset: resetAsync } = asyncHook
+  const isAsyncRunning =
+    asyncEnabled &&
+    (asyncState.status === 'submitting' ||
+      asyncState.status === 'PENDING' ||
+      asyncState.status === 'RUNNING')
+  const summary = asyncState.result
+  const [activeTab, setActiveTab] = useState<'applied' | 'skipped' | 'failed'>('applied')
 
   // Auto-focus search input on mount
   useEffect(() => {
@@ -90,18 +135,62 @@ export function QuarantineFindReplacePanel({
   const handleReplaceAll = async () => {
     setReplacing(true)
     try {
-      const result = await onReplaceAll()
-      if (typeof result === 'number') {
-        setReplaceAllCount(result)
-        setSkippedCount(0)
+      if (asyncEnabled && sessionId) {
+        // ── Async path ────────────────────────────────────────────────
+        const controller = new AbortController()
+        abortRef.current = controller
+        const finalState = await submitAndPoll(
+          {
+            type: 'find_replace',
+            scope: asyncScope,
+            session_id: sessionId,
+            if_match_etag: sessionEtag,
+            find_pattern: searchTerm,
+            replace_pattern: replaceTerm,
+            column: column ?? null,
+            match_case: matchCase,
+            regex: false,
+            whole_cell: false,
+            dry_run: false,
+            filters,
+          },
+          { signal: controller.signal },
+        )
+        const r = finalState.result
+        if (r) {
+          setReplaceAllCount(r.applied_count)
+          setSkippedCount(r.skipped_count)
+          onAsyncComplete?.({
+            applied: r.applied_count,
+            skipped: r.skipped_count,
+            failed: r.failed_count,
+          })
+        }
       } else {
-        setReplaceAllCount(result.replaced)
-        setSkippedCount(result.skipped || 0)
+        // ── Legacy sync path (back-compat) ────────────────────────────
+        const result = await onReplaceAll()
+        if (typeof result === 'number') {
+          setReplaceAllCount(result)
+          setSkippedCount(0)
+        } else {
+          setReplaceAllCount(result.replaced)
+          setSkippedCount(result.skipped || 0)
+        }
       }
     } finally {
       setReplacing(false)
+      abortRef.current = null
     }
   }
+
+  const handleCancel = () => {
+    abortRef.current?.abort()
+  }
+
+  const progressPct = useMemo(() => {
+    if (!asyncEnabled) return 0
+    return Math.max(0, Math.min(100, asyncState.progress.percent))
+  }, [asyncEnabled, asyncState.progress.percent])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -238,6 +327,93 @@ export function QuarantineFindReplacePanel({
           )}
         </div>
 
+        {/* Async progress + cancel + tabs (only when async path is wired) */}
+        {asyncEnabled && (isAsyncRunning || summary) && (
+          <div data-testid="async-fnr-status" className="space-y-1.5 pt-1 border-t border-border">
+            {isAsyncRunning && (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                <div
+                  className="h-1.5 flex-1 rounded bg-muted overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={progressPct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="h-full bg-primary transition-[width]"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+                <span className="text-[10px] tabular-nums text-muted-foreground">
+                  {progressPct}%
+                </span>
+                <Button
+                  data-testid="async-fnr-cancel"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-1.5 text-[10px]"
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+            {summary && (
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+                <TabsList className="h-7 w-full">
+                  <TabsTrigger value="applied" className="text-[10px]">
+                    Applied {summary.applied_count}
+                  </TabsTrigger>
+                  <TabsTrigger value="skipped" className="text-[10px]">
+                    Skipped {summary.skipped_count} (lock)
+                  </TabsTrigger>
+                  <TabsTrigger value="failed" className="text-[10px]">
+                    Failed {summary.failed_count}
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="applied" className="text-[10px] text-muted-foreground">
+                  {summary.applied_count} cells rewritten.
+                </TabsContent>
+                <TabsContent value="skipped" data-testid="skipped-rows-tab" className="text-[10px] text-muted-foreground">
+                  {summary.skipped_rows.length === 0
+                    ? `${summary.skipped_count} cells skipped (no row detail).`
+                    : (
+                      <ul className="max-h-24 overflow-auto space-y-0.5">
+                        {summary.skipped_rows.slice(0, 50).map((r, i) => (
+                          <li key={`${r.row_id}-${i}`} className="truncate">
+                            <span className="font-mono">{r.row_id}</span>
+                            {r.reason ? ` — ${r.reason}` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                </TabsContent>
+                <TabsContent value="failed" className="text-[10px] text-rose-600">
+                  {summary.error_msg
+                    ? summary.error_msg
+                    : `${summary.failed_count} failures.`}
+                </TabsContent>
+              </Tabs>
+            )}
+            {asyncState.error && !summary && (
+              <div data-testid="async-fnr-error" className="text-[10px] text-rose-600">
+                {asyncState.error}
+              </div>
+            )}
+            {summary && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-full text-[10px]"
+                onClick={resetAsync}
+              >
+                Dismiss
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Action buttons */}
         <div className="flex items-center gap-2 pt-1 border-t border-border">
           <Button
@@ -250,13 +426,14 @@ export function QuarantineFindReplacePanel({
             Replace
           </Button>
           <Button
+            data-testid="replace-all-btn"
             variant="outline"
             size="sm"
             className="h-7 text-xs flex-1"
-            disabled={totalMatches === 0 || !replaceTerm || replacing}
+            disabled={(!asyncEnabled && totalMatches === 0) || !replaceTerm || replacing || isAsyncRunning}
             onClick={handleReplaceAll}
           >
-            {replacing ? (
+            {(replacing || isAsyncRunning) ? (
               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
             ) : null}
             Replace All
