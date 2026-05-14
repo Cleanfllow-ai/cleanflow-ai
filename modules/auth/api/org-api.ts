@@ -1,4 +1,5 @@
 import { AWS_CONFIG } from "@/shared/config/aws-config";
+import { parseApiError } from "@/modules/shared/api-error";
 
 const API_BASE_URL = AWS_CONFIG.API_BASE_URL || "";
 
@@ -132,8 +133,13 @@ class OrgAPI {
 
     const response = await fetch(url, { ...options, headers });
     if (!response.ok) {
+      // Preserve the structured BE envelope ({error, code, action, provider})
+      // so callers can branch on err.code (e.g. OrgLastAdminError,
+      // InviteEmailTakenError, PermissionDeniedError). Previously this layer
+      // collapsed to a plain Error which made every isApiError() check
+      // downstream silently return false and fall through to generic toasts.
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+      throw parseApiError(response, errorData);
     }
     return response.json();
   }
