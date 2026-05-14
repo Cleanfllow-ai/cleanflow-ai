@@ -162,6 +162,22 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
                     <span className="text-sm text-muted-foreground">Loading run history...</span>
                 </div>
+            ) : state.runsError && state.runs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 px-3 rounded-md border border-red-500/25 bg-red-500/5">
+                    <AlertTriangle className="h-5 w-5 text-red-500 mb-2" />
+                    <span className="text-sm text-red-600 dark:text-red-400 text-center max-w-md">
+                        {state.runsError}
+                    </span>
+                    <Button
+                        variant="outline" size="sm"
+                        className="mt-2 h-7 text-xs"
+                        onClick={state.handleRefresh}
+                        disabled={state.isRefreshing}
+                    >
+                        <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", state.isRefreshing && "animate-spin")} />
+                        Retry
+                    </Button>
+                </div>
             ) : state.filteredRuns.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-6">
                     <Activity className="h-5 w-5 text-muted-foreground/50 mb-2" />

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { jobsAPI, type JobRun } from "@/modules/jobs/api/jobs-api"
 import { useAuth } from "@/modules/auth"
+import { useToast } from "@/shared/hooks/use-toast"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
 import type { FileStatusResponse } from "@/modules/files/types"
 
@@ -45,6 +46,7 @@ export interface JobRunsExplorerState {
     handleRetry: () => Promise<void>
     isRetrying: boolean
     liveSummaries: Record<string, RunLiveSummary>
+    runsError: string | null
 }
 
 async function fetchLiveSummaryForRun(run: JobRun, token: string): Promise<RunLiveSummary> {
@@ -114,9 +116,14 @@ async function fetchLiveSummaryForRun(run: JobRun, token: string): Promise<RunLi
 
 export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
     const { idToken } = useAuth()
+    const { toast } = useToast()
     const [runs, setRuns] = useState<JobRun[]>([])
     const [loading, setLoading] = useState(true)
     const [isRefreshing, setIsRefreshing] = useState(false)
+    // Surface fetch failures so the UI can render a "failed to load runs"
+    // panel instead of an empty-state that looks identical to "no runs yet".
+    // Previously a 401/403/500 was silently swallowed → blank panel forever.
+    const [runsError, setRunsError] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
     const [sortField, setSortField] = useState<SortField>("started_at")
@@ -133,13 +140,23 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         try {
             const res = await jobsAPI.getJobRuns(jobId, 50)
             setRuns(res.runs || [])
-        } catch {
-            setRuns([])
+            setRunsError(null)
+        } catch (err) {
+            // Don't reset `runs` to [] here — we'd lose the previous payload
+            // on a transient blip (e.g. token refresh in flight). Keep stale
+            // data + surface the error so the user can retry.
+            const message = (err as Error)?.message || "Failed to load job runs"
+            setRunsError(message)
+            // Only toast on the initial load + manual refresh; auto-polls
+            // would otherwise spam toasts every 3s when the API is down.
+            if (isManual || loading) {
+                toast({ title: "Failed to load runs", description: message, variant: "destructive" })
+            }
         } finally {
             setLoading(false)
             setIsRefreshing(false)
         }
-    }, [jobId])
+    }, [jobId, toast, loading])
 
     useEffect(() => {
         loadRuns()
@@ -226,14 +243,19 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         setIsRetrying(true)
         try {
             await jobsAPI.triggerJob(jobId)
+            toast({ title: "Retry triggered", description: "Job is starting now" })
             // Quick refresh to pick up RUNNING status, then auto-poll takes over
             setTimeout(() => loadRuns(true), 500)
-        } catch {
-            // ignore — user will see no new run appear
+        } catch (err) {
+            // Previously silent — user clicked Retry and got zero feedback if
+            // the trigger failed (403, quota, downstream unavailable). Now we
+            // surface the API message so they know to fix permissions / retry.
+            const message = (err as Error)?.message || "Failed to retry job"
+            toast({ title: "Retry failed", description: message, variant: "destructive" })
         } finally {
             setIsRetrying(false)
         }
-    }, [jobId, loadRuns])
+    }, [jobId, loadRuns, toast])
 
 
     const filteredRuns = useMemo(() => {
@@ -306,5 +328,6 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         handleRetry,
         isRetrying,
         liveSummaries,
+        runsError,
     }
 }
