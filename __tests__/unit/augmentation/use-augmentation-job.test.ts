@@ -119,11 +119,20 @@ describe('augErrorToast', () => {
         expect(msg).toMatch(/Augmentation job failed/i)
     })
 
+    it('mode 7: AUG_MATERIALIZE_FAILED fires toast.error with Contact Support action', () => {
+        augErrorToast('AUG_MATERIALIZE_FAILED', { errorMessage: 'S3 write failed' })
+        expect(mockToast.error).toHaveBeenCalledTimes(1)
+        const [msg, opts] = (mockToast.error as jest.Mock).mock.calls[0]
+        expect(msg).toMatch(/output generation failed/i)
+        expect(opts.description).toBe('S3 write failed')
+        expect(opts.action?.label).toBe('Contact Support')
+    })
+
     it('does not call toast.success for any failure code', () => {
         const codes: AugErrorCode[] = [
             'AUG_LLM_RATE_LIMITED', 'AUG_EXPR_INVALID', 'AUG_ZERO_ROWS',
             'AUG_SCHEMA_MISMATCH', 'AUG_EVAL_FAILED', 'AUG_CACHE_STALE',
-            'AUG_UNKNOWN',
+            'AUG_MATERIALIZE_FAILED', 'AUG_UNKNOWN',
         ]
         codes.forEach((c) => augErrorToast(c))
         expect(mockToast.success).not.toHaveBeenCalled()
@@ -135,7 +144,7 @@ describe('augErrorToast', () => {
 // ---------------------------------------------------------------------------
 
 describe('AugErrorCode type', () => {
-    it('all 7 expected codes are valid AugErrorCode values', () => {
+    it('all 8 expected codes are valid AugErrorCode values', () => {
         // This is a compile-time check expressed at runtime via assignment.
         const codes: AugErrorCode[] = [
             'AUG_LLM_RATE_LIMITED',
@@ -144,8 +153,9 @@ describe('AugErrorCode type', () => {
             'AUG_SCHEMA_MISMATCH',
             'AUG_EVAL_FAILED',
             'AUG_CACHE_STALE',
+            'AUG_MATERIALIZE_FAILED',
             'AUG_UNKNOWN',
         ]
-        expect(codes).toHaveLength(7)
+        expect(codes).toHaveLength(8)
     })
 })

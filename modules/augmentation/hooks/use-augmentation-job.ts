@@ -86,6 +86,17 @@ export function augErrorToast(
             // Silent — backend already invalidated the cache and retried.
             break
 
+        case "AUG_MATERIALIZE_FAILED":
+            toast.error("Output generation failed — try a smaller batch or contact support.", {
+                description: opts.errorMessage,
+                action: {
+                    label: "Contact Support",
+                    onClick: () => window.open("mailto:support@cleanflowai.com?subject=AUG_MATERIALIZE_FAILED", "_blank"),
+                },
+                duration: 15_000,
+            })
+            break
+
         default:
             toast.error("Augmentation job failed.", {
                 description: opts.errorMessage || "An unknown error occurred.",
