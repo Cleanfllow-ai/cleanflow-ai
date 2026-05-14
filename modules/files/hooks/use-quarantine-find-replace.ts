@@ -94,7 +94,8 @@ export function useQuarantineFindReplace({
         ): Promise<FindReplaceState> => {
             if (!authToken) {
                 const err: FindReplaceState = { ...INITIAL_STATE, status: 'FAILED_TERMINAL', error: 'Not authenticated' }
-                setState(err); return err
+                setState(err)
+                return err
             }
             startedAtRef.current = Date.now()
             setState({ ...INITIAL_STATE, status: 'submitting' })
@@ -104,11 +105,13 @@ export function useQuarantineFindReplace({
                 ;({ operation_id: operationId } = await submitFindReplaceAsync(uploadId, authToken, body))
             } catch (e) {
                 const err: FindReplaceState = { ...INITIAL_STATE, status: 'FAILED_TERMINAL', error: (e as Error)?.message || 'Submit failed', errorObj: e }
-                setState(err); return err
+                setState(err)
+                return err
             }
 
             let next: FindReplaceState = { ...INITIAL_STATE, status: 'PENDING', operationId }
-            setState(next); onProgress?.(next)
+            setState(next)
+            onProgress?.(next)
 
             // eslint-disable-next-line no-constant-condition
             while (true) {
@@ -121,7 +124,8 @@ export function useQuarantineFindReplace({
                     resp = await pollFindReplaceOperation(uploadId, operationId, authToken)
                 } catch (e) {
                     const err: FindReplaceState = { ...next, status: 'FAILED_TERMINAL', error: (e as Error)?.message || 'Poll failed', errorObj: e }
-                    setState(err); return err
+                    setState(err)
+                    return err
                 }
                 const done = resp.progress?.done ?? 0
                 const total = resp.progress?.total ?? 0
@@ -142,7 +146,8 @@ export function useQuarantineFindReplace({
                     error: errorMsg,
                     errorObj: errorMsg !== null ? new Error(errorMsg) : null,
                 }
-                setState(next); onProgress?.(next)
+                setState(next)
+                onProgress?.(next)
                 if (isOperationTerminal(resp.status)) return next
 
                 // Sleep that wakes early on abort.

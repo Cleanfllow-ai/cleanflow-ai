@@ -114,21 +114,14 @@ function navigateToConnect(provider: string | null): void {
 function goToLogin(): void {
     // CRITICAL: clear stale JWT + auth state BEFORE navigating, otherwise
     // a "Back" button press lands the user in the same broken-session loop.
-    // We invoke the sign-out helper synchronously and don't await — the
-    // navigation should not be blocked on token revocation, and the local
-    // store clearing happens synchronously inside the helper anyway.
+    // Fire-and-forget — local store clearing is synchronous; don't block navigation.
     if (signOutHandler) {
         try {
-            const maybePromise = signOutHandler()
-            // If the handler returns a Promise (network revoke etc.), don't
-            // block navigation on it — we've already cleared local tokens.
-            if (maybePromise && typeof (maybePromise as Promise<void>).catch === "function") {
-                ;(maybePromise as Promise<void>).catch(() => {
-                    // Best-effort sign-out — local storage already cleared.
-                })
-            }
+            Promise.resolve(signOutHandler()).catch(() => {
+                // Best-effort — local storage already cleared.
+            })
         } catch {
-            // Best-effort — never let sign-out failure block the redirect.
+            // Never let sign-out failure block the redirect.
         }
     }
 

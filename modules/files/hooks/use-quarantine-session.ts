@@ -1,10 +1,3 @@
-/**
- * use-quarantine-session.ts
- *
- * Hook for managing quarantine editor session lifecycle
- * Handles manifest fetching, session initialization, and compatibility mode
- */
-
 import { useState, useCallback } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
 import { toastFromQuarantineError } from '@/lib/error-toast-jsx'
@@ -72,12 +65,6 @@ interface SessionState {
   compatibilityMode: boolean
 }
 
-/**
- * Hook for quarantine session management
- * Initializes manifest, session, and handles fallback to compatibility mode
- *
- * @returns Session state and initialization function
- */
 export function useQuarantineSession() {
   const { toast } = useToast()
   const [state, setState] = useState<SessionState>({
@@ -111,10 +98,6 @@ export function useQuarantineSession() {
     []
   )
 
-  /**
-   * Initialize session in legacy compatibility mode
-   * Downloads CSV, parses locally, and sets up mock manifest
-   */
   const initializeLegacy = useCallback(
     async (uploadId: string, authToken: string) => {
       // Fetch versions for metadata
@@ -177,9 +160,6 @@ export function useQuarantineSession() {
     [toast]
   )
 
-  /**
-   * Initialize session in modern mode (with backend session support)
-   */
   const initializeModern = useCallback(
     async (uploadId: string, authToken: string) => {
       const versionsResp = await getFileVersions(uploadId, authToken).catch(() => ({
@@ -255,10 +235,6 @@ export function useQuarantineSession() {
     [loadVersionsInBackground, toast]
   )
 
-  /**
-   * Initialize quarantine session
-   * Tries modern mode first, falls back to legacy on failure
-   */
   const initialize = useCallback(
     async (uploadId: string, authToken: string) => {
       setState((prev) => ({ ...prev, loading: true }))
@@ -293,9 +269,6 @@ export function useQuarantineSession() {
     [initializeModern, initializeLegacy, toast]
   )
 
-  /**
-   * Reset session state
-   */
   const reset = useCallback(() => {
     setState({
       manifest: null,
@@ -307,17 +280,11 @@ export function useQuarantineSession() {
     })
   }, [])
 
-  /**
-   * Update etag (after save operations)
-   */
   const updateEtag = useCallback((newEtag: string) => {
     setState((prev) => ({ ...prev, etag: newEtag }))
   }, [])
 
-  /**
-   * Re-fetch the current session etag from the server without reloading
-   * manifest or rows.  Used to recover from stale-etag 409 errors.
-   */
+  /** Re-fetch the session etag without reloading manifest or rows. Used to recover from 409 stale-etag. */
   const refreshEtag = useCallback(
     async (uploadId: string, authToken: string, baseUploadId: string): Promise<string> => {
       const sessionResp = await startQuarantineSession(uploadId, authToken, baseUploadId)

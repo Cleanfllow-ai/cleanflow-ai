@@ -304,10 +304,8 @@ export function startIdleTimer(
 
   const ACTIVITY_EVENTS = ["mousemove", "keydown", "mousedown", "touchstart", "scroll"]
 
-  const handleActivity = () => schedule()
-
   if (typeof window !== "undefined") {
-    ACTIVITY_EVENTS.forEach((ev) => window.addEventListener(ev, handleActivity, { passive: true }))
+    ACTIVITY_EVENTS.forEach((ev) => window.addEventListener(ev, schedule, { passive: true }))
     schedule() // arm immediately
   }
 
@@ -316,7 +314,7 @@ export function startIdleTimer(
     destroy: () => {
       clearTimers()
       if (typeof window !== "undefined") {
-        ACTIVITY_EVENTS.forEach((ev) => window.removeEventListener(ev, handleActivity))
+        ACTIVITY_EVENTS.forEach((ev) => window.removeEventListener(ev, schedule))
       }
     },
   }

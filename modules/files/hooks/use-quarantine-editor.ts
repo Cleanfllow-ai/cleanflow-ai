@@ -1,10 +1,3 @@
-/**
- * use-quarantine-editor.ts
- *
- * Main orchestrator hook for quarantine editor
- * Composes all sub-hooks and provides unified interface
- */
-
 import { useState, useCallback, useEffect, useMemo, useRef, startTransition } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
 import { toastFromQuarantineError } from '@/lib/error-toast-jsx'
@@ -33,13 +26,16 @@ interface UseQuarantineEditorParams {
 
 type QuarantineApprovalState = ApprovalStatus | 'NONE'
 
-/**
- * Main quarantine editor hook
- * Orchestrates all sub-hooks and provides unified state management
- *
- * @param params - File, auth token, and open state
- * @returns Complete quarantine editor state and operations
- */
+function isApprovalDeniedError(error: unknown): boolean {
+  const message = String((error as { message?: string })?.message || '').toLowerCase()
+  return (
+    message.includes('reprocess pending approval') ||
+    message.includes('reprocess requires approval') ||
+    message.includes('approval required') ||
+    message.includes('awaiting approval')
+  )
+}
+
 export function useQuarantineEditor({ file, authToken, open = true, filters }: UseQuarantineEditorParams) {
   const { toast } = useToast()
   const { user, userRole } = useAuth()
@@ -96,16 +92,6 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
   const approvalResourceName = useMemo(() => {
     return file?.original_filename?.trim() || file?.filename?.trim() || activeUploadId || 'Quarantine file'
   }, [file?.filename, file?.original_filename, activeUploadId])
-
-  const isApprovalDeniedError = useCallback((error: any) => {
-    const message = String(error?.message || '').toLowerCase()
-    return (
-      message.includes('reprocess pending approval') ||
-      message.includes('reprocess requires approval') ||
-      message.includes('approval required') ||
-      message.includes('awaiting approval')
-    )
-  }, [])
 
   const refreshApprovalState = useCallback(async (): Promise<QuarantineApprovalState> => {
     if (!activeUploadId || !authToken || userRole === 'Super Admin') {
@@ -534,7 +520,6 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
       approvalStatus,
       refreshApprovalState,
       userRole,
-      isApprovalDeniedError,
     ]
   )
 

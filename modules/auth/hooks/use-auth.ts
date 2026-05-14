@@ -20,18 +20,23 @@ import {
 // Re-export types for backwards compatibility
 export type { User, AuthState, MfaSetupData } from '@/modules/auth/types/auth.types'
 
+const UNAUTHENTICATED_STATE: AuthState = {
+  user: null,
+  isLoading: false,
+  isAuthenticated: false,
+  idToken: null,
+  accessToken: null,
+  refreshToken: null,
+  mfaRequired: false,
+  mfaSession: null,
+  mfaUsername: null,
+  idleWarnSecondsRemaining: null,
+}
+
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>({
-    user: null,
+    ...UNAUTHENTICATED_STATE,
     isLoading: true,
-    isAuthenticated: false,
-    idToken: null,
-    accessToken: null,
-    refreshToken: null,
-    mfaRequired: false,
-    mfaSession: null,
-    mfaUsername: null,
-    idleWarnSecondsRemaining: null,
   })
 
   const idleTimerRef = useRef<ReturnType<typeof startIdleTimer> | null>(null)
@@ -42,18 +47,7 @@ export function useAuth() {
     broadcastLogout()
     idleTimerRef.current?.destroy()
     idleTimerRef.current = null
-    setAuthState({
-      user: null,
-      isLoading: false,
-      isAuthenticated: false,
-      idToken: null,
-      accessToken: null,
-      refreshToken: null,
-      mfaRequired: false,
-      mfaSession: null,
-      mfaUsername: null,
-      idleWarnSecondsRemaining: null,
-    })
+    setAuthState(UNAUTHENTICATED_STATE)
     if (typeof window !== "undefined") {
       window.location.href = "/auth/login?reason=session_expired"
     }
@@ -117,18 +111,7 @@ export function useAuth() {
       clearStoredTokens()
       idleTimerRef.current?.destroy()
       idleTimerRef.current = null
-      setAuthState({
-        user: null,
-        isLoading: false,
-        isAuthenticated: false,
-        idToken: null,
-        accessToken: null,
-        refreshToken: null,
-        mfaRequired: false,
-        mfaSession: null,
-        mfaUsername: null,
-        idleWarnSecondsRemaining: null,
-      })
+      setAuthState(UNAUTHENTICATED_STATE)
       if (typeof window !== "undefined") {
         window.location.href = "/auth/login"
       }
@@ -638,18 +621,7 @@ export function useAuth() {
     // Case 5: tear down idle timer
     idleTimerRef.current?.destroy()
     idleTimerRef.current = null
-    setAuthState({
-      user: null,
-      isLoading: false,
-      isAuthenticated: false,
-      idToken: null,
-      accessToken: null,
-      refreshToken: null,
-      mfaRequired: false,
-      mfaSession: null,
-      mfaUsername: null,
-      idleWarnSecondsRemaining: null,
-    })
+    setAuthState(UNAUTHENTICATED_STATE)
   }
 
   /**
