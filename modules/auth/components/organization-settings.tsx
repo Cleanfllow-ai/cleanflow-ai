@@ -235,6 +235,8 @@ export function OrganizationSettings() {
           isSavingPermissions={hookData.isSavingPermissions}
           togglePermission={hookData.togglePermission}
           handleSavePermissions={hookData.handleSavePermissions}
+          isLoadingPermissions={hookData.isLoadingPermissions}
+          permissionsLoadError={hookData.permissionsLoadError}
         />
       </TabsContent>
 

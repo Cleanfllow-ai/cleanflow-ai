@@ -16,6 +16,11 @@ interface OrgPermissionsTabProps {
   isSavingPermissions: boolean;
   togglePermission: (permissionId: string, role: "superadmin" | "admin" | "dataSteward") => void;
   handleSavePermissions: () => Promise<void>;
+  // Loading + error surface from useOrgSettings. Without these the matrix
+  // appeared "stuck on INITIAL_PERMISSIONS" while the network was in flight
+  // because no spinner was rendered and there was no way to retry on 5xx.
+  isLoadingPermissions?: boolean;
+  permissionsLoadError?: string | null;
 }
 
 export function OrgPermissionsTab({
@@ -26,6 +31,8 @@ export function OrgPermissionsTab({
   isSavingPermissions,
   togglePermission,
   handleSavePermissions,
+  isLoadingPermissions = false,
+  permissionsLoadError = null,
 }: OrgPermissionsTabProps) {
   return (
     <PermissionWrapper
@@ -41,6 +48,23 @@ export function OrgPermissionsTab({
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {isLoadingPermissions && (
+            <div
+              role="status"
+              className="flex items-center gap-2 text-sm text-muted-foreground mb-4"
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Loading role permissions...
+            </div>
+          )}
+          {permissionsLoadError && !isLoadingPermissions && (
+            <div
+              role="alert"
+              className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              Could not load role permissions: {permissionsLoadError}
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
