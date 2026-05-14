@@ -2,13 +2,17 @@
  * RuleEditor — form for a single DQ rule entry.
  *
  * Fields:
- *  - column     (string, required)
- *  - rule_type  (enum: "null_check" | "range" | "format" | "enum" | "custom")
- *  - threshold  (0-1 float, optional — used by range / custom rules)
- *  - enabled    (boolean toggle)
+ *  - column      (string, required)
+ *  - rule_type   (enum: "null_check" | "range" | "format" | "enum" | "custom")
+ *  - threshold   (0-1 float, optional — used by range / custom rules)
+ *  - pattern     (regex string, required when rule_type === "format")
+ *  - polars_expr (Polars SQL expression, required when rule_type === "custom")
+ *  - enabled     (boolean toggle)
  *
- * Calls onSave({ column, rule_type, threshold, enabled }) on submit.
- * Calls onCancel when the user dismisses without saving.
+ * Validation runs client-side via modules/settings/lib/validation::validateRuleSpec
+ * BEFORE submit so users see inline errors instead of waiting for a BE 422.
+ *
+ * Calls onSave(DQRuleFields) on submit and onCancel when dismissed.
  */
 
 "use client"
@@ -17,6 +21,10 @@ import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+    validateRuleSpec,
+    type RuleSpecValidationError,
+} from "@/modules/settings/lib/validation"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +34,10 @@ export interface DQRuleFields {
     column: string
     rule_type: RuleType
     threshold?: number
+    /** Regex pattern — required when rule_type === "format". */
+    pattern?: string
+    /** Polars SQL expression — required when rule_type === "custom". */
+    polars_expr?: string
     enabled: boolean
 }
 
@@ -35,24 +47,18 @@ export interface RuleEditorProps {
     onCancel: () => void
 }
 
-// ─── Validation ───────────────────────────────────────────────────────────────
+// ─── Validation (legacy export — delegates to the shared validator) ──────────
 
-export interface RuleValidationError {
-    column?: string
-    threshold?: string
-}
+export type RuleValidationError = RuleSpecValidationError
 
-export function validateRule(rule: Partial<DQRuleFields>): RuleValidationError {
-    const errs: RuleValidationError = {}
-    if (!rule.column || rule.column.trim() === "") {
-        errs.column = "Column name is required."
-    }
-    if (rule.threshold !== undefined) {
-        if (isNaN(rule.threshold) || rule.threshold < 0 || rule.threshold > 1) {
-            errs.threshold = "Threshold must be a number between 0 and 1."
-        }
-    }
-    return errs
+/**
+ * Back-compat shim: validateRule() is consumed by existing unit tests.
+ * Delegates to the shared validateRuleSpec().
+ */
+export function validateRule(
+    rule: Partial<DQRuleFields>,
+): RuleValidationError {
+    return validateRuleSpec(rule)
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -65,22 +71,28 @@ export function RuleEditor({ initial = {}, onSave, onCancel }: RuleEditorProps) 
     const [threshold, setThreshold] = useState(
         initial.threshold !== undefined ? String(initial.threshold) : "",
     )
+    const [pattern, setPattern] = useState(initial.pattern ?? "")
+    const [polarsExpr, setPolarsExpr] = useState(initial.polars_expr ?? "")
     const [enabled, setEnabled] = useState(initial.enabled ?? true)
     const [errors, setErrors] = useState<RuleValidationError>({})
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
-        const parsed: Partial<DQRuleFields> = {
+        const parsed: Partial<DQRuleFields> & { pattern?: string; polars_expr?: string } = {
             column: column.trim(),
             rule_type: ruleType,
             threshold: threshold !== "" ? parseFloat(threshold) : undefined,
             enabled,
         }
-        const errs = validateRule(parsed)
+        if (ruleType === "format") parsed.pattern = pattern
+        if (ruleType === "custom") parsed.polars_expr = polarsExpr
+
+        const errs = validateRuleSpec(parsed)
         if (Object.keys(errs).length > 0) {
             setErrors(errs)
             return
         }
+        setErrors({})
         onSave(parsed as DQRuleFields)
     }
 
@@ -142,6 +154,44 @@ export function RuleEditor({ initial = {}, onSave, onCancel }: RuleEditorProps) 
                         </p>
                     )}
                 </div>
+
+                {/* Pattern (format rules) */}
+                {ruleType === "format" && (
+                    <div>
+                        <Label htmlFor="rule-pattern">Regex pattern</Label>
+                        <Input
+                            id="rule-pattern"
+                            value={pattern}
+                            onChange={(e) => setPattern(e.target.value)}
+                            placeholder="^[A-Z]{2,4}-\\d{6}$"
+                            data-testid="rule-pattern-input"
+                        />
+                        {errors.pattern && (
+                            <p className="text-destructive text-xs mt-1" data-testid="rule-pattern-error">
+                                {errors.pattern}
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                {/* Polars expression (custom rules) */}
+                {ruleType === "custom" && (
+                    <div>
+                        <Label htmlFor="rule-polars-expr">Polars SQL expression</Label>
+                        <Input
+                            id="rule-polars-expr"
+                            value={polarsExpr}
+                            onChange={(e) => setPolarsExpr(e.target.value)}
+                            placeholder="amount > 0 AND currency = 'USD'"
+                            data-testid="rule-polars-expr-input"
+                        />
+                        {errors.polars_expr && (
+                            <p className="text-destructive text-xs mt-1" data-testid="rule-polars-expr-error">
+                                {errors.polars_expr}
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 {/* Enabled toggle */}
                 <div className="flex items-center gap-2">
