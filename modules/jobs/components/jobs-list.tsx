@@ -25,8 +25,35 @@ import {
 import { useToast } from "@/shared/hooks/use-toast"
 import { cn } from "@/shared/lib/utils"
 import { jobsAPI, type Job, frequencyFromBackend } from "@/modules/jobs/api/jobs-api"
+import { isApiError } from "@/modules/shared/api-error"
 import { JobDialog } from "./job-dialog"
 import { JobRunsExplorer } from "./job-runs-explorer"
+
+// Map an unknown error → user-facing toast copy + UX-correct severity.
+// Distinguishes:
+//   401 → session expired / re-login
+//   403 → insufficient role (no point re-logging in)
+//   409 → conflict (pause/resume mismatch, concurrent edit)
+//   5xx → generic backend failure
+// Anything else falls back to the API-provided message.
+function describeJobError(err: unknown, fallback: string): { title: string; description: string } {
+    if (isApiError(err)) {
+        if (err.status === 401) {
+            return { title: "Session expired", description: "Please sign in again to continue." }
+        }
+        if (err.status === 403) {
+            return { title: "Permission denied", description: err.message || "Your role doesn't allow this action." }
+        }
+        if (err.status === 409) {
+            return { title: "Conflict", description: err.message || "The job state changed — refresh and retry." }
+        }
+        if (err.status >= 500) {
+            return { title: "Server error", description: err.message || "The backend is temporarily unavailable. Try again." }
+        }
+        return { title: fallback, description: err.message }
+    }
+    return { title: fallback, description: (err as Error)?.message || "Something went wrong" }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -196,7 +223,9 @@ export function JobsList() {
             }
             await loadJobs()
         } catch (err) {
-            toast({ title: "Error", description: `Failed to ${job.status === "ACTIVE" ? "pause" : "resume"} job`, variant: "destructive" })
+            const verb = job.status === "ACTIVE" ? "pause" : "resume"
+            const { title, description } = describeJobError(err, `Failed to ${verb} job`)
+            toast({ title, description, variant: "destructive" })
         } finally {
             setActionLoading(null)
         }
@@ -212,7 +241,8 @@ export function JobsList() {
             setJobToDelete(null)
             await loadJobs()
         } catch (err) {
-            toast({ title: "Error", description: "Failed to delete job", variant: "destructive" })
+            const { title, description } = describeJobError(err, "Failed to delete job")
+            toast({ title, description, variant: "destructive" })
         } finally {
             setDeleting(false)
         }
@@ -224,8 +254,9 @@ export function JobsList() {
             await jobsAPI.triggerJob(job.job_id)
             toast({ title: "Job triggered", description: `${job.name} is now running.` })
             await loadJobs()
-        } catch (err: any) {
-            toast({ title: "Trigger failed", description: err?.message || "Failed to trigger job", variant: "destructive" })
+        } catch (err) {
+            const { title, description } = describeJobError(err, "Trigger failed")
+            toast({ title, description, variant: "destructive" })
         } finally {
             setActionLoading(null)
         }

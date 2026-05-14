@@ -1,6 +1,7 @@
 "use client"
 
 import { AWS_CONFIG } from "@/shared/config/aws-config"
+import { parseApiError } from "@/modules/shared/api-error"
 
 import type {
     JobStatus, JobFrequency, DQMode, DQPolicy,
@@ -61,10 +62,14 @@ class JobsAPI {
         const response = await fetch(url, { ...options, headers })
 
         if (!response.ok) {
-            const raw = await response.json().catch(() => ({}))
-            const errorData = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {}
-            const fallbackMsg = typeof raw === "string" ? raw : `HTTP ${response.status}`
-            throw new Error(errorData.error || errorData.message || fallbackMsg)
+            // Use the structured `ApiError` parser so callers can branch on
+            // `.status` (401 → re-login, 403 → insufficient role, 409 →
+            // conflict toast) instead of pattern-matching error message
+            // strings. Previously this threw a flat `Error` with just the
+            // server-provided text, so "Permission denied" looked identical
+            // for both expired-token and missing-role scenarios.
+            const raw = await response.json().catch(() => null)
+            throw parseApiError(response, raw)
         }
 
         return await response.json()
