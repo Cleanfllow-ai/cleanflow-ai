@@ -772,6 +772,24 @@ export function useFilesPage() {
                     clearInterval(reprocessPollRef.current);
                     reprocessPollRef.current = null;
                 }
+                if (pollCount >= maxPolls && stillActive) {
+                    // 30-min ceiling hit while at least one file is still
+                    // active. Previously this branch silently stopped the
+                    // poll and the user had no indication that we'd given
+                    // up. Surface a non-blocking warning + manual-refresh
+                    // affordance so the user can re-check the status.
+                    toast({
+                        title: "Reprocess is taking longer than expected",
+                        description:
+                            "We stopped auto-polling after 30 minutes. Use Refresh to check the latest status.",
+                        variant: "destructive",
+                        action: (
+                            <_ToastAction altText="Refresh" onClick={() => loadFiles(true)}>
+                                Refresh
+                            </_ToastAction>
+                        ) as any,
+                    });
+                }
             }
         }, 5000); // poll every 5s for snappier UX
     }, [dispatch, loadFiles, quarantineEditorFile]);
