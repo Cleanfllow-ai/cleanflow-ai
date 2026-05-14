@@ -1597,7 +1597,22 @@ export function useFilesPage() {
             toast({ title: "Success", description: "File downloaded" });
         } catch (error) {
             console.error("Download error:", error);
-            toast({ title: "Download failed", description: "Unable to download file", variant: "destructive" });
+            // Route 401 / 403 / 5xx through the typed-error matrix so the
+            // toast carries the correct action (Sign In / Contact Support /
+            // Retry) instead of the previous opaque "Unable to download".
+            if (error instanceof ApiError) {
+                toast(
+                    toastFromQuarantineError(error, {
+                        action: "download this file",
+                        retryFn:
+                            error.status >= 500
+                                ? () => handleDirectDownload(file, format, dataType)
+                                : undefined,
+                    }),
+                );
+            } else {
+                toast({ title: "Download failed", description: "Unable to download file", variant: "destructive" });
+            }
         } finally {
             setDownloadingFormat(null);
             setDownloading(null);
@@ -1641,7 +1656,19 @@ export function useFilesPage() {
             });
         } catch (error) {
             console.error("Download error:", error);
-            toast({ title: "Download failed", description: "Unable to download file", variant: "destructive" });
+            if (error instanceof ApiError) {
+                toast(
+                    toastFromQuarantineError(error, {
+                        action: "download this file",
+                        retryFn:
+                            error.status >= 500
+                                ? () => handleDownloadWithErp(targetErp, dataType)
+                                : undefined,
+                    }),
+                );
+            } else {
+                toast({ title: "Download failed", description: "Unable to download file", variant: "destructive" });
+            }
         } finally {
             setDownloadingFormat(null);
             setDownloading(null);
