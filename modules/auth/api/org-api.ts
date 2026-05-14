@@ -2,7 +2,7 @@ import { AWS_CONFIG } from "@/shared/config/aws-config";
 
 const API_BASE_URL = AWS_CONFIG.API_BASE_URL || "";
 
-export type OrgRole = "Super Admin" | "Admin" | "Data Steward";
+export type OrgRole = "Super Admin" | "Admin" | "Data Steward" | "Member";
 
 export interface OrgRecord {
   org_id: string;

@@ -21,7 +21,7 @@ import {
 export type AppRole = OrgRole;
 
 // ─── Constants ────────────────────────────────────────────────────
-export const VALID_ROLES = ["Super Admin", "Admin", "Data Steward"];
+export const VALID_ROLES = ["Super Admin", "Admin", "Data Steward", "Member"];
 
 export const ERP_OPTIONS = [
     { value: "quickbooks", label: "QUICKBOOKS ONLINE" },
@@ -235,6 +235,8 @@ export const getRoleBadgeVariant = (role: string) => {
         case "Admin":
             return "secondary";
         case "Data Steward":
+            return "outline";
+        case "Member":
             return "outline";
         default:
             return "outline";
@@ -653,6 +655,7 @@ export function useOrgSettings() {
         if (currentUserRole === "Super Admin") return ["Super Admin", "Admin", "Data Steward"];
         if (currentUserRole === "Admin") return ["Admin", "Data Steward"];
         if (currentUserRole === "Data Steward") return ["Data Steward"];
+        // "Member" and any unknown roles cannot invite
         return [];
     }, [currentUserRole, canManageMembersPermission]);
 
