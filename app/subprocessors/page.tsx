@@ -1,13 +1,19 @@
-"use client";
+import type { Metadata } from "next";
 
-const _LAST_UPDATED = "2026-05-03";
+const LAST_UPDATED = "2026-05-03";
+
+export const metadata: Metadata = {
+  title: "Sub-processors — CleanFlowAI",
+  description:
+    "Third-party services CleanFlowAI engages to deliver the platform, the data each accesses, region, and DPA status.",
+};
 
 interface Subprocessor {
   name: string;
   purpose: string;
   data: string;
   region: string;
-  dpa: "Signed" | "Pending" | "N/A — public service";
+  dpa: "Signed" | "Pending" | "N/A — public service" | "Signed (under AWS DPA)";
 }
 
 const SUBPROCESSORS: Subprocessor[] = [
@@ -76,12 +82,28 @@ const SUBPROCESSORS: Subprocessor[] = [
   },
 ];
 
+function dpaClass(dpa: Subprocessor["dpa"]): string {
+  if (dpa.startsWith("Signed")) {
+    return "text-green-700 dark:text-green-400";
+  }
+  if (dpa === "Pending") {
+    return "text-amber-700 dark:text-amber-400";
+  }
+  return "text-muted-foreground";
+}
+
 export default function SubprocessorsPage() {
   return (
-    <div className="container mx-auto max-w-4xl py-10 px-6">
-      <h1 className="text-3xl font-bold mb-2">Sub-processors</h1>
+    <main
+      className="container mx-auto max-w-4xl py-10 px-6"
+      aria-labelledby="subprocessors-title"
+    >
+      <h1 id="subprocessors-title" className="text-3xl font-bold mb-2">
+        Sub-processors
+      </h1>
       <p className="text-sm text-muted-foreground mb-8">
-        Last updated: {_LAST_UPDATED}
+        Last updated:{" "}
+        <time dateTime={LAST_UPDATED}>{LAST_UPDATED}</time>
       </p>
 
       <p className="text-sm mb-6">
@@ -92,34 +114,30 @@ export default function SubprocessorsPage() {
 
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
+          <caption className="sr-only">
+            List of sub-processors, what each is used for, the data they
+            access, the region they operate in, and the DPA status.
+          </caption>
           <thead className="bg-muted">
             <tr>
-              <th className="text-left p-3">Provider</th>
-              <th className="text-left p-3">Purpose</th>
-              <th className="text-left p-3">Data accessed</th>
-              <th className="text-left p-3">Region</th>
-              <th className="text-left p-3">DPA</th>
+              <th scope="col" className="text-left p-3">Provider</th>
+              <th scope="col" className="text-left p-3">Purpose</th>
+              <th scope="col" className="text-left p-3">Data accessed</th>
+              <th scope="col" className="text-left p-3">Region</th>
+              <th scope="col" className="text-left p-3">DPA</th>
             </tr>
           </thead>
           <tbody>
             {SUBPROCESSORS.map((s) => (
               <tr key={s.name} className="border-t">
-                <td className="p-3 font-medium">{s.name}</td>
+                <th scope="row" className="p-3 font-medium text-left">
+                  {s.name}
+                </th>
                 <td className="p-3">{s.purpose}</td>
                 <td className="p-3">{s.data}</td>
                 <td className="p-3 whitespace-nowrap">{s.region}</td>
                 <td className="p-3">
-                  <span
-                    className={
-                      s.dpa === "Signed"
-                        ? "text-green-700 dark:text-green-400"
-                        : s.dpa === "Pending"
-                        ? "text-amber-700 dark:text-amber-400"
-                        : "text-muted-foreground"
-                    }
-                  >
-                    {s.dpa}
-                  </span>
+                  <span className={dpaClass(s.dpa)}>{s.dpa}</span>
                 </td>
               </tr>
             ))}
@@ -134,6 +152,6 @@ export default function SubprocessorsPage() {
         </a>
         .
       </p>
-    </div>
+    </main>
   );
 }

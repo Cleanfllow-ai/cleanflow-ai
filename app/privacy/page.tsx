@@ -1,18 +1,29 @@
-"use client";
-
 import Link from "next/link";
+import type { Metadata } from "next";
 
-const _LAST_UPDATED = "2026-05-03";
+const LAST_UPDATED = "2026-05-03";
+
+export const metadata: Metadata = {
+  title: "Privacy Notice — CleanFlowAI",
+  description:
+    "How CleanFlowAI processes personal data, your rights under GDPR + DPDPA, sub-processors, retention, and how to contact our DPO.",
+};
 
 export default function PrivacyNoticePage() {
   return (
-    <div className="container mx-auto max-w-3xl py-10 px-6">
-      <h1 className="text-3xl font-bold mb-2">Privacy Notice</h1>
+    <main
+      className="container mx-auto max-w-3xl py-10 px-6"
+      aria-labelledby="privacy-title"
+    >
+      <h1 id="privacy-title" className="text-3xl font-bold mb-2">
+        Privacy Notice
+      </h1>
       <p className="text-sm text-muted-foreground mb-8">
-        Last updated: {_LAST_UPDATED}
+        Last updated:{" "}
+        <time dateTime={LAST_UPDATED}>{LAST_UPDATED}</time>
       </p>
 
-      <section className="space-y-6 prose prose-sm dark:prose-invert">
+      <article className="space-y-6 prose prose-sm dark:prose-invert">
         <p>
           CleanFlowAI (&quot;we&quot;) provides a data quality platform that
           ingests, validates, and exports business data on behalf of our
@@ -152,7 +163,7 @@ export default function PrivacyNoticePage() {
           banner and (where you&apos;re an account holder) by email at
           least 30 days before they take effect.
         </p>
-      </section>
-    </div>
+      </article>
+    </main>
   );
 }

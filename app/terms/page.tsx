@@ -1,16 +1,28 @@
-"use client";
+import type { Metadata } from "next";
 
-const _LAST_UPDATED = "2026-05-03";
+const LAST_UPDATED = "2026-05-03";
+
+export const metadata: Metadata = {
+  title: "Terms of Service — CleanFlowAI",
+  description:
+    "Terms governing your use of the CleanFlowAI data quality platform: account, customer data, acceptable use, billing, availability, liability, and governing law.",
+};
 
 export default function TermsPage() {
   return (
-    <div className="container mx-auto max-w-3xl py-10 px-6">
-      <h1 className="text-3xl font-bold mb-2">Terms of Service</h1>
+    <main
+      className="container mx-auto max-w-3xl py-10 px-6"
+      aria-labelledby="terms-title"
+    >
+      <h1 id="terms-title" className="text-3xl font-bold mb-2">
+        Terms of Service
+      </h1>
       <p className="text-sm text-muted-foreground mb-8">
-        Last updated: {_LAST_UPDATED}
+        Last updated:{" "}
+        <time dateTime={LAST_UPDATED}>{LAST_UPDATED}</time>
       </p>
 
-      <section className="space-y-6 prose prose-sm dark:prose-invert">
+      <article className="space-y-6 prose prose-sm dark:prose-invert">
         <p>
           These Terms govern your use of CleanFlowAI (the &quot;Service&quot;).
           By signing up or accessing the Service, you agree to these Terms.
@@ -62,7 +74,12 @@ export default function TermsPage() {
         <p>
           We target 99.5% monthly uptime for the file ingest and DQ
           pipeline (see{" "}
-          <a href="https://github.com/kparthiban-infiniqon/cleanflowai_aws/blob/main/docs/runbooks/SLO.md" className="underline">
+          <a
+            href="https://github.com/kparthiban-infiniqon/cleanflowai_aws/blob/main/docs/runbooks/SLO.md"
+            className="underline"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
             SLO doc
           </a>
           ). We are not liable for outages caused by upstream providers
@@ -102,7 +119,7 @@ export default function TermsPage() {
           Email <a href="mailto:legal@infiniqon.com">legal@infiniqon.com</a>{" "}
           with questions or notices.
         </p>
-      </section>
-    </div>
+      </article>
+    </main>
   );
 }
