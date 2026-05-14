@@ -5,6 +5,21 @@ import { Button } from "@/components/ui/button"
 import { Loader2, CheckCircle, XCircle, Play, RotateCw } from "lucide-react"
 import { useProcessingWizard } from "../WizardContext"
 import { fileManagementAPI, type FileStatusResponse, FileDetailsDialog } from "@/modules/files"
+import { isApiError } from "@/modules/shared/api-error"
+
+/** Map an /files/{id}/process or /files/{id}/status error to a user-friendly message. */
+function formatProcessError(err: unknown): string {
+  if (isApiError(err)) {
+    if (err.status === 401) return "Your sign-in session has expired. Please refresh and retry."
+    if (err.status === 403) return "You do not have permission to process this file."
+    if (err.status === 404) return "File no longer exists — refresh the catalog."
+    if (err.status === 409) return err.message || "File is already being processed."
+    if (err.status === 413) return "Process payload is too large. Reduce custom rules and retry."
+    if (err.status >= 500) return "Server error while starting processing. Try again in a moment."
+    return err.message || "Failed to start processing"
+  }
+  return (err as { message?: string })?.message || "Failed to start processing"
+}
 
 export function ProcessStep({
   onComplete,
@@ -42,19 +57,24 @@ export function ProcessStep({
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null
-    const MAX_POLL = 5 * 60 * 1000
+    // 10 minutes — covers large files; the dialog auto-closes after 3 s from
+    // a successful start so the user can keep working while we poll in the
+    // background.
+    const MAX_POLL = 10 * 60 * 1000
     const start = Date.now()
+    let consecutiveErrors = 0
 
     if (status === "processing" && authToken) {
       interval = setInterval(async () => {
         if (Date.now() - start > MAX_POLL) {
           setStatus("error")
-          setProcessingError("Processing timeout - took longer than expected")
+          setProcessingError("Processing is taking longer than expected — check the file in Data Catalog.")
           if (interval) clearInterval(interval)
           return
         }
         try {
           const resp = await fileManagementAPI.getFileStatus(uploadId, authToken)
+          consecutiveErrors = 0
           const fileStatus = resp.status
           if (fileStatus === "DQ_FIXED" || fileStatus === "COMPLETED") {
             setStatus("success")
@@ -63,7 +83,17 @@ export function ProcessStep({
             if (interval) clearInterval(interval)
           } else if (fileStatus === "DQ_FAILED" || fileStatus === "FAILED") {
             setStatus("error")
-            setProcessingError("Processing failed")
+            const detail = (resp as { error_message?: string; failure_reason?: string }).error_message
+              || (resp as { failure_reason?: string }).failure_reason
+              || ""
+            setProcessingError(detail ? `Processing failed: ${detail}` : "Processing failed")
+            if (interval) clearInterval(interval)
+          } else if (fileStatus === "REJECTED") {
+            // BE rejected the file (empty / malformed / encoding) — surface the
+            // specific reason from the validator instead of "Processing failed".
+            const reason = (resp as { failure_reason?: string }).failure_reason || ""
+            setStatus("error")
+            setProcessingError(reason ? `File rejected: ${reason}` : "File was rejected by validation.")
             if (interval) clearInterval(interval)
           } else if (["QUEUED", "DQ_DISPATCHED", "UPLOADING", "NORMALIZING"].includes(fileStatus)) {
             setProgress((prev) => Math.max(prev, 20))
@@ -73,6 +103,22 @@ export function ProcessStep({
             setStatusMessage("Running data quality checks...")
           }
         } catch (err) {
+          // 401/403 are terminal — stop polling so we don't spin forever on
+          // an expired session. Otherwise, allow up to 3 consecutive transient
+          // errors before failing the UI.
+          if (isApiError(err) && (err.status === 401 || err.status === 403)) {
+            setStatus("error")
+            setProcessingError(formatProcessError(err))
+            if (interval) clearInterval(interval)
+            return
+          }
+          consecutiveErrors += 1
+          if (consecutiveErrors >= 3) {
+            setStatus("error")
+            setProcessingError("Lost contact with server while polling status. Check Data Catalog.")
+            if (interval) clearInterval(interval)
+            return
+          }
           console.error("Failed to get status", err)
         }
       }, 2000)
@@ -148,14 +194,26 @@ export function ProcessStep({
         reference_data: referenceData,
       })
       setStatusMessage("Processing started, monitoring progress...")
+      // Notify parent so it refreshes the file list — without this the
+      // catalog row remains stuck on UPLOADED until the next manual refresh.
       if (onStarted) onStarted()
       // Auto-close dialog 3 seconds after processing kicks off
       setTimeout(() => {
         if (onComplete) onComplete()
       }, 3000)
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // Backend rejects a second start while the prior run is still pending —
+      // that's not a failure, the pipeline is already working. Notify parent
+      // to refresh and close after a brief "already running" message.
+      const msg = (err as { message?: string })?.message?.toLowerCase() || ""
+      if (msg.includes("already being processed")) {
+        setStatusMessage("Processing is already running in the background.")
+        if (onStarted) onStarted()
+        setTimeout(() => { if (onComplete) onComplete() }, 2500)
+        return
+      }
       setStatus("error")
-      setProcessingError(err.message || "Failed to start processing")
+      setProcessingError(formatProcessError(err))
     }
   }
 

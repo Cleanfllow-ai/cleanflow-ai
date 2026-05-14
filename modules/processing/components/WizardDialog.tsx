@@ -14,6 +14,20 @@ import { SourceStep } from "./steps/SourceStep"
 import { ProcessingWizardProvider, useProcessingWizard } from "./WizardContext"
 import { fileManagementAPI } from "@/modules/files"
 import type { FileStatusResponse } from "@/modules/files"
+import { isApiError } from "@/modules/shared/api-error"
+
+/** Map an upload/process error to a user-friendly string with status differentiation. */
+function formatQuickError(err: unknown): string {
+    if (isApiError(err)) {
+        if (err.status === 401) return "Your sign-in session has expired. Please refresh and retry."
+        if (err.status === 403) return "You do not have permission to process this file."
+        if (err.status === 404) return "File no longer exists — refresh the catalog."
+        if (err.status === 409) return err.message || "File is already being processed."
+        if (err.status >= 500) return "Server error while starting processing. Please try again."
+        return err.message || "Failed to start processing"
+    }
+    return (err as { message?: string })?.message || "Failed to start processing"
+}
 
 interface WizardDialogProps {
     open: boolean
@@ -34,12 +48,14 @@ function QuickProcessView({
     file,
     authToken,
     onComplete,
+    onStarted,
     onClose,
     onFallbackToAdvanced,
 }: {
     file: FileStatusResponse
     authToken: string
     onComplete?: () => void
+    onStarted?: () => void
     onClose: () => void
     onFallbackToAdvanced?: () => void
 }) {
@@ -54,8 +70,11 @@ function QuickProcessView({
                 await fileManagementAPI.startProcessing(file.upload_id, authToken)
                 setStatus("processing")
                 setStatusMessage("Processing started, running quality checks...")
-            } catch (e: any) {
-                const msg = (e?.message || "").toLowerCase()
+                // Notify parent so it refreshes the file list — otherwise the
+                // catalog row stays UPLOADED until the next manual refresh.
+                if (onStarted) onStarted()
+            } catch (e: unknown) {
+                const msg = (e as { message?: string })?.message?.toLowerCase() || ""
                 // Backend rejects a second start call while the prior run is still
                 // QUEUED / DQ_DISPATCHED / DQ_RUNNING / SHARDING. That's not a
                 // failure — the pipeline is already working. Show a brief
@@ -63,14 +82,15 @@ function QuickProcessView({
                 if (msg.includes("already being processed")) {
                     setStatus("background")
                     setStatusMessage("Processing is running in the background")
+                    if (onStarted) onStarted()
                     return
                 }
                 setStatus("error")
-                setErrorMsg(e.message || "Failed to start processing")
+                setErrorMsg(formatQuickError(e))
             }
         }
         start()
-    }, [file.upload_id, authToken])
+    }, [file.upload_id, authToken, onStarted])
 
     // Auto-close the "background" state after 6 seconds
     useEffect(() => {
@@ -85,18 +105,21 @@ function QuickProcessView({
     // Poll for status while processing
     useEffect(() => {
         if (status !== "processing") return
-        const MAX_POLL = 5 * 60 * 1000
+        // 10 minutes — covers most files; success / failure auto-closes early.
+        const MAX_POLL = 10 * 60 * 1000
         const start = Date.now()
+        let consecutiveErrors = 0
 
         const interval = setInterval(async () => {
             if (Date.now() - start > MAX_POLL) {
                 setStatus("error")
-                setErrorMsg("Processing timed out — check the file status in Data Catalog")
+                setErrorMsg("Processing is taking longer than expected — check the file in Data Catalog.")
                 clearInterval(interval)
                 return
             }
             try {
                 const resp = await fileManagementAPI.getFileStatus(file.upload_id, authToken)
+                consecutiveErrors = 0
                 const fileStatus = resp.status
                 if (fileStatus === "DQ_FIXED" || fileStatus === "COMPLETED") {
                     setStatus("success")
@@ -104,11 +127,19 @@ function QuickProcessView({
                     clearInterval(interval)
                 } else if (fileStatus === "DQ_FAILED" || fileStatus === "FAILED") {
                     setStatus("error")
-                    const detail = (resp as any).error_message || (resp as any).failure_reason || ""
+                    const detail = (resp as { error_message?: string; failure_reason?: string }).error_message
+                        || (resp as { failure_reason?: string }).failure_reason
+                        || ""
                     setErrorMsg(detail
                         ? `Processing failed: ${detail}`
                         : "Processing encountered errors. Try Advanced Configuration for more control, or check the file in Data Catalog."
                     )
+                    clearInterval(interval)
+                } else if (fileStatus === "REJECTED") {
+                    // Empty/malformed/encoding rejection — surface the validator reason.
+                    const reason = (resp as { failure_reason?: string }).failure_reason || ""
+                    setStatus("error")
+                    setErrorMsg(reason ? `File rejected: ${reason}` : "File was rejected by validation.")
                     clearInterval(interval)
                 } else if (["QUEUED", "DQ_DISPATCHED"].includes(fileStatus)) {
                     setStatusMessage("Queued for processing...")
@@ -116,6 +147,21 @@ function QuickProcessView({
                     setStatusMessage("Running data quality checks...")
                 }
             } catch (err) {
+                // 401/403 are terminal — stop polling so we don't spin on an
+                // expired session. Otherwise allow up to 3 transient errors.
+                if (isApiError(err) && (err.status === 401 || err.status === 403)) {
+                    setStatus("error")
+                    setErrorMsg(formatQuickError(err))
+                    clearInterval(interval)
+                    return
+                }
+                consecutiveErrors += 1
+                if (consecutiveErrors >= 3) {
+                    setStatus("error")
+                    setErrorMsg("Lost contact with server while polling. Check Data Catalog.")
+                    clearInterval(interval)
+                    return
+                }
                 console.error("Polling error:", err)
             }
         }, 2500)
@@ -242,9 +288,19 @@ function WizardInitializer({
                     setMode("landing")
                     setShowResume(true)
                 }
-            } catch (e: any) {
+            } catch (e: unknown) {
                 console.error("Failed to load columns:", e)
-                setError(e.message || "Failed to load columns")
+                // Try a status lookup so REJECTED files surface the actual
+                // failure_reason instead of a flat "Failed to load columns".
+                try {
+                    const status = await fileManagementAPI.getFileStatus(file.upload_id, authToken)
+                    if (status.status === "REJECTED") {
+                        const reason = (status as { failure_reason?: string }).failure_reason || ""
+                        setError(reason ? `File rejected: ${reason}` : "File was rejected by validation.")
+                        return
+                    }
+                } catch { /* fall through */ }
+                setError(formatQuickError(e))
             } finally {
                 setLoading(false)
             }
@@ -294,6 +350,7 @@ function WizardInitializer({
                 file={file}
                 authToken={authToken}
                 onComplete={onComplete}
+                onStarted={onStarted}
                 onClose={onClose}
                 onFallbackToAdvanced={handleAdvanced}
             />
