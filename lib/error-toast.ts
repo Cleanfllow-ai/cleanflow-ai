@@ -253,3 +253,173 @@ export function mapErrorToToast(err: unknown): ErrorToastDescriptor {
         variant: "destructive",
     }
 }
+
+// ─── Quarantine-specific error handler ────────────────────────────────────────
+//
+// Maps the 7 quarantine error classes to the agreed toast-matrix:
+//   401 → "Your session expired. Sign in again."  [Sign In]
+//   403 → "You don't have permission for this action."  [Contact Support]
+//   409 ETAG_STALE → "Someone else changed this row. Refresh to see latest."  [Refresh]
+//   409 (other)  → "Conflict: {msg}."  [Retry]
+//   500+         → "Server error. Please retry in a moment."  [Retry]
+//   timeout      → "Request took too long. Retry?"  [Retry]
+//   network fail → "Connection lost. Check your internet."  [Retry]
+//
+// `action` in the context of the quarantine matrix overrides `ApiError.action`;
+// 401 always shows Sign In (the only safe path if the JWT is gone).
+
+export interface QuarantineErrorContext {
+    /** Human-readable label for which operation failed (e.g. "load rows"). */
+    action: string
+    /** Called when the user clicks "Retry" — omit for non-retryable operations. */
+    retryFn?: () => void
+    /** Called when the user clicks "Refresh page". Defaults to `window.location.reload`. */
+    refreshFn?: () => void
+}
+
+function isNetworkError(err: unknown): boolean {
+    if (!(err instanceof Error)) return false
+    const msg = err.message.toLowerCase()
+    return (
+        err.name === "TypeError" && (
+            msg.includes("failed to fetch") ||
+            msg.includes("network request failed") ||
+            msg.includes("networkerror") ||
+            msg.includes("load failed") ||
+            msg.includes("connection refused")
+        )
+    )
+}
+
+function isTimeoutError(err: unknown): boolean {
+    if (!(err instanceof Error)) return false
+    const msg = err.message.toLowerCase()
+    return (
+        err.name === "AbortError" ||
+        msg.includes("timeout") ||
+        msg.includes("timed out") ||
+        msg.includes("aborted")
+    )
+}
+
+function isStaleEtagError(err: unknown): boolean {
+    if (!(err instanceof ApiError)) return false
+    if (err.status !== 409) return false
+    const msg = err.message.toLowerCase()
+    const code = (err.code || "").toLowerCase()
+    return (
+        code === "etag_stale" ||
+        code === "stale_etag" ||
+        code === "conflict_stale" ||
+        msg.includes("stale etag") ||
+        msg.includes("etag") ||
+        msg.includes("optimistic lock") ||
+        msg.includes("modified since")
+    )
+}
+
+export function mapQuarantineErrorToToast(
+    err: unknown,
+    ctx: QuarantineErrorContext,
+): ErrorToastDescriptor {
+    // Network failure (no HTTP response)
+    if (isNetworkError(err)) {
+        return {
+            title: "Connection lost. Check your internet.",
+            description: ctx.action
+                ? `Failed to ${ctx.action}. Reconnect and try again.`
+                : "Reconnect and try again.",
+            variant: "destructive",
+            action: ctx.retryFn
+                ? { label: "Retry", onClick: ctx.retryFn }
+                : undefined,
+        }
+    }
+
+    // Timeout / AbortError
+    if (isTimeoutError(err)) {
+        return {
+            title: "Request took too long. Retry?",
+            description: ctx.action
+                ? `The request to ${ctx.action} timed out.`
+                : "The request timed out.",
+            variant: "default",
+            action: ctx.retryFn
+                ? { label: "Retry", onClick: ctx.retryFn }
+                : undefined,
+        }
+    }
+
+    if (err instanceof ApiError) {
+        // 401 — always sign-in regardless of what the backend says
+        if (err.status === 401) {
+            return {
+                title: "Your session expired. Sign in again.",
+                description: "Please sign in to continue editing.",
+                variant: "destructive",
+                action: {
+                    label: "Sign In",
+                    onClick: () => goToLogin(),
+                },
+            }
+        }
+
+        // 403 — forbidden
+        if (err.status === 403) {
+            return {
+                title: "You don't have permission for this action.",
+                description: err.message || `You lack permission to ${ctx.action}.`,
+                variant: "destructive",
+                action: {
+                    label: "Contact Support",
+                    onClick: () => {
+                        if (typeof window !== "undefined") {
+                            window.open("mailto:support@cleanflow.ai?subject=Permission%20issue", "_blank")
+                        }
+                    },
+                },
+            }
+        }
+
+        // 409 ETAG_STALE — someone else edited this row
+        if (isStaleEtagError(err)) {
+            const refresh = ctx.refreshFn ?? (() => { if (typeof window !== "undefined") window.location.reload() })
+            return {
+                title: "Someone else changed this row. Refresh to see latest.",
+                description: "Your edit was not saved to avoid overwriting a newer version.",
+                variant: "default",
+                action: {
+                    label: "Refresh",
+                    onClick: refresh,
+                },
+            }
+        }
+
+        // 409 other conflict
+        if (err.status === 409) {
+            return {
+                title: `Conflict: ${err.message}.`,
+                description: "Your change could not be applied because of a conflict.",
+                variant: "default",
+                action: ctx.retryFn
+                    ? { label: "Retry", onClick: ctx.retryFn }
+                    : undefined,
+            }
+        }
+
+        // 500+
+        if (err.status >= 500) {
+            return {
+                title: "Server error. Please retry in a moment.",
+                description: "If the problem persists, contact support.",
+                variant: "destructive",
+                action: ctx.retryFn
+                    ? { label: "Retry", onClick: ctx.retryFn }
+                    : undefined,
+            }
+        }
+    }
+
+    // Fall through to the generic mapper so existing connector/auth toasts still work
+    return mapErrorToToast(err)
+}

@@ -30,6 +30,8 @@ import {
   previewFindReplace,
   type FindReplacePreviewMatch,
 } from '@/modules/files/api/file-quarantine-api'
+import { useToast } from '@/shared/hooks/use-toast'
+import { toastFromQuarantineError } from '@/lib/error-toast-jsx'
 import {
   QuarantineSkippedRowsPanel,
   type SkippedRow,
@@ -118,6 +120,7 @@ export function QuarantineFindReplacePanel({
   onScrollToRow,
   filenameStem,
 }: QuarantineFindReplacePanelProps) {
+  const { toast } = useToast()
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [replaceAllCount, setReplaceAllCount] = useState<number | null>(null)
   const [skippedCount, setSkippedCount] = useState<number>(0)
@@ -212,6 +215,13 @@ export function QuarantineFindReplacePanel({
           },
           { signal: controller.signal },
         )
+        if (finalState.status === 'FAILED_TERMINAL' && finalState.error) {
+          // Surface async operation failures as a toast with Retry action.
+          toast(toastFromQuarantineError(
+            new Error(finalState.error),
+            { action: 'find and replace', retryFn: () => void handleReplaceAll() },
+          ))
+        }
         const r = finalState.result
         if (r) {
           setReplaceAllCount(r.applied_count)
@@ -235,6 +245,11 @@ export function QuarantineFindReplacePanel({
           setSkippedCount(result.skipped || 0)
         }
       }
+    } catch (err: unknown) {
+      toast(toastFromQuarantineError(err, {
+        action: 'find and replace',
+        retryFn: () => void handleReplaceAll(),
+      }))
     } finally {
       setReplacing(false)
       abortRef.current = null

@@ -16,8 +16,8 @@
 import * as React from "react"
 
 import { ToastAction } from "@/components/ui/toast"
-import { mapErrorToToast } from "@/lib/error-toast"
-import type { ErrorToastDescriptor } from "@/lib/error-toast"
+import { mapErrorToToast, mapQuarantineErrorToToast } from "@/lib/error-toast"
+import type { ErrorToastDescriptor, QuarantineErrorContext } from "@/lib/error-toast"
 
 export interface ToastFromErrorPayload {
     title: string
@@ -26,8 +26,7 @@ export interface ToastFromErrorPayload {
     action?: React.ReactElement<typeof ToastAction>
 }
 
-export function toastFromError(err: unknown): ToastFromErrorPayload {
-    const desc: ErrorToastDescriptor = mapErrorToToast(err)
+function descToPayload(desc: ErrorToastDescriptor): ToastFromErrorPayload {
     if (desc.action) {
         return {
             title: desc.title,
@@ -45,4 +44,23 @@ export function toastFromError(err: unknown): ToastFromErrorPayload {
         description: desc.description,
         variant: desc.variant,
     }
+}
+
+export function toastFromError(err: unknown): ToastFromErrorPayload {
+    return descToPayload(mapErrorToToast(err))
+}
+
+/**
+ * Quarantine-aware variant of `toastFromError`.
+ * Maps the 7 quarantine error classes (401/403/409-stale/409-other/500/timeout/network)
+ * to the agreed toast-matrix with correct action buttons.
+ *
+ * Usage inside any quarantine hook:
+ *   catch (err) { toast(toastFromQuarantineError(err, { action: 'load rows', retryFn: () => fetchRows() })) }
+ */
+export function toastFromQuarantineError(
+    err: unknown,
+    ctx: QuarantineErrorContext,
+): ToastFromErrorPayload {
+    return descToPayload(mapQuarantineErrorToToast(err, ctx))
 }

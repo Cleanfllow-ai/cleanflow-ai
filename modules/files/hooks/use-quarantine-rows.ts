@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
+import { toastFromQuarantineError } from '@/lib/error-toast-jsx'
 import { queryQuarantinedRows } from '@/modules/files/api'
 import type { QuarantineRow, QuarantineEditorConfig } from '@/modules/files/types'
 
@@ -88,11 +89,7 @@ export function useQuarantineRows(config: QuarantineEditorConfig) {
         })
       } catch (error: any) {
         setState((prev) => ({ ...prev, loading: false }))
-        toast({
-          title: 'Failed to load quarantined rows',
-          description: error?.message || 'Unknown error',
-          variant: 'destructive',
-        })
+        toast(toastFromQuarantineError(error, { action: 'load quarantined rows' }))
         throw error
       }
     },
@@ -125,11 +122,7 @@ export function useQuarantineRows(config: QuarantineEditorConfig) {
         })
       } catch (error: any) {
         setState({ rows: [], cursor: null, hasMore: false, loading: false })
-        toast({
-          title: 'Failed to load quarantined rows',
-          description: error?.message || 'Unknown error',
-          variant: 'destructive',
-        })
+        toast(toastFromQuarantineError(error, { action: 'load quarantined rows' }))
         throw error
       }
     },

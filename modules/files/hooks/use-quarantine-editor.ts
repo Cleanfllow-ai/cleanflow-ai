@@ -7,6 +7,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef, startTransition } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
+import { toastFromQuarantineError } from '@/lib/error-toast-jsx'
 import { useAuth } from '@/modules/auth'
 import { orgAPI, type ApprovalRecord, type ApprovalStatus } from '@/modules/auth/api/org-api'
 import {
@@ -384,11 +385,10 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
       }
 
       staleEtagRetryCountRef.current = 0
-      toast({
-        title: 'Save failed',
-        description: error?.message || 'Unable to save edits',
-        variant: 'destructive',
-      })
+      toast(toastFromQuarantineError(error, {
+        action: 'save edits',
+        retryFn: () => void saveEdits(),
+      }))
       return false
     } finally {
       setSaving(false)
@@ -516,11 +516,7 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
         if (isApprovalDeniedError(error)) {
           await refreshApprovalState()
         }
-        toast({
-          title: 'Reprocess failed',
-          description: error?.message || 'Unable to submit reprocess',
-          variant: 'destructive',
-        })
+        toast(toastFromQuarantineError(error, { action: 'submit reprocess' }))
         return null
       } finally {
         setSubmitting(false)
@@ -622,10 +618,11 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
         }
       } catch (error: any) {
         console.error('[QuarantineEditor] fetchRows failed:', error)
+        toast(toastFromQuarantineError(error, { action: 'load rows' }))
         throw error
       }
     },
-    [activeUploadId, file, authToken, session.manifest, session.session, session.compatibilityMode, rows.mergeRows]
+    [activeUploadId, file, authToken, session.manifest, session.session, session.compatibilityMode, rows.mergeRows, toast]
   )
 
   // Cell edit handler

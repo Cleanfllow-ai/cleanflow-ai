@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
+import { toastFromQuarantineError } from '@/lib/error-toast-jsx'
 import {
   getQuarantineManifest,
   startQuarantineSession,
@@ -278,22 +279,14 @@ export function useQuarantineSession() {
             return legacyResult
           } catch (legacyError: any) {
             setState((prev) => ({ ...prev, loading: false }))
-            toast({
-              title: 'Failed to initialize quarantine editor',
-              description: legacyError?.message || 'Legacy compatibility initialization failed',
-              variant: 'destructive',
-            })
+            toast(toastFromQuarantineError(legacyError, { action: 'initialize quarantine editor' }))
             throw legacyError
           }
         }
 
         // Other errors
         setState((prev) => ({ ...prev, loading: false }))
-        toast({
-          title: 'Failed to initialize quarantine editor',
-          description: error?.message || 'Unknown error',
-          variant: 'destructive',
-        })
+        toast(toastFromQuarantineError(error, { action: 'initialize quarantine editor' }))
         throw error
       }
     },
