@@ -277,6 +277,49 @@ export function useFilesPage() {
     // Highlighted file (from activity feed click — animates the row)
     const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null);
 
+    // ── URL-state hydration: pick up search/sort/status from query on mount ─
+    // We persist these on change too (effect below) so a Cmd+R / opening the
+    // page in a new tab preserves the filtered view. Hydration runs exactly
+    // once per page-mount via a ref guard — otherwise the URL-write effect
+    // and this hydration effect would ping-pong.
+    const urlStateHydratedRef = useRef(false);
+    useEffect(() => {
+        if (urlStateHydratedRef.current) return;
+        urlStateHydratedRef.current = true;
+        const q = searchParams.get("q");
+        const sf = searchParams.get("sort");
+        const sd = searchParams.get("dir");
+        if (q) setSearchQuery(q);
+        if (sf === "name" || sf === "score" || sf === "status" || sf === "uploaded" || sf === "updated") {
+            setSortField(sf);
+        }
+        if (sd === "asc" || sd === "desc") setSortDirection(sd);
+        // statusFilter is hydrated by the existing effect below
+    }, [searchParams]);
+
+    // ── URL-state write-back: keep ?q / ?status / ?sort / ?dir in sync ──
+    // Debounced to avoid a router.replace per keystroke. Skipped until the
+    // hydration ref has flipped so we don't clobber URL params during the
+    // initial mount race. Uses replace() so the browser back-stack stays
+    // clean — these are view-state changes, not navigation.
+    useEffect(() => {
+        if (!urlStateHydratedRef.current) return;
+        const timer = setTimeout(() => {
+            const next = new URLSearchParams(searchParams.toString());
+            if (searchQuery) next.set("q", searchQuery); else next.delete("q");
+            if (statusFilter && statusFilter !== "all") next.set("status", statusFilter); else next.delete("status");
+            if (sortField && sortField !== "uploaded") next.set("sort", sortField); else next.delete("sort");
+            if (sortDirection && sortDirection !== "desc") next.set("dir", sortDirection); else next.delete("dir");
+            const qs = next.toString();
+            const target = qs ? `${pathname}?${qs}` : pathname;
+            // Only replace if URL actually changed — guards against an
+            // infinite loop with the hydration effect.
+            const current = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+            if (target !== current) router.replace(target, { scroll: false });
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, statusFilter, sortField, sortDirection, pathname, router, searchParams]);
+
     // Handle query params from Dashboard → Catalog navigation
     const consumedFileParamRef = useRef(false);
     useEffect(() => {
