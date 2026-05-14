@@ -299,11 +299,16 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
             }
             setDownloadOpen(false)
         } catch (err) {
-            console.error("Download failed:", err)
+            // Surface the failure: previously this only console.error'd, so the
+            // user clicked Download, the spinner went away, nothing happened,
+            // and they had no idea why. Now they see a toast with the API
+            // message (e.g. "Insufficient role" / "Quota exceeded").
+            const message = (err as Error)?.message || "Failed to download export"
+            toast({ title: "Download failed", description: message, variant: "destructive" })
         } finally {
             setDownloading(false)
         }
-    }, [downloadFile, idToken, erpMode, erpTarget])
+    }, [downloadFile, idToken, erpMode, erpTarget, toast])
 
     const handleDelete = useCallback(async (uploadId: string) => {
         if (!idToken) return
@@ -314,10 +319,15 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
                     ? { ...e, file: null, error: "Deleted" }
                     : e
             ))
+            toast({ title: "File deleted" })
         } catch (err) {
-            console.error("Delete failed:", err)
+            // Surface deletion failures (commonly 403 from non-admin members,
+            // or 409 if the file is mid-reprocess). Previously the row stayed
+            // visible with no feedback, leaving the user to guess why.
+            const message = (err as Error)?.message || "Failed to delete file"
+            toast({ title: "Delete failed", description: message, variant: "destructive" })
         }
-    }, [idToken])
+    }, [idToken, toast])
 
     const handleOpenQuarantineEditor = useCallback((file: FileStatusResponse, entity?: string) => {
         setQuarantineFile(file)
