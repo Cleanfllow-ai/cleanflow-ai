@@ -26,9 +26,15 @@ const BAR_COLORS = [
 type Props = {
   issues?: TopIssue[]
   isLoading?: boolean
+  /**
+   * When non-null, the DQ report fetch failed for a non-benign reason. The
+   * widget renders an error state instead of the ambiguous "no data" empty
+   * state so users can tell "no issues yet" apart from "fetch failed".
+   */
+  errorMessage?: string | null
 }
 
-export function TopIssuesChart({ issues, isLoading }: Props) {
+export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
   const normalized = (issues || [])
     .filter((i) => typeof i.count === "number" && i.count > 0)
     .sort((a, b) => b.count - a.count)
@@ -89,9 +95,20 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
               </div>
             ))}
           </div>
+        ) : errorMessage ? (
+          <div
+            data-testid="top-issues-error"
+            role="alert"
+            className="text-center text-sm text-rose-600 dark:text-rose-400 py-6"
+          >
+            Couldn’t load DQ issues. Try refreshing the dashboard.
+          </div>
         ) : issuesWithPct.length === 0 ? (
-          <div className="text-center text-sm text-muted-foreground py-6">
-            No data available for this card yet.
+          <div
+            data-testid="top-issues-empty"
+            className="text-center text-sm text-muted-foreground py-6"
+          >
+            No DQ issues recorded yet.
           </div>
         ) : (
           <div className="space-y-2.5">

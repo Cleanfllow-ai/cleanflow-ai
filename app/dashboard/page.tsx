@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
+import { AlertCircle } from "lucide-react"
 import { MainLayout } from "@/shared/layout/main-layout"
 import { DashboardHeader, ActivityFeed, TopIssuesChart, DqCharts, ProcessingSummary } from "@/modules/dashboard"
 import { DashboardKpiCards } from "@/modules/dashboard/components/dashboard-kpi-cards"
@@ -8,6 +9,15 @@ import { DashboardKpiCards } from "@/modules/dashboard/components/dashboard-kpi-
 import { ActionRequiredPanel } from "@/modules/dashboard/components/action-required-panel"
 import { AuthGuard, useAuth } from "@/modules/auth"
 import { fileManagementAPI, type FileStatusResponse, type OverallDqReportResponse, type TopIssue } from "@/modules/files"
+
+const isBenignAuthError = (msg: string): boolean => {
+  const m = msg.toLowerCase()
+  return (
+    m.includes("permission denied") ||
+    m.includes("organization membership required") ||
+    m.includes("forbidden")
+  )
+}
 
 const toNumericCount = (value: unknown): number => {
   if (typeof value === "number" && Number.isFinite(value)) return value
@@ -60,31 +70,50 @@ export default function DashboardPage() {
   const [isOverallLoading, setIsOverallLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
   const [topIssues, setTopIssues] = useState<TopIssue[]>([])
+  const [filesError, setFilesError] = useState<string | null>(null)
+  const [overallError, setOverallError] = useState<string | null>(null)
   const { idToken } = useAuth()
+
+  // ── Race protection: only the latest fetch wins ─────────────────────────
+  // Each call increments a generation counter; stale responses are dropped.
+  const filesGenRef = useRef(0)
+  const overallGenRef = useRef(0)
 
   const loadFiles = useCallback(async () => {
     if (!idToken) return
+    const gen = ++filesGenRef.current
     try {
       const response = await fileManagementAPI.getUploads(idToken)
+      if (gen !== filesGenRef.current) return // stale; a newer request superseded us
       const items = response.items || []
       setFiles(items)
+      setFilesError(null)
     } catch (error: any) {
-      const message = (error?.message || "").toLowerCase()
-      if (!message.includes("permission denied") && !message.includes("organization membership required")) {
-        console.warn("Failed to load files for dashboard analytics.")
+      if (gen !== filesGenRef.current) return
+      const message = error?.message || ""
+      // Benign auth/membership errors: treat as empty data, no banner.
+      if (isBenignAuthError(message)) {
+        setFiles([])
+        setFilesError(null)
+        return
       }
-      setFiles([])
+      // Real failure: keep prior data (if any) but surface a banner so the
+      // user knows the numbers are stale rather than "no data".
+      console.warn("Failed to load files for dashboard analytics:", message)
+      setFilesError(message || "Unable to load files")
     }
   }, [idToken])
 
   const loadOverall = useCallback(async () => {
     if (!idToken) return
+    const gen = ++overallGenRef.current
     setIsOverallLoading(true)
-    setTopIssues([])
     try {
       const overall: OverallDqReportResponse = await fileManagementAPI.downloadOverallDqReport(idToken)
+      if (gen !== overallGenRef.current) return
       if (!overall) {
         setTopIssues([])
+        setOverallError(null)
         return
       }
       const merged = new Map<string, number>()
@@ -103,33 +132,42 @@ export default function DashboardPage() {
           .sort((a, b) => b.count - a.count)
           .slice(0, 5),
       )
+      setOverallError(null)
     } catch (error: any) {
-      const message = (error?.message || "").toLowerCase()
-      if (!message.includes("permission denied") && !message.includes("organization membership required")) {
-        console.warn("Failed to load overall DQ report.")
+      if (gen !== overallGenRef.current) return
+      const message = error?.message || ""
+      if (isBenignAuthError(message)) {
+        setTopIssues([])
+        setOverallError(null)
+      } else {
+        console.warn("Failed to load overall DQ report:", message)
+        // Per task requirement: other widgets must still render. We surface
+        // a per-widget error via the isLoading=false + empty topIssues path
+        // plus an `overallError` state passed to TopIssuesChart.
+        setTopIssues([])
+        setOverallError(message || "Unable to load DQ report")
       }
-      setTopIssues([])
     } finally {
-      setIsOverallLoading(false)
+      if (gen === overallGenRef.current) setIsOverallLoading(false)
     }
   }, [idToken])
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
-      await loadFiles()
+      // Run BOTH endpoints in parallel but isolated — neither crashes the
+      // other (no Promise.all). Each writes its own error/state slot.
+      await Promise.allSettled([loadFiles(), loadOverall()])
       setIsLoading(false)
-      loadOverall()
     }
-    loadData()
+    void loadData()
   }, [loadFiles, loadOverall])
 
   const handleRefresh = useCallback(async () => {
     setIsLoading(true)
-    await loadFiles()
+    await Promise.allSettled([loadFiles(), loadOverall()])
     setIsLoading(false)
     setRefreshKey(prev => prev + 1)
-    loadOverall()
   }, [loadFiles, loadOverall])
 
   return (
@@ -140,6 +178,21 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-5">
             <DashboardHeader onRefresh={handleRefresh} />
+
+            {/* Files-load failure banner — distinguishes "failed to fetch"
+                from "you have no files yet". Other widgets still render. */}
+            {filesError && (
+              <div
+                data-testid="dashboard-files-error"
+                role="alert"
+                className="flex items-start gap-2 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-900 dark:border-rose-700/60 dark:bg-rose-950/30 dark:text-rose-200"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <span>
+                  Couldn’t refresh file data — showing last known values. Use Refresh to retry.
+                </span>
+              </div>
+            )}
 
             <DashboardKpiCards files={files} />
 
@@ -153,7 +206,11 @@ export default function DashboardPage() {
 
               <div className="xl:col-span-1 space-y-4">
                 <ActivityFeed files={files} />
-                <TopIssuesChart issues={topIssues} isLoading={isOverallLoading} />
+                <TopIssuesChart
+                  issues={topIssues}
+                  isLoading={isOverallLoading}
+                  errorMessage={overallError}
+                />
                 <ProcessingSummary files={files} />
               </div>
             </div>

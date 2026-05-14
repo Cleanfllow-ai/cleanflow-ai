@@ -42,12 +42,12 @@ describe('TopIssuesChart', () => {
 
   it('renders empty state when no issues provided', () => {
     render(<TopIssuesChart issues={[]} />)
-    expect(screen.getByText(/no data available/i)).toBeInTheDocument()
+    expect(screen.getByText(/no dq issues recorded yet/i)).toBeInTheDocument()
   })
 
   it('renders empty state when issues is undefined', () => {
     render(<TopIssuesChart />)
-    expect(screen.getByText(/no data available/i)).toBeInTheDocument()
+    expect(screen.getByText(/no dq issues recorded yet/i)).toBeInTheDocument()
   })
 
   it('renders loading skeleton when isLoading=true and no data', () => {
