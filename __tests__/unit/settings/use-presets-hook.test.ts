@@ -117,10 +117,12 @@ describe("useSettingsPresets — createPreset", () => {
 // ─── updatePreset ─────────────────────────────────────────────────────────────
 
 describe("useSettingsPresets — updatePreset", () => {
-    it("merges update fields into the existing preset in-place", async () => {
+    it("refetches the canonical record and replaces in-place", async () => {
         const existing = mkPreset({ preset_id: "p-upd", preset_name: "Before" })
+        const refreshed = mkPreset({ preset_id: "p-upd", preset_name: "After", updated_at: "2026-05-15T01:00:00Z" })
         mockList.mockResolvedValue({ presets: [existing], count: 1 })
         mockUpdate.mockResolvedValue({ message: "Updated" })
+        mockGetPreset.mockResolvedValue(refreshed)
 
         const { result } = renderHook(() => useSettingsPresets("tok"))
         await waitFor(() => expect(result.current.loading).toBe(false))
@@ -129,7 +131,43 @@ describe("useSettingsPresets — updatePreset", () => {
             await result.current.updatePreset("p-upd", { preset_name: "After" })
         })
 
+        // After update: getPreset is called for fresh server fields,
+        // and the cached row is replaced wholesale.
+        expect(mockGetPreset).toHaveBeenCalledWith("p-upd", "tok")
         expect(result.current.presets![0].preset_name).toBe("After")
+        expect(result.current.presets![0].updated_at).toBe("2026-05-15T01:00:00Z")
+    })
+
+    it("falls back to optimistic merge when refetch fails", async () => {
+        const existing = mkPreset({ preset_id: "p-upd", preset_name: "Before" })
+        mockList.mockResolvedValue({ presets: [existing], count: 1 })
+        mockUpdate.mockResolvedValue({ message: "Updated" })
+        mockGetPreset.mockRejectedValue(new Error("token expired"))
+
+        const { result } = renderHook(() => useSettingsPresets("tok"))
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        await act(async () => {
+            await result.current.updatePreset("p-upd", { preset_name: "After" })
+        })
+
+        // Refetch failed, so the in-place merge is used — name still updates.
+        expect(result.current.presets![0].preset_name).toBe("After")
+    })
+
+    it("re-throws when settingsAPI.updatePreset rejects (no swallow)", async () => {
+        const existing = mkPreset({ preset_id: "p-upd" })
+        mockList.mockResolvedValue({ presets: [existing], count: 1 })
+        mockUpdate.mockRejectedValue(new Error("stale etag"))
+
+        const { result } = renderHook(() => useSettingsPresets("tok"))
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        await expect(
+            act(async () => {
+                await result.current.updatePreset("p-upd", { preset_name: "x" })
+            }),
+        ).rejects.toThrow(/stale etag/)
     })
 })
 
