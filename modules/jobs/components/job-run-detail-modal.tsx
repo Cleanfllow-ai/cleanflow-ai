@@ -63,6 +63,11 @@ function formatDuration(seconds: number | undefined): string {
     return `${hrs}h ${remMins}m`
 }
 
+function safeFormatDate(value: string | undefined, fmt: string): string {
+    if (!value) return "—"
+    try { return format(new Date(value), fmt) } catch { return "—" }
+}
+
 function formatEntityName(entity: string): string {
     return entity.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
 }
@@ -219,15 +224,11 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                     </div>
                     <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Started</p>
-                        <p className="text-xs">
-                            {run.started_at ? (() => { try { return format(new Date(run.started_at), "MMM d, yyyy HH:mm:ss") } catch { return "\u2014" } })() : "\u2014"}
-                        </p>
+                        <p className="text-xs">{safeFormatDate(run.started_at, "MMM d, yyyy HH:mm:ss")}</p>
                     </div>
                     <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Completed</p>
-                        <p className="text-xs">
-                            {run.completed_at ? (() => { try { return format(new Date(run.completed_at), "MMM d, yyyy HH:mm:ss") } catch { return "\u2014" } })() : "\u2014"}
-                        </p>
+                        <p className="text-xs">{safeFormatDate(run.completed_at, "MMM d, yyyy HH:mm:ss")}</p>
                     </div>
                     {run.correlation_id && (
                         <div className="col-span-2 space-y-1">
@@ -328,7 +329,7 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                             {run.pipeline_logs.map((log, i) => (
                                 <div key={i} className="flex items-start gap-2 text-xs font-mono">
                                     <span className="text-muted-foreground shrink-0 w-[70px]">
-                                        {log.timestamp ? (() => { try { return format(new Date(log.timestamp), "HH:mm:ss") } catch { return "" } })() : ""}
+                                        {safeFormatDate(log.timestamp, "HH:mm:ss").replace("—", "")}
                                     </span>
                                     <Badge variant="outline" className={cn("text-[10px] shrink-0 w-[50px] justify-center", {
                                         "text-blue-600 border-blue-500/25": log.phase === "import",

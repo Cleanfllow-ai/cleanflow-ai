@@ -83,7 +83,6 @@ async function resolveExportDownload(
             if (isPreparedExport || exceedsRowThreshold || noSizeHint) {
                 return { downloadUrl: data.presigned_url, filename: data.filename }
             }
-            console.log('Fetching from presigned URL:', data.filename || 'file')
             const controller = new AbortController()
             const timeoutId = setTimeout(() => controller.abort(), S3_FETCH_TIMEOUT_MS)
             try {
@@ -169,8 +168,6 @@ export async function exportWithColumns(
     if (options.entity) {
         body.entity = options.entity
     }
-
-    console.log('📤 Export with columns:', { uploadId, ...options })
 
     return resolveExportDownload(
         () => fetch(url, {

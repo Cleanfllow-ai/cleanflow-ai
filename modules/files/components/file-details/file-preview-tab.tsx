@@ -282,8 +282,6 @@ export function FilePreviewTab({
                           ? "bg-red-500/10 text-red-900 dark:text-red-300 shadow-[inset_2px_0_0_#ef4444]"
                           : status === "fixed"
                           ? "bg-amber-500/10 text-amber-900 dark:text-amber-300 shadow-[inset_2px_0_0_#f97316]"
-                          : status === "clean"
-                          ? ""
                           : ""
 
                       const cellContent = (

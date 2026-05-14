@@ -100,9 +100,7 @@ const filesSlice = createSlice({
     removeFile: (state, action: PayloadAction<string>) => {
       state.items = state.items.filter((f) => f.upload_id !== action.payload)
     },
-    resetFiles: (state) => {
-      return initialState
-    }
+    resetFiles: () => initialState,
   },
   extraReducers: (builder) => {
     builder

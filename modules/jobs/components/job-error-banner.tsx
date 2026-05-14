@@ -12,7 +12,7 @@
  *   JOB_QUOTA_EXCEEDED           → Manage Schedules button
  */
 
-import { AlertTriangle, AlertCircle, Info, RefreshCw, Settings, ExternalLink } from "lucide-react"
+import { AlertTriangle, AlertCircle, Info, RefreshCw, Settings, ExternalLink, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/shared/lib/utils"
 import type { JobErrorCode } from "@/modules/jobs/types/jobs.types"
@@ -77,6 +77,17 @@ const VARIANT_STYLES = {
     warning: "bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-400",
     error: "bg-red-500/10 border-red-500/25 text-red-700 dark:text-red-400",
     info: "bg-blue-500/10 border-blue-500/25 text-blue-700 dark:text-blue-400",
+}
+
+const ACTION_ICONS: Record<string, LucideIcon> = {
+    "View Logs": ExternalLink,
+    "Re-run Now": RefreshCw,
+    "Manage Schedules": Settings,
+}
+
+function ActionButtonContent({ label }: { label: string }) {
+    const Icon = ACTION_ICONS[label]
+    return Icon ? <><Icon className="h-3 w-3 mr-1" />{label}</> : <>{label}</>
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -158,15 +169,7 @@ export function JobErrorBanner({
                     className="h-6 px-2 text-[11px] shrink-0 border-current/40 hover:bg-current/10"
                     onClick={() => onAction(cfg.actionKey!)}
                 >
-                    {cfg.action === "View Logs" ? (
-                        <><ExternalLink className="h-3 w-3 mr-1" />{cfg.action}</>
-                    ) : cfg.action === "Re-run Now" ? (
-                        <><RefreshCw className="h-3 w-3 mr-1" />{cfg.action}</>
-                    ) : cfg.action === "Manage Schedules" ? (
-                        <><Settings className="h-3 w-3 mr-1" />{cfg.action}</>
-                    ) : (
-                        cfg.action
-                    )}
+                    <ActionButtonContent label={cfg.action} />
                 </Button>
             )}
         </div>

@@ -64,6 +64,11 @@ function getScoreColor(score: number) {
     return "bg-red-500/15 text-red-600 border-red-500/25"
 }
 
+function safeFormatDate(value: string | undefined, fmt: string): string {
+    if (!value) return "—"
+    try { return format(new Date(value), fmt) } catch { return "—" }
+}
+
 function formatDuration(seconds: number | undefined): string {
     if (!seconds) return "—"
     const s = Number(seconds) // Convert Decimal to number
@@ -245,10 +250,7 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground tabular-nums">
-                                            {run.started_at
-                                                ? (() => { try { return format(new Date(run.started_at), "MMM d, HH:mm:ss") } catch { return "\u2014" } })()
-                                                : "\u2014"
-                                            }
+                                            {safeFormatDate(run.started_at, "MMM d, HH:mm:ss")}
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground tabular-nums text-right">
                                             {formatDuration(run.duration_ms ? run.duration_ms / 1000 : undefined)}

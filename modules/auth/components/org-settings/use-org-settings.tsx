@@ -1002,7 +1002,6 @@ export function useOrgSettings() {
         setServicesSettings((prev) => ({ ...prev, [field]: value }));
     };
 
-    // TODO: Wire to backend API
     const handleSaveServices = async () => {
         toast({
             title: "Services settings saved",
