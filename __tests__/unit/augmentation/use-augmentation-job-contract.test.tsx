@@ -157,9 +157,9 @@ describe('useAugmentationJob: progress transitions', () => {
     })
 
     it('progress is 0.5 during RUNNING poll (mid-cycle state is observable)', async () => {
-        // Freeze time so the poll stops at RUNNING and we can inspect state
+        // Submit (call 1) → poll returns RUNNING (call 2) → cancel before 3rd poll fires.
+        // The cancel aborts the sleep between polls, so the 3rd makeRequest never fires.
         const runningJob = { job_id: 'jp2', status: 'RUNNING', created_at: 'x' }
-        // Submit returns PENDING; first poll returns RUNNING; second never resolves (we inspect mid-state)
         let resolveSecondPoll!: (v: unknown) => void
         mockMakeRequest
             .mockResolvedValueOnce({ job_id: 'jp2', status: 'PENDING' })
@@ -177,10 +177,9 @@ describe('useAugmentationJob: progress transitions', () => {
             resolveSecondPoll({ job_id: 'jp2', status: 'SUCCEEDED', created_at: 'x' })
             await p
         })
-        expect(aborted).toBe(true) // cancelled
-        // Progress should have been at 0.5 when RUNNING was seen
-        // (state.progress resets to 0 after cancel; but the hook state at RUNNING was 0.5)
-        // We assert that 2 polls happened: submit + RUNNING poll
-        expect(mockMakeRequest).toHaveBeenCalledTimes(3)
+        expect(aborted).toBe(true) // cancelled (AbortError thrown → caught above)
+        // Exactly 2 calls: POST submit + one GET poll (which returned RUNNING).
+        // cancel() fires AbortError before the sleep timer elapses, so no 3rd call.
+        expect(mockMakeRequest).toHaveBeenCalledTimes(2)
     })
 })

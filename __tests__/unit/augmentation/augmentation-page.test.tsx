@@ -19,6 +19,7 @@ jest.mock('@/modules/auth', () => ({
     useAuth: () => ({ idToken: 'tok-123' }),
 }))
 
+import userEvent from '@testing-library/user-event'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
@@ -101,15 +102,18 @@ describe('AugmentationPage', () => {
     })
 
     it('tab navigation: clicking "Prompt templates" tab shows template manager', async () => {
+        const user = userEvent.setup()
         mockMakeRequest.mockResolvedValue([])
         render(<AugmentationPage />)
         await waitFor(() => expect(mockMakeRequest).toHaveBeenCalled())
         const templateTab = screen.getByRole('tab', { name: /Prompt templates/i })
-        fireEvent.click(templateTab)
-        // PromptTemplateManager renders "Register new template" heading once the tab is active
+        await user.click(templateTab)
+        // PromptTemplateManager mounts once the tab is active
         await waitFor(() =>
-            expect(screen.getByText(/Register new template/i)).toBeInTheDocument()
+            expect(screen.getByTestId('prompt-template-manager')).toBeInTheDocument()
         )
+        // The register form heading must be rendered
+        expect(screen.getByText(/Register new template/i)).toBeInTheDocument()
     })
 
     it('tab navigation: jobs tab is active by default and shows job table', async () => {
