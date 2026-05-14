@@ -99,4 +99,42 @@ describe('AugmentationPage', () => {
         expect(endpoint).toMatch(/\/augmentation\/jobs/)
         expect((opts as { method: string }).method).toBe('GET')
     })
+
+    it('tab navigation: clicking "Prompt templates" tab shows template manager', async () => {
+        mockMakeRequest.mockResolvedValue([])
+        render(<AugmentationPage />)
+        await waitFor(() => expect(mockMakeRequest).toHaveBeenCalled())
+        const templateTab = screen.getByRole('tab', { name: /Prompt templates/i })
+        fireEvent.click(templateTab)
+        // PromptTemplateManager renders "Register new template" heading once the tab is active
+        await waitFor(() =>
+            expect(screen.getByText(/Register new template/i)).toBeInTheDocument()
+        )
+    })
+
+    it('tab navigation: jobs tab is active by default and shows job table', async () => {
+        mockMakeRequest.mockResolvedValueOnce(SAMPLE_JOBS)
+        render(<AugmentationPage />)
+        await waitFor(() => expect(screen.getByTestId('aug-row-job-001')).toBeInTheDocument())
+        // The Jobs tab should be the selected one by default
+        const jobsTab = screen.getByRole('tab', { name: /^Jobs$/i })
+        expect(jobsTab).toHaveAttribute('data-state', 'active')
+    })
+
+    it('Auth error (IAM SigV4 SHA-256 bleed) maps to sign-out message', async () => {
+        const iamError = "Authorization header must contain a hashed with SHA-256 Base64 payload"
+        mockMakeRequest.mockRejectedValueOnce(new Error(iamError))
+        render(<AugmentationPage />)
+        await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+        expect(screen.queryByText(/hashed with SHA-256/i)).not.toBeInTheDocument()
+        expect(screen.getByRole('alert').textContent).toMatch(/sign out and sign in again/i)
+    })
+
+    it('shows "No augmentation jobs yet" when the list is empty', async () => {
+        mockMakeRequest.mockResolvedValueOnce([])
+        render(<AugmentationPage />)
+        await waitFor(() =>
+            expect(screen.getByText(/No augmentation jobs yet/i)).toBeInTheDocument()
+        )
+    })
 })

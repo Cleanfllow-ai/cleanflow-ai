@@ -37,6 +37,15 @@ interface QuarantineAgGridTableProps {
   findMatches?: Array<{ row_id: string; column: string; index?: number }>
   currentMatch?: { row_id: string; column: string; index?: number } | null
   cellLocksRef?: React.MutableRefObject<Map<string, CellLockInfo>>
+  /** Lock-hole #1 fix: cells the server has confirmed our ownership via
+   *  cellLockGranted. editable predicate treats these as "mine" even if
+   *  cellLocksRef doesn't yet reflect our own lock (we set peer locks, not
+   *  our own, in cellLocksRef). */
+  myGrantedCellsRef?: React.MutableRefObject<Set<string>>
+  /** Cells for which we sent cellFocus but haven't yet received the server
+   *  ack (cellLockGranted or cellLockDenied). Predicate allows editing
+   *  optimistically, relying on server to reject if we lost the race. */
+  pendingLockCellsRef?: React.MutableRefObject<Set<string>>
   onCellEditingStarted?: (column: string, rowId: string) => void
   onCellEditingStopped?: (column: string, rowId: string) => void
   onGridApiReady?: (api: GridApi<QuarantineRow>) => void
@@ -209,6 +218,8 @@ export function QuarantineAgGridTable({
   findMatches,
   currentMatch,
   cellLocksRef,
+  myGrantedCellsRef,
+  pendingLockCellsRef,
   onCellEditingStarted: onCellEditStart,
   onCellEditingStopped: onCellEditStop,
   onGridApiReady,
@@ -328,8 +339,24 @@ export function QuarantineAgGridTable({
           // until super-admin unlocks (FE source of truth: `is_locked`
           // attached by the QueryQuarantineRowsUseCase).
           if (params.data?.is_locked) return false
-          const lockInfo = cellLocksRefInternal.current.get(`${column}:${rowId}`)
-          return !lockInfo
+          const cellKey = `${column}:${rowId}`
+          const lockInfo = cellLocksRefInternal.current.get(cellKey)
+          // Lock-hole #1 fix: lockInfo represents PEER locks (cellLocked
+          // broadcasts). If WE hold this cell — confirmed by cellLockGranted
+          // OR still pending — we must return true despite lockInfo being
+          // absent from the map (our own locks don't appear there).
+          // The server enforces the winner at cellUpdate time; this predicate
+          // only controls whether AG Grid starts the inline editor.
+          const isMineGranted = myGrantedCellsRef?.current.has(cellKey) ?? false
+          const isMePending = pendingLockCellsRef?.current.has(cellKey) ?? false
+          if (lockInfo) {
+            // Someone else holds this cell — only editable if it's us.
+            return isMineGranted || isMePending
+          }
+          // No lock info: editable. We may be in the race window (between
+          // our cellFocus and the cellLocked broadcast from the server), but
+          // the server rejects the cellUpdate if we don't own the lock.
+          return true
         },
         field: column,
         flex: 1,
