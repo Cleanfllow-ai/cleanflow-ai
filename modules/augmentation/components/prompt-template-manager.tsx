@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/modules/auth"
+import { useToast } from "@/shared/hooks/use-toast"
 import {
     deletePromptTemplateVersion, listPromptTemplates, registerPromptTemplate,
 } from "@/modules/augmentation/api/augmentation-api"
@@ -18,6 +19,7 @@ import type { PromptCardinality, PromptTemplate, RegisterTemplateBody } from "@/
 
 export function PromptTemplateManager() {
     const { idToken } = useAuth()
+    const { toast } = useToast()
     const [templates, setTemplates] = useState<PromptTemplate[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -54,15 +56,31 @@ export function PromptTemplateManager() {
             await registerPromptTemplate(idToken, body)
             setTplId(""); setText(""); setInSchema("{}"); setOutSchema("{}")
             await load()
-        } catch (err) { setError((err as Error).message) }
+            toast({ title: "Template registered", description: `${body.template_id} is now active.` })
+        } catch (err) {
+            const message = (err as Error).message
+            setError(message)
+            // The inline error region is below the form, easy to miss on a
+            // long page — also fire a toast so mutation failures cannot be
+            // silently dismissed.
+            toast({ title: "Failed to register template", description: message, variant: "destructive" })
+        }
         finally { setBusy(false) }
     }
 
     const onDeactivate = async (t: PromptTemplate) => {
         if (!idToken) return
         setBusy(true)
-        try { await deletePromptTemplateVersion(t.template_id, t.version, idToken); await load() }
-        catch (err) { setError((err as Error).message) }
+        try {
+            await deletePromptTemplateVersion(t.template_id, t.version, idToken)
+            await load()
+            toast({ title: "Template deactivated", description: `${t.template_id} v${t.version} is no longer active.` })
+        }
+        catch (err) {
+            const message = (err as Error).message
+            setError(message)
+            toast({ title: "Failed to deactivate template", description: message, variant: "destructive" })
+        }
         finally { setBusy(false) }
     }
 

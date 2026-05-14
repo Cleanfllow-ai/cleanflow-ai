@@ -280,7 +280,12 @@ export function JobsList() {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={loadJobs}
+                        // CRITICAL: do NOT pass `loadJobs` directly — React
+                        // hands the MouseEvent to the click handler, which
+                        // `loadJobs(silent=false)` coerces as truthy and
+                        // skips the loading spinner + suppresses the error
+                        // toast. Wrap in an arrow so we invoke with no args.
+                        onClick={() => { void loadJobs() }}
                         disabled={loading}
                         className="border-border/60 bg-card/50 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                     >

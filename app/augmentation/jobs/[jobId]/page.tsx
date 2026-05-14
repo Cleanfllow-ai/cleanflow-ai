@@ -8,6 +8,7 @@ import { AuthGuard, useAuth } from "@/modules/auth"
 import { MainLayout } from "@/shared/layout/main-layout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/shared/hooks/use-toast"
 import {
     getAugmentationJob, getAugmentationJobOutput,
 } from "@/modules/augmentation/api/augmentation-api"
@@ -16,22 +17,31 @@ import { isTerminalJobStatus } from "@/modules/augmentation/types"
 
 function JobDetail({ jobId }: { jobId: string }) {
     const { idToken } = useAuth()
+    const { toast } = useToast()
     const [job, setJob] = useState<AugmentationJob | null>(null)
     const [err, setErr] = useState<string | null>(null)
     const [busy, setBusy] = useState(false)
 
-    const refresh = useCallback(async () => {
+    const refresh = useCallback(async (silent = false) => {
         if (!idToken) return
-        setBusy(true)
+        if (!silent) setBusy(true)
         try { setJob(await getAugmentationJob(jobId, idToken)); setErr(null) }
-        catch (e) { setErr((e as Error).message) }
-        finally { setBusy(false) }
+        catch (e) {
+            // Silent polls should not flap the visible error banner — the
+            // next successful tick will clear it. Manual refreshes still
+            // surface the error so users know to retry.
+            if (!silent) setErr((e as Error).message)
+        }
+        finally { if (!silent) setBusy(false) }
     }, [idToken, jobId])
 
     useEffect(() => { void refresh() }, [refresh])
     useEffect(() => {
         if (!job || isTerminalJobStatus(job.status)) return
-        const t = setInterval(refresh, 1000)
+        // 1-second polling hammered the BE (and inflated cost / log noise)
+        // even after the job finished — fixed to 5s with a silent path so
+        // we never flash the spinner on a successful background tick.
+        const t = setInterval(() => { void refresh(true) }, 5000)
         return () => clearInterval(t)
     }, [job, refresh])
 
@@ -40,7 +50,17 @@ function JobDetail({ jobId }: { jobId: string }) {
         try {
             const out = await getAugmentationJobOutput(job.job_id, idToken)
             window.open(out.presigned_url, "_blank", "noopener,noreferrer")
-        } catch (e) { setErr((e as Error).message) }
+        } catch (e) {
+            const message = (e as Error).message || "Could not download output."
+            setErr(message)
+            // Also toast — the error banner above is easy to miss on a
+            // dense detail page, and "Download" is a high-intent action.
+            toast({
+                title: "Download failed",
+                description: message,
+                variant: "destructive",
+            })
+        }
     }
 
     return (
@@ -49,7 +69,7 @@ function JobDetail({ jobId }: { jobId: string }) {
                 <Link href="/augmentation" className="text-sm text-muted-foreground hover:text-foreground">
                     <ArrowLeft className="inline h-4 w-4 mr-1" />Back
                 </Link>
-                <Button size="sm" variant="outline" onClick={refresh} disabled={busy}>
+                <Button size="sm" variant="outline" onClick={() => { void refresh() }} disabled={busy}>
                     <RefreshCw className={`h-4 w-4 mr-1 ${busy ? "animate-spin" : ""}`} />Refresh
                 </Button>
             </div>

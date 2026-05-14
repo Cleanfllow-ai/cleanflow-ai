@@ -84,6 +84,11 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const [entities, setEntities] = useState<string[]>([])
     const [availableEntities, setAvailableEntities] = useState<EntityOption[]>([])
     const [entitiesLoading, setEntitiesLoading] = useState(false)
+    // Surfaces the most recent entity-discovery failure for the FE to render
+    // inline. Without this, a 401/403/500 on /connectors/.../entities silently
+    // showed an empty dropdown that looked identical to "this provider has no
+    // entities", and the user had no signal to reconnect or retry.
+    const [entitiesError, setEntitiesError] = useState<string | null>(null)
 
     // ── Source config (generic) ───────────────────────────────────────────────
     const [sourceConfig, setSourceConfig] = useState<Record<string, any>>({})
@@ -267,6 +272,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         let cancelled = false
         setEntitiesLoading(true)
         setAvailableEntities([])
+        setEntitiesError(null)
 
         const fetchEntities = async () => {
             try {
@@ -284,8 +290,22 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                     value: e.key || e.name || e.entity || e.value || "",
                 })).filter((e: EntityOption) => e.value)
                 setAvailableEntities(opts)
+                setEntitiesError(null)
             } catch (err) {
+                if (cancelled) return
                 console.error("[job-dialog] Entity discovery failed:", err)
+                // Surface the failure: an empty entity dropdown without any
+                // visible error looks identical to a clean "this provider
+                // has no entities" state, so users sit confused. Capture
+                // the message + show a toast so the user knows to retry or
+                // reconnect.
+                const message = (err as Error)?.message || "Could not load entities for this source."
+                setEntitiesError(message)
+                toast({
+                    title: "Entity discovery failed",
+                    description: message,
+                    variant: "destructive",
+                })
             } finally {
                 if (!cancelled) setEntitiesLoading(false)
             }
@@ -814,6 +834,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         entities,
         availableEntities,
         entitiesLoading,
+        entitiesError,
         selectEntity,
         clearAllEntities,
         // Source / destination config
