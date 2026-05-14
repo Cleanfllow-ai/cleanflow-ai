@@ -93,6 +93,11 @@ export function CustomerUsageDashboard() {
     }
 
     if (error) {
+        // Surface a generic message — `error.message` may contain raw server
+        // text (HTTP status lines, stack hints) we don't want to leak. The
+        // dev console still has the full error from the fetch helper.
+        const benign =
+            /permission denied|organization membership required|forbidden/i.test(error.message)
         return (
             <div
                 data-testid="dashboard-error"
@@ -101,14 +106,30 @@ export function CustomerUsageDashboard() {
             >
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <div>
-                    <p className="font-medium">Failed to load dashboard</p>
-                    <p className="mt-1 text-xs opacity-80">{error.message}</p>
+                    <p className="font-medium">
+                        {benign ? "Dashboard unavailable" : "Failed to load dashboard"}
+                    </p>
+                    <p className="mt-1 text-xs opacity-80">
+                        {benign
+                            ? "You don't have access to dashboard data for this organization."
+                            : "Please refresh the page. If the issue persists, contact support."}
+                    </p>
                 </div>
             </div>
         )
     }
 
-    if (!data) return null
+    if (!data) {
+        // Defensive — show an empty-state rather than a blank screen.
+        return (
+            <div
+                data-testid="dashboard-empty"
+                className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground"
+            >
+                No dashboard data yet.
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-5">
