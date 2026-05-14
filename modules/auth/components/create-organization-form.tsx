@@ -91,18 +91,66 @@ export function CreateOrganizationForm() {
                     contact_person: pendingOrg.contact_person || user?.name,
                     subscriptionPlan: "standard",
                 });
+                // Onboarding integrity (2026-05-14): verify membership landed
+                // on the server BEFORE redirecting to /dashboard. Closes the
+                // partial-write window that orphaned smahendran@infiniqon.com.
+                try {
+                    const me = await orgAPI.getMe();
+                    if (!me?.membership?.org_id) {
+                        throw new Error("Organization membership required");
+                    }
+                } catch (verifyErr: any) {
+                    const vMsg = verifyErr?.message || "";
+                    if (vMsg.includes("Organization membership required")) {
+                        setError(
+                            "Organization registered but membership not yet active. Please refresh in a moment, or fill the form below to retry.",
+                        );
+                        // Pre-fill the form with what the user already entered
+                        // so they don't have to re-type if they retry manually.
+                        setOrgName(pendingOrg.name || "");
+                        setOrgEmail(pendingOrg.email || "");
+                        setOrgPhone(pendingOrg.phone || "");
+                        setOrgAddress(pendingOrg.address || "");
+                        setIndustry(pendingOrg.industry || "");
+                        setGst(pendingOrg.gst || "");
+                        setPan(pendingOrg.pan || "");
+                        return;
+                    }
+                }
                 sessionStorage.removeItem("pending_org_details");
                 await refreshPermissions();
                 router.replace("/dashboard");
                 return;
-            } catch {
-                // Keep form available as fallback if auto-registration fails.
+            } catch (regErr: any) {
+                // Onboarding integrity (2026-05-14): surface the cause and
+                // pre-fill the form so the user can immediately retry.
+                const regMsg = regErr?.message || "Failed to register organization automatically";
+                setError(regMsg);
+                toast({
+                    title: "Organization setup failed",
+                    description: regMsg,
+                    variant: "destructive",
+                });
+                try {
+                    const pendingOrg = JSON.parse(pendingOrgRaw);
+                    setOrgName(pendingOrg.name || "");
+                    setOrgEmail(pendingOrg.email || "");
+                    setOrgPhone(pendingOrg.phone || "");
+                    setOrgAddress(pendingOrg.address || "");
+                    setIndustry(pendingOrg.industry || "");
+                    setGst(pendingOrg.gst || "");
+                    setPan(pendingOrg.pan || "");
+                } catch {
+                    // Malformed JSON in sessionStorage — clear it so the user
+                    // can fill the form from scratch.
+                    sessionStorage.removeItem("pending_org_details");
+                }
             } finally {
                 setIsLoading(false);
             }
         };
         autoRegisterFromSignup();
-    }, [isAuthenticated, isAuthLoading, isInviteFlow, refreshPermissions, router, user?.email, user?.name]);
+    }, [isAuthenticated, isAuthLoading, isInviteFlow, refreshPermissions, router, toast, user?.email, user?.name]);
 
     const handleAcceptInvite = async () => {
         if (!orgId || !inviteId || !inviteToken) return;

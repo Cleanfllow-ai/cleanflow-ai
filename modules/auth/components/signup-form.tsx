@@ -174,6 +174,28 @@ export function SignUpForm() {
                 contact_person: pendingOrg.contact_person,
                 subscriptionPlan: "standard",
               });
+              // Onboarding integrity (2026-05-14): verify membership landed on
+              // the server BEFORE redirecting to /dashboard. Without this, a
+              // partial BE failure (Org row written but Member row missing —
+              // the smahendran bug) would still redirect the user to the
+              // dashboard where every API call returns 403.
+              try {
+                await orgAPI.getMe();
+              } catch (verifyErr: any) {
+                const vMsg = verifyErr?.message || "";
+                if (vMsg.includes("Organization membership required")) {
+                  setError(
+                    "Organization registered but membership not yet active. Please refresh in a moment.",
+                  );
+                  toast({
+                    title: "Membership pending",
+                    description: "Your organization was created but membership is still propagating. Please refresh.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                // Some other auth/network error — fall through to redirect.
+              }
               sessionStorage.removeItem("pending_org_details");
               // Store the role from registration response so the dashboard
               // doesn't need to wait for GSI replication to resolve permissions.
@@ -187,7 +209,17 @@ export function SignUpForm() {
               window.location.href = `/dashboard${window.location.search}`;
               return;
             } catch (regErr: any) {
+              // Onboarding integrity (2026-05-14): never silently swallow the
+              // registration failure. Surface it so the user knows why they're
+              // being asked to retry from /create-organization.
+              const regMsg = regErr?.message || "Failed to register organization";
               console.error("Auto-reg failed:", regErr);
+              setError(regMsg);
+              toast({
+                title: "Organization setup failed",
+                description: regMsg,
+                variant: "destructive",
+              });
               window.location.href = `/create-organization${window.location.search}`;
               return;
             }
