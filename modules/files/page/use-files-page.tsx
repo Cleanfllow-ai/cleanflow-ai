@@ -469,17 +469,28 @@ export function useFilesPage() {
                 false,
             );
             toast({ title: "Upload Complete", description: "File uploaded successfully." });
-            await loadFiles();
-            // Find the newly uploaded file and show post-upload prompt
-            const refreshedFiles = dispatch(fetchFiles(idToken));
+            // Refresh the list and read the refreshed items directly from the
+            // thunk result so we don't search the stale closure `files` (which
+            // is captured at upload-time and never sees the just-uploaded row).
+            // Previously this branch dispatched fetchFiles twice and never
+            // surfaced the post-upload prompt — fixed in fe/files audit (CC4).
             setActiveSection("explorer");
-            // Set recently uploaded for the prompt banner (auto-dismiss after 15s)
-            const latestFile = files.find((f) =>
-                (f.original_filename || f.filename || "").toLowerCase() === file.name.toLowerCase()
-            );
-            if (latestFile) {
-                setRecentlyUploaded(latestFile);
-                setTimeout(() => setRecentlyUploaded(null), 15000);
+            try {
+                const action: any = await dispatch(fetchFiles(idToken));
+                const refreshedItems: FileStatusResponse[] = Array.isArray(action?.payload)
+                    ? action.payload
+                    : (filesRef.current ?? files);
+                const target = refreshedItems.find((f) =>
+                    (f.original_filename || f.filename || "").toLowerCase() ===
+                    file.name.toLowerCase()
+                );
+                if (target) {
+                    setRecentlyUploaded(target);
+                    setTimeout(() => setRecentlyUploaded(null), 15000);
+                }
+            } catch {
+                // Refresh failure here is non-fatal — the upload itself
+                // succeeded and the polling loops will pick up the row.
             }
         } catch (error) {
             console.error("Upload failed:", error);
