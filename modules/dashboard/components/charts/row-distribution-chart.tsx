@@ -13,16 +13,21 @@ export function RowDistributionChart({
   totalRowsFixed,
   totalRowsQuarantined,
 }: RowDistributionChartProps) {
+  // Recharts <Pie> crashes on negative values; clamp to zero. The math
+  // (`rowsOut - rowsFixed`) can go negative when fixed > out due to upstream
+  // bookkeeping drift, so we guard at the render boundary rather than relying
+  // on backend invariants.
+  const validatedRaw = totalRowsOut - totalRowsFixed
   const dqDistributionData = [
     {
       name: "Validated",
-      value: totalRowsOut - totalRowsFixed,
+      value: Math.max(validatedRaw, 0),
       fill: CHART_COLORS.green,
     },
-    { name: "Fixed", value: totalRowsFixed, fill: CHART_COLORS.yellow },
+    { name: "Fixed", value: Math.max(totalRowsFixed, 0), fill: CHART_COLORS.yellow },
     {
       name: "Quarantined",
-      value: totalRowsQuarantined,
+      value: Math.max(totalRowsQuarantined, 0),
       fill: CHART_COLORS.red,
     },
   ].filter((d) => d.value > 0)
