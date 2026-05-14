@@ -90,7 +90,10 @@ describe('HttpSourceForm', () => {
     })
   })
 
-  it('calls onError when ingestFromHttp throws (INGEST_HTTP_FAILED)', async () => {
+  it('calls onError with a classified auth message when ingestFromHttp throws 403', async () => {
+    // After the bridge-errors hardening, raw error strings ("403 Forbidden")
+    // are rewritten by classifyIngestError to friendly copy — verify the new
+    // contract instead of asserting on the raw exception.
     mockApi.ingestFromHttp.mockRejectedValue(new Error('INGEST_HTTP_FAILED: 403 Forbidden'))
     render(<HttpSourceForm {...baseProps} />)
     fireEvent.change(screen.getByLabelText(/url/i), { target: { value: 'https://api.example.com' } })
@@ -100,7 +103,7 @@ describe('HttpSourceForm', () => {
     await act(async () => { fireEvent.click(fetchBtn) })
 
     await waitFor(() => {
-      expect(baseProps.onError).toHaveBeenCalledWith(expect.stringContaining('INGEST_HTTP_FAILED'))
+      expect(baseProps.onError).toHaveBeenCalledWith(expect.stringMatching(/authentication failed/i))
     })
   })
 

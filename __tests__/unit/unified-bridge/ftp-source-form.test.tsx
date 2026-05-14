@@ -90,7 +90,10 @@ describe('FtpSourceForm', () => {
     })
   })
 
-  it('calls onError when ingestFromFtp throws (INGEST_FTP_FAILED)', async () => {
+  it('calls onError with a classified network message when ingestFromFtp throws connection-refused', async () => {
+    // After the bridge-errors hardening, raw error strings ("ECONNREFUSED",
+    // "connection refused") are rewritten by classifyIngestError to friendly
+    // copy — verify the new contract instead of asserting on the raw exception.
     mockApi.ingestFromFtp.mockRejectedValue(new Error('INGEST_FTP_FAILED: connection refused'))
     render(<FtpSourceForm {...baseProps} />)
     fireEvent.change(screen.getByLabelText(/host/i), { target: { value: 'ftp.example.com' } })
@@ -101,7 +104,7 @@ describe('FtpSourceForm', () => {
     await act(async () => { fireEvent.click(ingestBtn) })
 
     await waitFor(() => {
-      expect(baseProps.onError).toHaveBeenCalledWith(expect.stringContaining('INGEST_FTP_FAILED'))
+      expect(baseProps.onError).toHaveBeenCalledWith(expect.stringMatching(/network error|connection/i))
     })
   })
 
