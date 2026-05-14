@@ -9,6 +9,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { fileManagementAPI, type TcpIngestionConfig } from "@/modules/files"
+import {
+    classifyIngestError,
+    isValidHost,
+    isValidPort,
+    withClientTimeout,
+} from "@/modules/unified-bridge/lib/bridge-errors"
+
+const TCP_TEST_TIMEOUT_MS = 15_000
+const TCP_INGEST_TIMEOUT_MS = 90_000
 
 interface TcpSourceFormProps {
     mode?: "source" | "destination"
@@ -47,30 +56,73 @@ export default function TcpSourceForm({
     const [authPassword, setAuthPassword] = useState("")
     const [showPassword, setShowPassword] = useState(false)
 
+    const clearAfterSuccess = () => {
+        setAuthToken("")
+        setAuthPassword("")
+        setRequestData("")
+        setFilename("")
+    }
+
+    const validateRequired = (): string | null => {
+        if (!host) return "Host is required"
+        if (!isValidHost(host))
+            return "Host is invalid. Use a DNS hostname (e.g. data.example.com) or IPv4 literal."
+        if (!port) return "Port is required"
+        if (!isValidPort(port)) return "Port must be an integer between 1 and 65535"
+        if (!filename) return "Output filename (Save As) is required"
+        if (authType === "token" && !authToken.trim())
+            return "Auth token is required for token authentication"
+        if (authType === "userpass" && (!authUsername.trim() || !authPassword))
+            return "Username and password are required for userpass authentication"
+        const t = parseInt(timeout)
+        if (timeout && (Number.isNaN(t) || t < 1 || t > 60))
+            return "Timeout must be an integer between 1 and 60 seconds"
+        return null
+    }
+
     const handleTest = async () => {
+        if (!host) {
+            onError("Host is required to test connection")
+            return
+        }
+        if (!isValidHost(host)) {
+            onError("Host is invalid. Use a DNS hostname or IPv4 literal.")
+            return
+        }
+        if (!port || !isValidPort(port)) {
+            onError("Port must be an integer between 1 and 65535")
+            return
+        }
         setIsTesting(true)
         try {
-            const result = await fileManagementAPI.testTcpConnection({
-                host,
-                port: parseInt(port),
-                timeout_seconds: parseInt(timeout),
-                delimiter,
-            })
+            const result = await withClientTimeout(
+                fileManagementAPI.testTcpConnection({
+                    host,
+                    port: parseInt(port),
+                    timeout_seconds: parseInt(timeout),
+                    delimiter,
+                }),
+                TCP_TEST_TIMEOUT_MS,
+                "Connection test",
+            )
             if (result.success) {
                 onIngestionComplete({ success: true, message: result.message })
             } else {
-                onError(result.message)
+                const classified = classifyIngestError(new Error(result.message))
+                onError(classified.message)
             }
-        } catch (err: any) {
-            onError(err.message || "Connection test failed")
+        } catch (err) {
+            const classified = classifyIngestError(err)
+            onError(classified.message)
         } finally {
             setIsTesting(false)
         }
     }
 
     const handleIngest = async () => {
-        if (!host || !port || !filename) {
-            onError("Please fill in all required fields")
+        const validationErr = validateRequired()
+        if (validationErr) {
+            onError(validationErr)
             return
         }
 
@@ -109,15 +161,21 @@ export default function TcpSourceForm({
                 }
             }
 
-            const result = await fileManagementAPI.ingestFromTcp(config, token)
+            const result = await withClientTimeout(
+                fileManagementAPI.ingestFromTcp(config, token),
+                TCP_INGEST_TIMEOUT_MS,
+                "TCP ingestion",
+            )
 
             onIngestionComplete({
                 success: true,
                 message: `Successfully ingested ${result.filename} (${(result.size_bytes / 1024).toFixed(1)} KB)`,
                 uploadId: result.upload_id,
             })
-        } catch (err: any) {
-            onError(err.message || "TCP ingestion failed")
+            clearAfterSuccess()
+        } catch (err) {
+            const classified = classifyIngestError(err)
+            onError(classified.message)
         } finally {
             setIsLoading(false)
         }
