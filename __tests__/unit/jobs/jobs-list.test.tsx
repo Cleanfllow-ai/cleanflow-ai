@@ -17,7 +17,16 @@ if (typeof Element !== "undefined") {
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 jest.mock("@/shared/config/aws-config", () => ({
-    AWS_CONFIG: { API_BASE_URL: "https://api.test.com" },
+    AWS_CONFIG: {
+        API_BASE_URL: "https://api.test.com",
+        COGNITO: { USER_POOL_ID: "test", CLIENT_ID: "test", REGION: "ap-south-1" },
+    },
+}))
+
+// PermissionWrapper drags in auth-provider → cognito-client. Stub the wrapper
+// so jobs-list tests don't have to wire up the full auth/cognito context.
+jest.mock("@/modules/auth/components/permission-wrapper", () => ({
+    PermissionWrapper: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
 
 jest.mock("next/navigation", () => ({

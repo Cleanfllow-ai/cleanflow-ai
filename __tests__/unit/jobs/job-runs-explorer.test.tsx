@@ -24,6 +24,11 @@ jest.mock("@/modules/auth", () => ({
     useAuth: () => ({ idToken: "tok", user: { email: "u@x.com" } }),
 }))
 
+// useJobRunsExplorer now calls useToast() to surface fetch failures inline.
+jest.mock("@/shared/hooks/use-toast", () => ({
+    useToast: () => ({ toast: jest.fn() }),
+}))
+
 jest.mock("@/modules/files/api/file-management-api", () => ({
     fileManagementAPI: {
         getFileStatus: jest.fn().mockResolvedValue({ dq_score: 95, status: "DQ_FIXED", rows_clean: 100, rows_quarantined: 0 }),
