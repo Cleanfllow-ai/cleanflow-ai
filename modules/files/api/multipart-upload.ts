@@ -208,15 +208,30 @@ function uploadPart(
           }
           onPartProgress(blob.size)
           resolve({ PartNumber: partNumber, ETag: etag })
-        } else if (attempt < MAX_RETRIES) {
+          return
+        }
+        // 4xx client errors are NOT retryable — a forbidden or expired
+        // presigned URL won't recover on the next attempt and we waste
+        // exponential-backoff time pretending it might. Only retry on
+        // 5xx + 408 (transient server errors) and network-level failures.
+        const retryable = xhr.status === 408 || (xhr.status >= 500 && xhr.status < 600) || xhr.status === 0
+        if (retryable && attempt < MAX_RETRIES) {
           const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000)
           setTimeout(tryUpload, delay)
         } else {
-          reject(new Error(`Part ${partNumber} failed after ${MAX_RETRIES} attempts: HTTP ${xhr.status}`))
+          // Surface the response body (first 200 chars) so the caller can
+          // see "<Code>SignatureDoesNotMatch</Code>" etc instead of just
+          // "HTTP 403".
+          const detail = (xhr.responseText || '').slice(0, 200)
+          reject(new Error(`Part ${partNumber} failed: HTTP ${xhr.status}${detail ? ' — ' + detail : ''}`))
         }
       })
 
       xhr.addEventListener('error', () => {
+        if (signal?.aborted) {
+          reject(new Error('Upload cancelled'))
+          return
+        }
         if (attempt < MAX_RETRIES) {
           const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000)
           setTimeout(tryUpload, delay)
