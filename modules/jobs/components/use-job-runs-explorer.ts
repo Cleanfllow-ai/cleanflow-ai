@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { jobsAPI, type JobRun } from "@/modules/jobs/api/jobs-api"
 import { useAuth } from "@/modules/auth"
 import { useToast } from "@/shared/hooks/use-toast"
@@ -194,17 +194,39 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
 
     // Fetch live file status per run so the row can reflect reprocess state
     // (REPROCESSED, PROCESSING, FIXED, etc.) without waiting for a resume.
+    //
+    // Race-condition fix: previously `refreshLiveSummaries` depended on `runs`,
+    // and the effect that drives it depended on the callback identity, so
+    // every 3-second poll → mutated `runs` → new callback → effect re-fires →
+    // another Promise.all storm of file-status calls (one per run). For a job
+    // with 10 runs each having 3 entities that meant 30 concurrent HTTP calls
+    // every 3s. Guard with an in-flight ref + a runs-ref so the effect can stay
+    // dep-stable on `[idToken, jobId]`, eliminating the loop.
+    const runsRef = useRef(runs)
+    runsRef.current = runs
+    const refreshingLiveRef = useRef(false)
     const refreshLiveSummaries = useCallback(async () => {
-        if (!idToken || runs.length === 0) return
-        const results = await Promise.all(
-            runs.map(async (run) => [run.run_id, await fetchLiveSummaryForRun(run, idToken)] as const)
-        )
-        setLiveSummaries(Object.fromEntries(results))
-    }, [runs, idToken])
+        if (!idToken || runsRef.current.length === 0) return
+        if (refreshingLiveRef.current) return // dedup concurrent refreshes
+        refreshingLiveRef.current = true
+        try {
+            const snapshot = runsRef.current
+            const results = await Promise.all(
+                snapshot.map(async (run) => [run.run_id, await fetchLiveSummaryForRun(run, idToken)] as const)
+            )
+            setLiveSummaries(Object.fromEntries(results))
+        } finally {
+            refreshingLiveRef.current = false
+        }
+    }, [idToken])
 
+    // Only refire when the SET of run_ids changes — not on every per-run field
+    // update from a poll. This is the actual trigger we care about.
+    const runIdsKey = useMemo(() => runs.map(r => r.run_id).join("|"), [runs])
     useEffect(() => {
+        if (runIdsKey.length === 0) return
         void refreshLiveSummaries()
-    }, [refreshLiveSummaries])
+    }, [runIdsKey, refreshLiveSummaries])
 
     // Poll live summaries every 5s while any file is still processing.
     useEffect(() => {
