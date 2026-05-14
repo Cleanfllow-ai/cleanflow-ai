@@ -2,10 +2,16 @@ import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit"
 import { fileManagementAPI, FileStatusResponse } from "@/modules/files"
 import { RootState } from "@/shared/store/store"
 
+export interface FilesListError {
+  message: string
+  /** HTTP status code (401, 500, etc.) — null for network errors */
+  status: number | null
+}
+
 interface FilesState {
   items: FileStatusResponse[]
   status: "idle" | "loading" | "succeeded" | "failed"
-  error: string | null
+  error: FilesListError | null
   lastUpdated: number | null
 }
 
@@ -23,7 +29,12 @@ export const fetchFiles = createAsyncThunk(
       const response = await fileManagementAPI.getUploads(authToken)
       return response.items || []
     } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to fetch files")
+      // Preserve the HTTP status so callers can distinguish 401 (session
+      // expired) from 5xx (server error) and show the correct toast.
+      return rejectWithValue({
+        message: error.message || "Failed to fetch files",
+        status: error.status ?? null,
+      })
     }
   }
 )
@@ -107,7 +118,7 @@ const filesSlice = createSlice({
       })
       .addCase(fetchFiles.rejected, (state, action) => {
         state.status = "failed"
-        state.error = action.payload as string
+        state.error = action.payload as FilesListError
       })
       // Enrich Files
       .addCase(enrichFiles.fulfilled, (state, action) => {
@@ -127,6 +138,6 @@ export const { updateFile, removeFile, resetFiles } = filesSlice.actions
 
 export const selectFiles = (state: RootState) => state.files.items
 export const selectFilesStatus = (state: RootState) => state.files.status
-export const selectFilesError = (state: RootState) => state.files.error
+export const selectFilesError = (state: RootState) => state.files.error as FilesListError | null
 
 export default filesSlice.reducer

@@ -10,11 +10,13 @@ import {
     removeFile,
     selectFiles,
     selectFilesStatus,
+    selectFilesError,
 } from "@/modules/files/store/filesSlice";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/modules/auth";
 import { ApiError } from "@/modules/shared/api-error";
 import { toastFromError, toastFromQuarantineError } from "@/lib/error-toast-jsx";
+import { ToastAction as _ToastAction } from "@/components/ui/toast";
 import { buildPrefixedDataFilename, sanitizeFilenamePart } from "@/modules/files/utils/download-filenames";
 import { triggerBlobDownload, triggerPresignedDownload } from "@/modules/files/utils/trigger-download";
 import {
@@ -37,6 +39,7 @@ export function useFilesPage() {
     const dispatch = useAppDispatch();
     const files = useAppSelector(selectFiles);
     const filesStatus = useAppSelector(selectFilesStatus);
+    const filesError = useAppSelector(selectFilesError);
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
@@ -57,6 +60,40 @@ export function useFilesPage() {
     useEffect(() => {
         setLoading(filesStatus === "loading");
     }, [filesStatus]);
+
+    // ─── Files-list load error toast (States 4 + 5) ──────────────────
+    // React to Redux "failed" status and surface the appropriate toast.
+    // 401 → session-expired + Sign In; 5xx / network → retry prompt.
+    // A stable ref prevents re-showing the same toast on unrelated re-renders.
+    const shownListErrorRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (filesStatus !== "failed" || !filesError) return;
+        const key = `${filesError.status ?? "net"}-${filesError.message}`;
+        if (shownListErrorRef.current === key) return;
+        shownListErrorRef.current = key;
+
+        // Build a typed ApiError so mapQuarantineErrorToToast can route
+        // 401 (session expired + Sign In) vs 5xx (server error + Retry).
+        const apiErr = new ApiError({
+            status: filesError.status ?? 500,
+            message: filesError.message,
+            action: filesError.status === 401 ? "signin" : "retry",
+        });
+
+        const retryFn = () => {
+            shownListErrorRef.current = null;
+            loadFiles(true);
+        };
+
+        if (filesError.status === 401) {
+            toast(toastFromQuarantineError(apiErr, { action: "load your files" }));
+        } else {
+            toast(toastFromQuarantineError(apiErr, {
+                action: "load your files",
+                retryFn,
+            }));
+        }
+    }, [filesStatus, filesError]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -556,10 +593,37 @@ export function useFilesPage() {
     };
 
     // ─── Details / processing / profiling ─────────────────────────────
-    const handleViewDetails = (file: FileStatusResponse) => {
+    const handleViewDetails = useCallback(async (file: FileStatusResponse) => {
+        // State 6: guard against clicking a stale row (file deleted in another
+        // tab). Verify the file still exists before opening the detail panel;
+        // on 404, remove it from the store and show a toast with a Refresh button.
+        if (idToken) {
+            try {
+                await fileManagementAPI.getFileStatus(file.upload_id, idToken);
+            } catch (err: any) {
+                const isNotFound =
+                    err?.status === 404 ||
+                    (err?.message || "").toLowerCase().includes("not found");
+                if (isNotFound) {
+                    dispatch(removeFile(file.upload_id));
+                    toast({
+                        title: "This file was deleted.",
+                        description: "It may have been removed in another session.",
+                        variant: "destructive",
+                        action: (
+                            <_ToastAction altText="Refresh List" onClick={() => loadFiles(true)}>
+                                Refresh List
+                            </_ToastAction>
+                        ) as any,
+                    });
+                    return;
+                }
+                // For other errors (network, 5xx) fall through and open with cached data
+            }
+        }
         setSelectedFile(file);
         setDetailsOpen(true);
-    };
+    }, [idToken, dispatch, toast, loadFiles]);
 
     const handleOpenQuarantineEditor = (file: FileStatusResponse) => {
         if (!ensureFilesPermission()) return;

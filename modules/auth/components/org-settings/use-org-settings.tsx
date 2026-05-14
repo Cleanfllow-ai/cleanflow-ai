@@ -11,6 +11,7 @@ import {
     type OrgMembership,
     type OrgRole,
 } from "@/modules/auth/api/org-api";
+import { isApiError } from "@/modules/shared/api-error";
 import {
     fileManagementAPI,
     type SettingsPreset,
@@ -882,6 +883,17 @@ export function useOrgSettings() {
             await loadMembers();
         } catch (err: any) {
             console.error("Failed to remove member", err);
+            // ORG_LAST_ADMIN: surface a clear, non-generic message so the admin
+            // knows they must promote someone before removing themselves.
+            if (isApiError(err) && (err.code === "OrgLastAdminError" || err.action === "cancel")) {
+                toast({
+                    id: "org-ORG_LAST_ADMIN",
+                    title: "You can't remove the last admin.",
+                    description: "Promote another member first.",
+                    variant: "destructive",
+                });
+                return;
+            }
             toast({ title: "Remove failed", description: err?.message || "Could not remove the member.", variant: "destructive" });
         }
     };
@@ -936,7 +948,16 @@ export function useOrgSettings() {
             toast({ title: "Invitation Sent", description: `An invitation has been sent to ${email} as ${inviteRole}.` });
             setIsInviteDialogOpen(false);
         } catch (err: any) {
-            toast({ title: "Failed to invite", description: err?.message || "Could not create invite." });
+            if (isApiError(err) && (err.code === "InviteEmailTakenError" || (err.action === "signin" && err.code?.startsWith("Invite")))) {
+                toast({
+                    id: "org-INVITE_EMAIL_TAKEN",
+                    title: "This email is already registered.",
+                    description: "Sign in to switch orgs.",
+                    variant: "destructive",
+                });
+            } else {
+                toast({ title: "Failed to invite", description: err?.message || "Could not create invite." });
+            }
         } finally {
             setIsSendingInvite(false);
         }

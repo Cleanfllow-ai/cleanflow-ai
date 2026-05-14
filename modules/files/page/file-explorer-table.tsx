@@ -355,14 +355,29 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                             </div>
                                             <div className="space-y-1.5">
                                                 <p className="font-sans text-sm font-semibold tracking-tight">
-                                                    {searchQuery || statusFilter !== "all" ? "No matching files" : "No files yet"}
+                                                    {searchQuery || statusFilter !== "all" ? "No files match these filters." : "No files yet"}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground/60">
                                                     {searchQuery || statusFilter !== "all"
-                                                        ? "Try adjusting your search or filter"
+                                                        ? "Try clearing them to see all files."
                                                         : "Import a file to start analyzing data quality"}
                                                 </p>
                                             </div>
+                                            {(searchQuery || statusFilter !== "all") && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-1.5 mt-1"
+                                                    data-testid="clear-filters-button"
+                                                    onClick={() => {
+                                                        setSearchQuery("");
+                                                        setStatusFilter("all");
+                                                    }}
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                    Clear Filters
+                                                </Button>
+                                            )}
                                             {!searchQuery && statusFilter === "all" && (
                                                 <Button size="sm" className="gap-1.5 mt-1" onClick={handleNewImportOpen}>
                                                     <Plus className="h-3.5 w-3.5" />

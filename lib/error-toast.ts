@@ -197,6 +197,25 @@ export function mapErrorToToast(err: unknown): ErrorToastDescriptor {
             }
         }
 
+        if (err.action === "request_new_invite") {
+            // Invite expired or token invalid — the invite link is dead.
+            // Inviter must send a fresh invite; the invitee cannot self-recover.
+            return {
+                title: err.message || "This invite is no longer valid.",
+                description: "Ask the sender to create a new invitation.",
+                variant: "destructive",
+            }
+        }
+
+        if (err.action === "cancel") {
+            // Terminal state the user cannot recover from without admin help.
+            return {
+                title: err.message || "Action not allowed.",
+                description: "This action cannot be completed without another admin.",
+                variant: "destructive",
+            }
+        }
+
         if (err.action === "retry") {
             return {
                 title: err.message,

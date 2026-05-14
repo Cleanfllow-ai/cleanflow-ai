@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { orgAPI } from "@/modules/auth/api/org-api";
 import { useToast } from "@/shared/hooks/use-toast";
+import { isApiError } from "@/modules/shared/api-error";
 
 export function InviteSetPasswordForm() {
   const router = useRouter();
@@ -28,6 +29,15 @@ export function InviteSetPasswordForm() {
 
   const isLinkValid = Boolean(orgId && inviteId && token && email);
 
+  // Inline password strength validation (mirrors backend PasswordPolicyError)
+  const passwordStrengthError = (() => {
+    if (!password) return "";
+    if (password.length < 8) return "Password must be 8+ chars with letters and numbers.";
+    if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password))
+      return "Password must be 8+ chars with letters and numbers.";
+    return "";
+  })();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -36,8 +46,8 @@ export function InviteSetPasswordForm() {
       setError("Invalid invite link. Please request a new invitation.");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters long.");
+    if (passwordStrengthError) {
+      setError(passwordStrengthError);
       return;
     }
     if (password !== confirmPassword) {
@@ -49,6 +59,7 @@ export function InviteSetPasswordForm() {
     try {
       await orgAPI.setInvitePassword(orgId, inviteId, token, email, password, null);
       toast({
+        id: "org-password-set",
         title: "Password set",
         description: "Sign in to complete organization joining.",
       });
@@ -64,7 +75,38 @@ export function InviteSetPasswordForm() {
       });
       router.push(`/auth/login?${params.toString()}`);
     } catch (err: any) {
-      setError(err?.message || "Could not set password.");
+      if (isApiError(err)) {
+        const code = err.code ?? "";
+        if (err.action === "request_new_invite" || code === "InviteExpiredError" || code === "InvalidInviteTokenError") {
+          toast({
+            id: "org-INVITE_EXPIRED",
+            title: "This invite expired.",
+            description: "Ask the sender to send a new one.",
+            variant: "destructive",
+          });
+          setError("");
+          return;
+        }
+        if (err.action === "signin" || code === "InviteRaceError" || code === "InviteAlreadyAcceptedError") {
+          toast({
+            id: "org-INVITE_ALREADY_USED",
+            title: "This invite was already used.",
+            description: "Sign in instead.",
+            variant: "destructive",
+            action: {
+              label: "Sign In",
+              onClick: () => router.push("/auth/login"),
+            },
+          } as any);
+          setError("");
+          return;
+        }
+        if (code === "PasswordPolicyError") {
+          setError("Password must be 8+ chars with letters and numbers.");
+          return;
+        }
+      }
+      setError((err as any)?.message || "Could not set password.");
     } finally {
       setIsSubmitting(false);
     }
@@ -105,6 +147,11 @@ export function InviteSetPasswordForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            {password && passwordStrengthError && (
+              <p className="text-xs text-destructive" role="alert" aria-live="polite">
+                {passwordStrengthError}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="invite-confirm-password">Confirm Password</Label>
