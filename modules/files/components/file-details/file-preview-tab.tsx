@@ -1,18 +1,27 @@
-import { AlertTriangle, Calculator, Loader2, Table as TableIcon } from "lucide-react"
+import { AlertTriangle, Calculator, FileX, Loader2, RefreshCw, Table as TableIcon } from "lucide-react"
 
 import { cn } from "@/shared/lib/utils"
 import type { FilePreviewData } from "@/modules/files/types"
+import type { PreviewErrorKind } from "@/modules/files/hooks/use-file-details"
+import { Button } from "@/components/ui/button"
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface FilePreviewTabProps {
   previewLoading: boolean
   previewError: string | null
+  previewErrorKind?: PreviewErrorKind | null
   previewData: FilePreviewData | null
   /** Columns that were synthesised by formula rules (#11). Names in
    *  this set get a calculator icon next to the header so the operator
    *  can tell at a glance which columns are derived. Empty when no
    *  formulas ran. Read from dq_matrix.json's `synthesised_columns`. */
   synthesisedColumns?: string[]
+  /** Called when the user clicks Retry after a recoverable error. */
+  onRetry?: () => void
+  /** Called when the user wants to open the quarantine editor instead. */
+  onOpenEditor?: () => void
+  /** Called when the user wants to refresh the file list (e.g. after deletion). */
+  onRefreshList?: () => void
 }
 
 // DQ metadata columns are used internally for cell coloring but should not
@@ -172,11 +181,18 @@ function isHiddenHeader(h: string): boolean {
 export function FilePreviewTab({
   previewLoading,
   previewError,
+  previewErrorKind,
   previewData,
   synthesisedColumns,
+  onRetry,
+  onOpenEditor,
+  onRefreshList,
 }: FilePreviewTabProps) {
   const visibleHeaders = previewData?.headers?.filter((h) => !isHiddenHeader(h)) ?? []
   const synthesisedSet = new Set(synthesisedColumns ?? [])
+  // Failure mode 6: header-only file
+  const isHeaderOnly = !previewLoading && !previewError && previewData !== null &&
+    previewData.total_rows === 0 && previewData.headers.length > 0
 
   return (
     <div className="h-full flex flex-col">
@@ -190,16 +206,26 @@ export function FilePreviewTab({
       )}
 
       {previewError && (
-        <div className="flex flex-col items-center justify-center flex-1 text-center p-8">
-          <div className="w-16 h-16 bg-amber-100 dark:bg-yellow-500/10 rounded-full flex items-center justify-center mb-4">
-            <AlertTriangle className="h-8 w-8 text-amber-600 dark:text-yellow-500" />
+        <PreviewErrorState
+          kind={previewErrorKind ?? "generic"}
+          message={previewError}
+          onRetry={onRetry}
+          onOpenEditor={onOpenEditor}
+          onRefreshList={onRefreshList}
+        />
+      )}
+
+      {isHeaderOnly && (
+        <div className="flex flex-col items-center justify-center flex-1 text-center p-8" data-testid="preview-header-only">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+            <TableIcon className="h-8 w-8 text-muted-foreground/50" />
           </div>
-          <h3 className="text-lg font-medium mb-2">Preview Unavailable</h3>
-          <p className="text-muted-foreground max-w-md">{previewError}</p>
+          <h3 className="text-lg font-medium mb-2">Headers Only</h3>
+          <p className="text-muted-foreground max-w-md">This file has only headers — no data rows were found.</p>
         </div>
       )}
 
-      {!previewLoading && !previewError && previewData && (
+      {!previewLoading && !previewError && previewData && !isHeaderOnly && (
         <TooltipProvider delayDuration={150}>
           {/* ── DQ status legend ──────────────────────────────────────── */}
           <div className="px-4 pt-3 pb-2 flex flex-wrap items-center gap-4 border-b text-[11px] text-muted-foreground shrink-0">
@@ -312,12 +338,108 @@ export function FilePreviewTab({
         </TooltipProvider>
       )}
 
-      {!previewLoading && !previewError && !previewData && (
+      {!previewLoading && !previewError && !previewData && !isHeaderOnly && (
         <div className="flex flex-col items-center justify-center flex-1 text-center">
           <TableIcon className="h-12 w-12 text-muted-foreground/20 mb-4" />
           <p className="text-muted-foreground">No preview data available</p>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Error state component ────────────────────────────────────────────────────
+
+interface PreviewErrorStateProps {
+  kind: PreviewErrorKind
+  message: string
+  onRetry?: () => void
+  onOpenEditor?: () => void
+  onRefreshList?: () => void
+}
+
+function PreviewErrorState({ kind, message, onRetry, onOpenEditor, onRefreshList }: PreviewErrorStateProps) {
+  let title = "Preview Unavailable"
+  let icon = <AlertTriangle className="h-8 w-8 text-amber-600 dark:text-yellow-500" />
+  let iconBg = "bg-amber-100 dark:bg-yellow-500/10"
+  let cta: React.ReactNode = null
+
+  switch (kind) {
+    case "uploading":
+      title = "File Still Processing"
+      cta = onRetry ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          onClick={onRetry}
+          data-testid="preview-retry-btn"
+        >
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+          Refresh
+        </Button>
+      ) : null
+      break
+
+    case "rejected":
+      title = "File Rejected"
+      icon = <FileX className="h-8 w-8 text-red-600 dark:text-red-400" />
+      iconBg = "bg-red-100 dark:bg-red-500/10"
+      break
+
+    case "timeout":
+      title = "Preview Timed Out"
+      cta = (
+        <div className="flex gap-2 mt-4 flex-wrap justify-center">
+          {onRetry && (
+            <Button variant="outline" size="sm" onClick={onRetry} data-testid="preview-retry-btn">
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              Retry
+            </Button>
+          )}
+          {onOpenEditor && (
+            <Button variant="default" size="sm" onClick={onOpenEditor} data-testid="preview-open-editor-btn">
+              Open Quarantine Editor
+            </Button>
+          )}
+        </div>
+      )
+      break
+
+    case "server_error":
+      title = "Preview Failed"
+      cta = onRetry ? (
+        <Button variant="outline" size="sm" className="mt-4" onClick={onRetry} data-testid="preview-retry-btn">
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+          Retry
+        </Button>
+      ) : null
+      break
+
+    case "not_found":
+      title = "File Not Found"
+      icon = <FileX className="h-8 w-8 text-muted-foreground" />
+      iconBg = "bg-muted"
+      cta = onRefreshList ? (
+        <Button variant="outline" size="sm" className="mt-4" onClick={onRefreshList} data-testid="preview-refresh-list-btn">
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+          Refresh List
+        </Button>
+      ) : null
+      break
+  }
+
+  return (
+    <div
+      className="flex flex-col items-center justify-center flex-1 text-center p-8"
+      data-testid={`preview-error-${kind}`}
+    >
+      <div className={cn("w-16 h-16 rounded-full flex items-center justify-center mb-4", iconBg)}>
+        {icon}
+      </div>
+      <h3 className="text-lg font-medium mb-2">{title}</h3>
+      <p className="text-muted-foreground max-w-md">{message}</p>
+      {cta}
     </div>
   )
 }

@@ -184,6 +184,7 @@ export const fileManagementAPI = {
   downloadFile: exportApi.downloadFileFromApi,
   exportWithColumns: exportApi.exportWithColumns,
   getFilePreview: exportApi.getFilePreview,
+  // Note: getFilePreview accepts an optional AbortSignal as third arg — pass through from callers.
   getFilePreviewFromS3: exportApi.getFilePreviewFromS3,
 
   // Profiling

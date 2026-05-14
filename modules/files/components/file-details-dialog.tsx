@@ -40,6 +40,8 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
     previewData,
     previewLoading,
     previewError,
+    previewErrorKind,
+    loadPreview,
     dqReport,
     dqReportLoading,
     dqReportError,
@@ -290,8 +292,12 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                 <FilePreviewTab
                   previewLoading={previewLoading}
                   previewError={previewError}
+                  previewErrorKind={previewErrorKind}
                   previewData={previewData}
                   synthesisedColumns={dqReport?.synthesised_columns}
+                  onRetry={loadPreview}
+                  onOpenEditor={onRemediate && resolvedFile ? () => onRemediate(resolvedFile) : undefined}
+                  onRefreshList={() => onOpenChange(false)}
                 />
               )}
               {activeTab === "dq-report" && (

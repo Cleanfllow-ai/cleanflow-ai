@@ -186,11 +186,11 @@ export async function exportWithColumns(
 
 // ─── File Preview ───
 
-export async function getFilePreview(uploadId: string, authToken: string): Promise<{ headers: string[], sample_data: any[], total_rows: number, has_dq_status?: boolean }> {
+export async function getFilePreview(uploadId: string, authToken: string, signal?: AbortSignal): Promise<{ headers: string[], sample_data: any[], total_rows: number, has_dq_status?: boolean }> {
     // Use dedicated preview-data endpoint that returns only first N rows
     try {
         const endpoint = `${ENDPOINTS.FILES_PREVIEW_DATA(uploadId)}?limit=50`
-        const data = await makeRequest(endpoint, authToken, { method: 'GET' })
+        const data = await makeRequest(endpoint, authToken, { method: 'GET', signal })
         return {
             headers: data.headers || [],
             sample_data: data.sample_data || [],

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 
 import { useToast } from "@/shared/hooks/use-toast"
+import { isApiError } from "@/modules/shared/api-error"
 import {
   DqReportResponse,
   FileStatusResponse,
@@ -8,6 +9,39 @@ import {
   type FileVersionSummary,
 } from "@/modules/files/api/file-management-api"
 import type { FileDetailsTab, FileIssue, FilePreviewData, MatrixTotals } from "@/modules/files/types"
+
+/** Structured reasons the preview surface can surface contextual CTAs for. */
+export type PreviewErrorKind =
+  | "uploading"     // file not yet ready (UPLOADING / DQ_DISPATCHED / DQ_RUNNING …)
+  | "rejected"      // REJECTED — validator failed
+  | "timeout"       // API took > PREVIEW_TIMEOUT_MS
+  | "server_error"  // 5xx
+  | "not_found"     // 404 but NOT a not-ready case (deleted)
+  | "generic"       // everything else
+
+const PREVIEW_TIMEOUT_MS = 5_000
+
+/** Map an API error to a structured PreviewErrorKind. */
+function classifyPreviewError(err: unknown, fileStatus: string): PreviewErrorKind {
+  const status = fileStatus.toUpperCase()
+  if (
+    status === "UPLOADING" ||
+    status === "UPLOADED" ||
+    status === "VALIDATED" ||
+    status === "DQ_DISPATCHED" ||
+    status === "DQ_RUNNING"
+  ) {
+    return "uploading"
+  }
+  if (status === "REJECTED") return "rejected"
+  if (err instanceof Error && err.name === "AbortError") return "timeout"
+  if (isApiError(err)) {
+    if (err.status >= 500) return "server_error"
+    if (err.status === 404 && err.action === "retry") return "uploading"
+    if (err.status === 404) return "not_found"
+  }
+  return "generic"
+}
 
 interface VersionInfo {
   versionNumber: number
@@ -45,6 +79,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
   const [previewData, setPreviewData] = useState<FilePreviewData | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [previewErrorKind, setPreviewErrorKind] = useState<PreviewErrorKind | null>(null)
   const [dqReport, setDqReport] = useState<DqReportResponse | null>(null)
   const [dqReportLoading, setDqReportLoading] = useState(false)
   const [dqReportError, setDqReportError] = useState<string | null>(null)
@@ -87,18 +122,60 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
 
     setPreviewLoading(true)
     setPreviewError(null)
+    setPreviewErrorKind(null)
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), PREVIEW_TIMEOUT_MS)
+
     try {
       const authTokens = JSON.parse(localStorage.getItem("authTokens") || "{}")
       const token = authTokens.idToken
       if (!token) throw new Error("Not authenticated")
-      const data = await fileManagementAPI.getFilePreview(selectedUploadId, token)
-      setPreviewData(data)
+
+      // Inject AbortSignal via the options parameter of makeRequest
+      const data = await fileManagementAPI.getFilePreview(selectedUploadId, token, controller.signal)
+
+      // Failure mode 6: header-only file (0 data rows)
+      if (data.total_rows === 0 && data.headers.length > 0) {
+        setPreviewData(data)  // render empty-state in tab
+      } else {
+        setPreviewData(data)
+      }
     } catch (err: any) {
-      setPreviewError(err.message || "Failed to load preview")
+      const fileStatus = currentFile?.status || ""
+      const kind = classifyPreviewError(err, fileStatus)
+      setPreviewErrorKind(kind)
+
+      switch (kind) {
+        case "uploading":
+          setPreviewError("File is still processing. Try again in a moment.")
+          break
+        case "rejected":
+          setPreviewError("This file was rejected during validation.")
+          break
+        case "timeout":
+          setPreviewError("Preview took too long to load.")
+          break
+        case "server_error":
+          setPreviewError("Server error generating preview.")
+          toast({
+            title: "Preview failed",
+            description: "Couldn't generate preview. Retry?",
+            variant: "destructive",
+            id: "preview-500",
+          })
+          break
+        case "not_found":
+          setPreviewError("This file was deleted.")
+          break
+        default:
+          setPreviewError(err.message || "Failed to load preview")
+      }
     } finally {
+      clearTimeout(timeoutId)
       setPreviewLoading(false)
     }
-  }, [selectedUploadId])
+  }, [selectedUploadId, currentFile?.status, toast])
 
   const loadDqReport = useCallback(async () => {
     if (!selectedUploadId) return
@@ -134,6 +211,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       setActiveTab(defaultTab)
       setPreviewData(null)
       setPreviewError(null)
+      setPreviewErrorKind(null)
       setDqReport(null)
       setDqReportError(null)
       setIssues([])
@@ -250,6 +328,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
   useEffect(() => {
     setPreviewData(null)
     setPreviewError(null)
+    setPreviewErrorKind(null)
     setDqReport(null)
     setDqReportError(null)
     setIssues([])
@@ -428,6 +507,8 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
     previewData,
     previewLoading,
     previewError,
+    previewErrorKind,
+    loadPreview,
     dqReport,
     dqReportLoading,
     dqReportError,
