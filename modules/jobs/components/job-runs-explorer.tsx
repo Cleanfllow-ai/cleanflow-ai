@@ -23,6 +23,7 @@ import { cn } from "@/shared/lib/utils"
 import { useJobRunsExplorer, type SortField, type StatusFilter } from "./use-job-runs-explorer"
 import { JobRunDetailModal } from "./job-run-detail-modal"
 import { JobRunFileViewer } from "./job-run-file-viewer"
+import { JobErrorBanner } from "./job-error-banner"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -224,6 +225,14 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                                     <span className="text-[10px] text-amber-600 tabular-nums">
                                                         {run.total_exported || 0}/{run.total_imported} pushed
                                                     </span>
+                                                )}
+                                                {/* Structured error code pill — visible on failed/skipped runs */}
+                                                {run.error_code && (
+                                                    <JobErrorBanner
+                                                        errorCode={run.error_code}
+                                                        errorMessage={run.error_message}
+                                                        compact
+                                                    />
                                                 )}
                                                 {live?.reprocessed && (
                                                     <Badge

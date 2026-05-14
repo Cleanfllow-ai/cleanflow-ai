@@ -17,6 +17,7 @@ import { useAuth } from "@/modules/auth"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
 import type { FileStatusResponse } from "@/modules/files/types"
 import type { JobRun } from "@/modules/jobs/types/jobs.types"
+import { JobErrorBanner } from "./job-error-banner"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -235,6 +236,21 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                         </div>
                     )}
                 </div>
+
+                {/* ── Structured failure banner ─────────────────────────── */}
+                {run.error_code && (
+                    <JobErrorBanner
+                        errorCode={run.error_code}
+                        errorMessage={run.error_message}
+                        onAction={(key) => {
+                            if (key === "edit" || key === "manage") {
+                                onOpenChange(false)
+                            }
+                            // "rerun" / "view_logs" handled by parent — bubble via onAction prop if needed
+                        }}
+                        className="mt-1"
+                    />
+                )}
 
                 {/* ── Partial-success CTA ───────────────────────────────── */}
                 {showPartialBanner && (
