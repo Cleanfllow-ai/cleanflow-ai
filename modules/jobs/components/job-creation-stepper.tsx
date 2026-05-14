@@ -71,16 +71,9 @@ export function JobCreationStepper() {
         setCurrentStep("mapping")
     }, [pipeline.pipelineSteps.length, d.name, d.frequency, d.cronExpression, toast])
 
-    const handleMappingNext = useCallback(() => {
-        // If user opted-in to Advanced DQ (toggle lives in MappingStep), head to
-        // DQ step. Otherwise create the job directly with default DQ.
-        if (advancedDQ) {
-            setCurrentStep("dq")
-        } else {
-            void handleCreateDirect()
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [advancedDQ])
+    // handleMappingNext is defined AFTER handleCreateDirect (below) so it
+    // can include handleCreateDirect in its deps array without hitting the
+    // temporal dead zone. See declaration at the end of the handlers block.
 
     // ── Build payload (with pipeline_steps[]) ────────────────────────────────
 
@@ -204,6 +197,22 @@ export function JobCreationStepper() {
         }
         await handleCreateJob(defaultDqConfig)
     }, [d.name, d.frequency, d.cronExpression, pipeline.pipelineSteps.length, toast, handleCreateJob])
+
+    // Hotfix: declared AFTER handleCreateDirect so handleCreateDirect is in
+    // scope. Including it in the deps array picks up the latest
+    // d.name / d.frequency / d.cronExpression state. Previously the
+    // useCallback was earlier in the file with only [advancedDQ] deps, which
+    // trapped a stale closure of handleCreateDirect (d.name="") → "Name
+    // required" toast even though the input had the name typed.
+    const handleMappingNext = useCallback(() => {
+        // If user opted-in to Advanced DQ (toggle lives in MappingStep), head to
+        // DQ step. Otherwise create the job directly with default DQ.
+        if (advancedDQ) {
+            setCurrentStep("dq")
+        } else {
+            void handleCreateDirect()
+        }
+    }, [advancedDQ, handleCreateDirect])
 
     // ── Build source config params for DQ step ───────────────────────────────
 
