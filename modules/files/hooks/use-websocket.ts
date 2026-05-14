@@ -18,6 +18,13 @@ interface UseWebSocketParams {
   accessToken: string | null
   enabled: boolean
   onMessage: (message: WsServerMessage) => void
+  /**
+   * Called each time a WebSocket connection is successfully established.
+   * The `isReconnect` flag is true for every connection after the first.
+   * Used by `use-collaboration` to send `requestSnapshot` on reconnect so
+   * the FE reconciles lock state without replaying all prior messages (Case 5).
+   */
+  onConnect?: (isReconnect: boolean) => void
 }
 
 export function useWebSocket({
@@ -25,16 +32,19 @@ export function useWebSocket({
   accessToken,
   enabled,
   onMessage,
+  onConnect,
 }: UseWebSocketParams) {
   const wsRef = useRef<WebSocket | null>(null)
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectAttemptsRef = useRef(0)
   const onMessageRef = useRef(onMessage)
+  const onConnectRef = useRef(onConnect)
   const [connected, setConnected] = useState(false)
 
-  // Keep callback ref up-to-date without triggering reconnections
+  // Keep callback refs up-to-date without triggering reconnections
   onMessageRef.current = onMessage
+  onConnectRef.current = onConnect
 
   // Store latest values in refs so the effect doesn't re-run on every change
   const fileIdRef = useRef(fileId)
@@ -78,7 +88,8 @@ export function useWebSocket({
     const ws = new WebSocket(url)
 
     ws.onopen = () => {
-      console.log('[WS] Connected successfully')
+      const isReconnect = reconnectAttemptsRef.current > 0
+      console.log('[WS] Connected successfully', { isReconnect })
       setConnected(true)
       reconnectAttemptsRef.current = 0
 
@@ -87,6 +98,11 @@ export function useWebSocket({
           ws.send(JSON.stringify({ action: 'heartbeat' }))
         }
       }, HEARTBEAT_INTERVAL_MS)
+
+      // Notify collaboration layer so it can re-subscribe and request lock
+      // snapshot (Case 5). Called AFTER heartbeat is set up so any sends inside
+      // onConnect fire on an open, non-null socket.
+      onConnectRef.current?.(isReconnect)
     }
 
     ws.onmessage = (event) => {
