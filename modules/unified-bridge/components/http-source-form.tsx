@@ -8,6 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { fileManagementAPI, type HttpIngestionConfig } from "@/modules/files"
+import {
+    classifyIngestError,
+    withClientTimeout,
+} from "@/modules/unified-bridge/lib/bridge-errors"
+
+const HTTP_TEST_TIMEOUT_MS = 15_000
+const HTTP_INGEST_TIMEOUT_MS = 90_000
 
 interface HttpSourceFormProps {
     mode?: "source" | "destination"
@@ -67,25 +74,106 @@ export default function HttpSourceForm({
         setHeaders(updated)
     }
 
+    const clearAfterSuccess = () => {
+        setBearerToken("")
+        setApiKey("")
+        setBasicPassword("")
+        setHmacSecretKey("")
+        setCookieValue("")
+        setOidcClientSecret("")
+        setBody("")
+        setFilename("")
+    }
+
+    const validateRequired = (): string | null => {
+        if (!url) return "URL is required"
+        try {
+            const parsed = new URL(url)
+            if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+                return "URL must use http:// or https://"
+            }
+        } catch {
+            return "URL is invalid — must be a full URL like https://api.example.com/data"
+        }
+        if (!filename) return "Output filename (Save As) is required"
+        // Auth-type-specific required-field guards.
+        if (authType === "bearer" && !bearerToken.trim())
+            return "Bearer token is required"
+        if (authType === "api_key" && (!apiKey.trim() || !apiKeyHeader.trim()))
+            return "API key and header name are required"
+        if (authType === "basic" && (!basicUsername.trim() || !basicPassword))
+            return "Username and password are required for basic auth"
+        if (authType === "hmac" && (!hmacAccessKey.trim() || !hmacSecretKey.trim()))
+            return "Access key and secret key are required for HMAC auth"
+        if (authType === "cookie" && !cookieValue.trim())
+            return "Cookie value is required"
+        if (authType === "oidc") {
+            if (!oidcTokenUrl.trim() || !oidcClientId.trim() || !oidcClientSecret.trim()) {
+                return "Token URL, client ID, and client secret are required for OIDC"
+            }
+            try {
+                const parsed = new URL(oidcTokenUrl)
+                if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+                    return "OIDC token URL must use http:// or https://"
+                }
+            } catch {
+                return "OIDC token URL is invalid"
+            }
+        }
+        if (method === "POST" && body) {
+            // Validate JSON if it looks like JSON (starts with { or [).
+            const trimmed = body.trim()
+            if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                try {
+                    JSON.parse(trimmed)
+                } catch {
+                    return "Request body looks like JSON but failed to parse"
+                }
+            }
+        }
+        return null
+    }
+
     const handleTest = async () => {
+        if (!url) {
+            onError("URL is required to test")
+            return
+        }
+        try {
+            const parsed = new URL(url)
+            if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+                onError("URL must use http:// or https://")
+                return
+            }
+        } catch {
+            onError("URL is invalid — must be a full URL like https://api.example.com/data")
+            return
+        }
         setIsTesting(true)
         try {
-            const result = await fileManagementAPI.testHttpEndpoint({ url })
+            const result = await withClientTimeout(
+                fileManagementAPI.testHttpEndpoint({ url }),
+                HTTP_TEST_TIMEOUT_MS,
+                "URL validation",
+            )
             if (result.success) {
                 onIngestionComplete({ success: true, message: result.message })
             } else {
-                onError(result.message)
+                const classified = classifyIngestError(new Error(result.message))
+                onError(classified.message)
             }
-        } catch (err: any) {
-            onError(err.message || "URL validation failed")
+        } catch (err) {
+            const classified = classifyIngestError(err)
+            onError(classified.message)
         } finally {
             setIsTesting(false)
         }
     }
 
     const handleIngest = async () => {
-        if (!url || !filename) {
-            onError("Please fill in all required fields")
+        const validationErr = validateRequired()
+        if (validationErr) {
+            onError(validationErr)
             return
         }
 
@@ -133,15 +221,21 @@ export default function HttpSourceForm({
                 }
             }
 
-            const result = await fileManagementAPI.ingestFromHttp(config, token)
+            const result = await withClientTimeout(
+                fileManagementAPI.ingestFromHttp(config, token),
+                HTTP_INGEST_TIMEOUT_MS,
+                "HTTP ingestion",
+            )
 
             onIngestionComplete({
                 success: true,
                 message: `Successfully fetched ${result.filename} (${(result.size_bytes / 1024).toFixed(1)} KB)`,
                 uploadId: result.upload_id,
             })
-        } catch (err: any) {
-            onError(err.message || "HTTP ingestion failed")
+            clearAfterSuccess()
+        } catch (err) {
+            const classified = classifyIngestError(err)
+            onError(classified.message)
         } finally {
             setIsLoading(false)
         }
