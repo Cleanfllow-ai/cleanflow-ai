@@ -15,6 +15,7 @@ import { connectorsAPI, warehouseConnectorsAPI, erpConnectorsAPI } from '@/modul
 import { ensureConnectorConfig } from '@/modules/connectors/hooks/use-connector-metadata-cache'
 import { isApiError } from '@/modules/shared/api-error'
 import { toastFromError } from '@/lib/error-toast-jsx'
+import { parseCron } from './cron-builder'
 import type { ProviderInfo } from '@/modules/connectors/api/connectors-api'
 import type { WarehouseMetadataItem } from '@/modules/connectors/api/warehouse-connectors-api'
 import { getSettingsPresets } from '@/modules/files/api/file-settings-api'
@@ -734,9 +735,22 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             toast({ title: "Entities required", description: "Please select at least one entity", variant: "destructive" })
             return
         }
-        if (frequency === "cron" && !cronExpression.trim()) {
-            toast({ title: "Cron expression required", variant: "destructive" })
-            return
+        if (frequency === "cron") {
+            const trimmed = cronExpression.trim()
+            if (!trimmed) {
+                toast({ title: "Cron expression required", variant: "destructive" })
+                return
+            }
+            // Validate the cron syntax client-side before the BE rejects it with
+            // JOB_CRON_INVALID. Previously a malformed cron silently passed
+            // client validation and only failed at the server (after the spinner
+            // had cleared), leaving users staring at "Saving..." for ~3s with
+            // no preview of the problem.
+            const parsed = parseCron(trimmed)
+            if (parsed.error) {
+                toast({ title: "Invalid cron expression", description: parsed.error, variant: "destructive" })
+                return
+            }
         }
 
         setSaving(true)
@@ -804,9 +818,19 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             }
             onSuccess()
         } catch (err: any) {
+            // Surface BE field-level validation errors inline (e.g.
+            // `{fields: {name: "Name must be unique"}}`) instead of just the
+            // generic top-level message. Previously the user got "Creation
+            // failed: Validation error" with no clue which field broke.
+            let description = err?.message || "Something went wrong"
+            if (isApiError(err) && err.fields && Object.keys(err.fields).length > 0) {
+                description = Object.entries(err.fields)
+                    .map(([field, msg]) => `${field}: ${msg}`)
+                    .join("; ")
+            }
             toast({
                 title: isEdit ? "Update failed" : "Creation failed",
-                description: err?.message || "Something went wrong",
+                description,
                 variant: "destructive"
             })
         } finally {
