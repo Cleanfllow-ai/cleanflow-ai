@@ -170,8 +170,37 @@ export function ConnectorsHub() {
         } else if (provider?.category === "erp") {
           prefetchERPEntities(providerId).catch(() => {})
         }
+        toast({
+          title: `Connected to ${provider?.display_name ?? providerId}`,
+          description: "Your connection is ready.",
+        })
+      } else {
+        // `result.error` is set when the popup either failed, the user
+        // dismissed it, or COOP / safety-timeout fired. Surface a
+        // user-visible toast so the FE doesn't sit silently with the
+        // "Connect" spinner spinning forever after the user closes the
+        // popup.
+        const msg = result.error || "Connection cancelled."
+        // "Auth window closed" is the friendly path — show a non-destructive
+        // toast. Other strings are genuine failures.
+        const closed = /closed/i.test(msg)
+        toast({
+          title: closed
+            ? "Connection cancelled"
+            : `Could not connect ${provider?.display_name ?? providerId}`,
+          description: closed
+            ? "You closed the authorization window before it finished."
+            : msg,
+          variant: closed ? "default" : "destructive",
+        })
       }
-    } catch { /* popup closed */ } finally { setConnectingProvider(null) }
+    } catch (err) {
+      toast({
+        title: `Could not connect ${provider?.display_name ?? providerId}`,
+        description: (err as Error)?.message || "Please try again.",
+        variant: "destructive",
+      })
+    } finally { setConnectingProvider(null) }
   }
 
   const handleDisconnect = (providerId: string, displayName: string) => {

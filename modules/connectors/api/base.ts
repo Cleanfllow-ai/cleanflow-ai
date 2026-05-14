@@ -160,7 +160,22 @@ export class ConnectorAPIBase {
 
   /**
    * Open an OAuth popup for any provider.
-   * Listens for postMessage events with `{type: "{provider}-auth-success"}` or `"-auth-error"`.
+   *
+   * Cross-window signalling (in order of preference):
+   *   1. `postMessage` from the callback page (fastest, but blocked by some
+   *      strict COOP / opener-isolation configurations).
+   *   2. `BroadcastChannel` on `cleanflowai-oauth` — works even when the
+   *      callback runs in a fully cross-origin-isolated context where
+   *      `window.opener` is null.
+   *   3. `localStorage` event on key `cleanflowai-oauth:{provider}` — last-
+   *      resort fallback for environments where BroadcastChannel is also
+   *      unavailable (older Safari + strict storage partitioning).
+   *
+   * The `authWindow.closed` poll is kept for the "user manually dismissed
+   * the popup" path, but is wrapped in try/catch + a `safetyTimeout` of
+   * 5 min so a COOP-blocked `closed` read can never resolve the promise
+   * prematurely. If `closed` access throws, we treat that as "we can't
+   * tell" — only the success/error signals (or the timeout) resolve.
    */
   async openOAuthPopup(
     provider: string,
@@ -186,33 +201,98 @@ export class ConnectorAPIBase {
           `width=${width},height=${height},top=${top},left=${left}`,
         )
 
+        if (!authWindow) {
+          resolve({
+            success: false,
+            error: "Popup blocked. Please enable popups for this site.",
+          })
+          return
+        }
+
+        let settled = false
+        let channel: BroadcastChannel | null = null
+
         const cleanup = (result: { success: boolean; error?: string }) => {
+          if (settled) return
+          settled = true
           clearInterval(pollTimer)
+          clearTimeout(safetyTimeout)
           window.removeEventListener("message", messageHandler)
+          window.removeEventListener("storage", storageHandler)
+          if (channel) {
+            try { channel.close() } catch { /* noop */ }
+          }
+          try {
+            // Best-effort cleanup of the localStorage fallback key.
+            window.localStorage.removeItem(storageKey)
+          } catch { /* noop */ }
           resolve(result)
         }
 
-        const messageHandler = (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) return
-          if (event.data.type === `${provider}-auth-success`) {
+        const handleSignal = (data: { type?: string; error?: string }) => {
+          if (!data || typeof data.type !== "string") return
+          if (data.type === `${provider}-auth-success`) {
             cleanup({ success: true })
-          } else if (event.data.type === `${provider}-auth-error`) {
+          } else if (data.type === `${provider}-auth-error`) {
             cleanup({
               success: false,
-              error: event.data.error || "Authorization failed",
+              error: data.error || "Authorization failed",
             })
           }
         }
 
+        const messageHandler = (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) return
+          handleSignal(event.data || {})
+        }
+
+        const storageKey = `cleanflowai-oauth:${provider}`
+        const storageHandler = (event: StorageEvent) => {
+          if (event.key !== storageKey || !event.newValue) return
+          try {
+            handleSignal(JSON.parse(event.newValue))
+          } catch {
+            // Malformed signal — ignore.
+          }
+        }
+
         window.addEventListener("message", messageHandler)
+        window.addEventListener("storage", storageHandler)
+
+        // BroadcastChannel is the most reliable cross-window signal under
+        // COOP. Wrapped in try/catch because some browsers (Safari pre-15.4)
+        // and SSR contexts don't expose the constructor.
+        try {
+          if (typeof BroadcastChannel !== "undefined") {
+            channel = new BroadcastChannel("cleanflowai-oauth")
+            channel.onmessage = (event) => handleSignal(event?.data || {})
+          }
+        } catch {
+          channel = null
+        }
+
+        // Safety net: never let a popup poll run forever. 5 min is more
+        // than enough for any OAuth round-trip; if the user wandered off
+        // we fail cleanly instead of leaking the listeners.
+        const safetyTimeout = setTimeout(() => {
+          cleanup({
+            success: false,
+            error: "Authorization timed out. Please try again.",
+          })
+        }, 5 * 60 * 1000)
 
         const pollTimer = setInterval(() => {
           try {
-            if (authWindow && authWindow.closed) {
+            // Under COOP, `authWindow.closed` may throw or always return
+            // `false`. We must NOT treat "can't tell" as "popup closed" —
+            // doing so cancels successful auth flows. Only resolve if the
+            // read both succeeds AND reports closed.
+            if (authWindow && authWindow.closed === true) {
               cleanup({ success: false, error: "Auth window closed" })
             }
           } catch {
-            // COOP policy may block access — rely on postMessage
+            // COOP blocked the read — rely on postMessage / BroadcastChannel
+            // / storage signals (or the safety timeout).
           }
         }, 500)
       } catch (error) {
