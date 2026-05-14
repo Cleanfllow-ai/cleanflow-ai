@@ -8,6 +8,7 @@
  * (insufficient role → no point re-logging in). After the migration the
  * error is an `ApiError` carrying `status` + `code` + `action` fields.
  */
+import "@testing-library/jest-dom"
 
 jest.mock("@/shared/config/aws-config", () => ({
     AWS_CONFIG: { API_BASE_URL: "https://api.test.com" },
