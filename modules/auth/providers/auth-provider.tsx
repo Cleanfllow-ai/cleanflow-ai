@@ -23,11 +23,15 @@ interface AuthContextType {
   mfaRequired: boolean;
   mfaSession: string | null;
   mfaUsername: string | null;
+  // Idle timeout warning (case 5)
+  idleWarnSecondsRemaining: number | null;
   // Auth functions
   signup: (email: string, password: string, confirmPassword: string, name?: string) => Promise<any>;
   confirmSignup: (email: string, code: string) => Promise<any>;
   login: (email: string, password: string) => Promise<any>;
   logout: () => void;
+  logoutExpired: () => void;
+  dismissIdleWarning: () => void;
   // MFA functions
   verifyMfaCode: (mfaCode: string) => Promise<any>;
   setupMfa: (accessToken: string) => Promise<MfaSetupData>;
@@ -183,11 +187,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         mfaRequired: auth.mfaRequired,
         mfaSession: auth.mfaSession,
         mfaUsername: auth.mfaUsername,
+        // Idle timeout warning (case 5)
+        idleWarnSecondsRemaining: auth.idleWarnSecondsRemaining,
         // Auth functions
         signup: auth.signup,
         confirmSignup: auth.confirmSignup,
         login: auth.login,
         logout: auth.logout,
+        logoutExpired: auth.logoutExpired,
+        dismissIdleWarning: auth.dismissIdleWarning,
         // MFA functions
         verifyMfaCode: auth.verifyMfaCode,
         setupMfa: auth.setupMfa,

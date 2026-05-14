@@ -1,10 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { cognitoApi } from '@/modules/auth/api/cognito-client'
 import type { User, AuthState, MfaSetupData } from '@/modules/auth/types/auth.types'
-import { buildUserFromPayload, clearStoredTokens, loadStoredTokens, parseJWT, saveStoredTokens } from './auth-session'
+import {
+  buildUserFromPayload,
+  broadcastLogout,
+  clearStoredTokens,
+  isLoginInFlight,
+  loadStoredTokens,
+  parseJWT,
+  saveStoredTokens,
+  setLoginInFlight,
+  startIdleTimer,
+  subscribeToLogoutBroadcast,
+} from './auth-session'
 
 // Re-export types for backwards compatibility
 export type { User, AuthState, MfaSetupData } from '@/modules/auth/types/auth.types'
@@ -19,8 +30,50 @@ export function useAuth() {
     refreshToken: null,
     mfaRequired: false,
     mfaSession: null,
-    mfaUsername: null
+    mfaUsername: null,
+    idleWarnSecondsRemaining: null,
   })
+
+  const idleTimerRef = useRef<ReturnType<typeof startIdleTimer> | null>(null)
+
+  // ─── logoutExpired (case 3): clearTokens + redirect with reason ───────────
+  const logoutExpired = useCallback(() => {
+    clearStoredTokens()
+    broadcastLogout()
+    idleTimerRef.current?.destroy()
+    idleTimerRef.current = null
+    setAuthState({
+      user: null,
+      isLoading: false,
+      isAuthenticated: false,
+      idToken: null,
+      accessToken: null,
+      refreshToken: null,
+      mfaRequired: false,
+      mfaSession: null,
+      mfaUsername: null,
+      idleWarnSecondsRemaining: null,
+    })
+    if (typeof window !== "undefined") {
+      window.location.href = "/auth/login?reason=session_expired"
+    }
+  }, [])
+
+  // ─── Idle timer arming (case 5) ───────────────────────────────────────────
+  const armIdleTimer = useCallback(() => {
+    idleTimerRef.current?.destroy()
+    idleTimerRef.current = startIdleTimer(
+      (secondsRemaining) => {
+        setAuthState((prev) => ({ ...prev, idleWarnSecondsRemaining: secondsRemaining }))
+      },
+      () => { logoutExpired() }
+    )
+  }, [logoutExpired])
+
+  const dismissIdleWarning = useCallback(() => {
+    setAuthState((prev) => ({ ...prev, idleWarnSecondsRemaining: null }))
+    idleTimerRef.current?.reset()
+  }, [])
 
   useEffect(() => {
     // Check for existing session on mount
@@ -40,8 +93,10 @@ export function useAuth() {
             refreshToken: refreshToken || null,
             mfaRequired: false,
             mfaSession: null,
-            mfaUsername: null
+            mfaUsername: null,
+            idleWarnSecondsRemaining: null,
           })
+          armIdleTimer()
         } else if (refreshToken) {
           // Attempt silent refresh on mount if tokens are expired but refresh token exists
           refreshSession(refreshToken)
@@ -56,6 +111,34 @@ export function useAuth() {
     } else {
       setAuthState(prev => ({ ...prev, isLoading: false }))
     }
+
+    // Case 6: subscribe to cross-tab logout
+    const unsubscribe = subscribeToLogoutBroadcast(() => {
+      clearStoredTokens()
+      idleTimerRef.current?.destroy()
+      idleTimerRef.current = null
+      setAuthState({
+        user: null,
+        isLoading: false,
+        isAuthenticated: false,
+        idToken: null,
+        accessToken: null,
+        refreshToken: null,
+        mfaRequired: false,
+        mfaSession: null,
+        mfaUsername: null,
+        idleWarnSecondsRemaining: null,
+      })
+      if (typeof window !== "undefined") {
+        window.location.href = "/auth/login"
+      }
+    })
+
+    return () => {
+      unsubscribe()
+      idleTimerRef.current?.destroy()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Auto-refresh tokens before they expire
@@ -116,6 +199,7 @@ export function useAuth() {
             accessToken,
             refreshToken: newRefreshToken,
             mfaRequired: false,
+            idleWarnSecondsRemaining: null,
           }))
 
           return { success: true }
@@ -187,6 +271,13 @@ export function useAuth() {
       throw new Error('Please enter both email and password')
     }
 
+    // Case 7: no-op if a login call is already in flight
+    if (isLoginInFlight()) {
+      return { success: false, message: 'Sign in already in progress' }
+    }
+
+    setLoginInFlight(true)
+
     // Clear existing session state before starting new login
     clearStoredTokens()
     setAuthState(prev => ({
@@ -198,7 +289,8 @@ export function useAuth() {
       refreshToken: null,
       mfaRequired: false,
       mfaSession: null,
-      mfaUsername: null
+      mfaUsername: null,
+      idleWarnSecondsRemaining: null,
     }))
 
     try {
@@ -276,9 +368,11 @@ export function useAuth() {
             refreshToken,
             mfaRequired: false,
             mfaSession: null,
-            mfaUsername: null
+            mfaUsername: null,
+            idleWarnSecondsRemaining: null,
           })
 
+          armIdleTimer()
           return { success: true, message: 'Login successful!' }
         }
       }
@@ -293,6 +387,8 @@ export function useAuth() {
         throw new Error('User not found. Please sign up first.')
       }
       throw new Error(error.message || 'Login failed')
+    } finally {
+      setLoginInFlight(false)
     }
   }
 
@@ -329,9 +425,11 @@ export function useAuth() {
             refreshToken,
             mfaRequired: false,
             mfaSession: null,
-            mfaUsername: null
+            mfaUsername: null,
+            idleWarnSecondsRemaining: null,
           })
 
+          armIdleTimer()
           return { success: true, message: 'MFA verified successfully!' }
         }
       }
@@ -533,7 +631,13 @@ export function useAuth() {
   }
 
   const logout = () => {
+    // Case 8: clear both localStorage and sessionStorage
     clearStoredTokens()
+    // Case 6: notify other tabs
+    broadcastLogout()
+    // Case 5: tear down idle timer
+    idleTimerRef.current?.destroy()
+    idleTimerRef.current = null
     setAuthState({
       user: null,
       isLoading: false,
@@ -543,7 +647,8 @@ export function useAuth() {
       refreshToken: null,
       mfaRequired: false,
       mfaSession: null,
-      mfaUsername: null
+      mfaUsername: null,
+      idleWarnSecondsRemaining: null,
     })
   }
 
@@ -583,6 +688,8 @@ export function useAuth() {
     confirmSignup,
     login,
     logout,
+    logoutExpired,
+    dismissIdleWarning,
     getValidToken,
     // Password functions
     completeNewPassword,
