@@ -6,6 +6,20 @@
 export type AugmentationJobStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED"
 export type PromptCardinality = "ONE_TO_MANY" | "MANY_TO_ONE" | "MANY_TO_MANY"
 
+/**
+ * Structured error codes returned by the backend in AugmentationJobs.error_code.
+ * The FE toast layer uses these to show the right message + action button.
+ * Keep in sync with AugErrorCode in contexts/augmentation/domain/exceptions.py.
+ */
+export type AugErrorCode =
+    | "AUG_LLM_RATE_LIMITED"   // Groq 429 — retry in 30s
+    | "AUG_EXPR_INVALID"        // AST validator rejected the expression
+    | "AUG_ZERO_ROWS"           // Expression ran but produced 0 rows
+    | "AUG_SCHEMA_MISMATCH"     // Source CSV missing required columns
+    | "AUG_EVAL_FAILED"         // Polars .collect() threw at runtime
+    | "AUG_CACHE_STALE"         // Cached expression invalid after schema change (FE-invisible — BE retries)
+    | "AUG_UNKNOWN"             // Generic fallback
+
 export interface AugmentationJob {
     job_id: string
     status: AugmentationJobStatus
@@ -13,6 +27,8 @@ export interface AugmentationJob {
     cost_actual_usd?: number
     created_at: string
     error_message?: string
+    /** Structured error code — only present when status === "FAILED". */
+    error_code?: AugErrorCode
     template_id?: string
     input_dataset_key?: string
     output_dataset_key?: string
