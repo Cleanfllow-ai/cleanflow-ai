@@ -54,6 +54,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { ImportProgressRow } from "@/modules/files/components/import-progress-row";
 import { OptimizingBadge } from "@/modules/files/components/optimizing-badge";
+import { RejectionReasonBadge } from "@/modules/files/components/rejection-reason-badge";
 import {
     calculateProcessingTime,
     getDqQualityLabel,
@@ -406,6 +407,8 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                     {upload.progress?.percent ?? 0}%
                                                                 </span>
                                                             </div>
+                                                        ) : file.status === "REJECTED" ? (
+                                                            <RejectionReasonBadge failureReason={file.failure_reason} />
                                                         ) : (
                                                             <p className="text-[10px] sm:text-xs text-muted-foreground font-mono tabular-nums">
                                                                 {(file.input_size_bytes || file.file_size) ? formatBytes(file.input_size_bytes || file.file_size || 0) : <span className="text-muted-foreground/40">--</span>}

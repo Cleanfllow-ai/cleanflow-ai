@@ -123,6 +123,12 @@ export interface FileStatusResponse {
   // OPTIMIZE_FAILED. Surfaced in the status-badge tooltip on the file list
   // and detail view. Falls back to a generic message if absent.
   error_reason?: string
+  // CC2 CSV edge-case hardening: populated by FileValidator when a file is
+  // rejected due to a structural problem (BOM, UTF-16, 0-byte, header-only,
+  // malformed UTF-8, unclosed quotes, etc.). Surfaced below the filename on
+  // REJECTED rows so users see a specific, actionable reason instead of a
+  // generic "Rejected" pill.
+  failure_reason?: string
 }
 
 export interface FileListResponse {
