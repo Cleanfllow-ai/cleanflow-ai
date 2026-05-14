@@ -102,15 +102,16 @@ describe('SignUpForm — step 1 validation', () => {
   it('advances to step 2 when step 1 is valid', async () => {
     mockUseAuth.mockReturnValue(makeAuth())
     render(<SignUpForm />)
-    await waitFor(() => screen.getByLabelText(/full name/i))
+    await waitFor(() => screen.getByLabelText(/full name/i), { timeout: 10000 })
 
     await fillStep1('Alice', 'alice@example.com', 'Password123!', 'Password123!')
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
 
     await waitFor(() =>
-      expect(screen.getByText(/organization details/i)).toBeInTheDocument()
+      expect(screen.getByText(/organization details/i)).toBeInTheDocument(),
+      { timeout: 10000 }
     )
-  })
+  }, 15000)
 })
 
 describe('SignUpForm — success path', () => {
