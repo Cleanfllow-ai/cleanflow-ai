@@ -35,9 +35,11 @@ export default defineConfig({
     },
     projects: [
         // 1. Auth setup — runs once, saves cookies/storage state
+        // Prefer auth-direct.setup.ts (token injection from python helper) when
+        // inject-tokens.json is present; falls back to auth.setup.ts (UI login).
         {
             name: "setup",
-            testMatch: /.*\.setup\.ts/,
+            testMatch: /.*auth-direct\.setup\.ts/,
         },
         // 2. Authenticated tests — reuse the saved state
         {
