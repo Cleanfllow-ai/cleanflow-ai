@@ -141,8 +141,12 @@ it('FAILED_TERMINAL surfaces error_msg', async () => {
 
 it('skipped-rows tab populates from result', async () => {
   jest.useFakeTimers()
+  // First call: dry-run preview (previewFindReplace uses makeRequest internally)
   makeRequest
+    .mockResolvedValueOnce({ sample_matches: [{ row_id: 'r-000', column: 'name', old_value: 'foo', new_value: 'bar' }], total_count: 5, truncated: false })
+    // Second call: async submit → PENDING
     .mockResolvedValueOnce({ operation_id: 'op-4', status: 'PENDING', async: true })
+    // Third call: poll → COMPLETED with skipped rows
     .mockResolvedValueOnce({
       operation_id: 'op-4', status: 'COMPLETED', kind: 'find_replace',
       progress: { done: 5, total: 5, percent: 100 },
@@ -170,8 +174,14 @@ it('skipped-rows tab populates from result', async () => {
       asyncScope="ENTIRE_QUARANTINE"
     />
   )
+  // Step 1: click "Preview matches" to trigger dry-run preview and surface confirm button
   await act(async () => {
-    screen.getByTestId('replace-all-btn').click()
+    screen.getByTestId('preview-matches-btn').click()
+  })
+  // Step 2: wait for confirm button to appear, then click to submit the async operation
+  await waitFor(() => screen.getByTestId('confirm-replace-all-btn'))
+  await act(async () => {
+    screen.getByTestId('confirm-replace-all-btn').click()
     await jest.advanceTimersByTimeAsync(1500)
   })
   await waitFor(() => expect(screen.getByTestId('skipped-rows-tab')).toBeInTheDocument())
