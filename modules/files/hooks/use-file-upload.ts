@@ -295,4 +295,4 @@ export function useFileUpload({
 }
 
 // Named re-exports for testing without importing the full hook
-export { fetchWithRetry, _initUploadToast, _s3PutToast, addJitter }
+export { fetchWithRetry, _initUploadToast, _s3PutToast }
