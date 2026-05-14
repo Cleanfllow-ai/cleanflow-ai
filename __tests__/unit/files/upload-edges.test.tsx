@@ -10,7 +10,7 @@
  * FM-7  S3 503 SlowDown         → retry 3x with backoff, then "Service busy"
  */
 
-import { fetchWithRetry, _initUploadToast, _s3PutToast } from "@/modules/files/hooks/use-file-upload"
+import { fetchWithRetry, _initUploadToast, _s3PutToast, addJitter } from "@/modules/files/hooks/use-file-upload"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -259,5 +259,33 @@ describe("FM-7: S3 503 SlowDown", () => {
     const result = _s3PutToast(503)
     expect(result.title).toBe("Service busy")
     expect(result.description).toMatch(/Try again in a minute/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// addJitter — delay jitter correctness
+// ---------------------------------------------------------------------------
+
+describe("addJitter: 50% jitter on retry delay", () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it("returns base + 0.4*base*0.5 = base*1.2 when Math.random() === 0.4", () => {
+    jest.spyOn(Math, "random").mockReturnValue(0.4)
+    const base = 1000
+    expect(addJitter(base)).toBe(base + 0.4 * base * 0.5) // 1200
+  })
+
+  it("returns exactly base when Math.random() === 0", () => {
+    jest.spyOn(Math, "random").mockReturnValue(0)
+    const base = 2000
+    expect(addJitter(base)).toBe(base) // 2000
+  })
+
+  it("returns base*1.5 when Math.random() === 1", () => {
+    jest.spyOn(Math, "random").mockReturnValue(1)
+    const base = 4000
+    expect(addJitter(base)).toBe(base * 1.5) // 6000
   })
 })

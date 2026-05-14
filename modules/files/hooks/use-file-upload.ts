@@ -26,6 +26,15 @@ interface UseFileUploadParams {
 const RETRY_DELAYS_MS = [1000, 2000, 4000]
 
 /**
+ * Add ±50% jitter to a base delay to avoid retry-storm thunder-herd under
+ * concurrent S3 503 SlowDown pressure.
+ * Result is in range [base, base * 1.5].
+ */
+export function addJitter(base: number): number {
+  return base + Math.random() * base * 0.5
+}
+
+/**
  * Perform a fetch with automatic retries for network errors and 503 responses.
  *
  * - Network/timeout errors → up to 3 retries with 1s/2s/4s backoff
@@ -51,7 +60,7 @@ async function fetchWithRetry(
       // 503 SlowDown: retry with backoff
       if (response.status === 503) {
         if (attempt < maxRetries) {
-          await _sleep(RETRY_DELAYS_MS[attempt] ?? 4000)
+          await _sleep(addJitter(RETRY_DELAYS_MS[attempt] ?? 4000))
           continue
         }
         return response
@@ -60,7 +69,7 @@ async function fetchWithRetry(
       // 5xx server error (non-503): 1 retry max
       if (response.status >= 500) {
         if (attempt === 0) {
-          await _sleep(RETRY_DELAYS_MS[0])
+          await _sleep(addJitter(RETRY_DELAYS_MS[0]))
           continue
         }
         return response
@@ -72,7 +81,7 @@ async function fetchWithRetry(
       // Network drop / connection reset
       lastError = networkErr
       if (attempt < maxRetries) {
-        await _sleep(RETRY_DELAYS_MS[attempt] ?? 4000)
+        await _sleep(addJitter(RETRY_DELAYS_MS[attempt] ?? 4000))
         continue
       }
     }
@@ -286,4 +295,4 @@ export function useFileUpload({
 }
 
 // Named re-exports for testing without importing the full hook
-export { fetchWithRetry, _initUploadToast, _s3PutToast }
+export { fetchWithRetry, _initUploadToast, _s3PutToast, addJitter }
