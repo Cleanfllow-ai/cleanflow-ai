@@ -54,6 +54,26 @@ interface VersionInfo {
 
 const READY_FOR_REPORT = new Set(["DQ_FIXED", "DQ_COMPLETE", "COMPLETED", "PROCESSED"])
 
+/**
+ * Statuses where preview data exists on S3.
+ * Files below this threshold (UPLOADING, UPLOADED, VALIDATED, DQ_DISPATCHED,
+ * DQ_RUNNING) have no result.parquet yet — calling preview-data returns 404.
+ * REJECTED files are permanently unavailable.
+ */
+const READY_FOR_PREVIEW = new Set([
+  "DQ_FIXED", "DQ_FAILED", "DQ_COMPLETE", "COMPLETED", "PROCESSED",
+])
+
+/**
+ * Terminal preview-error kinds that must NOT be auto-retried on re-render.
+ * "uploading" → file not ready yet (user must click Refresh manually).
+ * "rejected"  → file permanently failed validation.
+ * "not_found" → file deleted.
+ */
+const TERMINAL_PREVIEW_ERROR_KINDS = new Set<PreviewErrorKind>([
+  "uploading", "rejected", "not_found",
+])
+
 function getVersionNumber(
   version: FileVersionSummary | null | undefined,
   file: FileStatusResponse | null | undefined,
@@ -341,16 +361,37 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
 
   useEffect(() => {
     if (!open || !selectedUploadId) return
+
+    const fileStatus = (currentFile?.status || "").toUpperCase()
+    const isReadyForPreview = READY_FOR_PREVIEW.has(fileStatus)
+
+    // Bug 1 fix: only attempt preview fetch when the file actually has
+    // result data on S3 (DQ_FIXED / DQ_FAILED / COMPLETED).
+    // For not-ready statuses we show the "uploading" error state without
+    // polling — the user clicks Refresh manually.
+    // Also stop retrying once a terminal error has been classified
+    // (uploading / rejected / not_found) to prevent the re-render loop
+    // where !previewData && !previewLoading stays true after a 404.
     if (activeTab === "preview" && !previewData && !previewLoading) {
-      void loadPreview()
+      if (!isReadyForPreview) {
+        // Show the "not ready" state immediately without hitting the API.
+        setPreviewErrorKind("uploading")
+        setPreviewError("File is still processing. Preview available after DQ completes.")
+      } else if (!previewErrorKind || !TERMINAL_PREVIEW_ERROR_KINDS.has(previewErrorKind)) {
+        void loadPreview()
+      }
     }
+
     // Lazy-load the dq report on preview tab too (#11): we need
     // `synthesised_columns` from there to render calculator icons on
     // formula-derived headers. Cheap single S3 GET; no-op when already
     // loaded.
+    // Bug 4 fix: only fetch when the file is actually in a ready state —
+    // prevents polling /download?type=report for files still processing.
     if (
       (activeTab === "preview" || activeTab === "dq-report") &&
-      !dqReport && !dqReportLoading
+      !dqReport && !dqReportLoading &&
+      READY_FOR_REPORT.has(fileStatus)
     ) {
       void loadDqReport()
     }
@@ -360,8 +401,10 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
     activeTab,
     previewData,
     previewLoading,
+    previewErrorKind,
     dqReport,
     dqReportLoading,
+    currentFile?.status,
     loadPreview,
     loadDqReport,
   ])
