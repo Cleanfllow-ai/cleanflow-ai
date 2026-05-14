@@ -299,6 +299,10 @@ export function useOrgSettings() {
     const [orgId, setOrgId] = useState<string | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [invites, setInvites] = useState<OrgInvite[]>([]);
+    // Track invite-list load errors so the FE can render an inline retry
+    // banner instead of a silent empty list. (loadInvites() used to swallow
+    // failures entirely, making 403/500 indistinguishable from "no invites".)
+    const [invitesLoadError, setInvitesLoadError] = useState<string | null>(null);
     const [, setMembersLoadError] = useState<string | null>(null);
     const [isLoadingOrg, setIsLoadingOrg] = useState(true);
     const [isRefreshingOrg, setIsRefreshingOrg] = useState(false);
@@ -343,8 +347,14 @@ export function useOrgSettings() {
         try {
             const response = await orgAPI.listInvites();
             setInvites(response.invites || []);
+            setInvitesLoadError(null);
         } catch (err) {
+            const message = (err as Error)?.message || "Could not load invites.";
             console.error("Failed to load invites", err);
+            setInvitesLoadError(message);
+            // Don't toast here — loadInvites is called on initial mount and
+            // on every refresh; surfacing a banner via state is enough.
+            // Mutation-failure toasts live in invite/revoke/send paths.
         }
     };
 
@@ -1182,5 +1192,8 @@ export function useOrgSettings() {
         setApprovalStatusFilter,
         handleApproveRequest,
         handleRejectRequest,
+        // Load-error surface for FE inline banners. Mutation-failure toasts
+        // are still emitted by their respective handlers.
+        invitesLoadError,
     };
 }
