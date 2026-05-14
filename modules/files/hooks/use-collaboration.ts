@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useWebSocket } from './use-websocket'
 import type {
   CollaborationUser,
@@ -499,7 +499,13 @@ export function useCollaboration({
   // Users who have not been seen in PRESENCE_STALE_THRESHOLD_MS are hidden.
   // The server self-heals via presenceSync every ~30 s, so this is a belt-
   // and-suspenders guard for the window between heartbeats.
-  const activeUsers = filterStaleUsers(users, Date.now())
+  //
+  // Wrapped in useMemo so the returned array is a stable reference when
+  // `users` hasn't changed — avoids prop-inequality churn on every render
+  // (and prevents any consumer effect with `collab.users` in its deps from
+  // re-running unnecessarily).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const activeUsers = useMemo(() => filterStaleUsers(users, Date.now()), [users])
 
   return {
     connected,

@@ -74,7 +74,9 @@ export default function QuarantineEditorPage({ params }: PageProps) {
       lastSavedRef.current = editor.lastSavedAt
       overlay.clearPersisted()
     }
-  }, [editor.lastSavedAt, overlay])
+  // overlay is a new object each render; use the stable clearPersisted callback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor.lastSavedAt, overlay.clearPersisted])
   const handleOverlayRestore = useCallback(() => {
     if (overlay.restored?.edits_map) {
       editor.hydrateEdits(overlay.restored.edits_map)
@@ -389,7 +391,10 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     open: false,
     column: null,
   })
-  useEffect(() => { history.clear() }, [uploadId, history])
+  // history.clear is a stable useCallback — use it directly in deps instead of
+  // the history object (which is a new reference every render and would cause
+  // an infinite setState loop via setVersion inside clear(); React error #185).
+  useEffect(() => { history.clear() }, [uploadId, history.clear]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCellEditWithBroadcast = useCallback((rowId: string, column: string, value: string) => {
     const oldValue = editor.getCellValue(rowId, column, {} as Record<string, any>)
