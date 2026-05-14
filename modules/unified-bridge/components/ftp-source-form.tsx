@@ -8,6 +8,18 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { fileManagementAPI, type FtpIngestionConfig } from "@/modules/files"
+import {
+    classifyIngestError,
+    isValidHost,
+    isValidPort,
+    withClientTimeout,
+} from "@/modules/unified-bridge/lib/bridge-errors"
+
+// Client-side cap so a hung BE never leaves the UI spinning.
+// 60s is comfortably below the BE Lambda timeout (29s API GW) for `test`,
+// 120s for full ingest to allow for large file download.
+const FTP_TEST_TIMEOUT_MS = 15_000
+const FTP_INGEST_TIMEOUT_MS = 120_000
 
 interface FtpSourceFormProps {
     mode?: "source" | "destination"
@@ -55,32 +67,79 @@ export default function FtpSourceForm({
         }
     }
 
+    // Reset sensitive form fields after a successful ingest so the next
+    // submission doesn't accidentally reuse credentials or reuse stale state.
+    // Host / port / protocol are kept (likely same target), but anything that
+    // identifies a specific file or carries a secret is cleared.
+    const clearAfterSuccess = () => {
+        setPassword("")
+        setSshPrivateKey("")
+        setSshKeyPassphrase("")
+        setRemotePath("")
+        setFilename("")
+    }
+
+    const validateRequired = (): string | null => {
+        if (!host) return "Host is required"
+        if (!isValidHost(host))
+            return "Host is invalid. Use a DNS hostname (e.g. ftp.example.com) or IPv4 literal."
+        if (port && !isValidPort(port)) return "Port must be an integer between 1 and 65535"
+        if (!remotePath) return "Remote path is required"
+        if (!filename) return "Output filename (Save As) is required"
+        if (protocol === "sftp" && sftpAuthType === "ssh_key" && !sshPrivateKey.trim()) {
+            return "Private key is required for SSH key auth"
+        }
+        return null
+    }
+
     const handleTest = async () => {
+        // Honesty: the current backend has no /ingest/test-connection route,
+        // so the API client returns a stub. Be transparent that we only
+        // validated the *shape* of the config, not live connectivity.
+        if (!host) {
+            onError("Host is required to test connection")
+            return
+        }
+        if (!isValidHost(host)) {
+            onError("Host is invalid. Use a DNS hostname or IPv4 literal.")
+            return
+        }
+        if (port && !isValidPort(port)) {
+            onError("Port must be an integer between 1 and 65535")
+            return
+        }
         setIsTesting(true)
         try {
-            const result = await fileManagementAPI.testFtpConnection({
-                host,
-                port: parseInt(port),
-                protocol,
-                username,
-                password,
-                remote_path: remotePath,
-            })
+            const result = await withClientTimeout(
+                fileManagementAPI.testFtpConnection({
+                    host,
+                    port: parseInt(port),
+                    protocol,
+                    username,
+                    password,
+                    remote_path: remotePath,
+                }),
+                FTP_TEST_TIMEOUT_MS,
+                "Connection test",
+            )
             if (result.success) {
                 onIngestionComplete({ success: true, message: result.message })
             } else {
-                onError(result.message)
+                const classified = classifyIngestError(new Error(result.message))
+                onError(classified.message)
             }
-        } catch (err: any) {
-            onError(err.message || "Connection test failed")
+        } catch (err) {
+            const classified = classifyIngestError(err)
+            onError(classified.message)
         } finally {
             setIsTesting(false)
         }
     }
 
     const handleIngest = async () => {
-        if (!host || !remotePath || !filename) {
-            onError("Please fill in all required fields")
+        const validationErr = validateRequired()
+        if (validationErr) {
+            onError(validationErr)
             return
         }
 
@@ -107,15 +166,21 @@ export default function FtpSourceForm({
                 }
             }
 
-            const result = await fileManagementAPI.ingestFromFtp(config, token)
+            const result = await withClientTimeout(
+                fileManagementAPI.ingestFromFtp(config, token),
+                FTP_INGEST_TIMEOUT_MS,
+                "FTP ingestion",
+            )
 
             onIngestionComplete({
                 success: true,
                 message: `Successfully ingested ${result.filename} (${(result.size_bytes / 1024).toFixed(1)} KB)`,
                 uploadId: result.upload_id,
             })
-        } catch (err: any) {
-            onError(err.message || "FTP ingestion failed")
+            clearAfterSuccess()
+        } catch (err) {
+            const classified = classifyIngestError(err)
+            onError(classified.message)
         } finally {
             setIsLoading(false)
         }
