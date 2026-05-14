@@ -8,8 +8,10 @@
  * Scoped to .quarantine-ag-grid wrapper class.
  */
 
-/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+/* Fonts loaded via next/font/google in app/layout.tsx (Inter + IBM_Plex_Mono).
+   No @import here — CSS @import must precede all rules in the bundled
+   stylesheet, and this file is concatenated after tailwindcss, so the
+   bundler would emit a runtime warning. */
 
 /* ─── AG Grid variable overrides ───────────────────────────────────────────── */
 .quarantine-ag-grid {

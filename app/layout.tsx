@@ -1,6 +1,6 @@
 import "./globals.css"
 
-import { Inter } from "next/font/google"
+import { Inter, IBM_Plex_Mono } from "next/font/google"
 import { AuthProvider } from "@/modules/auth"
 import { CookieBanner } from "@/modules/privacy/components/cookie-banner"
 import { FilePreloader } from "@/modules/files/components/file-preloader"
@@ -14,6 +14,13 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
+})
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-ibm-plex-mono",
 })
 
 export const metadata: Metadata = {
@@ -43,7 +50,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${ibmPlexMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased bg-background text-foreground min-h-screen">
         <ReduxProvider>
           <AuthProvider>
