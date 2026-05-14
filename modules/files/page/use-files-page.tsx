@@ -1355,6 +1355,12 @@ export function useFilesPage() {
         const ids = Array.from(selectedFiles);
         let successCount = 0;
         let failCount = 0;
+        // Capture last error so we can surface session-expired / permission
+        // distinctly instead of the previous opaque "Bulk delete partial"
+        // toast. A 401 also bails the loop early — every subsequent call
+        // would 401 too, and the user needs to re-auth before retrying.
+        let lastError: unknown = null;
+        let bailedOnAuth = false;
         for (const id of ids) {
             try {
                 setDeleting(id);
@@ -1363,8 +1369,14 @@ export function useFilesPage() {
                     await fileManagementAPI.pollDeleteOperation(result.operation_id, idToken);
                 }
                 successCount++;
-            } catch {
+            } catch (err) {
+                lastError = err;
                 failCount++;
+                console.error(`Bulk delete failed for ${id}:`, err);
+                if (err instanceof ApiError && err.status === 401) {
+                    bailedOnAuth = true;
+                    break;
+                }
             } finally {
                 setDeleting(null);
             }
@@ -1374,6 +1386,16 @@ export function useFilesPage() {
         await loadFiles();
         if (failCount === 0) {
             toast({ title: "Files deleted", description: `${successCount} file(s) removed successfully` });
+        } else if (bailedOnAuth) {
+            // Session expired mid-loop — route through the typed-error mapper
+            // so the toast carries the standard "Sign In" action.
+            toast(toastFromQuarantineError(lastError, { action: "delete files" }));
+        } else if (lastError instanceof ApiError && lastError.status === 403) {
+            toast({
+                title: "Permission denied",
+                description: `${successCount} deleted, ${failCount} blocked. You don't have permission to delete some of the selected files.`,
+                variant: "destructive",
+            });
         } else {
             toast({ title: "Bulk delete partial", description: `${successCount} deleted, ${failCount} failed`, variant: "destructive" });
         }
