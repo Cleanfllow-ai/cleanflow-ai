@@ -126,9 +126,17 @@ async function selectInCard(card: Locator, labelText: RegExp, optionText: RegExp
 async function pickCategory(card: Locator, category: "Applications" | "Warehouse" | "Storage") {
     const cat = card.locator("button[role='combobox']").nth(0)
     const current = (await cat.textContent({ timeout: 1000 }).catch(() => "")) || ""
-    if (current.toLowerCase().includes(category.toLowerCase())) return // already
+    // Map our test alias to the actual UI option text
+    const uiLabelMap = {
+        "Applications": /^Applications$/i,
+        "Warehouse": /^Data Warehouses$|^Warehouse$/i,
+        "Storage": /^Cloud Storage$|^Storage$/i,
+    } as const
+    if (current.toLowerCase().includes(category.toLowerCase())) return
+    if (category === "Warehouse" && current.toLowerCase().includes("warehouse")) return
+    if (category === "Storage" && current.toLowerCase().includes("storage")) return
     await cat.click()
-    await card.page().getByRole("option", { name: new RegExp(`^${category}$`, "i") }).first().click({ timeout: 5000 })
+    await card.page().getByRole("option", { name: uiLabelMap[category] }).first().click({ timeout: 5000 })
     await card.page().waitForTimeout(700)
 }
 
@@ -157,8 +165,24 @@ async function pickEntity(card: Locator, entityName: RegExp) {
 }
 
 async function fillName(page: Page, name: string) {
-    const input = page.getByLabel(/job name/i)
-    await input.fill(name)
+    const inputs = page.getByLabel(/job name/i)
+    const cnt = await inputs.count()
+    console.log(`fillName: ${cnt} matching inputs`)
+    // Try the LAST one (which seems to be the active stepper's input)
+    const input = inputs.last()
+    await input.click()
+    await input.fill("")
+    await input.pressSequentially(name, { delay: 20 })
+    await page.waitForTimeout(300)
+    // Also dispatch a synthetic React-friendly input event
+    await input.evaluate((el: HTMLInputElement, val) => {
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set
+        if (nativeSetter) {
+            nativeSetter.call(el, val)
+            el.dispatchEvent(new Event("input", { bubbles: true }))
+            el.dispatchEvent(new Event("change", { bubbles: true }))
+        }
+    }, name)
 }
 
 async function clickAddDestination(page: Page) {
@@ -231,13 +255,61 @@ test("CARD-1: 1:1 — Zoho customers → QBO customers", async ({ page }) => {
     await pickProvider(dstCard, /quickbooks/i)
     await pickEntity(dstCard, /^Customers$/i)
 
-    await fillName(page, `pw-c1-${Date.now().toString().slice(-6)}`)
+    // Fill name LAST, just before going to step 2 — earlier fills can be
+    // overwritten by re-renders from provider/entity selection.
+    const JOB_NAME = `pw-c1-${Date.now().toString().slice(-6)}`
+    await fillName(page, JOB_NAME)
+    await page.waitForTimeout(500)
+    // Verify the name is actually in the input
+    const filledName = await page.getByLabel(/job name/i).inputValue().catch(() => "")
+    console.log(`name in input: '${filledName}'`)
     await page.screenshot({ path: `${ART}/C1-1to1-03-step1-filled.png`, fullPage: true })
 
     await goNextOrCreate(page) // → Field Mapping step
+    await page.waitForTimeout(2000)
     await page.screenshot({ path: `${ART}/C1-1to1-04-mapping.png`, fullPage: true })
 
-    await goNextOrCreate(page) // → Submit
+    // Find and click the Auto-map (AI) button. It might be in the mapping panel
+    // header directly (no dialog opening needed).
+    const autoBtn = page.getByRole("button", { name: /auto-map.*ai|auto.map/i }).first()
+    if (await autoBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await autoBtn.click()
+        await page.waitForTimeout(10000) // AI call takes a few seconds
+        await page.screenshot({ path: `${ART}/C1-1to1-05-after-automap.png`, fullPage: true })
+    } else {
+        // Maybe need to click the pair card first to focus it
+        console.log("INFO: Auto-map not directly visible — looking for pair card...")
+        const pairs = page.locator("div, button").filter({ hasText: /customers.*customers/i })
+        if (await pairs.count() > 0) {
+            await pairs.first().click({ timeout: 3000 }).catch(() => {})
+            await page.waitForTimeout(1500)
+            const autoBtn2 = page.getByRole("button", { name: /auto-map.*ai|auto.map/i }).first()
+            if (await autoBtn2.isVisible({ timeout: 3000 }).catch(() => false)) {
+                await autoBtn2.click()
+                await page.waitForTimeout(10000)
+                await page.screenshot({ path: `${ART}/C1-1to1-05b-after-automap.png`, fullPage: true })
+            }
+        }
+    }
+
+    // Close the mapping editor dialog (Done button) if it's open
+    const doneBtn = page.getByRole("button", { name: /^done$/i }).first()
+    if (await doneBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await doneBtn.click()
+        await page.waitForTimeout(800)
+    }
+
+    await page.screenshot({ path: `${ART}/C1-1to1-06-before-submit.png`, fullPage: true })
+
+    // Click Create Job in the wizard footer — most specific match
+    const createBtn = page.getByRole("button", { name: /^create job$/i })
+    const cnt = await createBtn.count()
+    console.log(`Create Job button count: ${cnt}`)
+    if (cnt > 0) {
+        // Pick the FOOTER one — usually the last
+        await createBtn.last().click({ timeout: 8000 })
+    }
+
     const toasts = await collectToasts(page)
     await page.screenshot({ path: `${ART}/C1-1to1-99-final.png`, fullPage: true })
 
@@ -268,15 +340,19 @@ test("CARD-2: 1:N — Zoho customers → QBO + Snowflake", async ({ page }) => {
 
     // Add a 2nd destination
     await clickAddDestination(page)
+    await page.waitForTimeout(800)
     await page.screenshot({ path: `${ART}/C2-1toN-03-2dests.png`, fullPage: true })
 
-    // Find the 2nd destination card (NOT primary)
-    const dst2 = page
-        .locator(`div.rounded-lg.border.bg-card`)
-        .filter({ has: page.getByText(/^Destination\s*$/i) })
-        .first()
+    // Find the 2nd destination card — last card containing "DESTINATION" header
+    // (the second-instance label is "DESTINATION" without "(primary)").
+    const destCards = page.locator(`div.rounded-lg.border.bg-card`)
+        .filter({ has: page.getByText(/destination/i) })
+    const dstCount = await destCards.count()
+    console.log(`dest cards: ${dstCount}`)
+    const dst2 = destCards.nth(dstCount - 1) // last
     await pickCategory(dst2, "Warehouse").catch((e) => console.log("dst2 category err:", e.message))
     await pickProvider(dst2, /snowflake/i).catch((e) => console.log("dst2 provider err:", e.message))
+    await page.waitForTimeout(800)
 
     await fillName(page, `pw-c2-${Date.now().toString().slice(-6)}`)
     await page.screenshot({ path: `${ART}/C2-1toN-04-filled.png`, fullPage: true })
@@ -311,12 +387,14 @@ test("CARD-3: N:1 — Zoho + QBO customers → Snowflake", async ({ page }) => {
 
     // Add a 2nd source
     await clickAddSource(page)
+    await page.waitForTimeout(800)
     await page.screenshot({ path: `${ART}/C3-Nto1-03-2srcs.png`, fullPage: true })
 
-    const src2 = page
-        .locator(`div.rounded-lg.border.bg-card`)
-        .filter({ has: page.getByText(/^Source\s*$/i) })
-        .first()
+    const srcCards = page.locator(`div.rounded-lg.border.bg-card`)
+        .filter({ has: page.getByText(/source/i) })
+    const srcCount = await srcCards.count()
+    console.log(`src cards: ${srcCount}`)
+    const src2 = srcCards.nth(srcCount - 1) // last
     await pickCategory(src2, "Applications").catch((e) => console.log("src2 category err:", e.message))
     await pickProvider(src2, /quickbooks/i).catch((e) => console.log("src2 provider err:", e.message))
     await pickEntity(src2, /^Customers$/i).catch((e) => console.log("src2 entity err:", e.message))
