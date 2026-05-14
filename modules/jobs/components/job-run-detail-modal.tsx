@@ -470,7 +470,10 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                         <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-1 text-xs max-h-[200px] overflow-y-auto">
                             {run.pipeline_logs
                                 .filter(l => l.phase === "export" && l.details?.errors?.length)
-                                .flatMap(l => (l.details.errors as Array<{ row?: number; error: string }>))
+                                // l.details is guaranteed by the filter above, but the
+                                // strict-null compiler doesn't narrow across .filter →
+                                // .flatMap, so coerce safely with `?? []`.
+                                .flatMap(l => (l.details?.errors as Array<{ row?: number; error: string }> | undefined) ?? [])
                                 .map((err, i) => (
                                     <div key={i} className="text-red-600">
                                         {err.row != null && <span className="text-muted-foreground mr-1">Row {err.row}:</span>}

@@ -32,7 +32,7 @@ export interface JobRunFilesState {
     handleDownloadPrompt: (file: FileStatusResponse) => void
     handleColumnExport: (options: {
         format: "csv" | "excel" | "json"
-        dataType: "all" | "clean" | "quarantine"
+        dataType: "all" | "clean" | "raw" | "quarantine"
         columns: string[]
         columnMapping: Record<string, string>
     }) => Promise<void>
@@ -266,7 +266,7 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
 
     const handleColumnExport = useCallback(async (options: {
         format: "csv" | "excel" | "json"
-        dataType: "all" | "clean" | "quarantine"
+        dataType: "all" | "clean" | "raw" | "quarantine"
         columns: string[]
         columnMapping: Record<string, string>
     }) => {
