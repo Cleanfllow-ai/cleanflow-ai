@@ -140,6 +140,39 @@ describe('augErrorToast', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Toast deduplication: stable id per error code (P1-4)
+// ---------------------------------------------------------------------------
+
+describe('augErrorToast dedup: stable id per error code', () => {
+    it('3× same code fires toast with same id (Sonner dedupes to 1)', () => {
+        // Sonner deduplication: calling toast with the same `id` updates the
+        // existing toast rather than stacking a new one.  We verify here that
+        // augErrorToast always passes `{ id: "aug-<code>" }` so Sonner gets
+        // a stable key it can collapse on.
+        augErrorToast('AUG_LLM_RATE_LIMITED')
+        augErrorToast('AUG_LLM_RATE_LIMITED')
+        augErrorToast('AUG_LLM_RATE_LIMITED')
+        // All 3 calls go through — Sonner handles dedup at render time via id.
+        // What we can assert here is that the id option was passed with the right value.
+        const calls = (mockToast.warning as jest.Mock).mock.calls
+        expect(calls).toHaveLength(3)
+        calls.forEach(([, opts]) => {
+            expect(opts.id).toBe('aug-AUG_LLM_RATE_LIMITED')
+        })
+    })
+
+    it('two different codes use different ids (no cross-contamination)', () => {
+        augErrorToast('AUG_EXPR_INVALID')
+        augErrorToast('AUG_EVAL_FAILED')
+        const [, optsExpr] = (mockToast.error as jest.Mock).mock.calls[0]
+        const [, optsEval] = (mockToast.error as jest.Mock).mock.calls[1]
+        expect(optsExpr.id).toBe('aug-AUG_EXPR_INVALID')
+        expect(optsEval.id).toBe('aug-AUG_EVAL_FAILED')
+        expect(optsExpr.id).not.toBe(optsEval.id)
+    })
+})
+
+// ---------------------------------------------------------------------------
 // AugmentationJob.error_code type consistency
 // ---------------------------------------------------------------------------
 

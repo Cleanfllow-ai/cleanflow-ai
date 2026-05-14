@@ -14,7 +14,7 @@ import {
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/modules/auth";
 import { ApiError } from "@/modules/shared/api-error";
-import { toastFromError } from "@/lib/error-toast-jsx";
+import { toastFromError, toastFromQuarantineError } from "@/lib/error-toast-jsx";
 import { buildPrefixedDataFilename, sanitizeFilenamePart } from "@/modules/files/utils/download-filenames";
 import { triggerBlobDownload, triggerPresignedDownload } from "@/modules/files/utils/trigger-download";
 import {
@@ -1088,14 +1088,10 @@ export function useFilesPage() {
                     toast({ title: "Already deleted", description: "The file is no longer in the catalog." });
                     await loadFiles();
                 }
-            } else if (error instanceof Error && error.message.toLowerCase().includes("permission denied")) {
-                toast({
-                    title: "Delete failed",
-                    description: "You do not have permission for this action. Contact your organization admin.",
-                    variant: "destructive",
-                });
             } else {
-                toast({ title: "Delete failed", description: "Unable to delete file", variant: "destructive" });
+                // Route through the quarantine error matrix so 401 shows Sign In,
+                // 403 shows Contact Support, 500 shows Retry — matching CC3's spec.
+                toast(toastFromQuarantineError(error, { action: "delete" }));
             }
         } finally {
             setDeleting(null);

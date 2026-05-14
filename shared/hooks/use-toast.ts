@@ -140,10 +140,24 @@ function dispatch(action: Action) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
+type Toast = Omit<ToasterToast, "id"> & { id?: string }
 
-function toast({ ...props }: Toast) {
-  const id = genId()
+function toast({ id: callerId, ...props }: Toast) {
+  // If a stable caller-supplied ID is provided and a toast with that ID is
+  // already active, update it in-place rather than stacking a duplicate.
+  // This collapses burst errors (e.g. 3× 401 in 5 s) to a single toast.
+  if (callerId) {
+    const existing = memoryState.toasts.find((t) => t.id === callerId)
+    if (existing) {
+      dispatch({ type: "UPDATE_TOAST", toast: { ...props, id: callerId } })
+      return {
+        id: callerId,
+        dismiss: () => dispatch({ type: "DISMISS_TOAST", toastId: callerId }),
+        update: (p: ToasterToast) => dispatch({ type: "UPDATE_TOAST", toast: { ...p, id: callerId } }),
+      }
+    }
+  }
+  const id = callerId ?? genId()
 
   const update = (props: ToasterToast) =>
     dispatch({

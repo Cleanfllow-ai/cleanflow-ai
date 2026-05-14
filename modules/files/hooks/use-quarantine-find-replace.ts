@@ -38,7 +38,14 @@ export interface FindReplaceState {
     /** Linear-trend ETA in seconds; -1 when unknown. */
     eta_seconds: number
     result: AppliedSkippedSummary | null
+    /** Human-readable error string (display / legacy callers). */
     error: string | null
+    /**
+     * Raw error object (ApiError or Error) so callers can route through
+     * `toastFromQuarantineError` without losing HTTP status.
+     * Always set alongside `error` when non-null.
+     */
+    errorObj: unknown | null
 }
 
 const INITIAL_STATE: FindReplaceState = {
@@ -48,6 +55,7 @@ const INITIAL_STATE: FindReplaceState = {
     eta_seconds: -1,
     result: null,
     error: null,
+    errorObj: null,
 }
 const POLL_INTERVAL_MS = 1000
 
@@ -95,7 +103,7 @@ export function useQuarantineFindReplace({
             try {
                 ;({ operation_id: operationId } = await submitFindReplaceAsync(uploadId, authToken, body))
             } catch (e) {
-                const err: FindReplaceState = { ...INITIAL_STATE, status: 'FAILED_TERMINAL', error: (e as Error)?.message || 'Submit failed' }
+                const err: FindReplaceState = { ...INITIAL_STATE, status: 'FAILED_TERMINAL', error: (e as Error)?.message || 'Submit failed', errorObj: e }
                 setState(err); return err
             }
 
@@ -112,7 +120,7 @@ export function useQuarantineFindReplace({
                 try {
                     resp = await pollFindReplaceOperation(uploadId, operationId, authToken)
                 } catch (e) {
-                    const err: FindReplaceState = { ...next, status: 'FAILED_TERMINAL', error: (e as Error)?.message || 'Poll failed' }
+                    const err: FindReplaceState = { ...next, status: 'FAILED_TERMINAL', error: (e as Error)?.message || 'Poll failed', errorObj: e }
                     setState(err); return err
                 }
                 const done = resp.progress?.done ?? 0
@@ -122,15 +130,17 @@ export function useQuarantineFindReplace({
                 const eta = percent > 0 && percent < 100
                     ? Math.max(0, Math.round((elapsed / percent) * (100 - percent)))
                     : -1
+                const errorMsg = resp.status === 'FAILED_TERMINAL'
+                    ? String(resp.result?.error_msg ?? 'Operation failed')
+                    : null
                 next = {
                     status: resp.status,
                     operationId,
                     progress: { applied: done, total, percent },
                     eta_seconds: eta,
                     result: resp.result ? summariseResult(resp.result) : null,
-                    error: resp.status === 'FAILED_TERMINAL'
-                        ? String(resp.result?.error_msg ?? 'Operation failed')
-                        : null,
+                    error: errorMsg,
+                    errorObj: errorMsg !== null ? new Error(errorMsg) : null,
                 }
                 setState(next); onProgress?.(next)
                 if (isOperationTerminal(resp.status)) return next

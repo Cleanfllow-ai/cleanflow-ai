@@ -31,6 +31,7 @@ export function augErrorToast(
     switch (code) {
         case "AUG_LLM_RATE_LIMITED":
             toast.warning("AI service busy. Retry in 30s.", {
+                id: `aug-${code}`,
                 description: "Groq rate limit reached.",
                 action: opts.onRetry
                     ? { label: "Retry", onClick: opts.onRetry }
@@ -41,6 +42,7 @@ export function augErrorToast(
 
         case "AUG_EXPR_INVALID":
             toast.error("Generated expression invalid. Try rephrasing your prompt.", {
+                id: `aug-${code}`,
                 description: opts.errorMessage,
                 action: opts.onEditPrompt
                     ? { label: "Edit Prompt", onClick: opts.onEditPrompt }
@@ -52,6 +54,7 @@ export function augErrorToast(
         case "AUG_ZERO_ROWS": {
             // Use warning (not error) — the expression ran; data just matched nothing.
             toast.warning("No matching rows found. Check your filter or source data.", {
+                id: `aug-${code}`,
                 description: opts.errorMessage,
                 // No action button — user needs to adjust their data or prompt.
                 duration: 10_000,
@@ -65,6 +68,7 @@ export function augErrorToast(
                     ? `Source missing columns: ${opts.errorMessage}`
                     : "Source missing required columns. Upload a CSV with required columns.",
                 {
+                    id: `aug-${code}`,
                     description: "Update your source file and retry.",
                     duration: 12_000,
                 },
@@ -73,6 +77,7 @@ export function augErrorToast(
 
         case "AUG_EVAL_FAILED":
             toast.error("Expression failed at runtime. Try a simpler prompt or smaller file.", {
+                id: `aug-${code}`,
                 description: opts.errorMessage,
                 action: {
                     label: "Contact Support",
@@ -88,6 +93,7 @@ export function augErrorToast(
 
         case "AUG_MATERIALIZE_FAILED":
             toast.error("Output generation failed — try a smaller batch or contact support.", {
+                id: `aug-${code}`,
                 description: opts.errorMessage,
                 action: {
                     label: "Contact Support",
@@ -99,6 +105,7 @@ export function augErrorToast(
 
         default:
             toast.error("Augmentation job failed.", {
+                id: `aug-${code}`,
                 description: opts.errorMessage || "An unknown error occurred.",
                 duration: 10_000,
             })

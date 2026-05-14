@@ -217,8 +217,10 @@ export function QuarantineFindReplacePanel({
         )
         if (finalState.status === 'FAILED_TERMINAL' && finalState.error) {
           // Surface async operation failures as a toast with Retry action.
+          // Use errorObj (raw ApiError/Error) to preserve HTTP status for proper
+          // error class routing (401→Sign In, 409→Conflict, etc.).
           toast(toastFromQuarantineError(
-            new Error(finalState.error),
+            finalState.errorObj ?? new Error(finalState.error),
             { action: 'find and replace', retryFn: () => void handleReplaceAll() },
           ))
         }
