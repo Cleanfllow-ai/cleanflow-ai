@@ -18,6 +18,19 @@ import type { AugmentationJob, AugmentationJobStatus } from "@/modules/augmentat
 import { NewJobForm } from "./new-job-form"
 import { PromptTemplateManager } from "./prompt-template-manager"
 
+/** Scrub raw AWS / APIG internal error strings that must never reach the DOM. */
+function sanitizeErrorMessage(raw: string): string {
+    // AWS SigV4 parse error: "Invalid key=value pair (missing equal-sign) in Authorization header..."
+    if (/Invalid key=value pair.*Authorization header/i.test(raw)) {
+        return "Unable to reach the augmentation service. Please refresh and try again."
+    }
+    // Generic APIG / IAM auth rejection bleed
+    if (/Authorization header.*SHA-256.*Base64/i.test(raw) || /hashed with SHA-256/i.test(raw)) {
+        return "Authentication error. Please sign out and sign in again."
+    }
+    return raw
+}
+
 const TONE: Record<AugmentationJobStatus, string> = {
     PENDING: "bg-amber-500/10 text-amber-500 border-amber-500/30",
     RUNNING: "bg-blue-500/10 text-blue-500 border-blue-500/30",
@@ -43,7 +56,7 @@ export function AugmentationPage() {
         if (!idToken) return
         setLoading(true)
         try { setJobs(await listAugmentationJobs(idToken, 50)); setError(null) }
-        catch (err) { setError((err as Error).message) }
+        catch (err) { setError(sanitizeErrorMessage((err as Error).message)) }
         finally { setLoading(false) }
     }, [idToken])
 
@@ -54,7 +67,7 @@ export function AugmentationPage() {
         try {
             const out = await getAugmentationJobOutput(j.job_id, idToken)
             window.open(out.presigned_url, "_blank", "noopener,noreferrer")
-        } catch (err) { setError((err as Error).message) }
+        } catch (err) { setError(sanitizeErrorMessage((err as Error).message)) }
     }
 
     return (

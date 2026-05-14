@@ -75,4 +75,28 @@ describe('AugmentationPage', () => {
         fireEvent.click(screen.getByRole('button', { name: /Refresh/i }))
         await waitFor(() => expect(mockMakeRequest).toHaveBeenCalledTimes(2))
     })
+
+    // Bug 3 regression: raw AWS SigV4 parse error must NEVER reach the DOM.
+    it('does not render raw AWS SigV4 error strings in the page (Bug 3)', async () => {
+        const awsRawError = "Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'fyPd...'"
+        mockMakeRequest.mockRejectedValueOnce(new Error(awsRawError))
+        render(<AugmentationPage />)
+        await waitFor(() =>
+            expect(screen.getByRole('alert')).toBeInTheDocument()
+        )
+        // Must show a clean user-facing message, NOT the raw AWS string
+        expect(screen.queryByText(/Invalid key=value pair/i)).not.toBeInTheDocument()
+        expect(screen.queryByText(/hashed with SHA-256/i)).not.toBeInTheDocument()
+        expect(screen.getByRole('alert').textContent).toMatch(/Unable to reach the augmentation service/i)
+    })
+
+    // Bug 2 regression: list endpoint (GET /augmentation/jobs) must be called on load.
+    it('calls GET /augmentation/jobs (list) on page mount', async () => {
+        mockMakeRequest.mockResolvedValueOnce([])
+        render(<AugmentationPage />)
+        await waitFor(() => expect(mockMakeRequest).toHaveBeenCalledTimes(1))
+        const [endpoint, , opts] = mockMakeRequest.mock.calls[0]
+        expect(endpoint).toMatch(/\/augmentation\/jobs/)
+        expect((opts as { method: string }).method).toBe('GET')
+    })
 })
