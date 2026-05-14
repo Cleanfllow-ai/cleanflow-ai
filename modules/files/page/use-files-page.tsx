@@ -629,7 +629,28 @@ export function useFilesPage() {
                     });
                     return;
                 }
-                // For other errors (network, 5xx) fall through and open with cached data
+                // Non-404 errors: surface the failure (401 → Sign In, 5xx →
+                // Retry) instead of silently opening with stale cached data.
+                // Previously this branch fell through and the user saw a
+                // detail panel that looked fine but had outdated rows /
+                // missing DQ score. Toast routes via the standard matrix.
+                if (err instanceof ApiError && err.status === 401) {
+                    toast(toastFromQuarantineError(err, { action: "view file details" }));
+                    return;
+                }
+                if (err instanceof ApiError && err.status >= 500) {
+                    toast(
+                        toastFromQuarantineError(err, {
+                            action: "view file details",
+                            retryFn: () => handleViewDetails(file),
+                        }),
+                    );
+                    return;
+                }
+                // Network / unknown errors: fall through and open with
+                // cached data, but surface a non-blocking warning so the
+                // user knows the panel may be stale.
+                console.warn("getFileStatus pre-check failed; opening with cached data", err);
             }
         }
         setSelectedFile(file);
