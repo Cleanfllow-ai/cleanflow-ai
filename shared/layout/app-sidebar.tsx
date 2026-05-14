@@ -1,5 +1,5 @@
 "use client"
-import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sun, X } from "lucide-react"
+import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sparkles, Sun, X } from "lucide-react"
 import { memo, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ const ChatDrawer = dynamic(
 const mainNav = [
 	{ name: "Dashboard", href: "/dashboard", icon: BarChart3 },
 	{ name: "Data Catalog", href: "/files", icon: FileText },
+	{ name: "Augmentation", href: "/augmentation", icon: Sparkles },
 	{ name: "Jobs", href: "/jobs", icon: CalendarClock },
 ]
 const settingsNav = [
@@ -175,6 +176,7 @@ function AppSidebarComponent() {
 						) : undefined
 					)}
 					{renderNavItem(mainNav[2])}
+					{renderNavItem(mainNav[3])}
 					{/* Settings section */}
 					{!collapsed && (
 						<p className="px-3 pt-3 pb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">

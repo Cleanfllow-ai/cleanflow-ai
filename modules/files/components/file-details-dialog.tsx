@@ -1,7 +1,7 @@
 import { FileText, GitBranch, History, ListTree, PieChart as PieChartIcon, Server, Table as TableIcon, Tags } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/shared/lib/utils"
 import { useAuth } from "@/modules/auth"
@@ -107,7 +107,10 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[98vw] h-[80vh] max-w-6xl max-h-none p-0 flex flex-col gap-0">
+        <DialogContent
+          className="w-[98vw] h-[80vh] max-w-6xl max-h-none p-0 flex flex-col gap-0"
+          aria-describedby="file-details-description"
+        >
           <div className="flex h-full flex-col">
             <DialogHeader className="px-6 py-3 border-b shrink-0">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -119,6 +122,9 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                     <DialogTitle className="flex items-center gap-2.5 font-sans text-base font-semibold tracking-tight truncate">
                       <span className="truncate">{resolvedFile.original_filename || resolvedFile.filename || "File"}</span>
                     </DialogTitle>
+                    <DialogDescription id="file-details-description" className="sr-only">
+                      File details for {resolvedFile.original_filename || resolvedFile.filename || "file"} — status: {resolvedFile.status}
+                    </DialogDescription>
                     {/* Phase 7B: OPTIMIZING / OPTIMIZE_FAILED render via the
                         dedicated badge so the spinner + failure tooltip stay
                         consistent between the file list and detail header.

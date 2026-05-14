@@ -764,6 +764,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                     return (
                                                         <>
                                                 {(file.status === "UPLOADED" ||
+                                                    file.status === "VALIDATED" ||
                                                     file.status === "DQ_FAILED" ||
                                                     file.status === "FAILED" ||
                                                     file.status === "UPLOAD_FAILED" ||
@@ -775,11 +776,15 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                     size="icon"
                                                                     className="h-7 w-7 sm:h-8 sm:w-8 text-primary hover:text-primary hover:bg-primary/10"
                                                                     onClick={() => handleStartProcessing(file)}
+                                                                    data-testid="run-dq-button"
+                                                                    aria-label="Run DQ"
                                                                 >
                                                                     <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                                 </Button>
                                                             </TooltipTrigger>
-                                                            <TooltipContent>Start Processing</TooltipContent>
+                                                            <TooltipContent>
+                                                                {file.status === "VALIDATED" ? "Run DQ" : "Start Processing"}
+                                                            </TooltipContent>
                                                         </Tooltip>
                                                     )}
                                                 <Tooltip>
