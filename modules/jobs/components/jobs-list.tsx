@@ -26,6 +26,7 @@ import { useToast } from "@/shared/hooks/use-toast"
 import { cn } from "@/shared/lib/utils"
 import { jobsAPI, type Job, frequencyFromBackend } from "@/modules/jobs/api/jobs-api"
 import { isApiError } from "@/modules/shared/api-error"
+import { PermissionWrapper } from "@/modules/auth/components/permission-wrapper"
 import { JobDialog } from "./job-dialog"
 import { JobRunsExplorer } from "./job-runs-explorer"
 
@@ -323,14 +324,19 @@ export function JobsList() {
                         <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", loading && "animate-spin")} />
                         <span className="text-[12px] tracking-wide">Refresh</span>
                     </Button>
-                    <Button
-                        size="sm"
-                        onClick={handleCreateNew}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                    >
-                        <Plus className="h-3.5 w-3.5 mr-1.5" />
-                        <span className="text-[12px] tracking-wide">New Job</span>
-                    </Button>
+                    {/* Job creation is a mutating action — Members are read-only.
+                        Hide the button entirely instead of disabling so the
+                        header isn't visually cluttered for Members. */}
+                    <PermissionWrapper requiredRole={["Data Steward", "Admin", "Super Admin"]} fallback="hide" showLock={false}>
+                        <Button
+                            size="sm"
+                            onClick={handleCreateNew}
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                        >
+                            <Plus className="h-3.5 w-3.5 mr-1.5" />
+                            <span className="text-[12px] tracking-wide">New Job</span>
+                        </Button>
+                    </PermissionWrapper>
                 </div>
             </div>
 
@@ -618,35 +624,48 @@ export function JobsList() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="bg-card border-border/60">
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleTrigger(job)}
-                                                            disabled={actionLoading === job.job_id}
-                                                        >
-                                                            <Play className="h-4 w-4 mr-2" />
-                                                            Run Now
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleEdit(job)}>
-                                                            <Edit2 className="h-4 w-4 mr-2" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() => handlePauseResume(job)}
-                                                            disabled={actionLoading === job.job_id}
-                                                        >
-                                                            {job.status === "ACTIVE" ? (
-                                                                <><Pause className="h-4 w-4 mr-2" />Pause</>
-                                                            ) : (
-                                                                <><Play className="h-4 w-4 mr-2" />Resume</>
-                                                            )}
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator className="bg-border/40" />
-                                                        <DropdownMenuItem
-                                                            className="text-destructive focus:text-destructive"
-                                                            onClick={() => { setJobToDelete(job); setDeleteDialogOpen(true) }}
-                                                        >
-                                                            <Trash2 className="h-4 w-4 mr-2" />
-                                                            Delete
-                                                        </DropdownMenuItem>
+                                                        {/* All four actions mutate scheduler / pipeline state.
+                                                            Members shouldn't be able to invoke them. Wrap each
+                                                            with PermissionWrapper(fallback=hide) so the menu
+                                                            simply doesn't surface them for Members — instead
+                                                            of letting the click hit the BE and return a 403. */}
+                                                        <PermissionWrapper requiredRole={["Data Steward", "Admin", "Super Admin"]} fallback="hide" showLock={false}>
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleTrigger(job)}
+                                                                disabled={actionLoading === job.job_id}
+                                                            >
+                                                                <Play className="h-4 w-4 mr-2" />
+                                                                Run Now
+                                                            </DropdownMenuItem>
+                                                        </PermissionWrapper>
+                                                        <PermissionWrapper requiredRole={["Data Steward", "Admin", "Super Admin"]} fallback="hide" showLock={false}>
+                                                            <DropdownMenuItem onClick={() => handleEdit(job)}>
+                                                                <Edit2 className="h-4 w-4 mr-2" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                        </PermissionWrapper>
+                                                        <PermissionWrapper requiredRole={["Data Steward", "Admin", "Super Admin"]} fallback="hide" showLock={false}>
+                                                            <DropdownMenuItem
+                                                                onClick={() => handlePauseResume(job)}
+                                                                disabled={actionLoading === job.job_id}
+                                                            >
+                                                                {job.status === "ACTIVE" ? (
+                                                                    <><Pause className="h-4 w-4 mr-2" />Pause</>
+                                                                ) : (
+                                                                    <><Play className="h-4 w-4 mr-2" />Resume</>
+                                                                )}
+                                                            </DropdownMenuItem>
+                                                        </PermissionWrapper>
+                                                        <PermissionWrapper requiredRole={["Admin", "Super Admin"]} fallback="hide" showLock={false}>
+                                                            <DropdownMenuSeparator className="bg-border/40" />
+                                                            <DropdownMenuItem
+                                                                className="text-destructive focus:text-destructive"
+                                                                onClick={() => { setJobToDelete(job); setDeleteDialogOpen(true) }}
+                                                            >
+                                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </PermissionWrapper>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
