@@ -5,6 +5,13 @@
 class RO { observe() {} unobserve() {} disconnect() {} }
 ;(globalThis as any).ResizeObserver = (globalThis as any).ResizeObserver || RO
 
+// ProfessionalChartsCarousel now consumes the BE dashboard envelope via
+// useDashboardSummary — stub the hook so the chart renders an empty-state
+// without needing a fake auth context inside the dq-charts smoke tests.
+jest.mock('@/modules/dashboard/hooks/use-dashboard-summary', () => ({
+  useDashboardSummary: () => ({ data: null, isLoading: false, error: null, refresh: jest.fn() }),
+}))
+
 // Recharts components reference SVG element methods not in jsdom
 jest.mock('recharts', () => {
   const React = require('react')
@@ -27,6 +34,9 @@ jest.mock('recharts', () => {
     PieChart: stub('pie-chart'),
     Pie: stub('pie'),
     Cell: stub('cell'),
+    Area: stub('area'),
+    AreaChart: stub('area-chart'),
+    ComposedChart: stub('composed-chart'),
   }
 })
 

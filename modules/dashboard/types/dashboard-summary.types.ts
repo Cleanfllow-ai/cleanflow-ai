@@ -49,9 +49,41 @@ export interface DashboardAugmentationJob {
     output_dataset_key?: string
 }
 
+/**
+ * Server-bucketed Validated / Fixed / Quarantined trend point.
+ *
+ * Returned by GET /dashboard/summary (commit 4eb29171). Replaces the FE's
+ * previous `buildSyntheticTrendData` Math.sin filler in
+ * `professional-charts-carousel.tsx` — the BE now fans the same
+ * list_by_org result set into day/week/month buckets so the chart only ever
+ * renders real DQ_FIXED rows.
+ *
+ * `period` matches the legacy `period` key the recharts ComposedChart consumes,
+ * so the existing dataKey wiring keeps working unchanged.
+ */
+export interface ProcessingTrendBucket {
+    key: string
+    period: string
+    clean: number
+    fixed: number
+    quarantined: number
+}
+
+export interface ProcessingTrend {
+    day: ProcessingTrendBucket[]
+    week: ProcessingTrendBucket[]
+    month: ProcessingTrendBucket[]
+}
+
 export interface DashboardSummaryResponse {
     topbar: DashboardTopbar
     recent_files: DashboardRecentFile[]
     dq_score_trend: DashboardTrendPoint[]
     recent_augmentations: DashboardAugmentationJob[]
+    /**
+     * Optional for backwards compat with the pre-deploy BE response.
+     * Once the files-context stack is deployed, every response includes it.
+     * The FE chart falls back to an empty-state when missing.
+     */
+    processing_trend?: ProcessingTrend
 }
