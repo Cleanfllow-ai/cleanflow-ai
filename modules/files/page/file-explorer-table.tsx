@@ -66,6 +66,9 @@ import {
 import { useUploadManager } from "@/modules/files/context/upload-manager";
 import type { FilesPageState } from "./use-files-page";
 
+// Set to true to re-expose the Generic ERP-template badge (technical detail, hidden for customer-facing UI)
+const SHOW_GENERIC_BADGE = false;
+
 interface FileExplorerTableProps {
     state: FilesPageState;
 }
@@ -569,7 +572,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         )}
-                                                        {file.validation?.mode === "GENERIC_FALLBACK" && (
+                                                        {SHOW_GENERIC_BADGE && file.validation?.mode === "GENERIC_FALLBACK" && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Badge
