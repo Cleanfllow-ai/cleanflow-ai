@@ -35,21 +35,6 @@ const ibmPlexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "CleanFlowAI - Data Quality Platform",
   description: "Enterprise data quality, transformation, and ERP integration platform",
-  generator: 'v0.app',
-  icons: {
-    icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico' },
-    ],
-    apple: [
-      { url: '/favicon_io/apple-touch-icon.png' },
-    ],
-    other: [
-      { rel: 'android-chrome-192x192', url: '/favicon_io/android-chrome-192x192.png' },
-      { rel: 'android-chrome-512x512', url: '/favicon_io/android-chrome-512x512.png' },
-    ],
-  },
-  manifest: '/favicon_io/site.webmanifest',
 }
 
 export default function RootLayout({
