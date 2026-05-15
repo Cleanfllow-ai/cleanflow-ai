@@ -9,55 +9,59 @@
  *
  * Storage: localStorage key "rightrev:tour:completed:v1"
  * Library:  @reactour/tour 3.8.0
+ *
+ * Step order (re-prioritised 2026-05-15):
+ *   Welcome → Catalog (start here) → Upload → Dashboard KPIs → AI Augmentation → Jobs → Admin → Done
  */
 
 import React, { useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { TourProvider, useTour, type StepType, type PopoverContentProps } from "@reactour/tour"
-import { X, ArrowRight, ArrowLeft, Sparkles } from "lucide-react"
+import { X, ArrowRight, ArrowLeft, Sparkles, Upload } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 
 // ─── Step definitions ────────────────────────────────────────────────────────
 
-const TOUR_STEPS: StepType[] = [
+export const TOUR_STEPS: StepType[] = [
   {
-    // Step 1 — Welcome (anchored to logo; shown as centred modal)
+    // Step 1 — Welcome (centred modal; no spotlight)
     selector: "[data-tour='logo']",
     content: "welcome",
     position: "center",
     padding: { mask: 0 },
   },
   {
-    // Step 2 — Dashboard KPI cards
-    selector: "[data-tour='kpi-cards']",
-    content: "kpi",
-    position: "bottom",
-  },
-  {
-    // Step 3 — Data Catalog sidebar link
+    // Step 2 — Data Catalog: where you start
     selector: "[data-tour='nav-data-catalog']",
     content: "catalog",
     position: "right",
   },
   {
-    // Step 4 — Upload / connect a source (same anchor, different copy)
+    // Step 3 — Upload action (same anchor, concrete next action)
     selector: "[data-tour='nav-data-catalog']",
     content: "upload",
     position: "right",
   },
   {
-    // Step 5 — Augmentation sidebar link
+    // Step 4 — Dashboard KPIs: see the results
+    selector: "[data-tour='kpi-cards']",
+    content: "kpi",
+    position: "bottom",
+  },
+  {
+    // Step 5 — Augmentation
     selector: "[data-tour='nav-augmentation']",
     content: "augmentation",
     position: "right",
   },
   {
-    // Step 6 — Jobs sidebar link
+    // Step 6 — Jobs
     selector: "[data-tour='nav-jobs']",
     content: "jobs",
     position: "right",
   },
   {
-    // Step 7 — Admin sidebar link
+    // Step 7 — Admin
     selector: "[data-tour='nav-admin']",
     content: "admin",
     position: "right",
@@ -73,47 +77,55 @@ const TOUR_STEPS: StepType[] = [
 
 // ─── Step copy ───────────────────────────────────────────────────────────────
 
-type StepKey = "welcome" | "kpi" | "catalog" | "upload" | "augmentation" | "jobs" | "admin" | "done"
+export type StepKey =
+  | "welcome"
+  | "catalog"
+  | "upload"
+  | "kpi"
+  | "augmentation"
+  | "jobs"
+  | "admin"
+  | "done"
 
-interface StepCopy {
+export interface StepCopy {
   title: string
   body: string
   isModal?: boolean
 }
 
-const STEP_COPY: Record<StepKey, StepCopy> = {
+export const STEP_COPY: Record<StepKey, StepCopy> = {
   welcome: {
     title: "Welcome to RightRev",
-    body: "We help your team catch data quality issues before they reach your books. Let's take 60 seconds to show you around.",
+    body: "Your team's shortcut from raw data to clean, audit-ready revenue records. Let's take 60 seconds to show you around.",
     isModal: true,
   },
-  kpi: {
-    title: "Your dashboard at a glance",
-    body: "Track rows processed, files completed, and data quality trends — all updated in real time so you always know where things stand.",
-  },
   catalog: {
-    title: "Data Catalog",
-    body: "Drop in your subscription, invoice, or revenue files here. We profile them, flag bad rows, and let you fix issues without writing any code.",
+    title: "Your files live here",
+    body: "Bring in your subscription, invoice, or revenue files and RightRev automatically flags every bad row — no formulas, no scripts.",
   },
   upload: {
-    title: "Upload or connect a source",
-    body: "Import a CSV, Excel, JSON, or TXT file — or connect directly to QuickBooks, Snowflake, Google Drive, and more.",
+    title: "Import from anywhere",
+    body: "Upload your CSV, Excel, or JSON file, or connect directly to QuickBooks, Zoho Books, Snowflake, or Google Drive.",
+  },
+  kpi: {
+    title: "Your month at a glance",
+    body: "See how much data moved through this month, your average quality score, and what still needs attention — updated live as files arrive.",
   },
   augmentation: {
-    title: "Data Augmentation",
-    body: "Reshape your data with AI — group rows, derive new columns, or enrich with context. Designed for finance teams; no formulas required.",
+    title: "Enrich and reshape your data",
+    body: "Transform your rows with AI — derive new columns, group, or enrich with context. Designed for your finance and ops team, no coding required.",
   },
   jobs: {
-    title: "Scheduled Jobs",
-    body: "Schedule recurring pulls from your ERP or warehouse. Set it once and RightRev will keep your data fresh automatically.",
+    title: "Keep your data fresh automatically",
+    body: "Schedule recurring pulls from your ERP or data warehouse. Set it once and RightRev handles the rest.",
   },
   admin: {
-    title: "Admin & Settings",
-    body: "Manage your team, connectors, and approval workflows — all in one place. Role-based access keeps the right people in the right seats.",
+    title: "Your team and connectors",
+    body: "Invite teammates, assign roles, and manage your connected systems — everything in one place, always in sync.",
   },
   done: {
-    title: "You're ready to go",
-    body: "If you ever want to revisit this tour, find it under Help & Support in the sidebar.",
+    title: "You're set — let's get started",
+    body: "Upload your first file to see RightRev in action. You can replay this tour anytime from \"Take the tour\" in the sidebar.",
     isModal: true,
   },
 }
@@ -128,7 +140,13 @@ interface TourSyncProps {
   onSkip: () => void
 }
 
-function TourSync({ isOpen, currentStep: externalStep, setCurrentStep, onComplete, onSkip }: TourSyncProps) {
+function TourSync({
+  isOpen,
+  currentStep: externalStep,
+  setCurrentStep,
+  onComplete,
+  onSkip,
+}: TourSyncProps) {
   const { setIsOpen, setCurrentStep: providerSetStep, isOpen: providerOpen } = useTour()
 
   // Sync external open signal → provider
@@ -163,10 +181,17 @@ function TourContent({
   onSkip,
   externalSetStep,
 }: TourContentProps) {
+  const router = useRouter()
   const stepContent = steps[currentStep]?.content as StepKey | undefined
   const copy = stepContent && STEP_COPY[stepContent] ? STEP_COPY[stepContent] : null
   const isFirst = currentStep === 0
   const isLast = currentStep === steps.length - 1
+
+  // Non-modal (middle) step count:
+  // Total steps minus the 2 modal bookends (welcome + done)
+  const nonModalSteps = steps.length - 2
+  // Index of the current non-modal step (1-based label for the user)
+  const nonModalIndex = currentStep // step 0 = welcome modal, step 1..N-1 = non-modal
 
   const handleClose = useCallback(() => {
     onSkip()
@@ -196,27 +221,36 @@ function TourContent({
     externalSetStep(0)
   }, [setCurrentStep, externalSetStep])
 
+  const handleUploadCTA = useCallback(() => {
+    onComplete()
+    router.push("/files")
+  }, [onComplete, router])
+
   if (!copy) return null
 
   const isModal = copy.isModal ?? false
-  const nonModalSteps = steps.length - 2 // exclude welcome + done
 
   return (
     <div
       className={cn(
-        "bg-card border border-border rounded-xl shadow-xl text-foreground",
-        isModal ? "w-[380px] max-w-[90vw] p-6" : "w-[320px] max-w-[85vw] p-5",
+        // Base card styling — matches app's bg-card / border tokens
+        "bg-card border border-border/80 text-foreground",
+        "rounded-2xl shadow-[0_8px_32px_-4px_rgba(0,0,0,0.18),0_2px_8px_-2px_rgba(0,0,0,0.10)]",
+        "transition-opacity duration-200",
+        isModal ? "w-[400px] max-w-[92vw] p-7" : "w-[320px] max-w-[88vw] p-5",
       )}
       role="dialog"
       aria-modal="true"
       aria-labelledby={`tour-step-${currentStep}-title`}
+      // Make the popover itself focusable so screen readers announce it
+      tabIndex={-1}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2.5">
           {isModal && (
-            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
+            <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-4.5 h-4.5 text-primary" aria-hidden="true" />
             </div>
           )}
           <h2
@@ -230,103 +264,119 @@ function TourContent({
           </h2>
         </div>
 
+        {/* Skip button — larger hit area + explicit "Skip tour" label */}
         <button
           onClick={handleClose}
           aria-label="Skip tour"
-          className="flex-shrink-0 -mt-0.5 -mr-0.5 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex-shrink-0 -mt-0.5 -mr-1 flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           tabIndex={0}
         >
-          <X className="w-3.5 h-3.5" aria-hidden="true" />
+          <X className="w-3 h-3" aria-hidden="true" />
+          <span className="leading-none">Skip</span>
         </button>
       </div>
 
       {/* Body */}
       <p className="text-[13px] text-muted-foreground leading-relaxed mb-4">{copy.body}</p>
 
-      {/* Progress indicator for middle steps */}
-      {!isModal && !isFirst && !isLast && (
-        <div
-          className="flex items-center gap-1 mb-4"
-          role="group"
-          aria-label={`Step ${currentStep} of ${nonModalSteps}`}
-        >
-          {Array.from({ length: nonModalSteps }).map((_, i) => (
-            <button
-              key={i}
-              onClick={() => {
-                const target = i + 1
-                setCurrentStep(target)
-                externalSetStep(target)
-              }}
-              aria-label={`Go to step ${i + 1}`}
-              className={cn(
-                "rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                i === currentStep - 1
-                  ? "w-4 h-1.5 bg-primary"
-                  : "w-1.5 h-1.5 bg-border hover:bg-muted-foreground/40",
-              )}
-            />
-          ))}
+      {/* Step indicator + dot-nav for middle steps */}
+      {!isModal && (
+        <div className="flex items-center justify-between mb-4">
+          {/* Dot-nav */}
+          <div
+            className="flex items-center gap-1"
+            role="group"
+            aria-label={`Step ${nonModalIndex} of ${nonModalSteps}`}
+          >
+            {Array.from({ length: nonModalSteps }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  const target = i + 1
+                  setCurrentStep(target)
+                  externalSetStep(target)
+                }}
+                aria-label={`Go to step ${i + 1}`}
+                className={cn(
+                  "rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                  i === nonModalIndex - 1
+                    ? "w-4 h-1.5 bg-primary"
+                    : "w-1.5 h-1.5 bg-border hover:bg-muted-foreground/40",
+                )}
+              />
+            ))}
+          </div>
+
+          {/* Numeric label: e.g. "3 of 6" */}
+          <span
+            className="text-[11px] text-muted-foreground tabular-nums select-none"
+            aria-live="polite"
+          >
+            {nonModalIndex} of {nonModalSteps}
+          </span>
         </div>
       )}
 
-      {/* Actions */}
+      {/* ── Actions ─────────────────────────────────────────────────────── */}
+
       {isFirst ? (
+        // Welcome modal actions
         <div className="flex gap-2">
           <button
             onClick={handleNext}
-            className="flex-1 flex items-center justify-center gap-1.5 h-8 px-4 rounded-lg bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex-1 flex items-center justify-center gap-1.5 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 active:scale-[.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Start the tour"
             autoFocus
           >
-            Start
+            Show me around
             <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
           <button
             onClick={handleClose}
-            className="flex-1 h-8 px-4 rounded-lg border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex-shrink-0 h-9 px-4 rounded-xl border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Skip tour for now"
           >
-            Skip for now
+            Skip
           </button>
         </div>
       ) : isLast ? (
+        // Done modal actions — primary CTA navigates to /files
         <div className="flex flex-col gap-2">
           <button
-            onClick={onComplete}
-            className="w-full h-8 px-4 rounded-lg bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="Start using RightRev"
+            onClick={handleUploadCTA}
+            data-tour-cta="upload-first-file"
+            className="w-full flex items-center justify-center gap-1.5 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 active:scale-[.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Upload your first file"
             autoFocus
           >
-            Start using RightRev
+            <Upload className="w-3.5 h-3.5" aria-hidden="true" />
+            Upload your first file
           </button>
           <button
             onClick={handleWatchAgain}
-            className="w-full h-8 px-4 rounded-lg border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-full h-9 px-4 rounded-xl border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Watch the tour again from the beginning"
           >
             Watch tour again
           </button>
         </div>
       ) : (
+        // Middle step nav: Back | Next
         <div className="flex items-center justify-between gap-2">
           <button
             onClick={handlePrev}
-            className="flex items-center gap-1 h-7 px-3 rounded-lg border border-border text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex items-center gap-1 h-8 px-3 rounded-lg border border-border text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Previous step"
           >
             <ArrowLeft className="w-3 h-3" aria-hidden="true" />
             Back
           </button>
 
-          <span className="text-[11px] text-muted-foreground tabular-nums" aria-live="polite">
-            {currentStep} / {nonModalSteps}
-          </span>
-
           <button
             onClick={handleNext}
-            className="flex items-center gap-1 h-7 px-3 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex items-center gap-1 h-8 px-3 rounded-xl bg-primary text-primary-foreground text-[12px] font-medium hover:opacity-90 active:scale-[.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Next step"
+            autoFocus
           >
             Next
             <ArrowRight className="w-3 h-3" aria-hidden="true" />
@@ -354,15 +404,24 @@ export function WelcomeTour({
   onComplete,
   onSkip,
 }: WelcomeTourProps) {
-  // Keyboard accessibility: Esc dismisses the tour
+  // Keyboard accessibility: Esc dismisses, ← → navigate
   useEffect(() => {
     if (!isOpen) return
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onSkip()
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onSkip()
+      } else if (e.key === "ArrowRight") {
+        setCurrentStep((prev) => {
+          const next = Math.min(prev + 1, TOUR_STEPS.length - 1)
+          return next
+        })
+      } else if (e.key === "ArrowLeft") {
+        setCurrentStep((prev) => Math.max(0, prev - 1))
+      }
     }
-    document.addEventListener("keydown", handleEsc)
-    return () => document.removeEventListener("keydown", handleEsc)
-  }, [isOpen, onSkip])
+    document.addEventListener("keydown", handleKey)
+    return () => document.removeEventListener("keydown", handleKey)
+  }, [isOpen, onSkip, setCurrentStep])
 
   return (
     <TourProvider
@@ -374,7 +433,7 @@ export function WelcomeTour({
       showCloseButton={false}
       showDots={false}
       disableInteraction={false}
-      padding={8}
+      padding={10}
       scrollSmooth
       onClickMask={() => {
         // Intentionally block accidental mask-click dismissal
@@ -388,15 +447,22 @@ export function WelcomeTour({
         />
       )}
       styles={{
-        maskArea: (base) => ({ ...base, rx: 8 }),
+        maskArea: (base) => ({ ...base, rx: 10 }),
+        maskWrapper: (base) => ({
+          ...base,
+          // Slightly darker overlay for better contrast
+          color: "rgba(0,0,0,0.62)",
+        }),
         popover: (base) => ({
           ...base,
           padding: 0,
           background: "transparent",
           boxShadow: "none",
           maxWidth: "none",
+          // Smooth fade-in on each step transition
+          animation: "tourFadeIn 0.22s ease",
         }),
-        svgWrapper: (base) => ({ ...base, opacity: 0.55 }),
+        svgWrapper: (base) => ({ ...base, opacity: 0.6 }),
       }}
     >
       <TourSync
@@ -406,6 +472,14 @@ export function WelcomeTour({
         onComplete={onComplete}
         onSkip={onSkip}
       />
+
+      {/* Inline keyframe for popover fade-in (no extra CSS file needed) */}
+      <style>{`
+        @keyframes tourFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </TourProvider>
   )
 }
