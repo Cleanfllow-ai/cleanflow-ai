@@ -32,7 +32,7 @@ export function RowDistributionChart({
     },
   ].filter((d) => d.value > 0)
   return (
-    <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+    <Card className="border-border bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-1 pt-3 px-4">
         <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-white/70"
         >

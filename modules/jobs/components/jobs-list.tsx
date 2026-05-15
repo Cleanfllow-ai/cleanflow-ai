@@ -575,7 +575,7 @@ export function JobsList() {
                         )}
                     </div>
                 ) : (
-                    <div className="rounded-xl border border-border/50 overflow-hidden bg-card/50">
+                    <div className="rounded-xl border border-white/20 overflow-hidden bg-card">
                         {/* Sticky batch action bar — visible when ≥1 job selected */}
                         {selectedJobIds.size >= 1 && (
                             <div
@@ -654,7 +654,7 @@ export function JobsList() {
                         )}
                         <Table>
                             <TableHeader>
-                                <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/50">
+                                <TableRow className="bg-white/[0.06] hover:bg-white/[0.06] border-b border-white/15">
                                     <TableHead className="w-10 pl-4">
                                         <Checkbox
                                             checked={
@@ -667,37 +667,37 @@ export function JobsList() {
                                     </TableHead>
                                     <TableHead className="w-8" />
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
 
                                     >
                                         Job Name
                                     </TableHead>
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
                                         
                                     >
                                         Pipeline
                                     </TableHead>
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
                                         
                                     >
                                         Frequency
                                     </TableHead>
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
                                         
                                     >
                                         Status
                                     </TableHead>
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
                                         
                                     >
                                         Last Run
                                     </TableHead>
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 text-right"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground text-right"
                                         
                                     >
                                         Actions
@@ -710,7 +710,7 @@ export function JobsList() {
                                         <TableRow
                                             key={job.job_id}
                                             className={cn(
-                                                "cursor-pointer transition-colors border-b border-border/30 hover:bg-muted/15",
+                                                "cursor-pointer transition-colors border-b border-white/10 hover:bg-white/[0.04]",
                                                 expandedJobId === job.job_id && "bg-primary/[0.03] border-l-2 border-l-primary/40",
                                                 selectedJobIds.has(job.job_id) && "bg-primary/[0.04]"
                                             )}

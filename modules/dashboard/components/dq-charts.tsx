@@ -47,7 +47,7 @@ function DqChartsComponent({ files }: DqChartsProps) {
         <DqScoreChart completedFiles={completedFiles} />
       </div>
 
-      <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+      <Card className="border-border bg-card/80 backdrop-blur-sm">
         <CardContent className="px-4 pb-4 pt-2">
           <ProfessionalChartsCarousel files={files} />
         </CardContent>

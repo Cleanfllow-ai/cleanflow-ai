@@ -40,7 +40,7 @@ export function FilesPageHeader({ files }: FilesPageHeaderProps) {
 
                 {/* Stat pills */}
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/40 border border-border/50">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-card border border-primary/20 shadow-sm">
                         <Database className="h-3 w-3 text-primary" />
                         <span className="font-mono text-[12px] font-semibold tabular-nums text-foreground">
                             {stats.total}

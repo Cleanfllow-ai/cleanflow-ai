@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
 
     // Build system prompt
     const pageContextBlock = renderPageContext(pageContext)
-    const systemPrompt = `You are CleanFlow AI's in-product assistant. You help users with file uploads, data quality (DQ), quarantine remediation, jobs, and ERP/warehouse/storage connectors.
+    const systemPrompt = `You are RightRev's in-product assistant. You help users with file uploads, data quality (DQ), quarantine remediation, jobs, and ERP/warehouse/storage connectors.
 
 Output formatting rules — VERY IMPORTANT, follow exactly:
 - Default to a short opening sentence (≤ 1 line) that directly answers the question, then a bulleted list for any details. Do NOT write run-on paragraphs.

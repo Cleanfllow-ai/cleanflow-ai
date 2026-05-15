@@ -76,7 +76,7 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
           }
         ].map((stat) => (
           <div key={stat.title} className="h-full">
-            <Card className="h-full border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+            <Card className="h-full border-border bg-card/80 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-white/70 flex items-center space-x-2">
                   <stat.icon className={`w-5 h-5 ${stat.color}`} />
@@ -99,7 +99,7 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
       </div>
 
       {/* DQ Issues Analysis */}
-      <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+      <Card className="border-border bg-card/80 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="mb-4 flex items-center gap-2 text-white">
             <AlertTriangle className="w-5 h-5 text-[#69C04B]" />
@@ -109,7 +109,7 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
         <CardContent>
           <div className="space-y-3">
             {topIssues.length > 0 ? topIssues.map((issue) => (
-              <div key={issue.issue} className="flex items-center justify-between p-3 bg-[#0f2d23]/50 rounded-lg border border-[#69C04B]/20">
+              <div key={issue.issue} className="flex items-center justify-between p-3 bg-card rounded-lg border border-border">
                 <div>
                   <span className="font-medium text-white">{issue.issue}</span>
                   <Badge variant="secondary" className={
@@ -136,7 +136,7 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
       {/* Processing Summary */}
       {files.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+          <Card className="border-border bg-card/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="text-white">File Status Distribution</CardTitle>
             </CardHeader>
@@ -158,7 +158,7 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
             </CardContent>
           </Card>
 
-          <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+          <Card className="border-border bg-card/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="text-white">Data Quality Summary</CardTitle>
             </CardHeader>
@@ -180,7 +180,7 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
             </CardContent>
           </Card>
 
-          <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+          <Card className="border-border bg-card/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="text-white">Performance Metrics</CardTitle>
             </CardHeader>

@@ -28,10 +28,10 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="flex items-center gap-4">
             <div className="relative w-12 h-12">
-              <Image src="/images/rightrev-logo.png" alt="CleanFlowAI" width={48} height={48} className="object-contain" />
+              <Image src="/images/rightrev-logo.png" alt="RightRev" width={48} height={48} className="object-contain" />
             </div>
             <div>
-              <span className="font-semibold text-[18px] text-white tracking-tight">CleanFlowAI</span>
+              <span className="font-semibold text-[18px] text-white tracking-tight">RightRev</span>
               <p className="text-[10px] uppercase tracking-[0.28em] text-white/60 font-medium">Data Quality Platform</p>
             </div>
           </div>

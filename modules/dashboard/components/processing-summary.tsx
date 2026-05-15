@@ -34,7 +34,7 @@ export function ProcessingSummary({ files }: DqChartsProps) {
         { label: "Quarantined", value: totalRowsQuarantined, color: "text-rose-500 dark:text-rose-500", bg: "bg-rose-500/5 dark:bg-rose-500/5" },
     ];
     return (
-        <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+        <Card className="border-border bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2 pt-4">
                 <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-white/70 flex items-center gap-2"
                 >

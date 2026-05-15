@@ -174,7 +174,7 @@ export function JobConfigStep({ d, onNext, isCreating, advancedDQ, embedded }: J
                                 ) : (
                                     <div className="space-y-2">
                                         {/* Admin config indicator */}
-                                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/30 border border-border/40">
+                                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/30 border border-white/15">
                                             <Settings2 className="h-3 w-3 text-muted-foreground/60 flex-shrink-0" />
                                             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                                                 {d.sourceConnectorConfig.warehouse && (
@@ -423,7 +423,7 @@ export function JobConfigStep({ d, onNext, isCreating, advancedDQ, embedded }: J
                                 ) : (
                                     <div className="space-y-2">
                                         {/* Admin config indicator */}
-                                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/30 border border-border/40">
+                                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/30 border border-white/15">
                                             <Settings2 className="h-3 w-3 text-muted-foreground/60 flex-shrink-0" />
                                             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                                                 {d.destConnectorConfig.warehouse && (
@@ -574,7 +574,7 @@ export function JobConfigStep({ d, onNext, isCreating, advancedDQ, embedded }: J
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-border/50 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-white/15 flex justify-end gap-3">
                 <Button
                     onClick={onNext}
                     disabled={!canProceed || isCreating}
@@ -598,7 +598,7 @@ export function JobConfigStep({ d, onNext, isCreating, advancedDQ, embedded }: J
 
 function EmbeddedJobBasics({ d }: { d: ReturnType<typeof useJobDialog> }) {
     return (
-        <div className="space-y-4 pt-4 mt-4 border-t border-border/40">
+        <div className="space-y-4 pt-4 mt-4 border-t border-white/15">
             <h3 className="text-sm font-medium text-muted-foreground">Job Basics</h3>
 
             {/* Job Name */}

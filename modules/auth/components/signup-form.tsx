@@ -304,7 +304,7 @@ export function SignUpForm() {
         {/* Mobile-only logo */}
         <div className="flex justify-center mb-6 lg:hidden">
           <div className="relative w-14 h-14">
-            <Image src="/images/rightrev-logo.png" alt="CleanFlowAI" width={56} height={56} className="object-contain" />
+            <Image src="/images/rightrev-logo.png" alt="RightRev" width={56} height={56} className="object-contain" />
           </div>
         </div>
         <h1 className="text-4xl font-semibold tracking-tight text-white">

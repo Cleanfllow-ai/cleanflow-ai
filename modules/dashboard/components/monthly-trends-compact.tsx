@@ -236,7 +236,7 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
     }
 
     return (
-        <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+        <Card className="border-border bg-card/80 backdrop-blur-sm">
             <CardHeader className="py-3 px-4 pb-1">
                 <div className="flex items-center justify-between mb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2 text-white/70">
@@ -289,7 +289,7 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
                                         }
 
                                         return (
-                                            <div className="bg-[#0f2d23]/95 border border-[#69C04B]/40 rounded-md shadow-sm p-2 text-xs">
+                                            <div className="bg-card border border-border rounded-md shadow-sm p-2 text-xs">
                                                 <p className="font-medium text-white">{displayPeriod}</p>
                                                 <p className="text-white/70">
                                                     {payload[0].value?.toLocaleString()} rows

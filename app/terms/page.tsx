@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 const LAST_UPDATED = "2026-05-03";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — CleanFlowAI",
+  title: "Terms of Service — RightRev",
   description:
-    "Terms governing your use of the CleanFlowAI data quality platform: account, customer data, acceptable use, billing, availability, liability, and governing law.",
+    "Terms governing your use of the RightRev data quality platform: account, customer data, acceptable use, billing, availability, liability, and governing law.",
 };
 
 export default function TermsPage() {
@@ -24,13 +24,13 @@ export default function TermsPage() {
 
       <article className="space-y-6 prose prose-sm dark:prose-invert">
         <p>
-          These Terms govern your use of CleanFlowAI (the &quot;Service&quot;).
+          These Terms govern your use of RightRev (the &quot;Service&quot;).
           By signing up or accessing the Service, you agree to these Terms.
         </p>
 
         <h2>1. The Service</h2>
         <p>
-          CleanFlowAI is a multi-tenant data quality platform. We process
+          RightRev is a multi-tenant data quality platform. We process
           files you upload, run validation rules, fix or quarantine bad
           rows, and export to your chosen destination (ERP, warehouse, etc.).
         </p>

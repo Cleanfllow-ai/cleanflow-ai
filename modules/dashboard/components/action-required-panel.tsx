@@ -44,7 +44,7 @@ export function ActionRequiredPanel({ files }: { files: FileStatusResponse[] }) 
 
   return (
     <div
-      className="flex items-center justify-between p-3 rounded-lg border border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm cursor-pointer hover:bg-[#0f2d23]/70 transition-colors"
+      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/80 backdrop-blur-sm cursor-pointer hover:bg-card transition-colors"
       onClick={() => router.push("/files?status=attention")}
     >
       <div className="flex items-center gap-2.5">

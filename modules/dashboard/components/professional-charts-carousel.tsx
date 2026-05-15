@@ -295,13 +295,13 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
                             type="date"
                             value={selectedDay}
                             onChange={(event) => setSelectedDay(event.target.value)}
-                            className="h-8 rounded-md border border-[#69C04B]/40 bg-[#0f2d23]/50 px-2 text-xs text-white"
+                            className="h-8 rounded-md border border-border bg-card/80 px-2 text-xs text-foreground"
                         />
                     )}
                 </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-xl border border-[#69C04B]/40 bg-gradient-to-br from-[#0f2d23] via-[#1a4d3a] to-[#0f2d23] p-4">
+            <div className="relative overflow-hidden rounded-xl border border-border bg-background/60 p-4">
                 <div className="h-[360px]">
                     {trendData.length === 0 ? (
                         <div className="flex h-full items-center justify-center text-sm text-white/60">
@@ -349,14 +349,14 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
                                     content={({ active, payload, label }) => {
                                         if (!active || !payload || payload.length === 0) return null;
                                         return (
-                                            <div className="min-w-[180px] rounded-xl border border-[#69C04B]/40 bg-[#0f2d23]/95 p-3 shadow-xl backdrop-blur">
+                                            <div className="min-w-[180px] rounded-xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
                                                 <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/70">
                                                     {label}
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    {payload.map((entry) => (
+                                                    {payload.filter((e, i, arr) => arr.findIndex(x => x.dataKey === e.dataKey) === i).map((entry, i) => (
                                                         <div
-                                                            key={entry.dataKey}
+                                                            key={`${String(entry.dataKey)}-${i}`}
                                                             className="flex items-center justify-between gap-4 text-xs"
                                                         >
                                                             <div className="flex items-center gap-2">

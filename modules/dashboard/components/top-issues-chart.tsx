@@ -48,7 +48,7 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
   }))
 
   return (
-    <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+    <Card className="border-border bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-2 pt-3 px-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">

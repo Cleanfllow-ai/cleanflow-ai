@@ -130,7 +130,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
     .slice(0, 10)
 
   return (
-    <Card className="h-fit border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
+    <Card className="h-fit border-border bg-card/80 backdrop-blur-sm">
       <CardHeader className="py-2.5 px-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70">

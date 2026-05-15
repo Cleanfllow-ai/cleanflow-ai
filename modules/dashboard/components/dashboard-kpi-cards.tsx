@@ -125,7 +125,7 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             {cards.map((card) => (
                 <div
                     key={card.label}
-                    className="relative overflow-hidden rounded-xl border border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm px-4 py-3.5 flex items-start gap-3 hover:bg-[#0f2d23]/70 transition-colors"
+                    className="relative overflow-hidden rounded-xl border border-border bg-card/80 backdrop-blur-sm px-4 py-3.5 flex items-start gap-3 hover:bg-card transition-colors"
                 >
                     {/* Left accent bar */}
                     <div

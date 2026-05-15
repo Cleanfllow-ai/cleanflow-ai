@@ -107,7 +107,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         <div className="space-y-3">
             {/* Post-upload prompt — UX Improvement: Quick Process vs Configure */}
             {recentlyUploaded && (
-                <div className="p-4 rounded-lg border border-border bg-card">
+                <div className="p-4 rounded-lg border border-primary/20 bg-card shadow-sm">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <CheckCircle className="h-4 w-4 text-emerald-500" />
@@ -164,14 +164,14 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search files..."
-                            className="h-9 w-full sm:w-52 pl-8 text-sm bg-background border-border/60 focus-visible:border-primary/40 focus-visible:ring-1 focus-visible:ring-primary/20"
+                            className="h-9 w-full sm:w-52 pl-8 text-sm bg-card border-primary/20 focus-visible:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/20"
                         />
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
                                 variant="outline"
-                                className="h-9 w-32 sm:w-36 text-sm justify-between border-border/60"
+                                className="h-9 w-32 sm:w-36 text-sm justify-between border-primary/20 bg-card"
                             >
                                 <span className="truncate text-muted-foreground">
                                     {STATUS_OPTIONS.find((opt) => opt.value === statusFilter)?.label || "Filter"}
@@ -249,7 +249,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                     <Button
                         variant="outline"
                         size="sm"
-                        className="h-9 px-3 border-border/60"
+                        className="h-9 px-3 border-primary/20 bg-card"
                         onClick={handleManualRefresh}
                         disabled={isManualRefresh}
                     >
@@ -273,11 +273,13 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
             </div>
 
             {/* Table */}
-            <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
+            <div className="rounded-lg border border-primary/25 bg-card overflow-hidden shadow-sm">
+                {/* Brand accent stripe */}
+                <div className="h-[2px] bg-gradient-to-r from-primary via-primary/60 to-primary/10" />
                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow className="hover:bg-transparent border-b border-border/60 bg-muted/30">
+                            <TableRow className="hover:bg-transparent border-b border-primary/15 bg-primary/[0.06]">
                                 <TableHead className="w-10 text-center" onClick={(e) => e.stopPropagation()}>
                                     <Checkbox
                                         checked={filteredFiles.length > 0 && selectedFiles.size === filteredFiles.length}
@@ -393,7 +395,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                     key={file.upload_id}
                                     data-file-id={file.upload_id}
                                     className={cn(
-                                        "hover:bg-muted/20 cursor-pointer transition-all duration-150 border-b border-border/40",
+                                        "hover:bg-primary/[0.04] cursor-pointer transition-all duration-150 border-b border-border/40",
                                         highlightedFileId === file.upload_id && "bg-primary/8 ring-1 ring-primary/20 animate-pulse"
                                     )}
                                     onClick={() => handleViewDetails(file)}
@@ -882,7 +884,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                     </Table>
                 </div>
                 {filteredFiles.length > 0 && (
-                    <p className="px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground/50 border-t border-border/40 font-mono">
+                    <p className="px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground/50 border-t border-primary/10 font-mono bg-primary/[0.03]">
                         Timestamps in IST (UTC+5:30)
                     </p>
                 )}

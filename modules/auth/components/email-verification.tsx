@@ -105,7 +105,7 @@ export function EmailVerification({ email, onVerified, onBack }: EmailVerificati
             <div className="relative w-16 h-16">
               <Image
                 src="/images/rightrev-logo.png"
-                alt="CleanFlowAI"
+                alt="RightRev"
                 width={64}
                 height={64}
                 className="rounded-xl object-contain"

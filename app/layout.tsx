@@ -33,7 +33,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "CleanFlowAI - Data Quality Platform",
+  title: "RightRev - Data Quality Platform",
   description: "Enterprise data quality, transformation, and ERP integration platform",
 }
 

@@ -137,7 +137,7 @@ function EndpointEntry({
         .filter(p => p.connected)
 
     return (
-        <div className="rounded-lg border bg-card p-3 space-y-2.5">
+        <div className="rounded-lg border border-white/20 bg-card p-3 space-y-2.5">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -892,7 +892,7 @@ export function EndpointsStep({ pipeline, onNext, additionalContent, extraCanPro
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-border/50 flex justify-end">
+            <div className="px-6 py-4 border-t border-white/15 flex justify-end">
                 <Button onClick={onNext} disabled={!canProceed || !extraCanProceed}>Next →</Button>
             </div>
         </div>

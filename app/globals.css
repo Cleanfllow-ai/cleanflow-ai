@@ -14,10 +14,10 @@
   --background: #164234;               /* RightRev forest green — exact brand color */
   --foreground: oklch(0.96 0 0);       /* near-white text — readable on forest bg */
 
-  --card: oklch(1 0 0);                /* white cards for shadcn components (auth dialogs etc.) */
-  --card-foreground: #164234;          /* forest text on white card */
-  --popover: oklch(1 0 0);
-  --popover-foreground: #164234;
+  --card: #0f2d23;                     /* dark forest card — whole app is dark-themed */
+  --card-foreground: oklch(0.93 0 0); /* near-white text on dark card */
+  --popover: #0f2d23;
+  --popover-foreground: oklch(0.93 0 0);
 
   /* Brand colors — RightRev */
   --primary: #69C04B;                  /* bright green — visible on any forest bg */
@@ -62,9 +62,9 @@
   --background: #060d08;           /* near-black green — very clearly different from light */
   --foreground: oklch(0.93 0 0);   /* near-white text */
 
-  --card: #0f2d23;                 /* dark forest cards (shadcn components) */
+  --card: #111318;                 /* neutral dark — less green than forest, cards stand out from bg */
   --card-foreground: oklch(0.93 0 0);
-  --popover: #0f2d23;
+  --popover: #111318;
   --popover-foreground: oklch(0.93 0 0);
 
   --primary: #69C04B;              /* bright green accent */

@@ -436,7 +436,7 @@ export function useAuth() {
       if (result.SecretCode) {
         // Generate QR code URL for authenticator apps
         const email = authState.user?.email || 'user'
-        const qrCodeUrl = `otpauth://totp/CleanFlowAI:${email}?secret=${result.SecretCode}&issuer=CleanFlowAI`
+        const qrCodeUrl = `otpauth://totp/RightRev:${email}?secret=${result.SecretCode}&issuer=RightRev`
 
         return {
           secretCode: result.SecretCode,
@@ -457,7 +457,7 @@ export function useAuth() {
 
       if (result.SecretCode) {
         // Generate QR code URL for authenticator apps
-        const qrCodeUrl = `otpauth://totp/CleanFlowAI:${email}?secret=${result.SecretCode}&issuer=CleanFlowAI`
+        const qrCodeUrl = `otpauth://totp/RightRev:${email}?secret=${result.SecretCode}&issuer=RightRev`
 
         return {
           secretCode: result.SecretCode,

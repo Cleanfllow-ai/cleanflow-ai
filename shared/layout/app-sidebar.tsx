@@ -141,7 +141,7 @@ function AppSidebarComponent() {
 					<div className="relative w-7 h-7 flex-shrink-0">
 						<Image
 							src="/images/rightrev-logo.png"
-							alt="CleanFlowAI"
+							alt="RightRev"
 							width={28}
 							height={28}
 							className="rounded-md object-contain"
@@ -150,7 +150,7 @@ function AppSidebarComponent() {
 					{!collapsed && (
 						<div className="flex-1 min-w-0">
 							<div className="text-sm font-semibold text-foreground tracking-tight leading-none">
-								CleanFlowAI
+								RightRev
 							</div>
 							<div className="text-[10px] text-muted-foreground leading-none mt-0.5">
 								Data Quality Platform
