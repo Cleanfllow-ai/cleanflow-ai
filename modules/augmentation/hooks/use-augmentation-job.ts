@@ -81,7 +81,7 @@ export function augErrorToast(
                 description: opts.errorMessage,
                 action: {
                     label: "Contact Support",
-                    onClick: () => window.open("mailto:support@cleanflowai.com?subject=AUG_EVAL_FAILED", "_blank"),
+                    onClick: () => window.open("mailto:support@infiniqon.com?subject=AUG_EVAL_FAILED", "_blank"),
                 },
                 duration: 15_000,
             })
@@ -97,7 +97,7 @@ export function augErrorToast(
                 description: opts.errorMessage,
                 action: {
                     label: "Contact Support",
-                    onClick: () => window.open("mailto:support@cleanflowai.com?subject=AUG_MATERIALIZE_FAILED", "_blank"),
+                    onClick: () => window.open("mailto:support@infiniqon.com?subject=AUG_MATERIALIZE_FAILED", "_blank"),
                 },
                 duration: 15_000,
             })

@@ -386,7 +386,7 @@ export function mapQuarantineErrorToToast(
                     label: "Contact Support",
                     onClick: () => {
                         if (typeof window !== "undefined") {
-                            window.open("mailto:support@cleanflow.ai?subject=Permission%20issue", "_blank")
+                            window.open("mailto:support@infiniqon.com?subject=Permission%20issue", "_blank")
                         }
                     },
                 },
