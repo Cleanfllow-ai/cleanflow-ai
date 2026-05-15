@@ -255,7 +255,8 @@ export function QuarantineCustomRuleDialog({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((result as any)._debug) setDebugInfo((result as any)._debug)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'AI rule generation failed')
+      console.error("AI rule generation failed:", err)
+      setError("Could not generate the rule. Please try rephrasing your description.")
     } finally {
       setLoading(false)
     }
@@ -301,7 +302,8 @@ export function QuarantineCustomRuleDialog({
       // so the user can see the diagnostic info.
       if (totalFixed > 0) setTimeout(handleClose, 1800)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Apply to all failed')
+      console.error("Apply to all failed:", err)
+      setError("Could not apply the rule to all rows. Please try again.")
     } finally {
       setApplying(false)
     }

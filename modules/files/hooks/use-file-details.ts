@@ -189,7 +189,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
           setPreviewError("This file was deleted.")
           break
         default:
-          setPreviewError(err.message || "Failed to load preview")
+          setPreviewError("Could not load preview. Please try again.")
       }
     } finally {
       clearTimeout(timeoutId)
@@ -220,7 +220,8 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       setIssuesNextOffset(hasMore ? Math.min(sampleSize, ISSUES_PAGE_SIZE) : null)
       setAvailableViolations(report?.violation_counts || {})
     } catch (err: any) {
-      setDqReportError(err.message || "Failed to load DQ report")
+      console.error("Failed to load DQ report:", err)
+      setDqReportError("Could not load the quality report. Please try again.")
     } finally {
       setDqReportLoading(false)
     }
@@ -441,7 +442,8 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
         setAvailableViolations(resp.available_violations)
       }
     } catch (err: any) {
-      setDqReportError(err.message || "Failed to load issues")
+      console.error("Failed to load issues:", err)
+      setDqReportError("Could not load issues. Please try again.")
     } finally {
       setIssuesLoading(false)
     }
@@ -471,9 +473,10 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
         description: "DQ report downloaded successfully",
       })
     } catch (err: any) {
+      console.error("Failed to download DQ report:", err)
       toast({
         title: "Download failed",
-        description: err.message || "Failed to download DQ report",
+        description: "Could not download the quality report. Please try again.",
         variant: "destructive",
       })
     } finally {

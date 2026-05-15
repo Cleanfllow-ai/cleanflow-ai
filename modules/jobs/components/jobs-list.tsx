@@ -44,17 +44,17 @@ function describeJobError(err: unknown, fallback: string): { title: string; desc
             return { title: "Session expired", description: "Please sign in again to continue." }
         }
         if (err.status === 403) {
-            return { title: "Permission denied", description: err.message || "Your role doesn't allow this action." }
+            return { title: "Permission denied", description: "Your role doesn't allow this action." }
         }
         if (err.status === 409) {
-            return { title: "Conflict", description: err.message || "The job state changed — refresh and retry." }
+            return { title: "Conflict", description: "The job state changed — refresh and retry." }
         }
         if (err.status >= 500) {
-            return { title: "Server error", description: err.message || "The backend is temporarily unavailable. Try again." }
+            return { title: "Server error", description: "The service is temporarily unavailable. Please try again." }
         }
-        return { title: fallback, description: err.message }
+        return { title: fallback, description: "Please try again." }
     }
-    return { title: fallback, description: (err as Error)?.message || "Something went wrong" }
+    return { title: fallback, description: "Something went wrong. Please try again." }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -328,9 +328,10 @@ export function JobsList() {
             clearSelection()
             await loadJobs()
         } catch (err) {
+            console.error(`Batch ${action} error:`, err)
             toast({
                 title: `Batch ${action} failed`,
-                description: err instanceof Error ? err.message : "Unknown error",
+                description: "Could not complete the action. Please try again.",
                 variant: "destructive",
             })
         } finally {

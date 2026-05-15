@@ -543,9 +543,11 @@ export function useOrgSettings() {
                 }
             } catch (err: any) {
                 console.error("File upload error:", err);
+                // Only surface the message for known user-friendly validation errors thrown above.
+                const isValidationMsg = typeof err?.message === "string" && err.message.startsWith("Please upload");
                 toast({
                     title: "Invalid file",
-                    description: err.message || "Could not parse the uploaded file.",
+                    description: isValidationMsg ? err.message : "Could not parse the uploaded file.",
                     variant: "destructive",
                 });
             }
@@ -820,7 +822,7 @@ export function useOrgSettings() {
             }
             toast({
                 title: "Failed to revoke",
-                description: err?.message || "Could not revoke the invite.",
+                description: "Could not revoke the invite. Please try again.",
                 variant: "destructive",
             });
         } finally {
@@ -880,14 +882,14 @@ export function useOrgSettings() {
             if (isApiError(err) && err.code === "OrgValidationError") {
                 toast({
                     title: "Invalid organization details",
-                    description: err.message,
+                    description: "Please check the details and try again.",
                     variant: "destructive",
                 });
                 return;
             }
             toast({
                 title: "Failed to save",
-                description: err?.message || "Could not register the organization.",
+                description: "Could not save organization details. Please try again.",
                 variant: "destructive",
             });
         } finally {
@@ -943,7 +945,7 @@ export function useOrgSettings() {
             }
             toast({
                 title: "Failed to save permissions",
-                description: err?.message || "Could not update role permissions.",
+                description: "Could not update role permissions. Please try again.",
                 variant: "destructive",
             });
         } finally {
@@ -1003,7 +1005,7 @@ export function useOrgSettings() {
             }
             toast({
                 title: "Failed to update role",
-                description: err?.message || "Could not update the member role.",
+                description: "Could not update the member role. Please try again.",
                 variant: "destructive",
             });
         }
@@ -1057,7 +1059,7 @@ export function useOrgSettings() {
                 });
                 return;
             }
-            toast({ title: "Remove failed", description: err?.message || "Could not remove the member.", variant: "destructive" });
+            toast({ title: "Remove failed", description: "Could not remove the member. Please try again.", variant: "destructive" });
         }
     };
 
@@ -1152,7 +1154,7 @@ export function useOrgSettings() {
             } else {
                 toast({
                     title: "Failed to invite",
-                    description: err?.message || "Could not create invite.",
+                    description: "Could not send the invitation. Please try again.",
                     variant: "destructive",
                 });
             }
@@ -1183,7 +1185,8 @@ export function useOrgSettings() {
                 setLogoDataUrl(response?.logo_url || result);
                 toast({ title: "Logo updated", description: "Your organization logo was saved." });
             } catch (err: any) {
-                toast({ title: "Logo upload failed", description: err?.message || "Could not upload the logo." });
+                console.error("Logo upload error:", err);
+                toast({ title: "Logo upload failed", description: "Could not upload the logo. Please try again." });
             } finally {
                 if (logoInputRef.current) {
                     logoInputRef.current.value = "";
@@ -1217,7 +1220,8 @@ export function useOrgSettings() {
             await refreshPermissions();
             toast({ title: "Refreshed", description: "Admin data has been refreshed." });
         } catch (err: any) {
-            toast({ title: "Refresh failed", description: err?.message || "Could not refresh admin data.", variant: "destructive" });
+            console.error("Refresh admin data error:", err);
+            toast({ title: "Refresh failed", description: "Could not refresh. Please try again.", variant: "destructive" });
         } finally {
             setIsRefreshingOrg(false);
         }
@@ -1277,7 +1281,8 @@ export function useOrgSettings() {
             await loadApprovals();
             await loadPendingCount();
         } catch (err: any) {
-            toast({ title: "Failed", description: err?.message || "Could not approve request.", variant: "destructive" });
+            console.error("Approve request error:", err);
+            toast({ title: "Approval failed", description: "Could not approve the request. Please try again.", variant: "destructive" });
         }
     };
 
@@ -1288,7 +1293,8 @@ export function useOrgSettings() {
             await loadApprovals();
             await loadPendingCount();
         } catch (err: any) {
-            toast({ title: "Failed", description: err?.message || "Could not reject request.", variant: "destructive" });
+            console.error("Reject request error:", err);
+            toast({ title: "Rejection failed", description: "Could not reject the request. Please try again.", variant: "destructive" });
         }
     };
 

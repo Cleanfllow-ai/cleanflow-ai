@@ -1368,15 +1368,9 @@ export function useFilesPage() {
             // Cancel succeeded but delete didn't — surface a partial-success
             // toast and let the user retry the trash icon manually. The row
             // is now in a terminal state so the trash icon will be visible.
-            const reason =
-                error instanceof ApiError && error.message
-                    ? error.message
-                    : error instanceof Error && error.message
-                      ? error.message
-                      : "unknown error";
             toast({
                 title: "Import stopped",
-                description: `Cancelled — but delete failed (${reason}). You can retry from the trash icon.`,
+                description: "Cancelled, but the file could not be deleted. You can retry from the trash icon.",
                 variant: "destructive",
             });
         } finally {

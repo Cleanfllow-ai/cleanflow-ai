@@ -195,9 +195,10 @@ export function ConnectorsHub() {
         })
       }
     } catch (err) {
+      console.error("Connect error:", err)
       toast({
         title: `Could not connect ${provider?.display_name ?? providerId}`,
-        description: (err as Error)?.message || "Please try again.",
+        description: "Please try again.",
         variant: "destructive",
       })
     } finally { setConnectingProvider(null) }
@@ -222,9 +223,10 @@ export function ConnectorsHub() {
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: { connected: false } } : p))
       toast({ title: "Disconnected", description: `${displayName} has been disconnected.` })
     } catch (err) {
+      console.error("Disconnect error:", err)
       toast({
         title: "Disconnect failed",
-        description: (err as Error)?.message || `Could not disconnect ${displayName}. Please try again.`,
+        description: `Could not disconnect ${displayName}. Please try again.`,
         variant: "destructive",
       })
     } finally { setDisconnectingProvider(null) }
@@ -237,9 +239,10 @@ export function ConnectorsHub() {
       const status = await connectorsAPI.getConnectionStatus(providerId)
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: status } : p))
     } catch (err) {
+      console.error("Save config error:", err)
       toast({
         title: "Could not save configuration",
-        description: (err as Error)?.message || "Please try again.",
+        description: "Please try again.",
         variant: "destructive",
       })
     } finally { setSavingConfig(null) }
@@ -254,9 +257,10 @@ export function ConnectorsHub() {
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: status } : p))
       if (key === "database" && value) prefetchDatabaseDeep(providerId, value).catch(() => {})
     } catch (err) {
+      console.error("Save warehouse default error:", err)
       toast({
         title: `Could not save ${key}`,
-        description: (err as Error)?.message || "Please try again.",
+        description: "Please try again.",
         variant: "destructive",
       })
     } finally { setSavingConfig(null) }

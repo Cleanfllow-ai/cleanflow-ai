@@ -88,7 +88,7 @@ export function mapConnectorErrorToToast(
             }
         }
         return {
-            message: msg || "Something went wrong",
+            message: "Something went wrong. Please try again.",
             actionLabel: null,
             action: null,
             toastId: "connector-unknown-error",
@@ -199,7 +199,7 @@ export function mapConnectorErrorToToast(
 
     // ── Fallback ──────────────────────────────────────────────────────────────
     return {
-        message: err.message || `${p} returned an error.`,
+        message: `${p} returned an error. Please try again.`,
         actionLabel: err.action === "retry" ? "Retry" : null,
         action: err.action === "retry" ? "retry" : null,
         toastId: `connector-${providerSlug}-${codeToSlug(code)}`,

@@ -1,5 +1,8 @@
 "use client";
 
+// TODO: re-enable once SES domain verified (~2026-05-17)
+const INVITES_ENABLED = false;
+
 import { Building2, Cable, ClipboardCheck, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,8 +23,8 @@ export function OrganizationSettings() {
 
   return (
     <Tabs value={hookData.activeTab} onValueChange={hookData.setActiveTab} className="space-y-6">
-      {/* Invite Dialog */}
-      <Dialog open={hookData.isInviteDialogOpen} onOpenChange={hookData.setIsInviteDialogOpen}>
+      {/* Invite Dialog — hidden while INVITES_ENABLED=false (SES unverified) */}
+      <Dialog open={INVITES_ENABLED && hookData.isInviteDialogOpen} onOpenChange={hookData.setIsInviteDialogOpen}>
         <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden rounded-xl border border-border bg-card">
           <div className="p-8 pb-4 flex flex-col items-center text-center">
             <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5">

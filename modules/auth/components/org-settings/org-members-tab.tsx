@@ -1,5 +1,8 @@
 "use client";
 
+// TODO: re-enable once SES domain verified (~2026-05-17)
+const INVITES_ENABLED = false;
+
 import { useState } from "react";
 import { Loader2, MoreHorizontal, UserCog, UserMinus, UserPlus, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -113,15 +116,17 @@ export function OrgMembersTab({
                 Members & Roles
               </CardTitle>
             </div>
-            <Button
-              className="flex items-center gap-2"
-              onClick={handleInviteMember}
-              disabled={!canInviteMembers}
-              title={inviteHelpText}
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Member
-            </Button>
+            {INVITES_ENABLED && (
+              <Button
+                className="flex items-center gap-2"
+                onClick={handleInviteMember}
+                disabled={!canInviteMembers}
+                title={inviteHelpText}
+              >
+                <UserPlus className="w-4 h-4" />
+                Add Member
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             <Table>
