@@ -121,7 +121,7 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
     ]
 
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div data-tour="kpi-cards" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {cards.map((card) => (
                 <div
                     key={card.label}
