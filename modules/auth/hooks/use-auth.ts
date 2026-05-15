@@ -16,6 +16,8 @@ import {
   startIdleTimer,
   subscribeToLogoutBroadcast,
 } from './auth-session'
+// P0-6: import cache-clear so logout never leaks one user's dashboard to the next
+import { _clearDashboardSummaryCache } from '@/modules/dashboard/hooks/use-dashboard-summary'
 
 // Re-export types for backwards compatibility
 export type { User, AuthState, MfaSetupData } from '@/modules/auth/types/auth.types'
@@ -47,6 +49,8 @@ export function useAuth() {
     broadcastLogout()
     idleTimerRef.current?.destroy()
     idleTimerRef.current = null
+    // P0-6: clear dashboard cache on every logout path
+    _clearDashboardSummaryCache()
     setAuthState(UNAUTHENTICATED_STATE)
     if (typeof window !== "undefined") {
       window.location.href = "/auth/login?reason=session_expired"
@@ -111,6 +115,8 @@ export function useAuth() {
       clearStoredTokens()
       idleTimerRef.current?.destroy()
       idleTimerRef.current = null
+      // P0-6: clear dashboard cache on cross-tab logout too
+      _clearDashboardSummaryCache()
       setAuthState(UNAUTHENTICATED_STATE)
       if (typeof window !== "undefined") {
         window.location.href = "/auth/login"
@@ -621,6 +627,9 @@ export function useAuth() {
     // Case 5: tear down idle timer
     idleTimerRef.current?.destroy()
     idleTimerRef.current = null
+    // P0-6: wipe the module-level dashboard cache so the next user session
+    // cannot see a previous user's summary data on first mount.
+    _clearDashboardSummaryCache()
     setAuthState(UNAUTHENTICATED_STATE)
   }
 

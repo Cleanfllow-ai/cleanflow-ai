@@ -148,7 +148,9 @@ export function useWebSocket({
     }
   }, [])
 
-  // Connect once on mount, reconnect when fileId or enabled changes
+  // Connect once on mount, reconnect when fileId, enabled, or accessToken changes.
+  // P1-7: use the FULL accessToken string (not !!accessToken boolean) as the dep
+  // so token rotation on silent refresh triggers a reconnect with the new token.
   useEffect(() => {
     console.log('[WS] Effect triggered:', { enabled, hasToken: !!accessToken, fileId, wsState: wsRef.current?.readyState })
     if (!enabled || !accessToken) {
@@ -157,7 +159,7 @@ export function useWebSocket({
     }
     connect()
     return cleanup
-  }, [fileId, enabled, !!accessToken]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fileId, enabled, accessToken]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { connected, send }
 }

@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWebSocket } from './use-websocket'
 import type {
   CollaborationUser,
@@ -117,6 +117,8 @@ export function useCollaboration({
   const [activity, setActivity] = useState<ActivityEntry[]>([])
   const [panelOpen, setPanelOpen] = useState(false)
   const [lockDeniedCell, setLockDeniedCell] = useState<string | null>(null)
+  // P0-5: track reconnecting state so consumers can show a banner and block edits
+  const [isReconnecting, setIsReconnecting] = useState(false)
 
   // Ref for cell locks — used by AG Grid cellClass callback
   const cellLocksRef = useRef<Map<string, CellLockInfo>>(new Map())
@@ -396,6 +398,8 @@ export function useCollaboration({
     // request a fresh snapshot from the server.
     onConnect: useCallback((isReconnect: boolean) => {
       if (!isReconnect) return
+      // P0-5: reconnect established — clear reconnecting banner
+      setIsReconnecting(false)
       // Clear cell locks — repopulated by lockSnapshot response.
       setCellLocks(() => {
         const empty = new Map<string, CellLockInfo>()
@@ -415,25 +419,45 @@ export function useCollaboration({
   // Keep sendRef current so the onConnect callback can always call the latest send.
   sendRef.current = send
 
+  // P0-5: Watch connected transitions.
+  // On disconnect: mark grid read-only + clear orphan pending locks.
+  // On reconnect: clear is handled in onConnect callback above.
+  const prevConnectedRef = useRef<boolean | null>(null)
+  useEffect(() => {
+    const wasConnected = prevConnectedRef.current
+    prevConnectedRef.current = connected
+    if (wasConnected === null) return // skip initial mount
+    if (wasConnected && !connected) {
+      // Disconnected — clear pending locks and show reconnecting banner
+      pendingLockCellsRef.current.clear()
+      setIsReconnecting(true)
+      addActivity('Connection lost — reconnecting…')
+    }
+  }, [connected, addActivity])
+
+  // P0-5: Block focusCell and broadcastCellUpdate when WS is not OPEN.
   const focusCell = useCallback((column: string, rowId: string) => {
+    if (!connected) return
     const cell = `${column}:${rowId}`
     // Lock-hole #1: mark pending before the server acks so the editable
     // predicate knows we've started the acquisition race.
     pendingLockCellsRef.current.add(cell)
     send({ action: 'cellFocus', cell })
-  }, [send])
+  }, [send, connected])
 
   const blurCell = useCallback((column: string, rowId: string) => {
     const cell = `${column}:${rowId}`
     // Release our tracking regardless of grant state.
     pendingLockCellsRef.current.delete(cell)
     myGrantedCellsRef.current.delete(cell)
-    send({ action: 'cellBlur', cell })
-  }, [send])
+    if (connected) send({ action: 'cellBlur', cell })
+  }, [send, connected])
 
   const broadcastCellUpdate = useCallback((column: string, rowId: string, value: string) => {
+    // P0-5: silently drop updates when disconnected instead of queuing them
+    if (!connected) return
     send({ action: 'cellUpdate', cell: `${column}:${rowId}`, value })
-  }, [send])
+  }, [send, connected])
 
   const broadcastBulkUpdate = useCallback((count: number, summary: string) => {
     send({ action: 'bulkUpdate', count, summary })
@@ -509,6 +533,8 @@ export function useCollaboration({
 
   return {
     connected,
+    // P0-5: exposed so consumers can show "Reconnecting…" banner + make grid read-only
+    isReconnecting,
     users: activeUsers,
     cellLocks,
     cellLocksRef,
