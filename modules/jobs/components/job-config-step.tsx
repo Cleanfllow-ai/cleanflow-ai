@@ -164,9 +164,9 @@ export function JobConfigStep({ d, onNext, isCreating, advancedDQ, embedded }: J
                         {d.sourceCategory === "warehouse" && d.sourceProvider && (
                             <>
                                 {d.sourceConfigMissing ? (
-                                    <Alert className="border-amber-200 bg-amber-50 py-2">
+                                    <Alert className="border-amber-500/30 bg-amber-500/10 py-2">
                                         <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
-                                        <AlertDescription className="text-xs text-amber-900">
+                                        <AlertDescription className="text-xs text-amber-400">
                                             Warehouse/database not configured.{" "}
                                             <a href="/admin" className="font-medium underline">Configure in Admin &gt; Connectors</a>
                                         </AlertDescription>
@@ -413,9 +413,9 @@ export function JobConfigStep({ d, onNext, isCreating, advancedDQ, embedded }: J
                         {d.destinationCategory === "warehouse" && d.destinationProvider && (
                             <>
                                 {d.destConfigMissing ? (
-                                    <Alert className="border-amber-200 bg-amber-50 py-2">
+                                    <Alert className="border-amber-500/30 bg-amber-500/10 py-2">
                                         <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
-                                        <AlertDescription className="text-xs text-amber-900">
+                                        <AlertDescription className="text-xs text-amber-400">
                                             Warehouse/database not configured.{" "}
                                             <a href="/admin" className="font-medium underline">Configure in Admin &gt; Connectors</a>
                                         </AlertDescription>
@@ -529,7 +529,7 @@ export function JobConfigStep({ d, onNext, isCreating, advancedDQ, embedded }: J
                     )}
 
                     {d.frequency === "batch" && (
-                        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
                             <Zap className="h-4 w-4 flex-shrink-0" />
                             <p className="text-xs">
                                 One-time transfer. Data will be transferred immediately after creation.
@@ -638,7 +638,7 @@ function EmbeddedJobBasics({ d }: { d: ReturnType<typeof useJobDialog> }) {
             )}
 
             {d.frequency === "batch" && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
                     <Zap className="h-4 w-4 flex-shrink-0" />
                     <p className="text-xs">
                         One-time transfer. Data will be transferred immediately after creation.

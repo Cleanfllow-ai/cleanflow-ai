@@ -252,7 +252,7 @@ export function JobCreationStepper() {
             </div>
 
             {/* Top-level step indicator */}
-            <div className="flex items-center justify-center gap-4 px-6 py-4 border-b border-border/40 bg-muted/10">
+            <div className="flex items-center justify-center gap-4 px-6 py-4 border-b border-white/[0.08]">
                 {visibleSteps.map((s, index) => {
                     const isActive = s.key === currentStep
                     const isCompleted = index < currentIndex
