@@ -34,17 +34,17 @@ export const AWS_CONFIG = {
       "NEXT_PUBLIC_COGNITO_CLIENT_ID",
       process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID
     ),
-    REGION: "ap-south-1",
+    REGION: process.env.NEXT_PUBLIC_AWS_REGION || "ap-south-1",
   },
 
   // S3 Configuration
   S3: {
     BUCKET_NAME: process.env.NEXT_PUBLIC_S3_BUCKET_NAME,
-    REGION: "ap-south-1",
+    REGION: process.env.NEXT_PUBLIC_AWS_REGION || "ap-south-1",
   },
 
   // AWS Region
-  AWS_REGION: "ap-south-1",
+  AWS_REGION: process.env.NEXT_PUBLIC_AWS_REGION || "ap-south-1",
 
   // API Endpoints (matching backend exactly)
   ENDPOINTS: {
