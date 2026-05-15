@@ -21,3 +21,5 @@ export { useOverlayPersist } from "./use-overlay-persist"
 export type { PersistedOverlay } from "./use-overlay-persist"
 export { useWebSocket } from './use-websocket'
 export { useCollaboration } from './use-collaboration'
+export { useAugPresets } from './use-aug-presets'
+export type { AugPreset } from './use-aug-presets'

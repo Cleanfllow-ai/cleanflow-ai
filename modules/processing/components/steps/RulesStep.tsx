@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Play, ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Loader2, Code, ArrowRight } from "lucide-react"
 import { useProcessingWizard, type RuleWithState, type CrossFieldRuleWithState } from "../WizardContext"
 import { fileManagementAPI, type CustomRuleDefinition } from "@/modules/files"
+import { AugmentationsPanel } from "./augmentations-panel"
 import { cn } from "@/shared/lib/utils"
 import { getRuleLabel } from "@/shared/lib/dq-rules"
 import { deriveRulesV2, CORE_TYPES, TYPE_ALIASES } from "@/shared/lib/type-catalog"
@@ -70,6 +71,8 @@ export function RulesStep() {
     setGlobalRules,
     columnRules,
     setColumnRules,
+    augmentations,
+    setAugmentations,
   } = useProcessingWizard()
 
   const [expandedColumns, setExpandedColumns] = useState<string[]>([])
@@ -398,10 +401,19 @@ export function RulesStep() {
         </div>
       </div>
 
+      {/* Augmentations panel — optional, runs before DQ */}
+      <div className="mt-4">
+        <AugmentationsPanel
+          authToken={authToken}
+          augmentations={augmentations}
+          onChange={setAugmentations}
+        />
+      </div>
+
       {/* Main content area split into tabs so Business Consistency Rules
           gets equal billing alongside per-column DQ rules instead of being
           buried at the bottom of one long scroll list. */}
-      <Tabs defaultValue="dq" className="flex-1 min-h-0 mt-6 gap-3">
+      <Tabs defaultValue="dq" className="flex-1 min-h-0 mt-4 gap-3">
       <TabsList className="h-9 w-fit">
         <TabsTrigger value="dq" className="px-3">DQ Rules</TabsTrigger>
         <TabsTrigger value="bcr" className="px-3">Business Consistency Rules</TabsTrigger>

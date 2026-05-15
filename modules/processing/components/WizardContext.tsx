@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import type { CustomRuleDefinition, ColumnProfile, FileStructureInfo, SchemaMatchInfo, ObjectModelInfo, RowTypeInfo } from "@/modules/files"
 import { deriveRulesV2 } from "@/shared/lib/type-catalog"
+import type { AugmentationConfig } from "./steps/augmentations-panel"
 
 // Wizard step type
 export type WizardStep = "source" | "columns" | "profiling" | "settings" | "rules" | "process"
@@ -115,6 +116,9 @@ export interface WizardState {
     customRules: CustomRuleDefinition[]
     disabledRules: string[]
 
+    // Augmentations (optional, run before DQ)
+    augmentations: AugmentationConfig[]
+
     // Step 5: Processing
     isProcessing: boolean
     processingError: string | null
@@ -202,6 +206,9 @@ interface WizardActions {
     addCustomRule: (rule: CustomRuleDefinition) => void
     removeCustomRule: (ruleId: string) => void
 
+    // Augmentations
+    setAugmentations: (augmentations: AugmentationConfig[]) => void
+
     // Processing
     setProcessing: (processing: boolean) => void
     startProcessing: () => void
@@ -251,6 +258,7 @@ const initialState: WizardState = {
     columnRules: {},
     customRules: [],
     disabledRules: [],
+    augmentations: [],
     isProcessing: false,
     processingError: null,
 }
@@ -401,6 +409,8 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
             }))
         },
 
+        setAugmentations: (augmentations) => setState((s) => ({ ...s, augmentations })),
+
         setProcessing: (processing) => setState((s) => ({ ...s, isProcessing: processing })),
 
         startProcessing: () => setState((s) => ({ ...s, isProcessing: true, processingError: null })),
@@ -427,6 +437,7 @@ export function ProcessingWizardProvider({ children }: { children: ReactNode }) 
                 columnNullable: Object.fromEntries(columns.map((c) => [c, true])),
                 columnCurrencyCodes: Object.fromEntries(columns.map((c) => [c, null])),
                 crossFieldRules: [],
+                augmentations: [],
             })
         },
 

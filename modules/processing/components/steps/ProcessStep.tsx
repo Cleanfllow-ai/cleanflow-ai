@@ -44,6 +44,7 @@ export function ProcessStep({
     crossFieldRules,
     selectedPreset,
     presetOverrides,
+    augmentations,
     setProcessing,
     setProcessingError,
     prevStep,
@@ -181,6 +182,9 @@ export function ProcessStep({
       // Extract reference_data from preset overrides to pass as top-level field
       const referenceData = presetOverrides?.reference_data || (selectedPreset as any)?.config?.reference_data || undefined
 
+      // Only include augmentations that have a non-empty prompt
+      const augmentationsPayload = (augmentations ?? []).filter((a) => a.prompt_text.trim().length > 0)
+
       await fileManagementAPI.startProcessing(uploadId, authToken, {
         selected_columns: selectedColumns,
         required_columns: requiredColumns,
@@ -192,6 +196,7 @@ export function ProcessStep({
         column_type_overrides: columnTypeOverrides,
         cross_field_rules: compactCrossRules,
         reference_data: referenceData,
+        ...(augmentationsPayload.length > 0 ? { augmentations: augmentationsPayload } : {}),
       })
       setStatusMessage("Processing started, monitoring progress...")
       // Notify parent so it refreshes the file list — without this the
