@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react"
 
 const TOUR_COMPLETED_KEY = "rightrev:tour:completed:v1"
 
@@ -11,7 +11,7 @@ export interface UseWelcomeTourReturn {
   openTour: () => void
   closeTour: () => void
   completeTour: () => void
-  setCurrentStep: (step: number) => void
+  setCurrentStep: Dispatch<SetStateAction<number>>
 }
 
 export function useWelcomeTour(autoOpenOnDashboard = false): UseWelcomeTourReturn {

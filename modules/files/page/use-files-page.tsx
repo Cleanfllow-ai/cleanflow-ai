@@ -1167,13 +1167,28 @@ export function useFilesPage() {
                 const parsed = parseSelectionRows(rows);
                 if (parsed) { applySelection(parsed.mode, parsed.columns); return; }
             } else if (ext === "xlsx" || ext === "xls") {
-                const XLSX = await import("xlsx");
-                const data = await file.arrayBuffer();
-                const workbook = XLSX.read(data, { type: "array" });
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
-                const parsed = parseSelectionRows(rows);
+                // 5 MB cap — selection files are tiny; reject anything larger to avoid
+                // parsing a user-uploaded data file with the CVE-free exceljs parser.
+                if (file.size > 5 * 1024 * 1024) {
+                    setSelectionFileError("Selection file must be under 5 MB.");
+                    return;
+                }
+                const ExcelJS = await import("exceljs");
+                const buffer = await file.arrayBuffer();
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(buffer);
+                const worksheet = workbook.worksheets[0];
+                if (!worksheet) {
+                    setSelectionFileError("Could not understand selection file. Use columns with 'name' and 'include'.");
+                    return;
+                }
+                const rows: any[][] = [];
+                worksheet.eachRow((row) => {
+                    rows.push(row.values as any[]);
+                });
+                // exceljs rows are 1-indexed (row.values[0] is undefined); strip it
+                const normalizedRows = rows.map((r) => (Array.isArray(r) && r[0] === undefined ? r.slice(1) : r));
+                const parsed = parseSelectionRows(normalizedRows);
                 if (parsed) { applySelection(parsed.mode, parsed.columns); return; }
             }
             setSelectionFileError("Could not understand selection file. Use columns with 'name' and 'include'.");

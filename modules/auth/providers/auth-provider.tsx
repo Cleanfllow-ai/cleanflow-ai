@@ -201,7 +201,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         mfaSession: auth.mfaSession,
         mfaUsername: auth.mfaUsername,
         // Idle timeout warning (case 5)
-        idleWarnSecondsRemaining: auth.idleWarnSecondsRemaining,
+        idleWarnSecondsRemaining: auth.idleWarnSecondsRemaining ?? null,
         // Auth functions
         signup: auth.signup,
         confirmSignup: auth.confirmSignup,

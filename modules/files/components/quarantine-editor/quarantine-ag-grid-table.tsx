@@ -9,6 +9,7 @@ import {
   type CellClassParams,
   type CellEditingStartedEvent,
   type CellEditingStoppedEvent,
+  type CellStyle,
   type CellValueChangedEvent,
   type ColDef,
   type GetRowIdParams,
@@ -389,13 +390,13 @@ export function QuarantineAgGridTable({
         },
         valueFormatter: (params: ValueFormatterParams<QuarantineRow>) => formatCellValue(params.value),
         cellClass: (params) => getCellStatusClass(params, isCellEditedRef.current, isCellSavedRef.current, findMatchSetRef.current, currentMatchKeyRef.current, cellLocksRefInternal.current),
-        cellStyle: (params) => {
+        cellStyle: (params): CellStyle | undefined => {
           const field = params.colDef.field
           const rowId = String(params.data?.row_id ?? '')
           if (!field || field === 'row_id' || !rowId) return undefined
           const lockInfo = cellLocksRefInternal.current.get(`${field}:${rowId}`)
           if (lockInfo) {
-            return { '--lock-color': lockInfo.color } as React.CSSProperties
+            return { '--lock-color': lockInfo.color } as CellStyle
           }
           return undefined
         },

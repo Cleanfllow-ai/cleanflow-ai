@@ -3,6 +3,8 @@ import {
   AuthFlowType,
   ChallengeNameType,
   CognitoIdentityProvider,
+  ConfirmForgotPasswordCommand,
+  ForgotPasswordCommand,
   RespondToAuthChallengeCommand,
   VerifySoftwareTokenCommand,
 } from "@aws-sdk/client-cognito-identity-provider"
@@ -144,5 +146,24 @@ export const cognitoApi = {
       })
     )
   },
-}
 
+  async forgotPassword(email: string) {
+    return cognitoClient.send(
+      new ForgotPasswordCommand({
+        ClientId: COGNITO_CONFIG.clientId,
+        Username: email,
+      })
+    )
+  },
+
+  async confirmForgotPassword(email: string, code: string, newPassword: string) {
+    return cognitoClient.send(
+      new ConfirmForgotPasswordCommand({
+        ClientId: COGNITO_CONFIG.clientId,
+        Username: email,
+        ConfirmationCode: code,
+        Password: newPassword,
+      })
+    )
+  },
+}

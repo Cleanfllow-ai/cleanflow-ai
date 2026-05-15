@@ -594,9 +594,12 @@ export function useERPImport({
     checkConnection()
 
     const messageHandler = (event: MessageEvent) => {
+      // Reject messages from any origin other than our own app to prevent
+      // cross-origin pages from triggering connection-state refreshes.
+      if (event.origin !== window.location.origin) return
       if (
-        event.data.type === `${provider}-auth-success` ||
-        event.data.type === `${provider}-connection-updated`
+        event.data?.type === `${provider}-auth-success` ||
+        event.data?.type === `${provider}-connection-updated`
       ) {
         setTimeout(() => checkConnection(), 500)
       }
