@@ -74,13 +74,13 @@ export function ProfilingStep() {
     }
   }, [selectedColumns, authToken])
 
-  const fetchProfiling = async () => {
+  const fetchProfiling = async (forceRefresh: boolean = false) => {
     if (!authToken) return
     setLoading(true)
     setError(null)
     if (pollRef.current) clearTimeout(pollRef.current)
     try {
-      const response = await fileManagementAPI.getColumnProfilingPreview(uploadId, authToken, selectedColumns, 200)
+      const response = await fileManagementAPI.getColumnProfilingPreview(uploadId, authToken, selectedColumns, 200, forceRefresh)
       const profiles = (response as any)?.profiles || (response as any)?.column_profiles || {}
       if (profiles && Object.keys(profiles).length > 0) {
         setColumnProfiles(profiles)
@@ -182,7 +182,7 @@ export function ProfilingStep() {
             Review data types and quality metrics for selected columns
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchProfiling} disabled={loading || !authToken} className="shrink-0">
+        <Button variant="outline" size="sm" onClick={() => fetchProfiling(true)} disabled={loading || !authToken} className="shrink-0">
           <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
           Refresh
         </Button>
@@ -241,7 +241,7 @@ export function ProfilingStep() {
             ) : error ? (
               <div className="text-center text-destructive p-8">
                 <p>{error}</p>
-                <Button variant="outline" size="sm" className="mt-4" onClick={fetchProfiling}>
+                <Button variant="outline" size="sm" className="mt-4" onClick={() => fetchProfiling()}>
                   Retry
                 </Button>
               </div>

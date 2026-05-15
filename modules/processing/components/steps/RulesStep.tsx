@@ -796,6 +796,102 @@ export function RulesStep() {
                     </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-2 ml-6 space-y-3">
+                    {/* B1 — Manual type override. Allows user to correct the
+                        LLM-inferred core_type / type_alias / key_type /
+                        nullable per column. Calls handleTypeChange() which
+                        re-derives rules from the type catalog. */}
+                    <div className="flex flex-wrap items-center gap-2 rounded border border-dashed border-muted px-3 py-2">
+                      <span className="text-xs text-muted-foreground shrink-0 mr-1">Override type:</span>
+                      {/* core_type */}
+                      <Select
+                        value={columnCoreTypes[col] || columnProfiles[col]?.type_guess || "string"}
+                        onValueChange={(v) =>
+                          handleTypeChange(
+                            col,
+                            v,
+                            columnTypeAliases[col] ?? null,
+                            (columnKeyTypes[col] as "none" | "primary_key" | "unique") || "none",
+                            columnNullable[col] !== undefined ? columnNullable[col] : true,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-7 w-32 text-xs">
+                          <SelectValue placeholder="Core type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.keys(CORE_TYPES as Record<string, unknown>).map((t) => (
+                            <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {/* type_alias */}
+                      <Select
+                        value={columnTypeAliases[col] || "__none__"}
+                        onValueChange={(v) =>
+                          handleTypeChange(
+                            col,
+                            columnCoreTypes[col] || columnProfiles[col]?.type_guess || "string",
+                            v === "__none__" ? null : v,
+                            (columnKeyTypes[col] as "none" | "primary_key" | "unique") || "none",
+                            columnNullable[col] !== undefined ? columnNullable[col] : true,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-7 w-36 text-xs">
+                          <SelectValue placeholder="Alias (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__" className="text-xs">(none)</SelectItem>
+                          {Object.keys(TYPE_ALIASES as Record<string, unknown>).map((t) => (
+                            <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {/* key_type */}
+                      <Select
+                        value={columnKeyTypes[col] || "none"}
+                        onValueChange={(v) =>
+                          handleTypeChange(
+                            col,
+                            columnCoreTypes[col] || columnProfiles[col]?.type_guess || "string",
+                            columnTypeAliases[col] ?? null,
+                            v as "none" | "primary_key" | "unique",
+                            columnNullable[col] !== undefined ? columnNullable[col] : true,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-7 w-28 text-xs">
+                          <SelectValue placeholder="Key type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="text-xs">no key</SelectItem>
+                          <SelectItem value="primary_key" className="text-xs">primary key</SelectItem>
+                          <SelectItem value="unique" className="text-xs">unique</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {/* nullable */}
+                      <Select
+                        value={(columnNullable[col] !== undefined ? columnNullable[col] : true) ? "true" : "false"}
+                        onValueChange={(v) =>
+                          handleTypeChange(
+                            col,
+                            columnCoreTypes[col] || columnProfiles[col]?.type_guess || "string",
+                            columnTypeAliases[col] ?? null,
+                            (columnKeyTypes[col] as "none" | "primary_key" | "unique") || "none",
+                            v === "true",
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-7 w-24 text-xs">
+                          <SelectValue placeholder="Nullable" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true" className="text-xs">nullable</SelectItem>
+                          <SelectItem value="false" className="text-xs">required</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* #12 — Currency code per column. Only shown for
                         decimal / numeric columns where ISO 4217 precision
                         applies. The selected code flows through
