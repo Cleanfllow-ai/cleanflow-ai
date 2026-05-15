@@ -477,12 +477,18 @@ export function HierarchicalMapper({
         }
         const cb = c.getBoundingClientRect()
         // Track scrollable content size so we can stretch the SVG to cover it.
-        setContentSize(prev => {
-            const w = c.scrollWidth
-            const h = c.scrollHeight
-            if (prev.w === w && prev.h === h) return prev
-            return { w, h }
-        })
+        // We capture scrollWidth/scrollHeight up-front and then expand
+        // (h) below to also cover the maximum Y endpoint of any line we draw.
+        // The latter is needed because the absolutely-positioned SVG does NOT
+        // grow the parent's scrollHeight beyond its own height, so reading
+        // c.scrollHeight here only sees the DOM-row content extent. If a
+        // line's destination row sits below where we previously sized the
+        // SVG, we must catch up here — otherwise the path is clipped by the
+        // SVG's intrinsic overflow box (see `overflow="visible"` on the SVG
+        // itself for the runtime safety net).
+        const measuredW = c.scrollWidth
+        const measuredH = c.scrollHeight
+        let maxLineY = 0
         const next: Line[] = []
 
         // Track which (sourceEntity → destEntity) pairs already have at least
@@ -528,6 +534,8 @@ export function HierarchicalMapper({
                     const x2 = db.left
                     const y2 = db.top + db.height / 2
                     const dx = Math.max(40, (x2 - x1) * 0.45)
+                    if (y1 > maxLineY) maxLineY = y1
+                    if (y2 > maxLineY) maxLineY = y2
                     next.push({
                         kind: 'field',
                         key: `f:${step.step_id}:${srcKey}->${dstKey}`,
@@ -569,6 +577,8 @@ export function HierarchicalMapper({
                 const x2 = db.left
                 const y2 = db.top + db.height / 2
                 const dx = Math.max(40, (x2 - x1) * 0.45)
+                if (y1 > maxLineY) maxLineY = y1
+                if (y2 > maxLineY) maxLineY = y2
                 next.push({
                     kind: 'entity',
                     key: `e:${step.step_id}`,
@@ -577,6 +587,18 @@ export function HierarchicalMapper({
             }
         }
 
+        // Commit contentSize AFTER we know how far down the lines extend.
+        // The SVG must at minimum cover the deepest line endpoint; falling
+        // back to scrollHeight when no lines were drawn or when the DOM
+        // content extends further than the lines.
+        setContentSize(prev => {
+            const w = measuredW
+            // 8px breathing room so antialiased stroke tails don't sit on
+            // the SVG's bottom edge.
+            const h = Math.max(measuredH, Math.ceil(maxLineY) + 8)
+            if (prev.w === w && prev.h === h) return prev
+            return { w, h }
+        })
         setLines(next)
     }, [pipelineSteps, mappingsByPair, expandedSystems, expandedEntities, toContentCoords])
 
@@ -1370,9 +1392,26 @@ export function HierarchicalMapper({
                     so connection lines drawn below the initial fold don't get
                     clipped. The SVG sits absolutely inside the scroll container
                     so it scrolls naturally with the field DOM rows. Paths are
-                    drawn in CONTENT space (see toContentCoords). */}
+                    drawn in CONTENT space (see toContentCoords).
+
+                    NOTE on `overflow="visible"`: SVG defaults to
+                    `overflow: hidden`, which clips any path whose endpoints
+                    fall outside the SVG's width/height box. We size the SVG
+                    from `c.scrollHeight` inside recomputeLines, but that value
+                    can momentarily under-report the true content extent
+                    (e.g. between an async field-load and the matching
+                    ResizeObserver tick, or while React batches the
+                    setContentSize commit). When that happens, lines anchored
+                    to rows below the stale height would be clipped and the
+                    user sees only the surviving stub in the middle of the
+                    canvas — which renders as a small X / broken-link
+                    artifact. Forcing `overflow="visible"` makes the SVG box
+                    purely advisory for layout; the cubic-bezier line itself
+                    always paints from anchor to anchor, irrespective of
+                    contentSize being temporarily stale. */}
                 <svg
                     className="absolute top-0 left-0 pointer-events-none"
+                    overflow="visible"
                     style={{
                         width: Math.max(contentSize.w, 1),
                         height: Math.max(contentSize.h, 1),

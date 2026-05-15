@@ -376,6 +376,14 @@ function VisualMapper({
 
     const [selectedSource, setSelectedSource] = useState<string | null>(null)
     const [lines, setLines] = useState<Array<{ src: string; dst: string; d: string; mid: { x: number; y: number } }>>([])
+    // Track scrollable content size so the SVG overlay can be stretched to
+    // cover the FULL scrollHeight (not just clientHeight). Without this, the
+    // SVG only covers the visible viewport, and either (a) lines drawn at
+    // content-y > clientHeight are clipped, or (b) the SVG stays glued to
+    // the viewport while content scrolls and lines visibly lag rows. With
+    // content-space coords + SVG sized to full content, lines + rows scroll
+    // as one unit (zero-lag).
+    const [contentSize, setContentSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
 
     // Drag-to-connect state. When the user mousedowns on a source card, we
     // record the field key + the start coordinates. If the pointer moves > 5px
@@ -418,11 +426,17 @@ function VisualMapper({
         onMappingChange(next)
     }, [mapping, onMappingChange])
 
-    // Recompute SVG paths whenever mapping or layout changes.
+    // Recompute SVG paths whenever mapping or layout changes. Coords are in
+    // CONTENT space (i.e. relative to the unscrolled top-left of the
+    // container), not viewport space. This way the SVG (sized to scrollWidth
+    // × scrollHeight and positioned at top: 0; left: 0) scrolls naturally
+    // with the field rows and we DON'T need to recompute on every scroll.
     const recompute = useCallback(() => {
         const c = containerRef.current
         if (!c) return
         const cb = c.getBoundingClientRect()
+        const sl = c.scrollLeft
+        const st = c.scrollTop
         const next: typeof lines = []
         for (const [srcKey, dstKey] of Object.entries(mapping)) {
             if (!dstKey) continue
@@ -431,17 +445,23 @@ function VisualMapper({
             if (!s || !d) continue
             const sb = s.getBoundingClientRect()
             const db = d.getBoundingClientRect()
-            // Anchor: right-middle of source, left-middle of dest, relative to container.
-            const x1 = sb.right - cb.left
-            const y1 = sb.top + sb.height / 2 - cb.top
-            const x2 = db.left - cb.left
-            const y2 = db.top + db.height / 2 - cb.top
+            // Content-space anchors: right-middle of source, left-middle of dest.
+            const x1 = sb.right - cb.left + sl
+            const y1 = sb.top + sb.height / 2 - cb.top + st
+            const x2 = db.left - cb.left + sl
+            const y2 = db.top + db.height / 2 - cb.top + st
             // Curved bezier with horizontal pull proportional to gap.
             const dx = Math.max(40, (x2 - x1) * 0.45)
             const path = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`
             next.push({ src: srcKey, dst: dstKey, d: path, mid: { x: (x1 + x2) / 2, y: (y1 + y2) / 2 } })
         }
         setLines(next)
+        setContentSize(prev => {
+            const w = c.scrollWidth
+            const h = c.scrollHeight
+            if (prev.w === w && prev.h === h) return prev
+            return { w, h }
+        })
     }, [mapping])
 
     useLayoutEffect(() => { recompute() }, [recompute, sourceFields.length, destFields.length])
@@ -450,6 +470,19 @@ function VisualMapper({
         const handler = () => recompute()
         window.addEventListener('resize', handler)
         return () => window.removeEventListener('resize', handler)
+    }, [recompute])
+
+    // ResizeObserver catches container size changes (e.g. when async field
+    // loads expand the content height, or the parent panel resizes). We do
+    // NOT need a scroll listener: with content-space coords + SVG sized to
+    // scrollHeight, the SVG scrolls together with the field rows as one
+    // unit, so lines stay glued even mid-scroll with zero recompute lag.
+    useLayoutEffect(() => {
+        const c = containerRef.current
+        if (!c) return
+        const ro = new ResizeObserver(() => recompute())
+        ro.observe(c)
+        return () => ro.disconnect()
     }, [recompute])
 
     // ── Drag-to-connect: pointermove + pointerup at the document level ────────
@@ -633,10 +666,23 @@ function VisualMapper({
                     })}
                 </div>
 
-                {/* SVG line overlay (committed mappings + in-flight ghost) */}
+                {/* SVG line overlay (committed mappings + in-flight ghost).
+                    Sized to the FULL scrollable content (scrollWidth ×
+                    scrollHeight), NOT just clientHeight, and positioned at
+                    top:0 left:0 inside the scroll container — this way the
+                    SVG scrolls together with the field rows. Paths are
+                    drawn in CONTENT space (see recompute), so endpoints
+                    stay glued to their source/dest rows at every scroll
+                    position with zero recompute lag. `overflow="visible"`
+                    is a safety net against momentary clipping if a path is
+                    drawn before the contentSize state catches up. */}
                 <svg
-                    className="absolute inset-0 pointer-events-none"
-                    style={{ width: '100%', height: '100%' }}
+                    className="absolute top-0 left-0 pointer-events-none"
+                    overflow="visible"
+                    style={{
+                        width: Math.max(contentSize.w, 1),
+                        height: Math.max(contentSize.h, 1),
+                    }}
                 >
                     {lines.map(l => (
                         <g key={`${l.src}::${l.dst}`} className="pointer-events-auto">
@@ -652,26 +698,31 @@ function VisualMapper({
                     ))}
                     {drag?.active && (() => {
                         // Ghost line: from the source card's right-middle to the
-                        // current cursor position. If the cursor is over a dest
-                        // card, snap the endpoint to its left-middle for a
-                        // cleaner "this is where it'll connect" preview.
+                        // current cursor position (or the hovered dest card's
+                        // left-middle if hovering one). Coords are in CONTENT
+                        // space to match the committed-line render.
                         const c = containerRef.current
                         if (!c) return null
                         const cb = c.getBoundingClientRect()
+                        const sl = c.scrollLeft
+                        const st = c.scrollTop
                         const srcEl = sourceRefs.current[drag.srcKey]
                         if (!srcEl) return null
                         const sb = srcEl.getBoundingClientRect()
-                        const x1 = sb.right - cb.left
-                        const y1 = sb.top + sb.height / 2 - cb.top
+                        const x1 = sb.right - cb.left + sl
+                        const y1 = sb.top + sb.height / 2 - cb.top + st
 
-                        let x2 = drag.currentX
-                        let y2 = drag.currentY
+                        // drag.currentX/Y are stored in viewport-relative
+                        // coords by the pointermove handler; convert to
+                        // content-space here.
+                        let x2 = drag.currentX + sl
+                        let y2 = drag.currentY + st
                         if (drag.hoveredDest) {
                             const dstEl = destRefs.current[drag.hoveredDest]
                             if (dstEl) {
                                 const db = dstEl.getBoundingClientRect()
-                                x2 = db.left - cb.left
-                                y2 = db.top + db.height / 2 - cb.top
+                                x2 = db.left - cb.left + sl
+                                y2 = db.top + db.height / 2 - cb.top + st
                             }
                         }
                         const dx = Math.max(40, (x2 - x1) * 0.45)
@@ -690,19 +741,32 @@ function VisualMapper({
                     })()}
                 </svg>
 
-                {/* Per-line "X" remove buttons placed at midpoint */}
-                {lines.map(l => (
-                    <button
-                        key={`x-${l.src}::${l.dst}`}
-                        type="button"
-                        onClick={() => handleRemoveLine(l.src)}
-                        title={`Disconnect ${l.src} → ${l.dst}`}
-                        className="absolute z-10 h-4 w-4 rounded-full bg-white border border-emerald-300 shadow-sm flex items-center justify-center hover:bg-red-50 hover:border-red-300"
-                        style={{ left: l.mid.x - 8, top: l.mid.y - 8 }}
-                    >
-                        <Link2Off className="h-2.5 w-2.5 text-emerald-600" />
-                    </button>
-                ))}
+                {/* Per-line "X" remove buttons placed at midpoint. l.mid is
+                    in content-space, so the wrapper div is sized to the
+                    full content (same as the SVG) and positioned at top:0
+                    left:0 so it scrolls together with the rows. Buttons get
+                    pointer-events back even though the wrapper passes them
+                    through. */}
+                <div
+                    className="absolute top-0 left-0 pointer-events-none"
+                    style={{
+                        width: Math.max(contentSize.w, 1),
+                        height: Math.max(contentSize.h, 1),
+                    }}
+                >
+                    {lines.map(l => (
+                        <button
+                            key={`x-${l.src}::${l.dst}`}
+                            type="button"
+                            onClick={() => handleRemoveLine(l.src)}
+                            title={`Disconnect ${l.src} → ${l.dst}`}
+                            className="absolute z-10 h-4 w-4 rounded-full bg-white border border-emerald-300 shadow-sm flex items-center justify-center hover:bg-red-50 hover:border-red-300 pointer-events-auto"
+                            style={{ left: l.mid.x - 8, top: l.mid.y - 8 }}
+                        >
+                            <Link2Off className="h-2.5 w-2.5 text-emerald-600" />
+                        </button>
+                    ))}
+                </div>
             </div>
         </div>
     )
