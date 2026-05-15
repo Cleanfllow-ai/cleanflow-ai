@@ -1,5 +1,9 @@
 "use client";
 
+import { ChartTooltip } from "@/components/ui/chart";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileStatusResponse } from "@/modules/files";
+import { LineChart as LineChartIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
     Area,
@@ -11,10 +15,6 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
-import { ChartTooltip } from "@/components/ui/chart";
-import { FileStatusResponse } from "@/modules/files";
-import { LineChart as LineChartIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CHART_COLORS, type DqChartsProps } from "./chart-constants";
 
 type TrendView = "day" | "week" | "month";
@@ -263,13 +263,13 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-start justify-between border-b pb-4">
+            <div className="flex items-start justify-between border-b border-white/20 pb-4">
                 <div>
                     <div className="mb-2 flex items-center gap-3">
-                        <LineChartIcon className="h-5 w-5 text-blue-500" />
-                        <h3 className="text-base font-semibold">Data Processing Trends</h3>
+                        <LineChartIcon className="h-5 w-5 text-[#69C04B]" />
+                        <h3 className="text-base font-semibold text-white">Data Processing Trends</h3>
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-white/70">
                         Validated, fixed, and quarantined record movement across the selected time window
                     </p>
                 </div>
@@ -295,16 +295,16 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
                             type="date"
                             value={selectedDay}
                             onChange={(event) => setSelectedDay(event.target.value)}
-                            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                            className="h-8 rounded-md border border-[#69C04B]/40 bg-[#0f2d23]/50 px-2 text-xs text-white"
                         />
                     )}
                 </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-background via-muted/15 to-sky-50/40 p-4 dark:to-slate-900/40">
+            <div className="relative overflow-hidden rounded-xl border border-[#69C04B]/40 bg-gradient-to-br from-[#0f2d23] via-[#1a4d3a] to-[#0f2d23] p-4">
                 <div className="h-[360px]">
                     {trendData.length === 0 ? (
-                        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                        <div className="flex h-full items-center justify-center text-sm text-white/60">
                             No processed trend data available yet.
                         </div>
                     ) : (
@@ -327,16 +327,16 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
                                         <stop offset="100%" stopColor={CHART_COLORS.red} stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D7DEE8" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff" strokeOpacity={0.1} />
                                 <XAxis
                                     dataKey="period"
-                                    tick={{ fontSize: 12 }}
+                                    tick={{ fontSize: 12, fill: "#ffffff" }}
                                     tickLine={false}
                                     axisLine={false}
                                     dy={10}
                                 />
                                 <YAxis
-                                    tick={{ fontSize: 11 }}
+                                    tick={{ fontSize: 11, fill: "#ffffff" }}
                                     tickLine={false}
                                     axisLine={false}
                                     width={72}
@@ -345,12 +345,12 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
                                     }
                                 />
                                 <ChartTooltip
-                                    cursor={{ stroke: "#CBD5E1", strokeDasharray: "4 4" }}
+                                    cursor={{ stroke: "#69C04B", strokeDasharray: "4 4" }}
                                     content={({ active, payload, label }) => {
                                         if (!active || !payload || payload.length === 0) return null;
                                         return (
-                                            <div className="min-w-[180px] rounded-xl border border-border/70 bg-background/95 p-3 shadow-xl backdrop-blur">
-                                                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                            <div className="min-w-[180px] rounded-xl border border-[#69C04B]/40 bg-[#0f2d23]/95 p-3 shadow-xl backdrop-blur">
+                                                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/70">
                                                     {label}
                                                 </div>
                                                 <div className="space-y-1.5">
@@ -364,9 +364,9 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
                                                                     className="h-2.5 w-2.5 rounded-full"
                                                                     style={{ backgroundColor: entry.color }}
                                                                 />
-                                                                <span className="text-muted-foreground">{entry.name}</span>
+                                                                    <span className="text-white/70">{entry.name}</span>
                                                             </div>
-                                                            <span className="font-mono font-medium tabular-nums text-foreground">
+                                                            <span className="font-mono font-medium tabular-nums text-white">
                                                                 {Number(entry.value || 0).toLocaleString()}
                                                             </span>
                                                         </div>

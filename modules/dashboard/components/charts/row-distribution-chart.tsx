@@ -1,8 +1,8 @@
 "use client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Cell, Pie, PieChart } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { CHART_COLORS, chartConfig } from "@/modules/dashboard/components/chart-constants"
+import { Cell, Pie, PieChart } from "recharts"
 interface RowDistributionChartProps {
   totalRowsOut: number
   totalRowsFixed: number
@@ -27,9 +27,9 @@ export function RowDistributionChart({
     },
   ].filter((d) => d.value > 0)
   return (
-    <Card className="border-border">
+    <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
       <CardHeader className="pb-1 pt-3 px-4">
-        <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground"
+        <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-white/70"
         >
           Row Distribution
         </CardTitle>
@@ -62,7 +62,7 @@ export function RowDistributionChart({
             </PieChart>
           </ChartContainer>
         ) : (
-          <div className="h-[220px] flex items-center justify-center text-muted-foreground text-xs">
+          <div className="h-[220px] flex items-center justify-center text-white/60 text-xs">
             No records available
           </div>
         )}

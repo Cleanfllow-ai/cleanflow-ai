@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo } from "react"
-import { Files, ShieldCheck, CheckCircle2, AlertTriangle } from "lucide-react"
 import type { FileStatusResponse } from "@/modules/files"
+import { AlertTriangle, CheckCircle2, Files, ShieldCheck } from "lucide-react"
+import { useMemo } from "react"
 
 interface DashboardKpiCardsProps {
     files: FileStatusResponse[]
@@ -41,11 +41,11 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
                     ? `${Math.round((stats.processed / stats.total) * 100)}% completion`
                     : "no files",
             icon: Files,
-            iconColor: "text-primary",
-            bgColor: "bg-primary/8",
+            iconColor: "text-[#69C04B]",
+            bgColor: "bg-[#69C04B]/8",
             valueColor: "",
-            alertColor: "text-muted-foreground",
-            accentColor: "bg-primary",
+            alertColor: "text-white/60",
+            accentColor: "bg-[#69C04B]",
         },
         {
             label: "Avg DQ Score",
@@ -61,19 +61,19 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             icon: ShieldCheck,
             iconColor:
                 stats.avgScore === null
-                    ? "text-muted-foreground"
+                    ? "text-white/60"
                     : stats.avgScore >= 90
-                    ? "text-emerald-500"
+                    ? "text-emerald-500 dark:text-emerald-400"
                     : stats.avgScore >= 70
-                    ? "text-amber-500"
+                    ? "text-amber-500 dark:text-amber-400"
                     : "text-destructive",
             bgColor:
                 stats.avgScore === null
-                    ? "bg-muted/40"
+                    ? "bg-[#164234]/5 dark:bg-muted/40"
                     : stats.avgScore >= 90
-                    ? "bg-emerald-500/8"
+                    ? "bg-emerald-500/8 dark:bg-emerald-500/8"
                     : stats.avgScore >= 70
-                    ? "bg-amber-500/8"
+                    ? "bg-amber-500/8 dark:bg-amber-500/8"
                     : "bg-destructive/8",
             valueColor:
                 stats.avgScore === null
@@ -83,10 +83,10 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
                     : stats.avgScore >= 70
                     ? "text-amber-600 dark:text-amber-400"
                     : "text-destructive",
-            alertColor: "text-muted-foreground",
+            alertColor: "text-white/60",
             accentColor:
                 stats.avgScore === null
-                    ? "bg-muted-foreground/30"
+                    ? "bg-[#164234]/20 dark:bg-muted-foreground/30"
                     : stats.avgScore >= 90
                     ? "bg-emerald-500"
                     : stats.avgScore >= 70
@@ -98,10 +98,10 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             value: stats.processed.toString(),
             sub: stats.failed > 0 ? `${stats.failed} failed` : "all sources",
             icon: CheckCircle2,
-            iconColor: "text-emerald-500",
-            bgColor: "bg-emerald-500/8",
+            iconColor: "text-emerald-500 dark:text-emerald-400",
+            bgColor: "bg-emerald-500/8 dark:bg-emerald-500/8",
             valueColor: "",
-            alertColor: stats.failed > 0 ? "text-destructive" : "text-muted-foreground",
+            alertColor: stats.failed > 0 ? "text-destructive" : "text-white/60",
             accentColor: "bg-emerald-500",
         },
         {
@@ -109,14 +109,14 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             value: stats.totalQuarantined.toLocaleString(),
             sub: stats.totalQuarantined > 0 ? "require remediation" : "all rows clean",
             icon: AlertTriangle,
-            iconColor: stats.totalQuarantined > 0 ? "text-amber-500" : "text-muted-foreground",
-            bgColor: stats.totalQuarantined > 0 ? "bg-amber-500/8" : "bg-muted/40",
+            iconColor: stats.totalQuarantined > 0 ? "text-amber-500 dark:text-amber-400" : "text-white/60",
+            bgColor: stats.totalQuarantined > 0 ? "bg-amber-500/8 dark:bg-amber-500/8" : "bg-[#164234]/5 dark:bg-muted/40",
             valueColor:
                 stats.totalQuarantined > 0
                     ? "text-amber-600 dark:text-amber-400"
                     : "",
-            alertColor: "text-muted-foreground",
-            accentColor: stats.totalQuarantined > 0 ? "bg-amber-500" : "bg-muted-foreground/30",
+            alertColor: "text-white/60",
+            accentColor: stats.totalQuarantined > 0 ? "bg-amber-500" : "bg-[#164234]/20 dark:bg-muted-foreground/30",
         },
     ]
 
@@ -125,7 +125,7 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             {cards.map((card) => (
                 <div
                     key={card.label}
-                    className="relative overflow-hidden rounded-xl border border-border bg-card px-4 py-3.5 flex items-start gap-3"
+                    className="relative overflow-hidden rounded-xl border border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm px-4 py-3.5 flex items-start gap-3 hover:bg-[#0f2d23]/70 transition-colors"
                 >
                     {/* Left accent bar */}
                     <div
@@ -136,13 +136,13 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
                         <card.icon className={`h-4 w-4 ${card.iconColor}`} />
                     </div>
                     <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground leading-none mb-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70 leading-none mb-2">
                             {card.label}
                         </p>
-                        <p className={`text-xl font-bold leading-none font-mono tabular-nums ${card.valueColor}`}>
+                        <p className={`text-xl font-bold leading-none font-mono tabular-nums ${card.valueColor || 'text-white'}`}>
                             {card.value}
                         </p>
-                        <p className={`text-[11px] mt-1.5 leading-none ${card.alertColor}`}>
+                        <p className={`text-[11px] mt-1.5 leading-none ${card.alertColor || 'text-white/60'}`}>
                             {card.sub}
                         </p>
                     </div>

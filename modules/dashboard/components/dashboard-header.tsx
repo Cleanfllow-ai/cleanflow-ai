@@ -1,9 +1,8 @@
 "use client"
 
-import { Download, RefreshCw, Loader2 } from "lucide-react"
+import { Download, Loader2, RefreshCw } from "lucide-react"
 import { useState } from "react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/modules/auth"
 import { fileManagementAPI } from "@/modules/files"
@@ -90,10 +89,10 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
   return (
     <div className="flex flex-col space-y-4 sm:flex-row sm:items-end sm:justify-between sm:space-y-0">
       <div>
-        <h1 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-1.5">
+        <h1 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-white mb-1.5">
           {isAuthenticated && user ? `Welcome back, ${user.name?.split(" ")[0] || "there"}` : "Dashboard"}
         </h1>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/60">
           {today}
         </p>
       </div>
@@ -104,7 +103,7 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
           size="sm"
           onClick={handleRefresh}
           disabled={refreshing}
-          className="h-8 px-3 border border-border text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+          className="h-8 px-3 border border-[#69C04B]/30 text-white hover:text-white hover:bg-[#69C04B]/20 transition-colors"
         >
           {refreshing ? (
             <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
@@ -119,7 +118,7 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
           size="sm"
           onClick={handleExportDashboard}
           disabled={exporting}
-          className="h-8 px-3 border border-border text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+          className="h-8 px-3 border border-[#69C04B]/30 text-white hover:text-white hover:bg-[#69C04B]/20 transition-colors"
         >
           {exporting ? (
             <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />

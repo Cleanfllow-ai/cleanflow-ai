@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import { MainLayout } from "@/shared/layout/main-layout"
-import { DashboardHeader, ActivityFeed, TopIssuesChart, DqCharts, ProcessingSummary } from "@/modules/dashboard"
+import { ActivityFeed, DashboardHeader, DqCharts, ProcessingSummary, TopIssuesChart } from "@/modules/dashboard"
 import { DashboardKpiCards } from "@/modules/dashboard/components/dashboard-kpi-cards"
+import { MainLayout } from "@/shared/layout/main-layout"
+import { useCallback, useEffect, useState } from "react"
 
-import { ActionRequiredPanel } from "@/modules/dashboard/components/action-required-panel"
 import { AuthGuard, useAuth } from "@/modules/auth"
+import { ActionRequiredPanel } from "@/modules/dashboard/components/action-required-panel"
 import { fileManagementAPI, type FileStatusResponse, type OverallDqReportResponse, type TopIssue } from "@/modules/files"
 
 const toNumericCount = (value: unknown): number => {
@@ -167,19 +167,19 @@ export default function DashboardPage() {
 function DashboardSkeleton() {
   return (
     <div className="space-y-5 animate-pulse">
-      <div className="h-10 w-72 rounded-md bg-muted" />
+      <div className="h-10 w-72 rounded-md bg-[#0f2d23]/50" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-24 rounded-xl border border-border bg-card" />
+          <div key={i} className="h-24 rounded-xl border border-[#69C04B]/20 bg-[#0f2d23]/50" />
         ))}
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-5">
         <div className="xl:col-span-3 space-y-5">
-          <div className="h-80 rounded-xl border border-border bg-card" />
+          <div className="h-80 rounded-xl border border-[#69C04B]/20 bg-[#0f2d23]/50" />
         </div>
         <div className="xl:col-span-1 space-y-4">
-          <div className="h-56 rounded-xl border border-border bg-card" />
-          <div className="h-56 rounded-xl border border-border bg-card" />
+          <div className="h-56 rounded-xl border border-[#69C04B]/20 bg-[#0f2d23]/50" />
+          <div className="h-56 rounded-xl border border-[#69C04B]/20 bg-[#0f2d23]/50" />
         </div>
       </div>
     </div>

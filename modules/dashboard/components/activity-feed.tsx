@@ -130,13 +130,13 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
     .slice(0, 10)
 
   return (
-    <Card className="h-fit border-border bg-card">
+    <Card className="h-fit border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
       <CardHeader className="py-2.5 px-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          <CardTitle className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70">
             Recent Activity
           </CardTitle>
-          <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+          <span className="text-[10px] font-mono tabular-nums text-white/70">
             {recentFiles.length}
           </span>
         </div>
@@ -157,7 +157,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
                 return (
                   <div
                     key={file.upload_id}
-                    className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer group"
+                    className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-[#69C04B]/20 transition-colors cursor-pointer group"
                     onClick={() => router.push(`/files?file=${file.upload_id}&highlight=${file.upload_id}`)}
                   >
                     {/* Icon pill */}
@@ -167,7 +167,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground truncate group-hover:text-foreground/90" title={filename}>
+                      <p className="text-xs font-medium text-white truncate group-hover:text-white/80" title={filename}>
                         {filename.length > 20 ? filename.slice(0, 20) + '...' : filename}
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">
@@ -183,7 +183,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
                     </div>
 
                     {/* Time */}
-                    <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 shrink-0">
+                    <span className="text-[10px] font-mono tabular-nums text-white/60 shrink-0">
                       {(file.updated_at || file.created_at) ? formatTime(file.updated_at ?? file.created_at ?? '') : ''}
                     </span>
                   </div>

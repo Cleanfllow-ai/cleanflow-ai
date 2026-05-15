@@ -139,7 +139,7 @@ function AppSidebarComponent() {
 				<div className="flex items-center gap-2.5 px-3 py-3 border-b border-sidebar-border">
 					<div className="relative w-7 h-7 flex-shrink-0">
 						<Image
-							src="/images/infiniqon-logo-light.png"
+							src="/images/rightrev-logo.png"
 							alt="CleanFlowAI"
 							width={28}
 							height={28}

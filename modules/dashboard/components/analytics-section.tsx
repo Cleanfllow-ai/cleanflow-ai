@@ -1,9 +1,9 @@
 "use client"
 
-import { BarChart3, FileText, Gauge, TrendingUp, Target, AlertTriangle } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { type FileStatusResponse } from '@/modules/files'
+import { AlertTriangle, FileText, Gauge, Target, TrendingUp } from 'lucide-react'
 
 interface AnalyticsSectionProps {
   files: FileStatusResponse[]
@@ -76,9 +76,9 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
           }
         ].map((stat) => (
           <div key={stat.title} className="h-full">
-            <Card className="h-full">
+            <Card className="h-full border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center space-x-2">
+                <CardTitle className="text-sm font-medium text-white/70 flex items-center space-x-2">
                   <stat.icon className={`w-5 h-5 ${stat.color}`} />
                   <span>{stat.title}</span>
                 </CardTitle>
@@ -99,34 +99,34 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
       </div>
 
       {/* DQ Issues Analysis */}
-      <Card>
+      <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" />
+          <CardTitle className="mb-4 flex items-center gap-2 text-white">
+            <AlertTriangle className="w-5 h-5 text-[#69C04B]" />
             Data Quality Issues Analysis
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {topIssues.length > 0 ? topIssues.map((issue) => (
-              <div key={issue.issue} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <div key={issue.issue} className="flex items-center justify-between p-3 bg-[#0f2d23]/50 rounded-lg border border-[#69C04B]/20">
                 <div>
-                  <span className="font-medium">{issue.issue}</span>
+                  <span className="font-medium text-white">{issue.issue}</span>
                   <Badge variant="secondary" className={
-                    issue.severity === 'Fatal' ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 ml-2" :
-                    issue.severity === 'High' ? "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 ml-2" :
-                    "bg-amber-100 text-amber-700 dark:bg-yellow-500/20 dark:text-yellow-400 ml-2"
+                    issue.severity === 'Fatal' ? "bg-red-500/20 text-red-300 ml-2" :
+                    issue.severity === 'High' ? "bg-orange-500/20 text-orange-300 ml-2" :
+                    "bg-yellow-500/20 text-yellow-300 ml-2"
                   }>
                     {issue.severity}
                   </Badge>
                 </div>
-                <span className="text-muted-foreground">{issue.count} occurrences</span>
+                <span className="text-white/70">{issue.count} occurrences</span>
               </div>
             )) : (
               <div className="text-center py-8">
-                <AlertTriangle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h4 className="text-lg font-medium mb-2">No Issues Found</h4>
-                <p className="text-muted-foreground">Upload and process files to see data quality analysis</p>
+                <AlertTriangle className="w-12 h-12 text-white/40 mx-auto mb-4" />
+                <h4 className="text-lg font-medium mb-2 text-white">No Issues Found</h4>
+                <p className="text-white/60">Upload and process files to see data quality analysis</p>
               </div>
             )}
           </div>
@@ -136,66 +136,66 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
       {/* Processing Summary */}
       {files.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
+          <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle>File Status Distribution</CardTitle>
+              <CardTitle className="text-white">File Status Distribution</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-emerald-600 dark:text-green-400">Completed</span>
+                <div className="flex justify-between text-white">
+                  <span className="text-[#69C04B]">Completed</span>
                   <span>{completedFiles.length}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-amber-600 dark:text-yellow-400">Processing</span>
+                <div className="flex justify-between text-white">
+                  <span className="text-yellow-400">Processing</span>
                   <span>{processingFiles.length}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-red-600 dark:text-red-400">Failed</span>
+                <div className="flex justify-between text-white">
+                  <span className="text-red-400">Failed</span>
                   <span>{failedFiles.length}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle>Data Quality Summary</CardTitle>
+              <CardTitle className="text-white">Data Quality Summary</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Input Rows</span>
+                <div className="flex justify-between text-white">
+                  <span className="text-white/70">Total Input Rows</span>
                   <span>{files.reduce((sum, f) => sum + (f.rows_in || 0), 0)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-emerald-600 dark:text-green-400">Validated Output Rows</span>
+                <div className="flex justify-between text-white">
+                  <span className="text-[#69C04B]">Validated Output Rows</span>
                   <span>{totalRowsProcessed}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-amber-600 dark:text-yellow-400">Records Quarantined</span>
+                <div className="flex justify-between text-white">
+                  <span className="text-yellow-400">Records Quarantined</span>
                   <span>{totalQuarantined}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle>Performance Metrics</CardTitle>
+              <CardTitle className="text-white">Performance Metrics</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Avg Processing Time</span>
+                <div className="flex justify-between text-white">
+                  <span className="text-white/70">Avg Processing Time</span>
                   <span>N/A</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Files Processed</span>
+                <div className="flex justify-between text-white">
+                  <span className="text-white/70">Total Files Processed</span>
                   <span>{completedFiles.length}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Success Rate</span>
+                <div className="flex justify-between text-white">
+                  <span className="text-white/70">Success Rate</span>
                   <span>
                     {files.length > 0 ? `${Math.round((completedFiles.length / files.length) * 100)}%` : '0%'}
                   </span>

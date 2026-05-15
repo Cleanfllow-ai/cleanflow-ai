@@ -7,8 +7,8 @@ export interface DqChartsProps {
 // Color palette - softer colors for charts (easy on the eyes)
 export const CHART_COLORS = {
     // Solid colors for strokes/borders
-    green: "#22C55E",
-    yellow: "#EAB308",
+    green: "#69C04B",
+    yellow: "#A7C76E",
     red: "#EF4444",
     blue: "#3B82F6",
     purple: "#8B5CF6",
@@ -16,12 +16,12 @@ export const CHART_COLORS = {
     teal: "#14B8A6",
     orange: "#F97316",
     // Softer fill colors with transparency - brighter for pie/bar charts
-    greenSoft: "rgba(34, 197, 94, 0.75)", // green-500/75
-    yellowSoft: "rgba(234, 179, 8, 0.75)", // yellow-500/75
-    redSoft: "rgba(239, 68, 68, 0.7)", // red-500/70
-    blueSoft: "rgba(59, 130, 246, 0.65)", // blue-500/65
-    purpleSoft: "rgba(139, 92, 246, 0.4)", // purple-500/40
-    tealSoft: "rgba(20, 184, 166, 0.4)", // teal-500/40
+    greenSoft: "rgba(105, 192, 75, 0.75)", // brand green soft
+    yellowSoft: "rgba(167, 199, 110, 0.75)",
+    redSoft: "rgba(239, 68, 68, 0.7)",
+    blueSoft: "rgba(59, 130, 246, 0.65)",
+    purpleSoft: "rgba(139, 92, 246, 0.4)",
+    tealSoft: "rgba(20, 184, 166, 0.4)",
 };
 
 export const chartConfig = {

@@ -1,6 +1,6 @@
 import "./globals.css"
 
-import { Inter } from "next/font/google"
+import { Barlow, Barlow_Condensed, IBM_Plex_Mono } from "next/font/google"
 import { AuthProvider } from "@/modules/auth"
 import { CookieBanner } from "@/modules/privacy/components/cookie-banner"
 import { FilePreloader } from "@/modules/files/components/file-preloader"
@@ -10,10 +10,26 @@ import { ReduxProvider } from "@/shared/providers/redux-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 
-const inter = Inter({
+const barlow = Barlow({
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-barlow",
+})
+
+const barlowCondensed = Barlow_Condensed({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-barlow-condensed",
+})
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-mono",
 })
 
 export const metadata: Metadata = {
@@ -22,6 +38,7 @@ export const metadata: Metadata = {
   generator: 'v0.app',
   icons: {
     icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/favicon_io/favicon.ico' },
       { url: '/favicon_io/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
       { url: '/favicon_io/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
@@ -43,7 +60,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={`${barlow.variable} ${barlowCondensed.variable} ${ibmPlexMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased bg-background text-foreground min-h-screen">
         <ReduxProvider>
           <AuthProvider>

@@ -104,7 +104,7 @@ export function EmailVerification({ email, onVerified, onBack }: EmailVerificati
           <div className="flex justify-center mb-4">
             <div className="relative w-16 h-16">
               <Image
-                src="/images/infiniqon-logo-light.png"
+                src="/images/rightrev-logo.png"
                 alt="CleanFlowAI"
                 width={64}
                 height={64}

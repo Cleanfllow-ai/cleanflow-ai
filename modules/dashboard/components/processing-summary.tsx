@@ -3,8 +3,7 @@ import {
     Card,
     CardContent,
     CardHeader,
-    CardTitle,
-    CardDescription,
+    CardTitle
 } from "@/components/ui/card";
 import type { DqChartsProps } from "./chart-constants";
 export function ProcessingSummary({ files }: DqChartsProps) {
@@ -23,15 +22,15 @@ export function ProcessingSummary({ files }: DqChartsProps) {
     );
     const totalRowsOut = totalRowsIn - totalRowsQuarantined;
     const metrics = [
-        { label: "Input Rows", value: totalRowsIn, color: "text-foreground", bg: "bg-muted/30" },
-        { label: "Valid Output", value: totalRowsOut, color: "text-emerald-500", bg: "bg-emerald-500/5" },
-        { label: "Issues Fixed", value: totalRowsFixed, color: "text-amber-500", bg: "bg-amber-500/5" },
-        { label: "Quarantined", value: totalRowsQuarantined, color: "text-rose-500", bg: "bg-rose-500/5" },
+        { label: "Input Rows", value: totalRowsIn, color: "text-white", bg: "bg-white/5" },
+        { label: "Valid Output", value: totalRowsOut, color: "text-emerald-500 dark:text-emerald-500", bg: "bg-emerald-500/5 dark:bg-emerald-500/5" },
+        { label: "Issues Fixed", value: totalRowsFixed, color: "text-amber-500 dark:text-amber-500", bg: "bg-amber-500/5 dark:bg-amber-500/5" },
+        { label: "Quarantined", value: totalRowsQuarantined, color: "text-rose-500 dark:text-rose-500", bg: "bg-rose-500/5 dark:bg-rose-500/5" },
     ];
     return (
-        <Card className="border-border">
+        <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
             <CardHeader className="pb-2 pt-4">
-                <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2"
+                <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-white/70 flex items-center gap-2"
                 >
                     Processing Summary
                 </CardTitle>
@@ -40,7 +39,7 @@ export function ProcessingSummary({ files }: DqChartsProps) {
                 <div className="space-y-1">
                     {metrics.map((m) => (
                         <div key={m.label} className={`flex justify-between items-center px-3 py-2 rounded-md ${m.bg}`}>
-                            <span className="text-[11px] text-muted-foreground font-medium"
+                            <span className="text-[11px] text-white/70 font-medium"
                             >
                                 {m.label}
                             </span>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
 import {
     Card,
     CardContent,
@@ -8,23 +7,24 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { ChartTooltip } from "@/components/ui/chart";
-import {
-    AreaChart,
-    Area,
-    XAxis,
-    YAxis,
-    ResponsiveContainer,
-} from "recharts";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/modules/auth";
 import {
     OverallDqReportResponse,
     fileManagementAPI,
 } from "@/modules/files";
-import { useAuth } from "@/modules/auth";
 import {
-    Loader2,
     BarChart3,
+    Loader2,
 } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEffect, useMemo, useState } from "react";
+import {
+    Area,
+    AreaChart,
+    ResponsiveContainer,
+    XAxis,
+    YAxis,
+} from "recharts";
 import { CHART_COLORS, type DqChartsProps } from "./chart-constants";
 
 // Compact Trends for sidebar
@@ -205,11 +205,11 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
     }
 
     return (
-        <Card>
+        <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
             <CardHeader className="py-3 px-4 pb-1">
                 <div className="flex items-center justify-between mb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+                    <CardTitle className="text-sm font-medium flex items-center gap-2 text-white/70">
+                        <BarChart3 className="h-3.5 w-3.5 text-[#69C04B]" />
                         Trends
                     </CardTitle>
                     <Tabs value={timePeriod} onValueChange={(value) => setTimePeriod(value as 'day' | 'week' | 'month' | 'year')}>
@@ -231,8 +231,9 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
                         >
                             <XAxis
                                 dataKey="month"
-                                tick={{ fontSize: 9 }}
-                                stroke="#9CA3AF"
+                                tick={{ fontSize: 9, fill: "#ffffff" }}
+                                stroke="#ffffff"
+                                strokeOpacity={0.2}
                                 tickFormatter={(val) => {
                                     // For day/week view, return as is (already formatted)
                                     if (timePeriod === 'day' || timePeriod === 'week') {
@@ -257,9 +258,9 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
                                         }
 
                                         return (
-                                            <div className="bg-background border rounded-md shadow-sm p-2 text-xs">
-                                                <p className="font-medium">{displayPeriod}</p>
-                                                <p className="text-muted-foreground">
+                                            <div className="bg-[#0f2d23]/95 border border-[#69C04B]/40 rounded-md shadow-sm p-2 text-xs">
+                                                <p className="font-medium text-white">{displayPeriod}</p>
+                                                <p className="text-white/70">
                                                     {payload[0].value?.toLocaleString()} rows
                                                 </p>
                                             </div>

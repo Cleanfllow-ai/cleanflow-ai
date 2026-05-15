@@ -22,13 +22,13 @@ import type { JobRun } from "@/modules/jobs/types/jobs.types"
 
 function getStatusColor(status: string) {
     switch (status) {
-        case "SUCCESS": return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
+        case "SUCCESS": return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
         case "FAILED": return "bg-red-500/15 text-red-600 border-red-500/25"
         case "PARTIAL": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
         case "AWAITING_REVIEW": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-        case "NO_CHANGES": return "bg-slate-500/15 text-slate-600 border-slate-500/25"
-        case "NO_EXPORTABLE_ROWS": return "bg-slate-500/15 text-slate-600 border-slate-500/25"
-        case "SKIPPED": return "bg-slate-500/15 text-slate-500 border-slate-500/25"
+        case "NO_CHANGES": return "bg-slate-500/20 text-slate-300 border-slate-500/30"
+        case "NO_EXPORTABLE_ROWS": return "bg-slate-500/20 text-slate-300 border-slate-500/30"
+        case "SKIPPED": return "bg-slate-500/20 text-slate-300 border-slate-500/30"
         default: return "bg-muted text-muted-foreground border-border"
     }
 }
@@ -44,7 +44,7 @@ function getStatusIcon(status: string) {
 }
 
 function getScoreColor(score: number) {
-    if (score >= 90) return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
+    if (score >= 90) return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
     if (score >= 70) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
     return "bg-red-500/15 text-red-600 border-red-500/25"
 }
@@ -106,12 +106,12 @@ async function fetchLiveFileStatus(uploadId: string, token: string): Promise<Fil
 function getFileStatusColor(status: string | undefined) {
     const s = (status || "").toUpperCase()
     if (s.includes("FIXED") || s.includes("COMPLETED") || s.includes("PROCESSED"))
-        return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
+        return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
     if (s.includes("FAILED")) return "bg-red-500/15 text-red-600 border-red-500/25"
     if (s.includes("RUNNING") || s.includes("PROCESSING") || s.includes("QUEUED"))
-        return "bg-blue-500/15 text-blue-600 border-blue-500/25"
+        return "bg-blue-500/15 text-blue-400 border-blue-500/30"
     if (s.includes("QUARANTINED")) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-    return "bg-slate-500/15 text-slate-600 border-slate-500/25"
+    return "bg-slate-500/20 text-slate-300 border-slate-500/30"
 }
 
 export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed, onRefresh, refreshing }: JobRunDetailModalProps) {
@@ -260,7 +260,7 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-xs gap-1.5 border-amber-500/40 text-amber-700 hover:bg-amber-100/70 dark:hover:bg-amber-500/10 mt-1"
+                                className="h-7 text-xs gap-1.5 border-amber-500/40 text-amber-400 hover:bg-amber-500/10 mt-1"
                                 onClick={() => router.push(`/files/${partialQuarantineUploadId}/quarantine?returnTo=/jobs`)}
                             >
                                 <ExternalLink className="h-3 w-3" />
@@ -315,12 +315,12 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                                         {log.timestamp ? (() => { try { return format(new Date(log.timestamp), "HH:mm:ss") } catch { return "" } })() : ""}
                                     </span>
                                     <Badge variant="outline" className={cn("text-[10px] shrink-0 w-[50px] justify-center", {
-                                        "text-blue-600 border-blue-500/25": log.phase === "import",
-                                        "text-purple-600 border-purple-500/25": log.phase === "dq",
-                                        "text-emerald-600 border-emerald-500/25": log.phase === "export",
-                                        "text-red-600 border-red-500/25": log.phase === "error",
-                                        "text-amber-600 border-amber-500/25": log.phase === "retry",
-                                        "text-slate-500 border-slate-500/25": log.phase === "skip",
+                                        "text-blue-400 border-blue-500/30": log.phase === "import",
+                                        "text-purple-400 border-purple-500/30": log.phase === "dq",
+                                        "text-emerald-400 border-emerald-500/30": log.phase === "export",
+                                        "text-red-400 border-red-500/30": log.phase === "error",
+                                        "text-amber-400 border-amber-500/30": log.phase === "retry",
+                                        "text-slate-300 border-slate-500/30": log.phase === "skip",
                                     })}>
                                         {log.phase}
                                     </Badge>
@@ -407,7 +407,7 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-7 text-xs gap-1.5 border-amber-500/30 text-amber-600 hover:bg-amber-50"
+                                                    className="h-7 text-xs gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
                                                     onClick={() => router.push(`/files/${uploadId}/quarantine?returnTo=/jobs`)}
                                                 >
                                                     <ExternalLink className="h-3 w-3" />
