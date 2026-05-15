@@ -62,11 +62,6 @@ export const AWS_CONFIG = {
   },
 };
 
-// Demo mode configuration
 export const DEMO_CONFIG = {
-  ENABLED: false, // DISABLED - Connect to real AWS APIs
-  DEMO_USERS: [
-    { email: "demo@cleanflowai.com", password: "demo123" },
-    { email: "test@example.com", password: "test123" },
-  ],
+  ENABLED: false,
 };

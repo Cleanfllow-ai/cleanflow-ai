@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Pinecone } from '@pinecone-database/pinecone'
 import { buildStaticKnowledgeBlock } from './_lib/product-context'
 
+export const maxDuration = 30
+
 const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
 const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || 'rightrev-docs'
 
