@@ -42,12 +42,33 @@ describe('TopIssuesChart', () => {
 
   it('renders empty state when no issues provided', () => {
     render(<TopIssuesChart issues={[]} />)
-    expect(screen.getByText(/no dq issues recorded yet/i)).toBeInTheDocument()
+    expect(screen.getByTestId('top-issues-empty')).toBeInTheDocument()
+    expect(screen.getByText(/no dq issues yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/run data quality on a file/i)).toBeInTheDocument()
   })
 
   it('renders empty state when issues is undefined', () => {
     render(<TopIssuesChart />)
-    expect(screen.getByText(/no dq issues recorded yet/i)).toBeInTheDocument()
+    expect(screen.getByTestId('top-issues-empty')).toBeInTheDocument()
+    expect(screen.getByText(/no dq issues yet/i)).toBeInTheDocument()
+  })
+
+  it('renders error state with updated copy when errorMessage is set', () => {
+    render(<TopIssuesChart errorMessage="fetch failed" />)
+    const errorEl = screen.getByTestId('top-issues-error')
+    expect(errorEl).toBeInTheDocument()
+    // Verify the updated copy (not the old "Try refreshing the dashboard." copy).
+    expect(errorEl.textContent).toMatch(/couldn.t load dq issues right now/i)
+    expect(errorEl.textContent).toMatch(/please refresh/i)
+    // Must NOT show the empty-state or any DQ issue rows
+    expect(screen.queryByTestId('top-issues-empty')).not.toBeInTheDocument()
+  })
+
+  it('empty state is neutral (no destructive styling) when no data available', () => {
+    const { container } = render(<TopIssuesChart issues={[]} />)
+    const emptyDiv = container.querySelector('[data-testid="top-issues-empty"]')
+    // Should not contain rose/red color classes (those are reserved for error state)
+    expect(emptyDiv?.className).not.toMatch(/rose|red|destructive/)
   })
 
   it('renders loading skeleton when isLoading=true and no data', () => {

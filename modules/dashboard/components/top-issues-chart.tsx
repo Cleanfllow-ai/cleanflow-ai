@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Inbox } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { TopIssue } from "@/modules/files"
 
@@ -101,14 +101,18 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
             role="alert"
             className="text-center text-sm text-rose-600 dark:text-rose-400 py-6"
           >
-            Couldn’t load DQ issues. Try refreshing the dashboard.
+            We couldn’t load DQ issues right now. Please refresh.
           </div>
         ) : issuesWithPct.length === 0 ? (
           <div
             data-testid="top-issues-empty"
-            className="text-center text-sm text-muted-foreground py-6"
+            className="flex flex-col items-center gap-2 py-6 text-center"
           >
-            No DQ issues recorded yet.
+            <Inbox className="h-7 w-7 text-muted-foreground/50" aria-hidden />
+            <p className="text-sm font-medium text-muted-foreground">No DQ issues yet</p>
+            <p className="text-xs text-muted-foreground/70">
+              Run data quality on a file to see top issues here.
+            </p>
           </div>
         ) : (
           <div className="space-y-2.5">
