@@ -123,6 +123,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                             size="sm"
                             className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                             onClick={() => setRecentlyUploaded(null)}
+                            aria-label="Dismiss upload notification"
                         >
                             <X className="h-3.5 w-3.5" />
                         </Button>
@@ -680,12 +681,12 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="icon"
-                                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground/40 cursor-not-allowed"
+                                                                                className="h-10 w-10 text-muted-foreground/40 cursor-not-allowed"
                                                                                 disabled
                                                                                 aria-label={tooltip}
                                                                                 data-testid="optimize-process-disabled"
                                                                             >
-                                                                                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                                <Play className="h-4 w-4 sm:h-5 sm:w-5" />
                                                                             </Button>
                                                                         </span>
                                                                     </TooltipTrigger>
@@ -700,15 +701,15 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="icon"
-                                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                                                                className="h-10 w-10 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                                                                                 onClick={() => handleDeleteClick(file)}
                                                                                 disabled={deleting === file.upload_id}
                                                                                 aria-label="Delete file"
                                                                             >
                                                                                 {deleting === file.upload_id ? (
-                                                                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                                                                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                                                                                 ) : (
-                                                                                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                                    <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
                                                                                 )}
                                                                             </Button>
                                                                         </TooltipTrigger>
@@ -733,7 +734,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="icon"
-                                                                        className="h-7 w-7 sm:h-8 sm:w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                                                        className="h-10 w-10 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                                                                         onClick={() => {
                                                                             // For an in-browser XHR upload, also abort the
                                                                             // local upload tracker so we don't keep streaming
@@ -749,9 +750,9 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                         aria-label={tooltipLabel}
                                                                     >
                                                                         {stopping === file.upload_id ? (
-                                                                            <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                                                            <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                                                                         ) : (
-                                                                            <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                            <X className="h-4 w-4 sm:h-5 sm:w-5" />
                                                                         )}
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -772,12 +773,12 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-primary hover:text-primary hover:bg-primary/10"
+                                                                    className="h-10 w-10 text-primary hover:text-primary hover:bg-primary/10"
                                                                     onClick={() => handleStartProcessing(file)}
                                                                     data-testid="run-dq-button"
                                                                     aria-label="Run DQ"
                                                                 >
-                                                                    <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                    <Play className="h-4 w-4 sm:h-5 sm:w-5" />
                                                                 </Button>
                                                             </TooltipTrigger>
                                                             <TooltipContent>
@@ -790,11 +791,12 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className={cn("h-7 w-7 sm:h-8 sm:w-8", isProcessed ? "text-muted-foreground hover:text-foreground" : "text-muted-foreground/40 cursor-not-allowed")}
+                                                            className={cn("h-10 w-10", isProcessed ? "text-muted-foreground hover:text-foreground" : "text-muted-foreground/40 cursor-not-allowed")}
                                                             disabled={!isProcessed}
                                                             onClick={() => isProcessed && handleViewDetails(file)}
+                                                            aria-label={isProcessed ? "View file details" : "Details available after processing"}
                                                         >
-                                                            <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                            <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                                                         </Button>
                                                     </TooltipTrigger>
                                                     <TooltipContent>{isProcessed ? "Details" : "Available after processing"}</TooltipContent>
@@ -806,19 +808,21 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10"
+                                                                    className="h-10 w-10 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10"
                                                                     onClick={() => handleOpenQuarantineEditor(file)}
+                                                                    aria-label={`Edit quarantined rows (${file.rows_quarantined})`}
                                                                 >
-                                                                    <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                    <Pencil className="h-4 w-4 sm:h-5 sm:w-5" />
                                                                 </Button>
                                                             ) : (
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground/40 cursor-not-allowed"
+                                                                    className="h-10 w-10 text-muted-foreground/40 cursor-not-allowed"
                                                                     disabled
+                                                                    aria-label="No quarantined rows to edit"
                                                                 >
-                                                                    <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                    <Pencil className="h-4 w-4 sm:h-5 sm:w-5" />
                                                                 </Button>
                                                             )}
                                                         </TooltipTrigger>
@@ -835,14 +839,15 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className={cn("h-7 w-7 sm:h-8 sm:w-8", isProcessed ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground/40 cursor-not-allowed")}
+                                                            className={cn("h-10 w-10", isProcessed ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground/40 cursor-not-allowed")}
                                                             disabled={!isProcessed || downloading === file.upload_id}
                                                             onClick={() => isProcessed && openActionsDialog(file)}
+                                                            aria-label={isProcessed ? "Export file" : "Export available after processing"}
                                                         >
                                                             {downloading === file.upload_id ? (
-                                                                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                                                             ) : (
-                                                                <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                <Upload className="h-4 w-4 sm:h-5 sm:w-5" />
                                                             )}
                                                         </Button>
                                                     </TooltipTrigger>
@@ -854,15 +859,15 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-7 w-7 sm:h-8 sm:w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                                            className="h-10 w-10 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                                                             onClick={() => handleDeleteClick(file)}
                                                             disabled={deleting === file.upload_id}
                                                             aria-label="Delete file"
                                                         >
                                                             {deleting === file.upload_id ? (
-                                                                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                                                             ) : (
-                                                                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
                                                             )}
                                                         </Button>
                                                     </TooltipTrigger>

@@ -319,6 +319,11 @@ export function useOrgSettings() {
     const [inviteRole, setInviteRole] = useState<AppRole>("Data Steward");
     const [isSendingInvite, setIsSendingInvite] = useState(false);
     const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
+
+    // AlertDialog state for destructive RBAC flows (replaces native confirm())
+    const [pendingRevokeInvite, setPendingRevokeInvite] = useState<{ inviteId: string; email: string } | null>(null);
+    const [pendingRemoveMember, setPendingRemoveMember] = useState<{ memberId: string; name: string; email: string } | null>(null);
+
     const logoInputRef = useRef<HTMLInputElement | null>(null);
     const presetFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -787,13 +792,18 @@ export function useOrgSettings() {
     }, [currentUserRole, canManageMembersPermission]);
 
     // ─── Handlers ───────────────────────────────────────────────────
-    const handleRevokeInvite = async (inviteId: string, email: string) => {
+    const handleRevokeInvite = (inviteId: string, email: string) => {
         if (!canManageMembersPermission) {
             toast({ title: "Not allowed", description: "You do not have permission to manage invitations.", variant: "destructive" });
             return;
         }
-        if (!confirm(`Revoke invitation for ${email}?`)) return;
+        setPendingRevokeInvite({ inviteId, email });
+    };
 
+    const confirmRevokeInvite = async () => {
+        if (!pendingRevokeInvite) return;
+        const { inviteId, email } = pendingRevokeInvite;
+        setPendingRevokeInvite(null);
         setRevokingInviteId(inviteId);
         try {
             await orgAPI.revokeInvite(inviteId);
@@ -1011,7 +1021,7 @@ export function useOrgSettings() {
         }
     };
 
-    const removeMember = async (memberId: string) => {
+    const removeMember = (memberId: string) => {
         if (!canManageMembersPermission) {
             toast({ title: "Not allowed", description: "You do not have permission to remove members.", variant: "destructive" });
             return;
@@ -1024,13 +1034,16 @@ export function useOrgSettings() {
             return;
         }
 
-        if (!confirm(`Are you sure you want to remove ${targetMember.name} (${targetMember.email}) from the organization? This action cannot be undone.`)) {
-            return;
-        }
+        setPendingRemoveMember({ memberId, name: targetMember.name, email: targetMember.email });
+    };
 
+    const confirmRemoveMember = async () => {
+        if (!pendingRemoveMember) return;
+        const { memberId, name } = pendingRemoveMember;
+        setPendingRemoveMember(null);
         try {
             await orgAPI.removeMember(memberId);
-            toast({ title: "Member removed", description: `${targetMember.name} has been removed from the organization.` });
+            toast({ title: "Member removed", description: `${name} has been removed from the organization.` });
             // Full reload — a remove can clear pending invites whose email
             // matches the now-departed member's, and it can shift the
             // last-admin guard state (e.g. demoting becomes impossible).
@@ -1332,9 +1345,15 @@ export function useOrgSettings() {
         inviteHelpText,
         handleInviteMember,
         handleRevokeInvite,
+        confirmRevokeInvite,
+        pendingRevokeInvite,
+        setPendingRevokeInvite,
         revokingInviteId,
         updateMemberRole,
         removeMember,
+        confirmRemoveMember,
+        pendingRemoveMember,
+        setPendingRemoveMember,
         // Invite dialog
         isInviteDialogOpen,
         setIsInviteDialogOpen,

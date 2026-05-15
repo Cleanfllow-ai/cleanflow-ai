@@ -54,9 +54,15 @@ interface OrgMembersTabProps {
   revokingInviteId: string | null;
   inviteHelpText: string;
   handleInviteMember: () => void;
-  handleRevokeInvite: (inviteId: string, email: string) => Promise<void>;
+  handleRevokeInvite: (inviteId: string, email: string) => void;
+  confirmRevokeInvite: () => Promise<void>;
+  pendingRevokeInvite: { inviteId: string; email: string } | null;
+  setPendingRevokeInvite: (val: { inviteId: string; email: string } | null) => void;
   updateMemberRole: (memberId: string, newRole: AppRole) => Promise<void>;
-  removeMember: (memberId: string) => Promise<void>;
+  removeMember: (memberId: string) => void;
+  confirmRemoveMember: () => Promise<void>;
+  pendingRemoveMember: { memberId: string; name: string; email: string } | null;
+  setPendingRemoveMember: (val: { memberId: string; name: string; email: string } | null) => void;
 }
 
 export function OrgMembersTab({
@@ -73,8 +79,14 @@ export function OrgMembersTab({
   inviteHelpText,
   handleInviteMember,
   handleRevokeInvite,
+  confirmRevokeInvite,
+  pendingRevokeInvite,
+  setPendingRevokeInvite,
   updateMemberRole,
   removeMember,
+  confirmRemoveMember,
+  pendingRemoveMember,
+  setPendingRemoveMember,
 }: OrgMembersTabProps) {
   const [pendingRoleChange, setPendingRoleChange] = useState<{
     memberId: string
@@ -342,6 +354,54 @@ export function OrgMembersTab({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleRoleChangeConfirm}>
               Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Revoke invite confirmation */}
+      <AlertDialog
+        open={!!pendingRevokeInvite}
+        onOpenChange={(open) => !open && setPendingRevokeInvite(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke Invitation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Revoke the invitation for <strong>{pendingRevokeInvite?.email}</strong>? They will no longer be able to use this invite link.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRevokeInvite}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Revoke
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove member confirmation */}
+      <AlertDialog
+        open={!!pendingRemoveMember}
+        onOpenChange={(open) => !open && setPendingRemoveMember(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove <strong>{pendingRemoveMember?.name}</strong> ({pendingRemoveMember?.email}) from the organization? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRemoveMember}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

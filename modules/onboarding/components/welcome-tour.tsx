@@ -354,6 +354,16 @@ export function WelcomeTour({
   onComplete,
   onSkip,
 }: WelcomeTourProps) {
+  // Keyboard accessibility: Esc dismisses the tour
+  useEffect(() => {
+    if (!isOpen) return
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onSkip()
+    }
+    document.addEventListener("keydown", handleEsc)
+    return () => document.removeEventListener("keydown", handleEsc)
+  }, [isOpen, onSkip])
+
   return (
     <TourProvider
       steps={TOUR_STEPS}

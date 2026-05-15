@@ -158,7 +158,7 @@ export function AugmentationPage() {
                             <div><span className="text-muted-foreground">Rows: </span>{selected.output_rows_count ?? "—"}</div>
                             <div><span className="text-muted-foreground">Cost: </span>
                                 {selected.cost_actual_usd != null ? `$${selected.cost_actual_usd}` : "—"}</div>
-                            {selected.error_message && <p className="text-red-500">{selected.error_message}</p>}
+                            {selected.error_message && <p className="text-red-500">{sanitizeErrorMessage(selected.error_message)}</p>}
                             <Link href={`/augmentation/jobs/${selected.job_id}`}
                                 className="text-blue-500 underline text-xs">Open full detail →</Link>
                         </div>

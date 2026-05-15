@@ -15,6 +15,21 @@ import { useAuth } from "@/modules/auth/providers/auth-provider";
 import { orgAPI } from "@/modules/auth/api/org-api";
 import { useToast } from "@/shared/hooks/use-toast";
 
+// ─── Error sanitizer ──────────────────────────────────────────────────────────
+// Scrubs raw Cognito / APIG internal strings that must never reach the DOM.
+
+function sanitizeAuthError(raw: string): string {
+    if (/Invalid key=value pair.*Authorization header/i.test(raw)) {
+        return "Unable to reach the authentication service. Please refresh and try again."
+    }
+    if (/Authorization header.*SHA-256.*Base64/i.test(raw) || /hashed with SHA-256/i.test(raw)) {
+        return "Authentication error. Please sign out and sign in again."
+    }
+    const cognitoPrefix = /^(PreAuthentication|PostAuthentication|UserMigration) failed with error (.+)\.$/.exec(raw)
+    if (cognitoPrefix) return cognitoPrefix[2]
+    return raw
+}
+
 export function SignUpForm() {
   const [step, setStep] = useState(1);
   const [fullName, setFullName] = useState("");
@@ -125,7 +140,7 @@ export function SignUpForm() {
         setShowVerification(true);
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(sanitizeAuthError(err.message));
     } finally {
       setIsLoading(false);
     }

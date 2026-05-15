@@ -224,8 +224,14 @@ export function OrganizationSettings() {
           inviteHelpText={hookData.inviteHelpText}
           handleInviteMember={hookData.handleInviteMember}
           handleRevokeInvite={hookData.handleRevokeInvite}
+          confirmRevokeInvite={hookData.confirmRevokeInvite}
+          pendingRevokeInvite={hookData.pendingRevokeInvite}
+          setPendingRevokeInvite={hookData.setPendingRevokeInvite}
           updateMemberRole={hookData.updateMemberRole}
           removeMember={hookData.removeMember}
+          confirmRemoveMember={hookData.confirmRemoveMember}
+          pendingRemoveMember={hookData.pendingRemoveMember}
+          setPendingRemoveMember={hookData.setPendingRemoveMember}
         />
       </TabsContent>
 
