@@ -43,6 +43,10 @@ export interface OrgMeResponse {
   membership: OrgMembership;
   permissions_by_role: Record<string, Record<string, boolean>>;
   role_permissions: Record<string, boolean>;
+  /** Present when the user has no org membership (HTTP 200 trap-state signal from BE) */
+  onboarding_required?: boolean;
+  /** "create_organization" when onboarding_required is true */
+  next_action?: string;
 }
 
 export interface OrgMembersResponse {

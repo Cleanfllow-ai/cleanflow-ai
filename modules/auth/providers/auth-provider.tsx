@@ -48,6 +48,9 @@ interface AuthContextType {
   userRole: string | null;
   hasPermission: (key: string) => boolean;
   refreshPermissions: () => Promise<void>;
+  /** True when /org/me returns onboarding_required=true or no membership exists.
+   *  AuthGuard uses this to redirect to /create-organization. */
+  onboardingRequired: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,6 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [userRole, setUserRole] = useState<string | null>(null);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [onboardingRequired, setOnboardingRequired] = useState(false);
 
   // ── Wire API-error toast handlers + 401 token-refresh bridge ──────
   // These run once at boot; non-React code (api/base.ts, file-upload-api.ts,
@@ -98,6 +102,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!auth.isAuthenticated || !auth.idToken) return;
     try {
       const me = await orgAPI.getMe(auth.idToken);
+      // BE trap-state signal: HTTP 200 but no membership exists
+      if (me?.onboarding_required || !me?.membership?.org_id) {
+        setOnboardingRequired(true);
+        setPermissionsLoaded(true);
+        return;
+      }
+      // Normal path: membership present
+      setOnboardingRequired(false);
       if (me?.role_permissions) {
         setPermissions(me.role_permissions);
       }
@@ -127,6 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setPermissions({});
     setUserRole(null);
     setPermissionsLoaded(false);
+    setOnboardingRequired(false);
   }, [auth.isAuthenticated]);
 
   // Keep permissions fresh even without navigation.
@@ -213,6 +226,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         userRole,
         hasPermission,
         refreshPermissions,
+        onboardingRequired,
       }}
     >
       {children}
