@@ -49,13 +49,7 @@ export const TOUR_STEPS: StepType[] = [
     position: "bottom",
   },
   {
-    // Step 5 — Augmentation
-    selector: "[data-tour='nav-augmentation']",
-    content: "augmentation",
-    position: "right",
-  },
-  {
-    // Step 6 — Jobs
+    // Step 5 — Jobs (Augmentation step removed: pending audit a575f372010d13bca)
     selector: "[data-tour='nav-jobs']",
     content: "jobs",
     position: "right",

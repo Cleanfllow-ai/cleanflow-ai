@@ -15,6 +15,9 @@ import {
 } from "@/modules/dashboard/components/tiles/dashboard-tiles"
 import { AlertTriangle } from "lucide-react"
 
+// TODO: re-enable after augmentation audit completes (track: a575f372010d13bca)
+const AUGMENTATION_ENABLED = false
+
 const fmtNumber = (n: number) => n.toLocaleString()
 
 function DashboardTopbar({
@@ -142,12 +145,14 @@ export function CustomerUsageDashboard() {
                 <div className="lg:col-span-1">
                     <RecentFilesTile files={data.recent_files} />
                 </div>
-                <div className="lg:col-span-1">
+                <div className={AUGMENTATION_ENABLED ? "lg:col-span-1" : "lg:col-span-2"}>
                     <DqTrendTile points={data.dq_score_trend} />
                 </div>
-                <div className="lg:col-span-1">
-                    <RecentAugmentationsTile jobs={data.recent_augmentations} />
-                </div>
+                {AUGMENTATION_ENABLED && (
+                    <div className="lg:col-span-1">
+                        <RecentAugmentationsTile jobs={data.recent_augmentations} />
+                    </div>
+                )}
             </div>
         </div>
     )

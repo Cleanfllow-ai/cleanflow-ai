@@ -17,10 +17,12 @@ const ChatDrawer = dynamic(
 	() => import("@/modules/chat/components/chat-drawer").then((mod) => ({ default: mod.ChatDrawer })),
 	{ ssr: false }
 )
+// TODO: re-enable after augmentation audit completes (track: a575f372010d13bca)
+const AUGMENTATION_ENABLED = false
 const mainNav = [
 	{ name: "Dashboard", href: "/dashboard", icon: BarChart3, tourId: "nav-dashboard" },
 	{ name: "Data Catalog", href: "/files", icon: FileText, tourId: "nav-data-catalog" },
-	{ name: "Augmentation", href: "/augmentation", icon: Sparkles, tourId: "nav-augmentation" },
+	...(AUGMENTATION_ENABLED ? [{ name: "Augmentation", href: "/augmentation", icon: Sparkles, tourId: "nav-augmentation" }] : []),
 	{ name: "Jobs", href: "/jobs", icon: CalendarClock, tourId: "nav-jobs" },
 ]
 const settingsNav = [
@@ -186,8 +188,7 @@ function AppSidebarComponent() {
 							</span>
 						) : undefined
 					)}
-					{renderNavItem(mainNav[2])}
-					{renderNavItem(mainNav[3])}
+					{mainNav.slice(2).map((item) => renderNavItem(item))}
 					{/* Settings section */}
 					{!collapsed && (
 						<p className="px-3 pt-3 pb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
