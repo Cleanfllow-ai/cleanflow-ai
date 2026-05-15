@@ -43,6 +43,16 @@ See [.env.sample](.env.sample) for all required keys. All `NEXT_PUBLIC_*` variab
 - Storage connector: Google Drive
 - RAG-powered in-app assistant (Pinecone + Groq)
 
+## Project Structure
+
+```
+app/          # Next.js App Router pages and API routes
+modules/      # Feature modules (auth, files, dashboard, jobs, chat, connectors)
+shared/       # Shared config, hooks, and layout components
+docs/         # Knowledge base and documentation
+scripts/      # One-time utility scripts (e.g. Pinecone indexing)
+```
+
 ## Branch
 
 Active development branch: `frontend-rightrev`
