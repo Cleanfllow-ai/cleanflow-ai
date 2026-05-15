@@ -143,6 +143,22 @@ class JobsAPI {
         return this.makeRequest(`/jobs/${jobId}/trigger`, token, { method: "POST" })
     }
 
+    // ─── Batch Actions ───────────────────────────────────────────────────────
+
+    async batchAction(payload: {
+        job_ids: string[]
+        action: "run" | "pause" | "resume" | "delete"
+    }): Promise<{
+        successes: string[]
+        failures: { job_id: string; error: string }[]
+    }> {
+        const token = this.getAuth()
+        return this.makeRequest("/jobs/batch-action", token, {
+            method: "POST",
+            body: JSON.stringify(payload),
+        })
+    }
+
     // ─── Run Actions ──────────────────────────────────────────────────────────
 
     async resumeRun(jobId: string, runId: string): Promise<{ message: string }> {

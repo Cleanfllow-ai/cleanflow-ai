@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow
@@ -150,6 +151,11 @@ export function JobsList() {
     // Action loading
     const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+    // Batch selection
+    const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set())
+    const [batchActionLoading, setBatchActionLoading] = useState<null | "run" | "pause" | "resume" | "delete">(null)
+    const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
+
     const { toast } = useToast()
     const router = useRouter()
 
@@ -260,6 +266,76 @@ export function JobsList() {
             toast({ title, description, variant: "destructive" })
         } finally {
             setActionLoading(null)
+        }
+    }
+
+    // ─── Batch selection ────────────────────────────────────────────────────
+
+    const toggleJobSelection = (jobId: string) => {
+        setSelectedJobIds(prev => {
+            const next = new Set(prev)
+            if (next.has(jobId)) next.delete(jobId)
+            else next.add(jobId)
+            return next
+        })
+    }
+
+    const clearSelection = () => setSelectedJobIds(new Set())
+
+    const toggleSelectAllVisible = () => {
+        // Header checkbox: select-all toggles the currently filtered set.
+        if (selectedJobIds.size >= filteredJobs.length && filteredJobs.length > 0) {
+            clearSelection()
+        } else {
+            setSelectedJobIds(new Set(filteredJobs.map(j => j.job_id)))
+        }
+    }
+
+    // Map names back from job_ids for friendlier toasts.
+    const jobNameById = (id: string): string => jobs.find(j => j.job_id === id)?.name || id
+
+    const runBatchAction = async (action: "run" | "pause" | "resume" | "delete") => {
+        if (selectedJobIds.size === 0) return
+        const ids = Array.from(selectedJobIds)
+        setBatchActionLoading(action)
+        try {
+            const res = await jobsAPI.batchAction({ job_ids: ids, action })
+            const successCount = res.successes?.length ?? 0
+            const failures = res.failures ?? []
+
+            if (successCount > 0) {
+                toast({
+                    title: `Batch ${action} succeeded`,
+                    description: `${successCount} job${successCount > 1 ? "s" : ""} ${
+                        action === "delete" ? "deleted" :
+                        action === "run" ? "triggered" :
+                        action === "pause" ? "paused" : "resumed"
+                    }.`,
+                })
+            }
+
+            if (failures.length > 0) {
+                // Show one toast listing failed job names — keep description short.
+                const names = failures.slice(0, 5).map(f => jobNameById(f.job_id)).join(", ")
+                const more = failures.length > 5 ? ` and ${failures.length - 5} more` : ""
+                toast({
+                    title: `${failures.length} job${failures.length > 1 ? "s" : ""} failed to ${action}`,
+                    description: `${names}${more}`,
+                    variant: "destructive",
+                })
+            }
+
+            clearSelection()
+            await loadJobs()
+        } catch (err) {
+            toast({
+                title: `Batch ${action} failed`,
+                description: err instanceof Error ? err.message : "Unknown error",
+                variant: "destructive",
+            })
+        } finally {
+            setBatchActionLoading(null)
+            setBatchDeleteOpen(false)
         }
     }
 
@@ -500,13 +576,99 @@ export function JobsList() {
                     </div>
                 ) : (
                     <div className="rounded-xl border border-border/50 overflow-hidden bg-card/50">
+                        {/* Sticky batch action bar — visible when ≥1 job selected */}
+                        {selectedJobIds.size >= 1 && (
+                            <div
+                                className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-2 bg-primary/[0.06] border-b border-primary/30 backdrop-blur-sm"
+                                role="toolbar"
+                                aria-label="Batch actions"
+                            >
+                                <div className="flex items-center gap-2.5">
+                                    <span
+                                        className="text-[12px] font-semibold tabular-nums text-primary"
+                                        style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}
+                                    >
+                                        {selectedJobIds.size} selected
+                                    </span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 text-[11px] text-muted-foreground hover:text-foreground"
+                                        onClick={clearSelection}
+                                        disabled={Boolean(batchActionLoading)}
+                                    >
+                                        Clear
+                                    </Button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 gap-1.5"
+                                        onClick={() => runBatchAction("run")}
+                                        disabled={Boolean(batchActionLoading)}
+                                    >
+                                        {batchActionLoading === "run"
+                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            : <Play className="h-3.5 w-3.5" />}
+                                        Run
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 gap-1.5"
+                                        onClick={() => runBatchAction("pause")}
+                                        disabled={Boolean(batchActionLoading)}
+                                    >
+                                        {batchActionLoading === "pause"
+                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            : <Pause className="h-3.5 w-3.5" />}
+                                        Pause
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 gap-1.5"
+                                        onClick={() => runBatchAction("resume")}
+                                        disabled={Boolean(batchActionLoading)}
+                                    >
+                                        {batchActionLoading === "resume"
+                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            : <Play className="h-3.5 w-3.5" />}
+                                        Resume
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                                        onClick={() => setBatchDeleteOpen(true)}
+                                        disabled={Boolean(batchActionLoading)}
+                                    >
+                                        {batchActionLoading === "delete"
+                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            : <Trash2 className="h-3.5 w-3.5" />}
+                                        Delete
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/50">
+                                    <TableHead className="w-10 pl-4">
+                                        <Checkbox
+                                            checked={
+                                                filteredJobs.length > 0 &&
+                                                selectedJobIds.size >= filteredJobs.length
+                                            }
+                                            onCheckedChange={toggleSelectAllVisible}
+                                            aria-label="Select all jobs"
+                                        />
+                                    </TableHead>
                                     <TableHead className="w-8" />
                                     <TableHead
                                         className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
-                                        
+
                                     >
                                         Job Name
                                     </TableHead>
@@ -549,10 +711,18 @@ export function JobsList() {
                                             key={job.job_id}
                                             className={cn(
                                                 "cursor-pointer transition-colors border-b border-border/30 hover:bg-muted/15",
-                                                expandedJobId === job.job_id && "bg-primary/[0.03] border-l-2 border-l-primary/40"
+                                                expandedJobId === job.job_id && "bg-primary/[0.03] border-l-2 border-l-primary/40",
+                                                selectedJobIds.has(job.job_id) && "bg-primary/[0.04]"
                                             )}
                                             onClick={() => toggleExpand(job.job_id)}
                                         >
+                                            <TableCell className="w-10 pl-4" onClick={(e) => e.stopPropagation()}>
+                                                <Checkbox
+                                                    checked={selectedJobIds.has(job.job_id)}
+                                                    onCheckedChange={() => toggleJobSelection(job.job_id)}
+                                                    aria-label={`Select ${job.name}`}
+                                                />
+                                            </TableCell>
                                             <TableCell className="w-8 pr-0">
                                                 {expandedJobId === job.job_id
                                                     ? <ChevronDown className="h-3.5 w-3.5 text-primary/60" />
@@ -674,7 +844,7 @@ export function JobsList() {
                                         {/* Expanded Run History */}
                                         {expandedJobId === job.job_id && (
                                             <TableRow key={`${job.job_id}-runs`} className="bg-muted/5 hover:bg-muted/5 border-b border-border/20">
-                                                <TableCell colSpan={7} className="p-0">
+                                                <TableCell colSpan={8} className="p-0">
                                                     <JobRunsExplorer jobId={job.job_id} />
                                                 </TableCell>
                                             </TableRow>
@@ -695,6 +865,50 @@ export function JobsList() {
                 onSuccess={handleDialogSuccess}
                 onCancel={handleDialogClose}
             />
+
+            {/* Batch Delete Confirmation */}
+            <AlertDialog open={batchDeleteOpen} onOpenChange={setBatchDeleteOpen}>
+                <AlertDialogContent className="bg-card border-border/60">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2.5">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-destructive/10 border border-destructive/20">
+                                <AlertTriangle className="h-4 w-4 text-destructive" />
+                            </div>
+                            <span
+                                className="text-base font-semibold tracking-wide"
+                                style={{ fontFamily: "'Outfit', var(--font-sans, system-ui, sans-serif)" }}
+                            >
+                                Delete {selectedJobIds.size} Job{selectedJobIds.size > 1 ? "s" : ""}
+                            </span>
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground text-[13px] leading-relaxed mt-2">
+                            Are you sure you want to delete{" "}
+                            <strong className="text-foreground">
+                                {selectedJobIds.size} job{selectedJobIds.size > 1 ? "s" : ""}
+                            </strong>?
+                            All scheduled runs and run histories will be removed. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-2">
+                        <AlertDialogCancel
+                            disabled={batchActionLoading === "delete"}
+                            className="border-border/50 bg-muted/20 hover:bg-muted/40"
+                        >
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => runBatchAction("delete")}
+                            disabled={batchActionLoading === "delete"}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {batchActionLoading === "delete"
+                                ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                                : <Trash2 className="h-4 w-4 mr-1.5" />}
+                            Delete {selectedJobIds.size > 1 ? "All" : ""}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Delete Confirmation */}
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

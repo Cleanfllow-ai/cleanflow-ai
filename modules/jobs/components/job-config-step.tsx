@@ -1,8 +1,21 @@
 "use client"
 
-import { Loader2, Sparkles, Zap, X, Edit2, SlidersHorizontal, Shield, Settings2, HardDrive, Database, AlertCircle } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
-import { ColumnMappingEditor } from "./column-mapping-editor"
+/**
+ * JobConfigStep — wizard step 3 (now AFTER mapping).
+ *
+ * Source / destination / entities / mapping are NOT rendered here — those
+ * belong to the EndpointsStep and MappingStep respectively. This step only
+ * owns:
+ *   - Job name
+ *   - Frequency / cron
+ *   - Authorized person (responsible_user_id)
+ *
+ * The Advanced DQ toggle is owned by `MappingStep` now (per UX feedback —
+ * users opt-in to a deeper DQ step right after they finish mapping). The
+ * stepper drives the conditional `dq` step from that flag.
+ */
+
+import { Loader2, Zap, X, Settings2, HardDrive, Database, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,6 +32,9 @@ import { ConnectorLogo } from "@/modules/connectors/components/connector-logo"
 import { CronBuilder, parseCron } from "./cron-builder"
 
 // ─── Category options ─────────────────────────────────────────────────────────
+// Kept here only to keep the dead-code block (`<div className="hidden">…</div>`)
+// below from referencing an undefined identifier. Will be deleted alongside the
+// dead block in a follow-up cleanup pass.
 
 const CATEGORY_OPTIONS: { label: string; value: ProviderCategory }[] = [
     { label: "Applications", value: "erp" },
@@ -31,24 +47,29 @@ const CATEGORY_OPTIONS: { label: string; value: ProviderCategory }[] = [
 interface JobConfigStepProps {
     d: ReturnType<typeof useJobDialog>
     onNext: () => void
-    advancedDQ: boolean
-    onAdvancedDQChange: (val: boolean) => void
-    onCreateDirect: () => void
     isCreating?: boolean
+    /** Hint to the footer button label — when true, says "Configure DQ →" instead of "Create job". */
+    advancedDQ?: boolean
+    /** When true, render only the form fields (no scroll container, no footer).
+     *  Used to inline this step's fields into the EndpointsStep. */
+    embedded?: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCreateDirect, isCreating }: JobConfigStepProps) {
+export function JobConfigStep({ d, onNext, isCreating, advancedDQ, embedded }: JobConfigStepProps) {
     const cronValid = d.frequency !== "cron" || (
         d.cronExpression.trim() !== "" && !parseCron(d.cronExpression).error
     )
-    const canProceed =
-        d.name.trim() !== "" &&
-        d.sourceProvider !== "" &&
-        d.destinationProvider !== "" &&
-        d.entities.length > 0 &&
-        cronValid
+    const canProceed = d.name.trim() !== "" && cronValid
+
+    if (embedded) {
+        // Inline mode: no flex/overflow chrome, no footer. Caller (EndpointsStep)
+        // owns the surrounding scroll container + Next button.
+        return (
+            <EmbeddedJobBasics d={d} />
+        )
+    }
 
     return (
         <div className="flex flex-col h-full">
@@ -68,8 +89,10 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                         />
                     </div>
 
-                    {/* ── Source ───────────────────────────────────────────── */}
-                    <div className="space-y-3">
+                    {/* Source / destination / entities / mapping are owned by the
+                        EndpointsStep + MappingStep — DO NOT duplicate them here.
+                        This step is purely Name + Schedule + Authorized Person. */}
+                    <div className="hidden">
                         <Label className="text-sm font-medium">Source</Label>
 
                         <div className="grid grid-cols-2 gap-3">
@@ -285,6 +308,7 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                     </div>
 
                     {/* ── Destination ──────────────────────────────────────── */}
+                    <div className="hidden">
                     <div className="space-y-3">
                         <Label className="text-sm font-medium">Destination</Label>
 
@@ -475,6 +499,7 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                             </div>
                         )}
                     </div>
+                    </div>{/* end hidden destination wrapper */}
 
                     {/* ── Frequency ────────────────────────────────────────── */}
                     <div className="space-y-2">
@@ -512,97 +537,7 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                         </div>
                     )}
 
-                    {/* ── Column Mapping (Advanced only) ──────────────────── */}
-                    {advancedDQ && d.sourceProvider && d.destinationProvider && d.entities.length > 0 && (
-                        <div className="space-y-2">
-                            {d.showMappingEditor ? (
-                                <ColumnMappingEditor
-                                    sourceFields={d.cachedSourceFields}
-                                    destFields={d.cachedDestFields}
-                                    mapping={d.columnMapping}
-                                    onMappingChange={d.setColumnMapping}
-                                    onClose={() => d.setShowMappingEditor(false)}
-                                    onAutoMap={d.handleAutoMap}
-                                    autoMapLoading={d.mappingLoading}
-                                    sourceLabel={getProviderDisplayName(d.sourceProvider)}
-                                    destLabel={getProviderDisplayName(d.destinationProvider)}
-                                />
-                            ) : (
-                                <>
-                                    <div className="flex items-center justify-between">
-                                        <Label className="text-sm font-medium">Column Mapping</Label>
-                                        <div className="flex items-center gap-1.5">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={d.handleAutoMap}
-                                                disabled={d.mappingLoading}
-                                                className="h-7 text-xs gap-1.5"
-                                            >
-                                                {d.mappingLoading ? (
-                                                    <><Loader2 className="h-3 w-3 animate-spin" /> Mapping...</>
-                                                ) : (
-                                                    <><Sparkles className="h-3 w-3" /> Auto-map</>
-                                                )}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={d.handleOpenMappingEditor}
-                                                className="h-7 text-xs gap-1.5"
-                                            >
-                                                <Edit2 className="h-3 w-3" /> Manual Map
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    {Object.keys(d.columnMapping).length > 0 ? (
-                                        <div className="border rounded-md p-3 space-y-1.5">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="text-xs text-muted-foreground">
-                                                    {Object.keys(d.columnMapping).length} columns mapped
-                                                    {d.autoMapMethod && (
-                                                        <Badge variant="outline" className="ml-2 text-[9px]">
-                                                            {d.autoMapMethod}
-                                                        </Badge>
-                                                    )}
-                                                </span>
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={d.handleOpenMappingEditor}
-                                                        className="text-[10px] text-primary hover:underline"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => { d.setColumnMapping({}) }}
-                                                        className="text-[10px] text-muted-foreground hover:text-destructive"
-                                                    >
-                                                        Clear
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div className="max-h-24 overflow-y-auto space-y-0.5">
-                                                {Object.entries(d.columnMapping).map(([src, dst]) => (
-                                                    <div key={src} className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <span className="font-mono truncate max-w-[40%]">{src}</span>
-                                                        <span className="text-[10px]">&rarr;</span>
-                                                        <span className="font-mono truncate max-w-[40%]">{dst}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <p className="text-xs text-muted-foreground">
-                                            Click Auto-map for automatic CDF mapping, or Manual Map to configure fields individually.
-                                        </p>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    )}
+                    {/* Column Mapping was here — moved to dedicated MappingStep */}
 
                     {/* ── Authorized Person ────────────────────────────────── */}
                     <div className="space-y-1.5">
@@ -632,71 +567,110 @@ export function JobConfigStep({ d, onNext, advancedDQ, onAdvancedDQChange, onCre
                         )}
                     </div>
 
-                    {/* ── Advanced DQ Configuration Toggle ──────────────────── */}
-                    <div
-                        className={cn(
-                            "rounded-xl border p-4 transition-all duration-200",
-                            advancedDQ
-                                ? "border-primary/30 bg-primary/[0.03]"
-                                : "border-border/60 bg-muted/20"
-                        )}
-                    >
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className={cn(
-                                    "flex items-center justify-center w-9 h-9 rounded-lg transition-colors",
-                                    advancedDQ ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                                )}>
-                                    <SlidersHorizontal className="h-4 w-4" />
-                                </div>
-                                <div>
-                                    <span className="text-sm font-medium block">Advanced DQ Configuration</span>
-                                    <span className="text-xs text-muted-foreground">
-                                        {advancedDQ
-                                            ? "Customize column selection, profiling, rules, and settings"
-                                            : "Using default DQ rules -- all columns, balanced strictness"
-                                        }
-                                    </span>
-                                </div>
-                            </div>
-                            <Switch
-                                checked={advancedDQ}
-                                onCheckedChange={onAdvancedDQChange}
-                            />
-                        </div>
-
-                        {!advancedDQ && (
-                            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-background/60 border border-border/40">
-                                <Shield className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
-                                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    All columns selected, DQ rules applied with auto-fix, and columns auto-mapped by name. Enable Advanced for manual mapping, business consistency rules, and column selection.
-                                </p>
-                            </div>
-                        )}
-                    </div>
+                    {/* Advanced DQ toggle moved to MappingStep — when enabled there,
+                        this step's footer button label switches to "Configure DQ →"
+                        and routes to the DQ step. */}
                 </div>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border/50 flex justify-end gap-3">
-                {advancedDQ ? (
-                    <Button
-                        onClick={onNext}
-                        disabled={!canProceed}
-                    >
-                        Next &rarr;
-                    </Button>
+                <Button
+                    onClick={onNext}
+                    disabled={!canProceed || isCreating}
+                >
+                    {isCreating ? (
+                        <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</>
+                    ) : advancedDQ ? (
+                        <>Configure DQ &rarr;</>
+                    ) : (
+                        <>Create Job</>
+                    )}
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+// ─── Embedded job-basics form ─────────────────────────────────────────────────
+// Renders just the visible config fields (Name + Frequency + Authorized Person)
+// without any scroll container or footer, so EndpointsStep can inline them.
+
+function EmbeddedJobBasics({ d }: { d: ReturnType<typeof useJobDialog> }) {
+    return (
+        <div className="space-y-4 pt-4 mt-4 border-t border-border/40">
+            <h3 className="text-sm font-medium text-muted-foreground">Job Basics</h3>
+
+            {/* Job Name */}
+            <div className="space-y-2">
+                <Label htmlFor="job-name-inline" className="text-sm font-medium">Job Name</Label>
+                <Input
+                    id="job-name-inline"
+                    placeholder="e.g. Invoice Sync QB to Snowflake"
+                    value={d.name}
+                    onChange={e => d.setName(e.target.value)}
+                    className="h-10"
+                />
+            </div>
+
+            {/* Frequency */}
+            <div className="space-y-2">
+                <Label className="text-sm font-medium">Frequency</Label>
+                <Select value={d.frequency} onValueChange={v => d.setFrequency(v as JobFrequency)}>
+                    <SelectTrigger className="h-10">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {FREQUENCY_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {d.frequency === "cron" && (
+                <CronBuilder
+                    value={d.cronExpression || "0 9 * * ? *"}
+                    onChange={cron => d.setCronExpression(cron)}
+                />
+            )}
+
+            {d.frequency === "batch" && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+                    <Zap className="h-4 w-4 flex-shrink-0" />
+                    <p className="text-xs">
+                        One-time transfer. Data will be transferred immediately after creation.
+                    </p>
+                </div>
+            )}
+
+            {/* Authorized Person */}
+            <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Authorized Person</Label>
+                {d.orgMembersLoading ? (
+                    <div className="flex items-center gap-2 h-9 px-3 border rounded-md text-muted-foreground text-sm">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Loading members...
+                    </div>
+                ) : d.orgMembers.length === 0 ? (
+                    <div className="flex items-center h-9 px-3 border rounded-md text-muted-foreground text-xs border-dashed">
+                        No organization members found
+                    </div>
                 ) : (
-                    <Button
-                        onClick={onCreateDirect}
-                        disabled={!canProceed || isCreating}
-                    >
-                        {isCreating ? (
-                            <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</>
-                        ) : (
-                            "Create Job"
-                        )}
-                    </Button>
+                    <Select value={d.responsibleUserId} onValueChange={d.setResponsibleUserId}>
+                        <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select authorized person" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {d.orgMembers.map(m => (
+                                <SelectItem key={m.user_id} value={m.user_id}>
+                                    {m.email || m.user_id}
+                                    <span className="text-xs text-muted-foreground ml-1">({m.role})</span>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 )}
             </div>
         </div>

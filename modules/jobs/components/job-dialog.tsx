@@ -1,7 +1,11 @@
 "use client"
 
-import { Loader2, Sparkles, Zap, Check, X, Edit2, Settings2, HardDrive, Database, AlertCircle } from "lucide-react"
-import { ColumnMappingEditor } from "./column-mapping-editor"
+// NOTE: the inline Auto-map / Manual Map button group has been removed from
+// this dialog. Mapping has moved to the wizard's `MappingStep`. The Edit-an-
+// existing-job flow still uses this dialog without inline mapping for now;
+// users edit mappings via the wizard or Settings > Mapping Templates.
+
+import { Loader2, Zap, X, Settings2, HardDrive, Database, AlertCircle } from "lucide-react"
 import { DQConfigPanel } from "./dq-config-panel"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -405,97 +409,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                         </div>
                     )}
 
-                    {/* ── Column Mapping ───────────────────────────────────── */}
-                    {d.sourceProvider && d.destinationProvider && d.entities.length > 0 && (
-                        <div className="space-y-2">
-                            {d.showMappingEditor ? (
-                                <ColumnMappingEditor
-                                    sourceFields={d.cachedSourceFields}
-                                    destFields={d.cachedDestFields}
-                                    mapping={d.columnMapping}
-                                    onMappingChange={d.setColumnMapping}
-                                    onClose={() => d.setShowMappingEditor(false)}
-                                    onAutoMap={d.handleAutoMap}
-                                    autoMapLoading={d.mappingLoading}
-                                    sourceLabel={getProviderDisplayName(d.sourceProvider)}
-                                    destLabel={getProviderDisplayName(d.destinationProvider)}
-                                />
-                            ) : (
-                                <>
-                                    <div className="flex items-center justify-between">
-                                        <Label className="text-sm font-medium">Column Mapping</Label>
-                                        <div className="flex items-center gap-1.5">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={d.handleAutoMap}
-                                                disabled={d.mappingLoading}
-                                                className="h-7 text-xs gap-1.5"
-                                            >
-                                                {d.mappingLoading ? (
-                                                    <><Loader2 className="h-3 w-3 animate-spin" /> Mapping...</>
-                                                ) : (
-                                                    <><Sparkles className="h-3 w-3" /> Auto-map</>
-                                                )}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={d.handleOpenMappingEditor}
-                                                className="h-7 text-xs gap-1.5"
-                                            >
-                                                <Edit2 className="h-3 w-3" /> Manual Map
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    {Object.keys(d.columnMapping).length > 0 ? (
-                                        <div className="border rounded-md p-3 space-y-1.5">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="text-xs text-muted-foreground">
-                                                    {Object.keys(d.columnMapping).length} columns mapped
-                                                    {d.autoMapMethod && (
-                                                        <Badge variant="outline" className="ml-2 text-[9px]">
-                                                            {d.autoMapMethod}
-                                                        </Badge>
-                                                    )}
-                                                </span>
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={d.handleOpenMappingEditor}
-                                                        className="text-[10px] text-primary hover:underline"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => { d.setColumnMapping({}); }}
-                                                        className="text-[10px] text-muted-foreground hover:text-destructive"
-                                                    >
-                                                        Clear
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div className="max-h-24 overflow-y-auto space-y-0.5">
-                                                {Object.entries(d.columnMapping).map(([src, dst]) => (
-                                                    <div key={src} className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <span className="font-mono truncate max-w-[40%]">{src}</span>
-                                                        <span className="text-[10px]">→</span>
-                                                        <span className="font-mono truncate max-w-[40%]">{dst}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <p className="text-xs text-muted-foreground">
-                                            Click Auto-map for automatic CDF mapping, or Manual Map to configure fields individually.
-                                        </p>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    )}
+                    {/* Inline mapping block removed — see MappingStep in the wizard */}
 
                     {/* ── DQ Config Panel ─────────────────────────────────── */}
                     <DQConfigPanel
