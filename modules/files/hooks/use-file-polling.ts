@@ -160,9 +160,10 @@ export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParam
 
         return result
       } catch (error) {
+        console.error("DQ processing start error:", error)
         toast({
           title: "DQ Processing Failed",
-          description: error instanceof Error ? error.message : "Failed to start DQ processing",
+          description: "Could not start data quality processing. Please try again.",
           variant: "destructive",
         })
         throw error

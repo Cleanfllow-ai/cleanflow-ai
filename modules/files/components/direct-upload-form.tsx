@@ -85,6 +85,14 @@ export default function DirectUploadForm({
       })
       setFile(null)
     } catch (err: any) {
+      // User-initiated cancel is not an error — swallow silently so no
+      // error toast fires. The UI already reflects the cancelled state
+      // via the upload manager's status field.
+      const isCancelled =
+        err?.name === 'AbortError' ||
+        (typeof err?.message === 'string' &&
+          err.message.toLowerCase().includes('cancelled'))
+      if (isCancelled) return
       onError(err?.message || 'Upload failed')
     }
   }

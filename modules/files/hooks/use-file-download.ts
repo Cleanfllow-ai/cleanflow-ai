@@ -73,9 +73,10 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
           description: `Downloading clean data: ${filename}`,
         })
       } catch (error) {
+        console.error("Download clean data error:", error)
         toast({
           title: "Download Failed",
-          description: error instanceof Error ? error.message : "Failed to download clean data",
+          description: "Could not download clean data. Please try again.",
           variant: "destructive",
         })
         throw error
@@ -99,7 +100,6 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
             toast({
               title: "No Quarantine Data",
               description: "No quarantined data available for this file",
-              variant: "destructive",
             })
             return
           }
@@ -128,9 +128,10 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
           description: `Downloading quarantine data: ${filename}`,
         })
       } catch (error) {
+        console.error("Download quarantine data error:", error)
         toast({
           title: "Download Failed",
-          description: error instanceof Error ? error.message : "Failed to download quarantine data",
+          description: "Could not download quarantine data. Please try again.",
           variant: "destructive",
         })
         throw error
@@ -154,7 +155,6 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
             toast({
               title: "No Report Available",
               description: "No DQ report available for this file",
-              variant: "destructive",
             })
             return
           }
@@ -183,9 +183,10 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
           description: `Downloading DQ report: ${filename}`,
         })
       } catch (error) {
+        console.error("Download DQ report error:", error)
         toast({
           title: "Download Failed",
-          description: error instanceof Error ? error.message : "Failed to download DQ report",
+          description: "Could not download the DQ report. Please try again.",
           variant: "destructive",
         })
         throw error
@@ -212,7 +213,6 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
             toast({
               title: "No Data Available",
               description: `No ${dataType} data available for this file`,
-              variant: "destructive",
             })
             return
           }
@@ -241,9 +241,10 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
           description: `Downloading ${dataType} data as ${format.toUpperCase()}: ${filename}`,
         })
       } catch (error) {
+        console.error("Download multi-format error:", error)
         toast({
           title: "Download Failed",
-          description: error instanceof Error ? error.message : `Failed to download ${dataType} data as ${format}`,
+          description: `Could not download ${dataType} data as ${format.toUpperCase()}. Please try again.`,
           variant: "destructive",
         })
         throw error

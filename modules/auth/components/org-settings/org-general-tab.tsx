@@ -111,8 +111,8 @@ export function OrgGeneralTab({
       URL.revokeObjectURL(url);
       toast.success("Your data export has been downloaded.");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Export failed";
-      toast.error(`Export failed: ${msg}`);
+      console.error("Data export error:", err)
+      toast.error("Data export failed. Please try again.");
     } finally {
       setIsExporting(false);
     }
@@ -144,8 +144,8 @@ export function OrgGeneralTab({
       }
       router.replace("/auth/login");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Delete failed";
-      toast.error(`Account deletion failed: ${msg}`);
+      console.error("Account deletion error:", err)
+      toast.error("Account deletion failed. Please try again or contact support.");
       setIsDeletingAccount(false);
     }
   };
@@ -166,8 +166,8 @@ export function OrgGeneralTab({
       }
       router.replace("/auth/login");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Delete failed";
-      toast.error(`Failed to delete organization: ${message}`);
+      console.error("Organization deletion error:", err)
+      toast.error("Failed to delete organization. Please try again or contact support.");
       setIsDeleting(false);
     }
   };
