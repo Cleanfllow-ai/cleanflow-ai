@@ -138,7 +138,8 @@ export function ConnectorsHub() {
         }
       }
     } catch (err) {
-      setError((err as Error).message || "Failed to load connectors")
+      console.error("[Connectors:loadProviders]", err)
+      setError("Could not load connectors. Please try again.")
       setLoading(false)
     }
   }, [])
@@ -184,13 +185,14 @@ export function ConnectorsHub() {
         // "Auth window closed" is the friendly path — show a non-destructive
         // toast. Other strings are genuine failures.
         const closed = /closed/i.test(msg)
+        console.error("[Connectors:handleConnect]", result.error)
         toast({
           title: closed
             ? "Connection cancelled"
             : `Could not connect ${provider?.display_name ?? providerId}`,
           description: closed
             ? "You closed the authorization window before it finished."
-            : msg,
+            : "We couldn't complete the connection. Please try again or check your provider's permissions.",
           variant: closed ? "default" : "destructive",
         })
       }

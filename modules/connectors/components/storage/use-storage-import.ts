@@ -125,10 +125,12 @@ export function useStorageImport({
                 await checkConnection()
                 onNotification?.(`Connected to ${providerDisplayName}`, "success")
             } else {
-                onNotification?.(result.error || "Connection failed", "error")
+                console.error("[Connectors:connectOAuth:storage]", result.error)
+                onNotification?.("We couldn't complete the connection. Please try again or check your provider's permissions.", "error")
             }
         } catch (error) {
-            onNotification?.(describeError(error, "Connection failed"), "error")
+            console.error("[Connectors:connectOAuth:storage]", error)
+            onNotification?.(describeError(error, `Could not connect to ${providerDisplayName}. Please try again.`), "error")
         } finally {
             setIsConnecting(false)
         }
@@ -354,15 +356,16 @@ export function useStorageImport({
 
                         if (status.status === "IMPORT_FAILED" || inferredImportStatus === "failed") {
                             stopPolling()
-                            const errMsg = status.error_message || `Import of "${file.name}" failed`
-                            setImportError(errMsg)
+                            console.error("[Connectors:importFile:poll] import failed", status.error_message)
+                            const userMsg = `Could not import "${file.name}". Please try again.`
+                            setImportError(userMsg)
                             setProgressDetail((prev) =>
                                 prev
                                     ? {
                                           ...prev,
                                           importStatus: "failed",
                                           finishedAt: new Date().toISOString(),
-                                          errorMessage: errMsg,
+                                          errorMessage: userMsg,
                                       }
                                     : prev
                             )
@@ -370,7 +373,7 @@ export function useStorageImport({
                             // legacy state so the old bar doesn't double up.
                             setImportProgress(0)
                             setImportStatus("")
-                            onNotification?.(errMsg, "error")
+                            onNotification?.(userMsg, "error")
                             return
                         }
                     } catch {

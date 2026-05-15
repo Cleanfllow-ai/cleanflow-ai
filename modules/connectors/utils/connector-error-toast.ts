@@ -74,7 +74,6 @@ export function mapConnectorErrorToToast(
 ): ConnectorToast {
     // ── Non-ApiError (network failure, parsing error, etc.) ──────────────────
     if (!isApiError(err)) {
-        const msg = err instanceof Error ? err.message : "Unexpected error"
         // Detect AbortError (browser-side timeout) and map to TIMEOUT toast
         if (err instanceof Error && err.name === "AbortError") {
             const p = formatProvider(providerHint)

@@ -289,14 +289,15 @@ export function useERPImport({
         onNotification?.(`${providerDisplayName} connected successfully!`, "success")
         checkConnection()
       } else if (result.error) {
-        setError(result.error)
-        onNotification?.(`Connection failed: ${result.error}`, "error")
+        console.error("[Connectors:connectProvider]", result.error)
+        setError("We couldn't complete the connection. Please try again or check your provider's permissions.")
+        onNotification?.("We couldn't complete the connection. Please try again or check your provider's permissions.", "error")
       }
     } catch (err) {
-      const message = (err as Error).message || `Failed to connect to ${providerDisplayName}`
-      setError(message)
+      console.error("[Connectors:connectProvider]", err)
+      setError(`Could not connect to ${providerDisplayName}. Please try again.`)
       if (!notifyPermissionDenied(err)) {
-        onNotification?.(`Failed to connect to ${providerDisplayName}`, "error")
+        onNotification?.(`Could not connect to ${providerDisplayName}. Please try again.`, "error")
       }
     }
   }
@@ -324,10 +325,10 @@ export function useERPImport({
       setConnectionInfo(null)
       onNotification?.(`Disconnected from ${providerDisplayName}`, "success")
     } catch (err) {
-      const message = (err as Error).message
-      setError(message)
+      console.error("[Connectors:confirmDisconnect]", err)
+      setError(`Could not disconnect from ${providerDisplayName}. Please try again.`)
       if (!notifyPermissionDenied(err)) {
-        onNotification?.(`Failed to disconnect from ${providerDisplayName}`, "error")
+        onNotification?.(`Could not disconnect from ${providerDisplayName}. Please try again.`, "error")
       }
     }
   }
@@ -407,10 +408,10 @@ export function useERPImport({
       onNotification?.(`Successfully imported ${result.records_imported || 0} records!`, "success")
       if (result.upload_id) onImportComplete?.(result.upload_id)
     } catch (err) {
-      const message = (err as Error).message || "Failed to import data"
-      setError(message)
+      console.error("[Connectors:importFromProvider]", err)
+      setError(`Could not import from ${providerDisplayName}. Please try again.`)
       if (!notifyPermissionDenied(err)) {
-        onNotification?.("Import failed: " + message, "error")
+        onNotification?.(`Could not import from ${providerDisplayName}. Please try again.`, "error")
       }
     } finally {
       setIsImporting(false)
@@ -481,12 +482,14 @@ export function useERPImport({
           ? `${joined} (Click ${desc.action.label} on the connectors page)`
           : joined || `Export to ${providerDisplayName} failed`
       } else {
-        const errorMsg = (err as Error).message || "Failed to export data"
-        userMessage = "Export failed: " + errorMsg
+        console.error("[Connectors:exportToProvider]", err)
+        const errorMsg = (err as Error).message || ""
         if (errorMsg.includes("NoSuchKey") || errorMsg.includes("does not exist")) {
           userMessage = "The processed data for this file is not available. Please ensure the file has been processed successfully before exporting."
-        } else if (errorMsg.includes("Connection")) {
-          userMessage = `Connection to ${providerDisplayName} failed. Please reconnect and try again.`
+        } else if (errorMsg.toLowerCase().includes("connection")) {
+          userMessage = `Please sign in again to ${providerDisplayName}.`
+        } else {
+          userMessage = `Could not export to ${providerDisplayName}. Please try again.`
         }
       }
       setError(userMessage)
@@ -541,8 +544,9 @@ export function useERPImport({
         if (status.status === "failed") {
           setExportPolling(false)
           setIsExporting(false)
-          setError(status.error || "Export failed")
-          onNotification?.(status.error || "Export failed", "error")
+          console.error("[Connectors:pollExportStatus] export failed", status.error)
+          setError(`Could not export to ${providerDisplayName}. Please try again.`)
+          onNotification?.(`Could not export to ${providerDisplayName}. Please try again.`, "error")
           return
         }
         // Still processing — schedule next poll
