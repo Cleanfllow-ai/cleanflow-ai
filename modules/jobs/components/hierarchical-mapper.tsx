@@ -413,6 +413,11 @@ export function HierarchicalMapper({
     const [entityDrag, setEntityDrag] = useState<EntityDrag | null>(null)
     const [priorityDrag, setPriorityDrag] = useState<PriorityDrag | null>(null)
 
+    // Most-recent viewport pointer position. Tracked in a ref (not state) so the
+    // rAF autoscroll loop below can read fresh values without forcing a re-render
+    // every frame. Set by the field/entity-drag pointermove handlers.
+    const lastPointerRef = useRef<{ x: number; y: number } | null>(null)
+
     // ── Compute lines ────────────────────────────────────────────────────────
     interface Line {
         kind: 'field' | 'entity'
@@ -420,6 +425,49 @@ export function HierarchicalMapper({
         key: string
     }
     const [lines, setLines] = useState<Line[]>([])
+    /**
+     * Track the canvas's scrollable content size so the SVG overlay can be
+     * stretched to cover the FULL scrollHeight (not just clientHeight). Without
+     * this, line paths drawn at content-y > clientHeight are clipped, and the
+     * SVG (positioned absolutely inside the scrolling container) only covers
+     * the initially-visible viewport.
+     */
+    const [contentSize, setContentSize] = useState<{ w: number; h: number }>({
+        w: 0,
+        h: 0,
+    })
+
+    /**
+     * Compute the content-space origin offset for a field/entity DOM rect.
+     *
+     * Why: `getBoundingClientRect()` returns viewport-relative coords. The SVG
+     * overlay is `position: absolute; inset: 0` INSIDE the scrolling container,
+     * so its origin scrolls WITH the content. To keep line endpoints glued to
+     * their DOM rows while the user scrolls, we express all path coords in
+     * "content space" — i.e. relative to the unscrolled top-left of the
+     * container's content box. Concretely:
+     *     contentX = viewportX - containerViewportLeft + scrollLeft
+     *     contentY = viewportY - containerViewportTop  + scrollTop
+     *
+     * When the container then scrolls, the SVG (which is part of the scrolled
+     * content) moves up by scrollTop. The paths inside it move with it. The
+     * field rows move with it too. Everything stays aligned.
+     */
+    const toContentCoords = useCallback(
+        (rect: DOMRect, container: HTMLDivElement, cb: DOMRect) => {
+            const sl = container.scrollLeft
+            const st = container.scrollTop
+            return {
+                left: rect.left - cb.left + sl,
+                right: rect.right - cb.left + sl,
+                top: rect.top - cb.top + st,
+                bottom: rect.bottom - cb.top + st,
+                width: rect.width,
+                height: rect.height,
+            }
+        },
+        [],
+    )
 
     const recomputeLines = useCallback(() => {
         const c = containerRef.current
@@ -428,6 +476,13 @@ export function HierarchicalMapper({
             return
         }
         const cb = c.getBoundingClientRect()
+        // Track scrollable content size so we can stretch the SVG to cover it.
+        setContentSize(prev => {
+            const w = c.scrollWidth
+            const h = c.scrollHeight
+            if (prev.w === w && prev.h === h) return prev
+            return { w, h }
+        })
         const next: Line[] = []
 
         // Track which (sourceEntity → destEntity) pairs already have at least
@@ -466,12 +521,12 @@ export function HierarchicalMapper({
                         fieldKey('dest', step.dest_provider, step.dest_entity, dstKey)
                     ]
                     if (!sNode || !dNode) continue
-                    const sb = sNode.getBoundingClientRect()
-                    const db = dNode.getBoundingClientRect()
-                    const x1 = sb.right - cb.left
-                    const y1 = sb.top + sb.height / 2 - cb.top
-                    const x2 = db.left - cb.left
-                    const y2 = db.top + db.height / 2 - cb.top
+                    const sb = toContentCoords(sNode.getBoundingClientRect(), c, cb)
+                    const db = toContentCoords(dNode.getBoundingClientRect(), c, cb)
+                    const x1 = sb.right
+                    const y1 = sb.top + sb.height / 2
+                    const x2 = db.left
+                    const y2 = db.top + db.height / 2
                     const dx = Math.max(40, (x2 - x1) * 0.45)
                     next.push({
                         kind: 'field',
@@ -507,12 +562,12 @@ export function HierarchicalMapper({
                     ]
                 }
                 if (!sNode || !dNode) continue
-                const sb = sNode.getBoundingClientRect()
-                const db = dNode.getBoundingClientRect()
-                const x1 = sb.right - cb.left
-                const y1 = sb.top + sb.height / 2 - cb.top
-                const x2 = db.left - cb.left
-                const y2 = db.top + db.height / 2 - cb.top
+                const sb = toContentCoords(sNode.getBoundingClientRect(), c, cb)
+                const db = toContentCoords(dNode.getBoundingClientRect(), c, cb)
+                const x1 = sb.right
+                const y1 = sb.top + sb.height / 2
+                const x2 = db.left
+                const y2 = db.top + db.height / 2
                 const dx = Math.max(40, (x2 - x1) * 0.45)
                 next.push({
                     kind: 'entity',
@@ -523,7 +578,7 @@ export function HierarchicalMapper({
         }
 
         setLines(next)
-    }, [pipelineSteps, mappingsByPair, expandedSystems, expandedEntities])
+    }, [pipelineSteps, mappingsByPair, expandedSystems, expandedEntities, toContentCoords])
 
     // Recompute on relevant changes.
     useLayoutEffect(() => {
@@ -546,11 +601,78 @@ export function HierarchicalMapper({
     }, [recomputeLines])
 
     // Internal scroll listener — recompute when the canvas itself scrolls.
+    // (With content-space coords this is technically redundant for static lines,
+    // since the SVG scrolls with the content. We still re-run so that any
+    // sample-data rows or async-loaded fields that shift layout are picked up,
+    // and so the autoscroll loop produces visually smooth updates.)
     const onCanvasScroll = useCallback(() => {
         recomputeLines()
     }, [recomputeLines])
 
+    // ── Autoscroll while dragging ────────────────────────────────────────────
+    // Without this, destination fields below the visible fold are unreachable:
+    // once a drag starts on a source row, the pointer-events live on `document`
+    // and don't propagate wheel/scroll to the canvas. So if the user wants to
+    // drop on a row that's below the bottom edge, they have no way to scroll
+    // there. We poll on rAF while a field/entity drag is active, and nudge
+    // `containerRef.scrollTop` when the pointer hovers near the top/bottom edge.
+    useEffect(() => {
+        const isDragging =
+            (fieldDrag?.active === true) || (entityDrag?.active === true)
+        if (!isDragging) {
+            lastPointerRef.current = null
+            return
+        }
+
+        const EDGE = 48 // px from top/bottom that triggers autoscroll
+        const MAX_SPEED = 18 // px per frame at the very edge
+        let raf = 0
+        const tick = () => {
+            const c = containerRef.current
+            const p = lastPointerRef.current
+            if (c && p) {
+                const cb = c.getBoundingClientRect()
+                // Vertical autoscroll
+                let dy = 0
+                if (p.y < cb.top + EDGE) {
+                    const k = (cb.top + EDGE - p.y) / EDGE
+                    dy = -Math.min(MAX_SPEED, Math.ceil(MAX_SPEED * k))
+                } else if (p.y > cb.bottom - EDGE) {
+                    const k = (p.y - (cb.bottom - EDGE)) / EDGE
+                    dy = Math.min(MAX_SPEED, Math.ceil(MAX_SPEED * k))
+                }
+                // Horizontal autoscroll (mainly for narrow viewports)
+                let dx = 0
+                if (p.x < cb.left + EDGE) {
+                    const k = (cb.left + EDGE - p.x) / EDGE
+                    dx = -Math.min(MAX_SPEED, Math.ceil(MAX_SPEED * k))
+                } else if (p.x > cb.right - EDGE) {
+                    const k = (p.x - (cb.right - EDGE)) / EDGE
+                    dx = Math.min(MAX_SPEED, Math.ceil(MAX_SPEED * k))
+                }
+                if (dy !== 0 || dx !== 0) {
+                    c.scrollTop += dy
+                    c.scrollLeft += dx
+                    // Trigger the existing pointermove handlers so the hover
+                    // hit-test re-runs against the rows that just scrolled
+                    // under the (stationary) pointer. We pass the last known
+                    // viewport coords — neither x nor y actually changed.
+                    document.dispatchEvent(new PointerEvent('pointermove', {
+                        clientX: p.x,
+                        clientY: p.y,
+                        bubbles: true,
+                    }))
+                }
+            }
+            raf = requestAnimationFrame(tick)
+        }
+        raf = requestAnimationFrame(tick)
+        return () => cancelAnimationFrame(raf)
+    }, [fieldDrag?.active, entityDrag?.active])
+
     // ── Field drag: pointer event handlers ───────────────────────────────────
+    // Drag coords are stored in CONTENT SPACE (viewport delta + scrollTop/Left)
+    // so the ghost line stays anchored to the SVG overlay during scroll/autoscroll.
     const handleFieldPointerDown = useCallback(
         (
             provider: string,
@@ -561,15 +683,17 @@ export function HierarchicalMapper({
             const c = containerRef.current
             if (!c) return
             const cb = c.getBoundingClientRect()
+            const cx = e.clientX - cb.left + c.scrollLeft
+            const cy = e.clientY - cb.top + c.scrollTop
             setFieldDrag({
                 side: 'source',
                 provider,
                 entity,
                 fieldKey: fkey,
-                startX: e.clientX - cb.left,
-                startY: e.clientY - cb.top,
-                currentX: e.clientX - cb.left,
-                currentY: e.clientY - cb.top,
+                startX: cx,
+                startY: cy,
+                currentX: cx,
+                currentY: cy,
                 active: false,
                 hoveredField: null,
             })
@@ -583,8 +707,10 @@ export function HierarchicalMapper({
             const c = containerRef.current
             if (!c) return
             const cb = c.getBoundingClientRect()
-            const x = e.clientX - cb.left
-            const y = e.clientY - cb.top
+            // Remember viewport coords for the autoscroll rAF loop.
+            lastPointerRef.current = { x: e.clientX, y: e.clientY }
+            const x = e.clientX - cb.left + c.scrollLeft
+            const y = e.clientY - cb.top + c.scrollTop
             const dist = Math.hypot(x - fieldDrag.startX, y - fieldDrag.startY)
             const active = fieldDrag.active || dist > DRAG_THRESHOLD
 
@@ -701,13 +827,15 @@ export function HierarchicalMapper({
             const c = containerRef.current
             if (!c) return
             const cb = c.getBoundingClientRect()
+            const cx = e.clientX - cb.left + c.scrollLeft
+            const cy = e.clientY - cb.top + c.scrollTop
             setEntityDrag({
                 fromProvider: provider,
                 fromEntity: entity,
-                startX: e.clientX - cb.left,
-                startY: e.clientY - cb.top,
-                currentX: e.clientX - cb.left,
-                currentY: e.clientY - cb.top,
+                startX: cx,
+                startY: cy,
+                currentX: cx,
+                currentY: cy,
                 active: false,
                 hoveredEntity: null,
             })
@@ -721,8 +849,10 @@ export function HierarchicalMapper({
             const c = containerRef.current
             if (!c) return
             const cb = c.getBoundingClientRect()
-            const x = e.clientX - cb.left
-            const y = e.clientY - cb.top
+            // Remember viewport coords for the autoscroll rAF loop.
+            lastPointerRef.current = { x: e.clientX, y: e.clientY }
+            const x = e.clientX - cb.left + c.scrollLeft
+            const y = e.clientY - cb.top + c.scrollTop
             const dist = Math.hypot(x - entityDrag.startX, y - entityDrag.startY)
             const active = entityDrag.active || dist > DRAG_THRESHOLD
             let hovered: EntityDrag['hoveredEntity'] = null
@@ -1235,10 +1365,18 @@ export function HierarchicalMapper({
                     ))}
                 </div>
 
-                {/* SVG overlay */}
+                {/* SVG overlay.
+                    Sized to the full scrollable content (not just clientHeight)
+                    so connection lines drawn below the initial fold don't get
+                    clipped. The SVG sits absolutely inside the scroll container
+                    so it scrolls naturally with the field DOM rows. Paths are
+                    drawn in CONTENT space (see toContentCoords). */}
                 <svg
-                    className="absolute inset-0 pointer-events-none"
-                    style={{ width: '100%', height: '100%' }}
+                    className="absolute top-0 left-0 pointer-events-none"
+                    style={{
+                        width: Math.max(contentSize.w, 1),
+                        height: Math.max(contentSize.h, 1),
+                    }}
                 >
                     {lines.map(l =>
                         l.kind === 'field' ? (
@@ -1305,10 +1443,11 @@ export function HierarchicalMapper({
                             fieldKey('source', fieldDrag.provider, fieldDrag.entity, fieldDrag.fieldKey)
                         ]
                         if (!sNode) return null
-                        const sb = sNode.getBoundingClientRect()
-                        const x1 = sb.right - cb.left
-                        const y1 = sb.top + sb.height / 2 - cb.top
+                        const sb = toContentCoords(sNode.getBoundingClientRect(), c, cb)
+                        const x1 = sb.right
+                        const y1 = sb.top + sb.height / 2
 
+                        // fieldDrag.currentX/Y are stored in CONTENT space already.
                         let x2 = fieldDrag.currentX
                         let y2 = fieldDrag.currentY
                         if (fieldDrag.hoveredField) {
@@ -1321,9 +1460,9 @@ export function HierarchicalMapper({
                                 )
                             ]
                             if (dNode) {
-                                const db = dNode.getBoundingClientRect()
-                                x2 = db.left - cb.left
-                                y2 = db.top + db.height / 2 - cb.top
+                                const db = toContentCoords(dNode.getBoundingClientRect(), c, cb)
+                                x2 = db.left
+                                y2 = db.top + db.height / 2
                             }
                         }
                         const dx = Math.max(40, (x2 - x1) * 0.45)
@@ -1352,9 +1491,10 @@ export function HierarchicalMapper({
                             entKey('source', entityDrag.fromProvider, entityDrag.fromEntity)
                         ]
                         if (!sNode) return null
-                        const sb = sNode.getBoundingClientRect()
-                        const x1 = sb.right - cb.left
-                        const y1 = sb.top + sb.height / 2 - cb.top
+                        const sb = toContentCoords(sNode.getBoundingClientRect(), c, cb)
+                        const x1 = sb.right
+                        const y1 = sb.top + sb.height / 2
+                        // entityDrag.currentX/Y are stored in CONTENT space already.
                         let x2 = entityDrag.currentX
                         let y2 = entityDrag.currentY
                         if (entityDrag.hoveredEntity) {
@@ -1366,9 +1506,9 @@ export function HierarchicalMapper({
                                 )
                             ]
                             if (dNode) {
-                                const db = dNode.getBoundingClientRect()
-                                x2 = db.left - cb.left
-                                y2 = db.top + db.height / 2 - cb.top
+                                const db = toContentCoords(dNode.getBoundingClientRect(), c, cb)
+                                x2 = db.left
+                                y2 = db.top + db.height / 2
                             }
                         }
                         const dx = Math.max(40, (x2 - x1) * 0.45)
