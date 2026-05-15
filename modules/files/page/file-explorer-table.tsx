@@ -766,9 +766,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                 {(file.status === "UPLOADED" ||
                                                     file.status === "VALIDATED" ||
                                                     file.status === "DQ_FAILED" ||
-                                                    file.status === "FAILED" ||
-                                                    file.status === "UPLOAD_FAILED" ||
-                                                    file.status === "IMPORT_FAILED") && (
+                                                    file.status === "FAILED") && (
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <Button
