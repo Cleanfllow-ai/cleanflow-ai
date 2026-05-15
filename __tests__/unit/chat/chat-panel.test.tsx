@@ -84,15 +84,15 @@ describe('ChatButton — toggle', () => {
     render(<ChatButton />)
     fireEvent.click(screen.getByRole('button', { name: /open help chat/i }))
     await waitFor(() =>
-      expect(screen.getByText('CleanFlowAI Assistant')).toBeInTheDocument()
+      expect(screen.getByText('RightRev Assistant')).toBeInTheDocument()
     )
   })
 
   it('ChatDrawer hides content when isOpen=false', () => {
     const { rerender } = render(<ChatDrawer isOpen={true} onClose={() => {}} />)
-    expect(screen.getByText('CleanFlowAI Assistant')).toBeInTheDocument()
+    expect(screen.getByText('RightRev Assistant')).toBeInTheDocument()
     rerender(<ChatDrawer isOpen={false} onClose={() => {}} />)
-    expect(screen.queryByText('CleanFlowAI Assistant')).not.toBeInTheDocument()
+    expect(screen.queryByText('RightRev Assistant')).not.toBeInTheDocument()
   })
 })
 
@@ -202,7 +202,7 @@ describe('ChatDrawer — clear history', () => {
     await act(async () => { fireEvent.click(buttons[buttons.length - 1]) })
     await waitFor(() => screen.getByText('Hello'))
 
-    fireEvent.click(screen.getByTitle('Clear history'))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear chat history' }))
     await waitFor(() =>
       expect(screen.queryByText('Hello')).not.toBeInTheDocument()
     )
