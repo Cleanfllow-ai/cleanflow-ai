@@ -4,7 +4,11 @@
 const INVITES_ENABLED = false;
 
 import { useState } from "react";
-import { Loader2, MoreHorizontal, UserCog, UserMinus, UserPlus, X } from "lucide-react";
+import { Loader2, MoreHorizontal, Search, UserCog, UserMinus, UserPlus, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,6 +98,8 @@ export function OrgMembersTab({
     currentRole: string
     newRole: AppRole
   } | null>(null)
+  const [search, setSearch] = useState("")
+  const [roleFilter, setRoleFilter] = useState<string>("all")
 
   const handleRoleChangeRequest = (memberId: string, memberName: string, currentRole: string, newRole: AppRole) => {
     setPendingRoleChange({ memberId, memberName, currentRole, newRole })
@@ -141,6 +147,31 @@ export function OrgMembersTab({
             )}
           </CardHeader>
           <CardContent>
+            {/* Search + Role filter */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
+                <Input
+                  data-testid="members-search"
+                  placeholder="Search by name or email..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-8 text-sm"
+                />
+              </div>
+              <Select value={roleFilter} onValueChange={setRoleFilter} data-testid="role-filter-select">
+                <SelectTrigger className="w-[160px] h-8 text-sm" data-testid="role-filter-trigger">
+                  <SelectValue placeholder="All roles" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  <SelectItem value="Super Admin">Super Admin</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Data Steward">Data Steward</SelectItem>
+                  <SelectItem value="Member">Member</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -168,7 +199,18 @@ export function OrgMembersTab({
                   </TableRow>
                 )}
                 {!isLoadingOrg &&
-                  allMembers.map((person) => {
+                  allMembers
+                  .filter((person) => {
+                    const q = search.toLowerCase()
+                    const matchesSearch =
+                      !search ||
+                      person.displayName.toLowerCase().includes(q) ||
+                      person.displayEmail.toLowerCase().includes(q)
+                    const matchesRole =
+                      roleFilter === "all" || person.displayRole === roleFilter
+                    return matchesSearch && matchesRole
+                  })
+                  .map((person) => {
                     const isSelf = Boolean(
                       currentUserId && person.displayId === currentUserId,
                     );

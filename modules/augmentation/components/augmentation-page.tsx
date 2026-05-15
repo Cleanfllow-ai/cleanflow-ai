@@ -6,6 +6,9 @@ import { Download, Plus, RefreshCw, ShieldCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -51,6 +54,7 @@ export function AugmentationPage() {
     const [error, setError] = useState<string | null>(null)
     const [newOpen, setNewOpen] = useState(false)
     const [selected, setSelected] = useState<AugmentationJob | null>(null)
+    const [statusFilter, setStatusFilter] = useState<string>("all")
 
     const refresh = useCallback(async () => {
         if (!idToken) return
@@ -90,6 +94,20 @@ export function AugmentationPage() {
                 </TabsList>
                 <TabsContent value="jobs" className="mt-4">
                     {error && <p className="text-sm text-red-500 mb-2" role="alert">{error}</p>}
+                    <div className="mb-3">
+                        <Select value={statusFilter} onValueChange={setStatusFilter} data-testid="aug-status-filter-select">
+                            <SelectTrigger className="w-[160px] h-8 text-sm" data-testid="aug-status-filter-trigger">
+                                <SelectValue placeholder="All statuses" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All statuses</SelectItem>
+                                <SelectItem value="RUNNING">Running</SelectItem>
+                                <SelectItem value="SUCCEEDED">Completed</SelectItem>
+                                <SelectItem value="FAILED">Failed</SelectItem>
+                                <SelectItem value="PENDING">Pending</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -104,7 +122,9 @@ export function AugmentationPage() {
                                 <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">
                                     No augmentation jobs yet.</TableCell></TableRow>
                             )}
-                            {jobs.map((j) => (
+                            {jobs
+                            .filter((j) => statusFilter === "all" || j.status === statusFilter)
+                            .map((j) => (
                                 <TableRow key={j.job_id} data-testid={`aug-row-${j.job_id}`}
                                     onClick={() => setSelected(j)} className="cursor-pointer">
                                     <TableCell className="font-mono text-xs">

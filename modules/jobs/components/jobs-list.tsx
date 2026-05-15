@@ -20,6 +20,9 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
+import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog"
@@ -135,6 +138,7 @@ export function JobsList() {
     const [jobs, setJobs] = useState<Job[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const [statusFilter, setStatusFilter] = useState<string>("all")
 
     // Dialog state
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -200,13 +204,22 @@ export function JobsList() {
 
     const filteredJobs = jobs
         .filter(job => {
-            if (!searchQuery) return true
-            const q = searchQuery.toLowerCase()
-            return (
-                job.name.toLowerCase().includes(q) ||
-                (getProviderDisplayName(job.source_provider || "")).toLowerCase().includes(q) ||
-                (getProviderDisplayName(job.destination_provider || "")).toLowerCase().includes(q)
-            )
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase()
+                const matchesSearch =
+                    job.name.toLowerCase().includes(q) ||
+                    (getProviderDisplayName(job.source_provider || "")).toLowerCase().includes(q) ||
+                    (getProviderDisplayName(job.destination_provider || "")).toLowerCase().includes(q)
+                if (!matchesSearch) return false
+            }
+            if (statusFilter !== "all") {
+                // ACTIVE/PAUSED/FAILED map directly; "FAILED" also catches AUTO_PAUSED
+                if (statusFilter === "FAILED") {
+                    return job.status === "FAILED" || job.status === "AUTO_PAUSED"
+                }
+                return job.status === statusFilter
+            }
+            return true
         })
         .sort((a, b) => {
             const tA = a.created_at ? new Date(a.created_at).getTime() : 0
@@ -440,12 +453,16 @@ export function JobsList() {
                             </span>
                         </div>
                         {/* Active */}
-                        <div className="flex items-center gap-2 px-5 py-2.5 border-r border-border/30">
+                        <button
+                            data-testid="stats-active"
+                            className={cn(
+                                "flex items-center gap-2 px-5 py-2.5 border-r border-border/30 cursor-pointer hover:bg-muted/20 transition-colors",
+                                statusFilter === "ACTIVE" && "bg-emerald-500/5"
+                            )}
+                            onClick={() => setStatusFilter(statusFilter === "ACTIVE" ? "all" : "ACTIVE")}
+                        >
                             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                            <span
-                                className="text-[10px] text-muted-foreground uppercase tracking-widest"
-                                
-                            >
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
                                 Active
                             </span>
                             <span
@@ -454,14 +471,18 @@ export function JobsList() {
                             >
                                 {active}
                             </span>
-                        </div>
+                        </button>
                         {/* Paused */}
-                        <div className="flex items-center gap-2 px-5 py-2.5 border-r border-border/30">
+                        <button
+                            data-testid="stats-paused"
+                            className={cn(
+                                "flex items-center gap-2 px-5 py-2.5 border-r border-border/30 cursor-pointer hover:bg-muted/20 transition-colors",
+                                statusFilter === "PAUSED" && "bg-amber-500/5"
+                            )}
+                            onClick={() => setStatusFilter(statusFilter === "PAUSED" ? "all" : "PAUSED")}
+                        >
                             <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-                            <span
-                                className="text-[10px] text-muted-foreground uppercase tracking-widest"
-                                
-                            >
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
                                 Paused
                             </span>
                             <span
@@ -470,15 +491,19 @@ export function JobsList() {
                             >
                                 {paused}
                             </span>
-                        </div>
+                        </button>
                         {/* Failed */}
                         {failed > 0 && (
-                            <div className="flex items-center gap-2 px-5 py-2.5">
+                            <button
+                                data-testid="stats-failed"
+                                className={cn(
+                                    "flex items-center gap-2 px-5 py-2.5 cursor-pointer hover:bg-muted/20 transition-colors",
+                                    statusFilter === "FAILED" && "bg-red-500/5"
+                                )}
+                                onClick={() => setStatusFilter(statusFilter === "FAILED" ? "all" : "FAILED")}
+                            >
                                 <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-                                <span
-                                    className="text-[10px] text-muted-foreground uppercase tracking-widest"
-                                    
-                                >
+                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
                                     Failed
                                 </span>
                                 <span
@@ -487,22 +512,35 @@ export function JobsList() {
                                 >
                                     {failed}
                                 </span>
-                            </div>
+                            </button>
                         )}
                     </div>
                 )
             })()}
 
-            {/* Search */}
+            {/* Search + Status Filter */}
             <div className="px-6 py-3 border-b border-border/40 bg-background">
-                <div className="relative max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
-                    <Input
-                        placeholder="Search jobs..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 h-9 bg-muted/20 border-border/50 text-sm placeholder:text-muted-foreground/40 focus:border-primary/40 focus:bg-muted/30 transition-colors"
-                    />
+                <div className="flex items-center gap-2">
+                    <div className="relative max-w-sm flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
+                        <Input
+                            placeholder="Search jobs..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9 h-9 bg-muted/20 border-border/50 text-sm placeholder:text-muted-foreground/40 focus:border-primary/40 focus:bg-muted/30 transition-colors"
+                        />
+                    </div>
+                    <Select value={statusFilter} onValueChange={setStatusFilter} data-testid="status-filter-select">
+                        <SelectTrigger className="w-[140px] h-9 bg-muted/20 border-border/50 text-sm" data-testid="status-filter-trigger">
+                            <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="ACTIVE">Active</SelectItem>
+                            <SelectItem value="PAUSED">Paused</SelectItem>
+                            <SelectItem value="FAILED">Failed</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 

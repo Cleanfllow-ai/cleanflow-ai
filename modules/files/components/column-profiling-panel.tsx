@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   Table,
   TableBody,
@@ -11,12 +12,19 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  BarChart, 
-  Activity, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  BarChart,
+  Activity,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
   Database,
   BrainCircuit,
   Search
@@ -37,6 +45,8 @@ interface ColumnProfilingPanelProps {
 }
 
 export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilingPanelProps) {
+  const [typeFilter, setTypeFilter] = useState<string>("all")
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-12 space-y-4">
@@ -190,8 +200,35 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
     </>
   )
 
+  const typeOptions = Array.from(
+    new Set(Object.values(profiles).map((p) => p.type_guess).filter(Boolean))
+  ).sort()
+
+  const filteredColumns = columns.filter(
+    ([, p]) => typeFilter === "all" || p.type_guess === typeFilter
+  )
+
   const detailsTable = (
-    <div className="w-full rounded-md border overflow-x-auto">
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Select value={typeFilter} onValueChange={setTypeFilter} data-testid="type-filter-select">
+          <SelectTrigger className="w-[180px] h-8 text-sm" data-testid="type-filter-trigger">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {typeOptions.map((t) => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {typeFilter !== "all" && (
+          <span className="text-xs text-muted-foreground">
+            {filteredColumns.length} of {columns.length} columns
+          </span>
+        )}
+      </div>
+      <div className="w-full rounded-md border overflow-x-auto">
       <div className="min-w-[960px] max-h-[60vh] overflow-y-auto">
         <Table>
           <TableHeader>
@@ -209,7 +246,7 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
             </TableRow>
           </TableHeader>
           <TableBody>
-            {columns.map(([name, profile]) => {
+            {filteredColumns.map(([name, profile]) => {
               const autoCount = profile.rules.filter(r => r.decision === 'auto').length
               const humanCount = profile.rules.filter(r => r.decision === 'human').length
               return (
@@ -307,6 +344,7 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
             )})}
           </TableBody>
         </Table>
+      </div>
       </div>
     </div>
   )
