@@ -30,7 +30,7 @@ interface QuarantineAgGridTableProps {
   getCellValue: (rowId: string, column: string, row: Record<string, any>) => any
   isCellEdited: (rowId: string, column: string) => boolean
   isCellSaved: (rowId: string, column: string) => boolean
-  onCellEdit: (rowId: string, column: string, value: string) => void
+  onCellEdit: (rowId: string, column: string, value: string, oldValue?: string) => void
   loading: boolean
   uploadId: string
   reloadToken: number
@@ -459,10 +459,17 @@ export function QuarantineAgGridTable({
     }
 
     const nextValue = formatCellValue(event.newValue)
+    // ── Undo fix (2026-05-15) ──────────────────────────────────────────
+    // AG-Grid's CellValueChangedEvent carries the pre-edit oldValue. We
+    // forward it to the editor so the per-cell undo history can revert
+    // to the ORIGINAL value instead of writing '' (the previous code
+    // looked up the old value in editsMap, which was empty for first-time
+    // edits, falling through to `?? ''` and blanking the cell on Undo).
+    const oldValue = formatCellValue(event.oldValue)
     if (event.data) {
       event.data[field] = nextValue
     }
-    onCellEditRef.current(rowId, field, nextValue)
+    onCellEditRef.current(rowId, field, nextValue, oldValue)
   }, [])
 
   return (

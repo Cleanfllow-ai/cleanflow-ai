@@ -396,11 +396,21 @@ export default function QuarantineEditorPage({ params }: PageProps) {
   // an infinite setState loop via setVersion inside clear(); React error #185).
   useEffect(() => { history.clear() }, [uploadId, history.clear]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCellEditWithBroadcast = useCallback((rowId: string, column: string, value: string) => {
-    const oldValue = editor.getCellValue(rowId, column, {} as Record<string, any>)
+  const handleCellEditWithBroadcast = useCallback((rowId: string, column: string, value: string, oldValue?: string) => {
+    // ── Undo bug fix (2026-05-15) ──────────────────────────────────────
+    // The previous implementation tried `editor.getCellValue(rowId, column, {})`
+    // to recover the pre-edit value, but passed an EMPTY row object — so the
+    // lookup fell through `editsMap → savedEditsMap → originalRow[column] ?? ''`
+    // and always returned ''. Undo then wrote '' back, blanking the cell.
+    // AG-Grid now forwards `event.oldValue` through `onCellEdit`, so we have
+    // the real pre-edit value to push onto the undo stack.
+    const previous =
+      oldValue !== undefined
+        ? oldValue
+        : editor.getCellValue(rowId, column, {} as Record<string, any>)
     editor.handleCellEdit(rowId, column, value)
     collab.broadcastCellUpdate(column, rowId, value)
-    history.push({ file_id: uploadId, row_id: rowId, column, old_value: oldValue, new_value: value })
+    history.push({ file_id: uploadId, row_id: rowId, column, old_value: previous, new_value: value })
     setUndoToast({ open: true, column })
   }, [editor.handleCellEdit, editor.getCellValue, collab.broadcastCellUpdate, history, uploadId])  // eslint-disable-line react-hooks/exhaustive-deps
 
