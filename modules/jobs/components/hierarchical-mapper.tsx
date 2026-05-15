@@ -473,6 +473,8 @@ export function HierarchicalMapper({
                     const x2 = db.left - cb.left
                     const y2 = db.top + db.height / 2 - cb.top
                     const dx = Math.max(40, (x2 - x1) * 0.45)
+                    if (y1 > maxLineY) maxLineY = y1
+                    if (y2 > maxLineY) maxLineY = y2
                     next.push({
                         kind: 'field',
                         key: `f:${step.step_id}:${srcKey}->${dstKey}`,
@@ -514,6 +516,8 @@ export function HierarchicalMapper({
                 const x2 = db.left - cb.left
                 const y2 = db.top + db.height / 2 - cb.top
                 const dx = Math.max(40, (x2 - x1) * 0.45)
+                if (y1 > maxLineY) maxLineY = y1
+                if (y2 > maxLineY) maxLineY = y2
                 next.push({
                     kind: 'entity',
                     key: `e:${step.step_id}`,
@@ -522,6 +526,18 @@ export function HierarchicalMapper({
             }
         }
 
+        // Commit contentSize AFTER we know how far down the lines extend.
+        // The SVG must at minimum cover the deepest line endpoint; falling
+        // back to scrollHeight when no lines were drawn or when the DOM
+        // content extends further than the lines.
+        setContentSize(prev => {
+            const w = measuredW
+            // 8px breathing room so antialiased stroke tails don't sit on
+            // the SVG's bottom edge.
+            const h = Math.max(measuredH, Math.ceil(maxLineY) + 8)
+            if (prev.w === w && prev.h === h) return prev
+            return { w, h }
+        })
         setLines(next)
     }, [pipelineSteps, mappingsByPair, expandedSystems, expandedEntities])
 
@@ -1235,9 +1251,16 @@ export function HierarchicalMapper({
                     ))}
                 </div>
 
-                {/* SVG overlay */}
+                {/* SVG overlay.
+                    `overflow="visible"` defends against the rendered cubic
+                    beziers being clipped when an endpoint computes outside
+                    the SVG's width/height box (e.g. after async field loads
+                    extend the scroll content past the initial measurement).
+                    Without it, mid-line stubs can show up as broken-link
+                    artifacts in the gap between source and dest. */}
                 <svg
                     className="absolute inset-0 pointer-events-none"
+                    overflow="visible"
                     style={{ width: '100%', height: '100%' }}
                 >
                     {lines.map(l =>
