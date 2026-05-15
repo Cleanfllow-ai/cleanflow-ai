@@ -3,6 +3,7 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Building2, Briefcase, Eye, EyeOff, Lock, Mail, User, Phone, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
+import { validatePassword, PASSWORD_POLICY } from "@/shared/config/password-policy";
 
 import { Button } from "@/components/ui/button";
 import { EmailVerification } from "./email-verification";
@@ -51,13 +52,23 @@ export function SignUpForm() {
       setError("Passwords do not match.");
       return false;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    const { isValid, errors } = validatePassword(password);
+    if (!isValid) {
+      setError(`Password requirements not met: ${errors.join(", ")}.`);
       return false;
     }
     setError("");
     return true;
   };
+
+  // Derived step-1 validity — drives the Continue button disabled state
+  const isStep1Valid =
+    !!fullName &&
+    !!email &&
+    !!password &&
+    !!confirmPassword &&
+    password === confirmPassword &&
+    validatePassword(password).isValid;
 
   const nextStep = () => {
     if (validateStep1()) {
@@ -237,28 +248,20 @@ export function SignUpForm() {
     setSuccess("");
   };
 
-  const getPasswordStrength = (password: string) => {
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[a-z]/.test(password)) strength++;
-    if (/[0-9]/.test(password)) strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
-    return strength;
-  };
+  // Strength helpers — built on validatePassword so meter matches Cognito policy exactly.
+  // strengthLevel 4 = all 4 active requirements met = isValid = Strong (green).
+  const getPasswordStrength = (pw: string) => validatePassword(pw).strengthLevel;
 
   const getPasswordStrengthLabel = (strength: number) => {
     switch (strength) {
       case 0:
       case 1:
-        return "Very Weak";
-      case 2:
         return "Weak";
-      case 3:
+      case 2:
         return "Fair";
-      case 4:
+      case 3:
         return "Good";
-      case 5:
+      case 4:
         return "Strong";
       default:
         return "";
@@ -275,9 +278,7 @@ export function SignUpForm() {
       case 3:
         return "bg-yellow-500";
       case 4:
-        return "bg-blue-500";
-      case 5:
-        return "bg-emerald-500";
+        return "bg-emerald-500"; // Only when isValid=true
       default:
         return "bg-muted";
     }
@@ -374,7 +375,7 @@ export function SignUpForm() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Min. 8 characters"
+                  placeholder={`Min. ${PASSWORD_POLICY.minLength} characters`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -389,21 +390,36 @@ export function SignUpForm() {
                 </button>
               </div>
               {password && (
-                <div className="flex items-center gap-2 pt-1">
-                  <div className="flex-1 flex gap-1">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div
-                        key={i}
-                        className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                          i <= getPasswordStrength(password) ? getPasswordStrengthColor(getPasswordStrength(password)) : "bg-muted"
-                        }`}
-                      />
-                    ))}
+                <>
+                  <div className="flex items-center gap-2 pt-1">
+                    <div className="flex-1 flex gap-1">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                            i <= getPasswordStrength(password)
+                              ? getPasswordStrengthColor(getPasswordStrength(password))
+                              : "bg-muted"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider min-w-[50px] text-right">
+                      {getPasswordStrengthLabel(getPasswordStrength(password))}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider min-w-[60px] text-right">
-                    {getPasswordStrengthLabel(getPasswordStrength(password))}
-                  </span>
-                </div>
+                  {/* Inline requirement hints — only show unmet requirements */}
+                  {validatePassword(password).errors.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {validatePassword(password).errors.map((err) => (
+                        <li key={err} className="text-[11px] text-destructive flex items-center gap-1">
+                          <span className="inline-block w-1 h-1 rounded-full bg-destructive flex-shrink-0" />
+                          {err}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </div>
 
@@ -521,7 +537,7 @@ export function SignUpForm() {
           <Button
             type="submit"
             className="flex-1 h-11 font-medium transition-all"
-            disabled={isLoading}
+            disabled={isLoading || (step === 1 && !isStep1Valid)}
           >
             {isLoading
               ? "Processing..."
