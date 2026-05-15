@@ -38,15 +38,15 @@ export function LoginForm() {
           </div>
         </div>
         <h1 className="text-4xl font-semibold tracking-tight text-white">Sign in</h1>
-        <p className="text-sm text-green-200 mt-1">Enter your credentials to continue</p>
+        <p className="text-sm text-white/60 mt-1">Enter your credentials to continue</p>
       </div>
 
       <form onSubmit={f.handleSubmit} className="space-y-5">
         {/* Email */}
         <div className="space-y-1.5">
-          <Label htmlFor="email" className="text-xs font-medium text-green-200 uppercase tracking-wider">Email</Label>
+          <Label htmlFor="email" className="text-xs font-medium text-white/60 uppercase tracking-wider">Email</Label>
           <div className="relative">
-            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-green-200/70 h-4 w-4" />
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
             <Input
               id="email"
               type="email"
@@ -54,7 +54,7 @@ export function LoginForm() {
               value={f.email}
               onChange={(e) => f.setEmail(e.target.value)}
               required
-              className="pl-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-green-200/60 focus:bg-[#082a18] focus:border-[#63d38d] transition-colors"
+              className="pl-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors"
             />
           </div>
         </div>
@@ -62,13 +62,13 @@ export function LoginForm() {
         {/* Password */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="password" className="text-xs font-medium text-green-200 uppercase tracking-wider">Password</Label>
-            <Link href="/auth/forgot-password" className="text-xs text-[#7fea95] hover:text-[#9ef5b0] transition-colors">
+            <Label htmlFor="password" className="text-xs font-medium text-white/60 uppercase tracking-wider">Password</Label>
+            <Link href="/auth/forgot-password" className="text-xs text-[#69C04B] hover:text-white transition-colors">
               Forgot password?
             </Link>
           </div>
           <div className="relative">
-            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-green-200/70 h-4 w-4" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
             <Input
               id="password"
               type={f.showPassword ? "text" : "password"}
@@ -76,11 +76,11 @@ export function LoginForm() {
               value={f.password}
               onChange={(e) => f.setPassword(e.target.value)}
               required
-              className="pl-10 pr-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-green-200/60 focus:bg-[#082a18] focus:border-[#63d38d] transition-colors"
+              className="pl-10 pr-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors"
             />
             <button
               type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-green-200/70 hover:text-white transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
               onClick={() => f.setShowPassword(!f.showPassword)}
             >
               {f.showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -90,8 +90,8 @@ export function LoginForm() {
 
         {/* Remember me */}
         <div className="flex items-center space-x-2">
-          <input id="remember" type="checkbox" className="h-3.5 w-3.5 rounded border-green-500 text-[#7fea95] focus:ring-[#7fea95]" />
-          <Label htmlFor="remember" className="text-sm text-green-200 cursor-pointer">Remember me</Label>
+          <input id="remember" type="checkbox" className="h-3.5 w-3.5 rounded border-green-500 text-[#69C04B] focus:ring-[#7fea95]" />
+          <Label htmlFor="remember" className="text-sm text-white/60 cursor-pointer">Remember me</Label>
         </div>
 
         {/* Alerts */}
@@ -135,9 +135,9 @@ export function LoginForm() {
       </form>
 
       {/* Sign up link */}
-      <p className="text-center text-sm text-green-200 mt-8">
+      <p className="text-center text-sm text-white/60 mt-8">
         Don&apos;t have an account?{" "}
-        <Link href={`/auth/signup${f.searchParamsString ? `?${f.searchParamsString}` : ''}`} className="text-[#7fea95] hover:text-[#9ef5b0] font-medium transition-colors">
+        <Link href={`/auth/signup${f.searchParamsString ? `?${f.searchParamsString}` : ''}`} className="text-[#69C04B] hover:text-white font-medium transition-colors">
           Create account
         </Link>
       </p>
@@ -146,11 +146,11 @@ export function LoginForm() {
       <Dialog open={f.showNewPasswordModal} onOpenChange={f.handleCloseNewPasswordModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="relative">
-            <button onClick={f.handleCloseNewPasswordModal} className="absolute right-0 top-0 opacity-70 ring-offset-transparent transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#7fea95]/40 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-[#1a4931] data-[state=open]:text-green-200">
+            <button onClick={f.handleCloseNewPasswordModal} className="absolute right-0 top-0 opacity-70 ring-offset-transparent transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#7fea95]/40 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-[#1a4931] data-[state=open]:text-white/60">
               <Check className="h-4 w-4 sr-only" />
             </button>
             <div className="flex items-center justify-center mb-4">
-              <div className="rounded-full bg-[#1f5c39]/20 p-3"><Lock className="w-6 h-6 text-[#7fea95]" /></div>
+              <div className="rounded-full bg-[#1f5c39]/20 p-3"><Lock className="w-6 h-6 text-[#69C04B]" /></div>
             </div>
             <DialogTitle className="text-center text-xl">Set Your Password</DialogTitle>
             <DialogDescription className="text-center">
@@ -160,12 +160,12 @@ export function LoginForm() {
 
           <div className="space-y-4 mt-4">
             <div className="space-y-1.5">
-              <Label htmlFor="new-password" className="text-xs font-medium text-green-200 uppercase tracking-wider">New Password</Label>
-              <Input id="new-password" type="password" placeholder="Enter new password" value={f.newPassword} onChange={(e) => f.setNewPassword(e.target.value)} autoFocus disabled={f.isSettingPassword} className="h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-green-200/60 focus:border-[#63d38d]" />
+              <Label htmlFor="new-password" className="text-xs font-medium text-white/60 uppercase tracking-wider">New Password</Label>
+              <Input id="new-password" type="password" placeholder="Enter new password" value={f.newPassword} onChange={(e) => f.setNewPassword(e.target.value)} autoFocus disabled={f.isSettingPassword} className="h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:border-[#69C04B]" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="confirm-new-password" className="text-xs font-medium text-green-200 uppercase tracking-wider">Confirm Password</Label>
-              <Input id="confirm-new-password" type="password" placeholder="Confirm new password" value={f.confirmNewPassword} onChange={(e) => f.setConfirmNewPassword(e.target.value)} disabled={f.isSettingPassword} className="h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-green-200/60 focus:border-[#63d38d]" />
+              <Label htmlFor="confirm-new-password" className="text-xs font-medium text-white/60 uppercase tracking-wider">Confirm Password</Label>
+              <Input id="confirm-new-password" type="password" placeholder="Confirm new password" value={f.confirmNewPassword} onChange={(e) => f.setConfirmNewPassword(e.target.value)} disabled={f.isSettingPassword} className="h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:border-[#69C04B]" />
             </div>
             {f.error && (
               <Alert variant="destructive"><AlertDescription>{f.error}</AlertDescription></Alert>
@@ -177,7 +177,7 @@ export function LoginForm() {
                 "Set Password & Continue"
               )}
             </Button>
-            <Button variant="ghost" onClick={f.handleCloseNewPasswordModal} className="w-full text-green-200 hover:text-white" disabled={f.isSettingPassword}>Cancel</Button>
+            <Button variant="ghost" onClick={f.handleCloseNewPasswordModal} className="w-full text-white/60 hover:text-white" disabled={f.isSettingPassword}>Cancel</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -187,10 +187,10 @@ export function LoginForm() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-center mb-4">
-              <div className="rounded-full bg-[#1f5c39]/20 p-3"><Shield className="w-6 h-6 text-[#7fea95]" /></div>
+              <div className="rounded-full bg-[#1f5c39]/20 p-3"><Shield className="w-6 h-6 text-[#69C04B]" /></div>
             </div>
             <DialogTitle className="text-center text-xl">Two-Factor Authentication</DialogTitle>
-            <DialogDescription className="text-center leading-relaxed text-green-200">
+            <DialogDescription className="text-center leading-relaxed text-white/60">
               Enter the 6-digit code from your authenticator app
               <br />
               <span className="font-medium text-green-100 break-all">{f.maskEmail(f.email)}</span>
@@ -199,7 +199,7 @@ export function LoginForm() {
 
           <div className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="mfa-code" className="text-xs font-medium text-green-200 uppercase tracking-wider">Verification Code</Label>
+              <Label htmlFor="mfa-code" className="text-xs font-medium text-white/60 uppercase tracking-wider">Verification Code</Label>
               <Input
                 id="mfa-code" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6} placeholder="000000"
                 value={f.mfaCode}
@@ -222,7 +222,7 @@ export function LoginForm() {
                 "Verify Code"
               )}
             </Button>
-            <p className="text-center text-xs text-green-200 leading-relaxed">
+            <p className="text-center text-xs text-white/60 leading-relaxed">
               Open your authenticator app (Google Authenticator, Authy, etc.) to get the code
             </p>
           </div>
@@ -234,7 +234,7 @@ export function LoginForm() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-center mb-4">
-              <div className="rounded-full bg-[#1f5c39]/20 p-3"><Smartphone className="w-6 h-6 text-[#7fea95]" /></div>
+              <div className="rounded-full bg-[#1f5c39]/20 p-3"><Smartphone className="w-6 h-6 text-[#69C04B]" /></div>
             </div>
             <DialogTitle className="text-center text-xl">Set Up Two-Factor Authentication</DialogTitle>
             <DialogDescription className="text-center">Scan the QR code with your authenticator app to enable 2FA</DialogDescription>
@@ -248,8 +248,8 @@ export function LoginForm() {
                     <img src={f.qrCodeDataUrl} alt="MFA QR Code" className="w-48 h-48" />
                   ) : (
                     <div className="w-48 h-48 flex items-center justify-center bg-[#0c3020] rounded">
-                      <div className="text-center text-sm text-green-200">
-                        <Smartphone className="w-10 h-10 mx-auto mb-2 text-green-200/70" />
+                      <div className="text-center text-sm text-white/60">
+                        <Smartphone className="w-10 h-10 mx-auto mb-2 text-white/50" />
                         <p>Scan QR code in your</p>
                         <p>authenticator app</p>
                       </div>
@@ -259,10 +259,10 @@ export function LoginForm() {
 
                 {f.secretCode && f.secretCode !== 'Please complete setup to get your secret code' && (
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-green-200">Can't scan? Enter this code manually:</Label>
+                    <Label className="text-xs text-white/60">Can't scan? Enter this code manually:</Label>
                     <div className="flex items-center gap-2">
                       <code className="flex-1 p-2.5 bg-[#0c3020] rounded text-xs font-mono text-green-100 break-all">{f.secretCode}</code>
-                      <Button variant="outline" size="icon" onClick={f.handleCopySecret} className="shrink-0 h-9 w-9 text-green-200 border-green-600 hover:bg-[#143d28]">
+                      <Button variant="outline" size="icon" onClick={f.handleCopySecret} className="shrink-0 h-9 w-9 text-white/60 border-green-600 hover:bg-[#143d28]">
                         {f.copiedSecret ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
                       </Button>
                     </div>
@@ -276,7 +276,7 @@ export function LoginForm() {
             {f.mfaSetupStep === 'verify' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="setup-mfa-code" className="text-xs font-medium text-green-200 uppercase tracking-wider">Enter 6-digit code</Label>
+                  <Label htmlFor="setup-mfa-code" className="text-xs font-medium text-white/60 uppercase tracking-wider">Enter 6-digit code</Label>
                   <Input
                     id="setup-mfa-code" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6} placeholder="000000"
                     value={f.setupMfaCode}
@@ -293,7 +293,7 @@ export function LoginForm() {
                 )}
 
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => f.setMfaSetupStep('qr')} className="flex-1 h-11 border-green-600 text-green-200 hover:bg-[#143d28]" disabled={f.isVerifyingMfa || f.isVerifying}>Back</Button>
+                  <Button variant="outline" onClick={() => f.setMfaSetupStep('qr')} className="flex-1 h-11 border-green-600 text-white/60 hover:bg-[#143d28]" disabled={f.isVerifyingMfa || f.isVerifying}>Back</Button>
                   <Button onClick={f.handleVerifySetupMfa} className="flex-1 h-11 bg-[#69C04B] hover:bg-[#5db040] text-[#164234] font-semibold" disabled={f.setupMfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
                     {f.isVerifyingMfa ? (
                       <span className="flex items-center gap-2"><LoadingSpinner size="sm" />Verifying...</span>
@@ -307,7 +307,7 @@ export function LoginForm() {
               </>
             )}
 
-            <p className="text-center text-xs text-green-200">Supported: Google Authenticator, Authy, Microsoft Authenticator</p>
+            <p className="text-center text-xs text-white/60">Supported: Google Authenticator, Authy, Microsoft Authenticator</p>
           </div>
         </DialogContent>
       </Dialog>
