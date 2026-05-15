@@ -271,26 +271,9 @@ export function ColumnMappingEditor({
                                     {srcField.required && (
                                         <span className="text-red-500">*</span>
                                     )}
-                                    {tier && (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <span
-                                                    className={cn(
-                                                        'inline-flex items-center justify-center rounded-full border px-1.5 py-0 text-[9px] font-semibold leading-none h-4 cursor-help',
-                                                        CONFIDENCE_CLASSES[tier],
-                                                    )}
-                                                >
-                                                    {Math.round(conf!)}
-                                                </span>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <span className="text-[11px]">
-                                                    Confidence {Math.round(conf!)}%
-                                                    {method ? ` · ${method}` : ''}
-                                                </span>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
+                                    {/* Confidence-score badge intentionally hidden — was visually
+                                        cluttered and the score is also exposed via the row's bg-color tier.
+                                        Restore by un-commenting if a sales/QA build needs the explicit number. */}
                                 </div>
                                 {samples.length > 0 && (
                                     <div className="text-[10px] text-muted-foreground/80 mt-0.5 truncate font-mono">
@@ -349,11 +332,10 @@ export function ColumnMappingEditor({
             )}
 
             {/* Footer */}
-            <div className="flex justify-end pt-2 border-t">
-                <Button size="sm" onClick={onClose}>
-                    Done
-                </Button>
-            </div>
+            {/* Done button removed — onClose is a no-op in the inline (MappingPanel)
+                usage and the wizard footer's "Create Job" is the real submit action.
+                If a future caller uses this component in a Dialog, render its own
+                close affordance externally. */}
         </div>
     )
 }
