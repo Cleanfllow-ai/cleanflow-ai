@@ -4,9 +4,9 @@ import type { Metadata } from "next";
 const LAST_UPDATED = "2026-05-03";
 
 export const metadata: Metadata = {
-  title: "Privacy Notice — CleanFlowAI",
+  title: "Privacy Notice — RightRev",
   description:
-    "How CleanFlowAI processes personal data, your rights under GDPR + DPDPA, sub-processors, retention, and how to contact our DPO.",
+    "How RightRev processes personal data, your rights under GDPR + DPDPA, sub-processors, retention, and how to contact our DPO.",
 };
 
 export default function PrivacyNoticePage() {
@@ -25,7 +25,7 @@ export default function PrivacyNoticePage() {
 
       <article className="space-y-6 prose prose-sm dark:prose-invert">
         <p>
-          CleanFlowAI (&quot;we&quot;) provides a data quality platform that
+          RightRev (&quot;we&quot;) provides a data quality platform that
           ingests, validates, and exports business data on behalf of our
           customers. This notice describes what personal data we process,
           why, and your rights under the General Data Protection

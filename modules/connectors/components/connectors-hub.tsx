@@ -368,9 +368,9 @@ export function ConnectorsHub() {
               Disconnect from {pendingDisconnect?.displayName}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              CleanFlow AI will stop using this {pendingDisconnect?.displayName} connection.
+              RightRev will stop using this {pendingDisconnect?.displayName} connection.
               Any in-progress imports or exports for this connector will stop, and you can
-              reconnect at any time. To fully revoke CleanFlow AI's access at the provider,
+              reconnect at any time. To fully revoke RightRev's access at the provider,
               also remove the app from your {pendingDisconnect?.displayName} account.
             </AlertDialogDescription>
           </AlertDialogHeader>

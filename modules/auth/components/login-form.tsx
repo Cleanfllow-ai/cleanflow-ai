@@ -34,7 +34,7 @@ export function LoginForm() {
         {/* Mobile-only logo */}
         <div className="flex justify-center mb-6 lg:hidden">
           <div className="relative w-10 h-10">
-            <Image src="/images/infiniqon-logo-light.png" alt="CleanFlowAI" width={40} height={40} className="object-contain" />
+            <Image src="/images/rightrev-logo.png" alt="RightRev" width={40} height={40} className="object-contain" />
           </div>
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sign in</h1>

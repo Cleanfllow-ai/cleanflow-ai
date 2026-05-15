@@ -6,7 +6,7 @@
 // run-specific numbers) belongs in the page-context block, NOT here.
 
 export const STATIC_PRODUCT_CONTEXT = `
-CleanFlowAI is a data quality + ERP sync platform. Core surfaces:
+RightRev is a data quality + ERP sync platform. Core surfaces:
 
 1. Data Catalog (/files)
    - Upload CSV / Excel / JSON / TXT or import from a connector.

@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 const LAST_UPDATED = "2026-05-03";
 
 export const metadata: Metadata = {
-  title: "Sub-processors — CleanFlowAI",
+  title: "Sub-processors — RightRev",
   description:
-    "Third-party services CleanFlowAI engages to deliver the platform, the data each accesses, region, and DPA status.",
+    "Third-party services RightRev engages to deliver the platform, the data each accesses, region, and DPA status.",
 };
 
 interface Subprocessor {

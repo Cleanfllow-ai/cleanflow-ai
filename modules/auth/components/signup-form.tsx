@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Building2, Briefcase, Eye, EyeOff, FileText, Lock, Mail, User, Phone, MapPin } from "lucide-react";
+import { Building2, Briefcase, Eye, EyeOff, Lock, Mail, User, Phone, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,6 @@ export function SignUpForm() {
   const [orgPhone, setOrgPhone] = useState("");
   const [orgAddress, setOrgAddress] = useState("");
   const [industry, setIndustry] = useState("");
-  const [gst, setGst] = useState("");
-  const [pan, setPan] = useState("");
   const [contactPerson, setContactPerson] = useState("");
 
   useEffect(() => {
@@ -100,8 +98,6 @@ export function SignUpForm() {
           phone: orgPhone,
           address: orgAddress,
           industry,
-          gst,
-          pan,
           contact_person: contactPerson || fullName,
         };
         sessionStorage.setItem("pending_org_details", JSON.stringify(orgDetails));
@@ -169,8 +165,6 @@ export function SignUpForm() {
                 phone: pendingOrg.phone,
                 address: pendingOrg.address,
                 industry: pendingOrg.industry,
-                gst: pendingOrg.gst,
-                pan: pendingOrg.pan,
                 contact_person: pendingOrg.contact_person,
                 subscriptionPlan: "standard",
               });
@@ -308,7 +302,7 @@ export function SignUpForm() {
         {/* Mobile-only logo */}
         <div className="flex justify-center mb-6 lg:hidden">
           <div className="relative w-10 h-10">
-            <Image src="/images/infiniqon-logo-light.png" alt="CleanFlowAI" width={40} height={40} className="object-contain" />
+            <Image src="/images/rightrev-logo.png" alt="RightRev" width={40} height={40} className="object-contain" />
           </div>
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
@@ -484,23 +478,6 @@ export function SignUpForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="gst" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">GST Number</Label>
-                <div className="relative">
-                  <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
-                  <Input id="gst" placeholder="GSTIN" value={gst} onChange={(e) => setGst(e.target.value)} className="pl-10 h-11 uppercase bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="pan" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">PAN Number</Label>
-                <div className="relative">
-                  <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
-                  <Input id="pan" placeholder="ABCDE1234F" value={pan} onChange={(e) => setPan(e.target.value)} className="pl-10 h-11 uppercase bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
-                </div>
-              </div>
-            </div>
           </>
         )}
 

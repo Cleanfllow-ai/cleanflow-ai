@@ -1,0 +1,28 @@
+<svg width="120" height="72" viewBox="0 0 120 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Clip to viewport -->
+    <clipPath id="vp">
+      <rect width="120" height="72"/>
+    </clipPath>
+    <!-- Left circle boundary used to clip the intersection -->
+    <clipPath id="lc">
+      <circle cx="27" cy="24" r="43"/>
+    </clipPath>
+    <!-- Gradient: light lime at top, richer green at bottom -->
+    <linearGradient id="petGrad" x1="60" y1="0" x2="60" y2="70" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#9ED85F"/>
+      <stop offset="100%" stop-color="#5aab34"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left circle (lime green) -->
+  <circle cx="27" cy="24" r="43" fill="url(#petGrad)" clip-path="url(#vp)"/>
+
+  <!-- Right circle (lime green) -->
+  <circle cx="93" cy="24" r="43" fill="url(#petGrad)" clip-path="url(#vp)"/>
+
+  <!-- Intersection = dark forest arch: right circle clipped to left circle area -->
+  <g clip-path="url(#lc)">
+    <circle cx="93" cy="24" r="43" fill="#1d5130" clip-path="url(#vp)"/>
+  </g>
+</svg>
