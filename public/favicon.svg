@@ -1,0 +1,16 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" rx="10" fill="#0d2318"/>
+  <defs>
+    <clipPath id="larch">
+      <path d="M32,54 C30,50 10,47 8,32 C6,18 16,6 28,6 C34,6 40,10 40,18 C40,32 36,46 32,54Z"/>
+    </clipPath>
+  </defs>
+  <!-- Left arch petal -->
+  <path d="M32,54 C30,50 10,47 8,32 C6,18 16,6 28,6 C34,6 40,10 40,18 C40,32 36,46 32,54Z" fill="#69C04B"/>
+  <!-- Right arch petal (mirror) -->
+  <path d="M32,54 C34,50 54,47 56,32 C58,18 48,6 36,6 C30,6 24,10 24,18 C24,32 28,46 32,54Z" fill="#69C04B"/>
+  <!-- Dark intersection: right petal clipped to left petal boundary -->
+  <g clip-path="url(#larch)">
+    <path d="M32,54 C34,50 54,47 56,32 C58,18 48,6 36,6 C30,6 24,10 24,18 C24,32 28,46 32,54Z" fill="#164234"/>
+  </g>
+</svg>

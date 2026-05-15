@@ -2,102 +2,107 @@
 @import "../modules/files/components/quarantine-editor/quarantine-ag-grid-theme.css";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CleanFlowAI Design System
-   Brand: Deep blue (#2a4477) + Teal (#0cbeb6) + Cyan (#00dfc2)
-   Approach: Clean, accessible, data-focused — for business users
+   RightRev Design System
+   Brand: Forest (#164234) + Green (#69C04B) + Mint (#F1FFEE)
+   Approach: Clean, professional, data-focused — for business users
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ─── Light Theme (default) ────────────────────────────────────────────────── */
+/* "Light" = medium forest green — still brand-green, just noticeably brighter  */
+/* than dark mode. All text-white in components remains readable (5:1+ contrast) */
 :root {
-  --background: oklch(0.985 0 0);      /* soft off-white */
-  --foreground: oklch(0.22 0 0);       /* high-contrast text */
+  --background: #164234;               /* RightRev forest green — exact brand color */
+  --foreground: oklch(0.96 0 0);       /* near-white text — readable on forest bg */
 
-  --card: oklch(0.98 0 0);
-  --card-foreground: var(--foreground);
-  --popover: oklch(0.98 0 0);
-  --popover-foreground: var(--foreground);
+  --card: oklch(1 0 0);                /* white cards for shadcn components (auth dialogs etc.) */
+  --card-foreground: #164234;          /* forest text on white card */
+  --popover: oklch(1 0 0);
+  --popover-foreground: #164234;
 
-  /* Brand colors */
-  --primary: #2a4477;                  /* deep blue — trust, authority */
-  --primary-foreground: oklch(0.97 0 0);
-  --accent: #0cbeb6;                   /* teal — data quality health */
-  --accent-foreground: oklch(0.1 0 0);
-  --secondary: #00dfc2;                /* cyan — highlights */
-  --secondary-foreground: oklch(0.1 0 0);
+  /* Brand colors — RightRev */
+  --primary: #69C04B;                  /* bright green — visible on any forest bg */
+  --primary-foreground: #164234;
+  --accent: #69C04B;
+  --accent-foreground: #164234;
+  --secondary: rgba(105, 192, 75, 0.15);
+  --secondary-foreground: oklch(0.96 0 0);
 
-  --muted: oklch(0.95 0 0);
-  --muted-foreground: oklch(0.40 0 0);
+  --muted: rgba(255, 255, 255, 0.10);
+  --muted-foreground: oklch(0.72 0 0);
 
   --destructive: oklch(0.62 0.25 25);
   --destructive-foreground: oklch(0.98 0 0);
 
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.97 0 0);
-  --ring: color-mix(in oklab, var(--primary) 60%, white 0%);
+  --border: rgba(105, 192, 75, 0.25);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: color-mix(in oklab, #69C04B 60%, white 0%);
 
-  --chart-1: #2a4477;
-  --chart-2: #0cbeb6;
-  --chart-3: #00dfc2;
+  --chart-1: #69C04B;
+  --chart-2: #A2F087;
+  --chart-3: #164234;
   --chart-4: oklch(0.65 0.12 250);
   --chart-5: oklch(0.6 0.14 30);
 
   --radius: 0.625rem;
 
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
+  --sidebar: #0d2318;                  /* dark forest sidebar — clearly darker than page bg */
+  --sidebar-foreground: oklch(0.90 0 0);
+  --sidebar-primary: #69C04B;
+  --sidebar-primary-foreground: #164234;
+  --sidebar-accent: #69C04B;
+  --sidebar-accent-foreground: #164234;
+  --sidebar-border: rgba(105, 192, 75, 0.18);
+  --sidebar-ring: color-mix(in oklab, #69C04B 60%, white 0%);
 }
 
 /* ─── Dark Theme ───────────────────────────────────────────────────────────── */
+/* "Dark" = near-black green — the deep contrast professional look.            */
+/* Clearly different from light mode's medium-forest-green.                    */
 .dark {
-  --background: oklch(0.24 0 0);
-  --foreground: oklch(0.93 0 0);
+  --background: #060d08;           /* near-black green — very clearly different from light */
+  --foreground: oklch(0.93 0 0);   /* near-white text */
 
-  --card: oklch(0.26 0 0);
-  --card-foreground: var(--foreground);
-  --popover: oklch(0.26 0 0);
-  --popover-foreground: var(--foreground);
+  --card: #0f2d23;                 /* dark forest cards (shadcn components) */
+  --card-foreground: oklch(0.93 0 0);
+  --popover: #0f2d23;
+  --popover-foreground: oklch(0.93 0 0);
 
-  --primary: #2a4477;
-  --primary-foreground: oklch(0.95 0 0);
-  --accent: #0cbeb6;
-  --accent-foreground: oklch(0.1 0 0);
-  --secondary: #00dfc2;
-  --secondary-foreground: oklch(0.1 0 0);
+  --primary: #69C04B;              /* bright green accent */
+  --primary-foreground: #164234;
+  --accent: #69C04B;
+  --accent-foreground: #164234;
+  --secondary: rgba(105, 192, 75, 0.12);
+  --secondary-foreground: #A2F087;
 
-  --muted: oklch(0.3 0 0);
-  --muted-foreground: oklch(0.75 0 0);
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: oklch(0.62 0 0);
   --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(0.98 0 0);
 
-  --border: oklch(0.35 0 0);
-  --input: oklch(0.32 0 0);
-  --ring: color-mix(in oklab, var(--primary) 70%, white 20%);
+  --border: rgba(105, 192, 75, 0.18);
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: color-mix(in oklab, #69C04B 70%, white 20%);
 
-  --chart-1: #0cbeb6;
-  --chart-2: #2a4477;
-  --chart-3: #00dfc2;
+  --chart-1: #69C04B;
+  --chart-2: #A2F087;
+  --chart-3: #164234;
   --chart-4: oklch(0.7 0.12 210);
   --chart-5: oklch(0.65 0.14 30);
 
-  --sidebar: oklch(0.26 0 0);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
+  --sidebar: #0d2318;              /* dark forest sidebar — distinct from near-black bg */
+  --sidebar-foreground: oklch(0.88 0 0);
+  --sidebar-primary: #69C04B;
+  --sidebar-primary-foreground: #164234;
+  --sidebar-accent: #69C04B;
+  --sidebar-accent-foreground: #164234;
+  --sidebar-border: rgba(105, 192, 75, 0.14);
+  --sidebar-ring: color-mix(in oklab, #69C04B 70%, white 20%);
 }
 
 /* ─── Tailwind Theme ───────────────────────────────────────────────────────── */
 @theme inline {
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-barlow), 'Barlow', system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-barlow-condensed), 'Barlow Condensed', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   --color-background: var(--background);
@@ -156,4 +161,4 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: oklch(0.6 0 0); }
 * { scrollbar-width: thin; scrollbar-color: oklch(0.75 0 0) transparent; }
 
-::selection { background: color-mix(in oklab, var(--primary) 20%, transparent); }
+::selection { background: color-mix(in oklab, #69C04B 25%, transparent); }

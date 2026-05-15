@@ -1,9 +1,9 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle } from "lucide-react"
-import { cn } from "@/shared/lib/utils"
 import { TopIssue } from "@/modules/files"
+import { cn } from "@/shared/lib/utils"
+import { AlertTriangle } from "lucide-react"
 
 const COLORS = [
   "bg-rose-400/70",
@@ -26,15 +26,9 @@ const BAR_COLORS = [
 type Props = {
   issues?: TopIssue[]
   isLoading?: boolean
-  /**
-   * When non-null, the DQ report fetch failed for a non-benign reason. The
-   * widget renders an error state instead of the ambiguous "no data" empty
-   * state so users can tell "no issues yet" apart from "fetch failed".
-   */
-  errorMessage?: string | null
 }
 
-export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
+export function TopIssuesChart({ issues, isLoading }: Props) {
   const normalized = (issues || [])
     .filter((i) => typeof i.count === "number" && i.count > 0)
     .sort((a, b) => b.count - a.count)
@@ -54,12 +48,12 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
   }))
 
   return (
-    <Card className="border-border bg-card">
+    <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
       <CardHeader className="pb-2 pt-3 px-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            <AlertTriangle className="h-3.5 w-3.5 text-[#69C04B]" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70">
               Top DQ Issues
             </span>
           </CardTitle>
@@ -70,10 +64,10 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
               </span>
             ) : (
               <>
-                <span className="text-lg font-bold font-mono tabular-nums text-foreground">
+                <span className="text-lg font-bold font-mono tabular-nums text-white">
                   {totalIssues.toLocaleString()}
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">total</span>
+                <span className="text-[10px] uppercase tracking-[0.12em] text-white/70">total</span>
               </>
             )}
           </div>
@@ -95,20 +89,9 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
               </div>
             ))}
           </div>
-        ) : errorMessage ? (
-          <div
-            data-testid="top-issues-error"
-            role="alert"
-            className="text-center text-sm text-rose-600 dark:text-rose-400 py-6"
-          >
-            Couldn’t load DQ issues. Try refreshing the dashboard.
-          </div>
         ) : issuesWithPct.length === 0 ? (
-          <div
-            data-testid="top-issues-empty"
-            className="text-center text-sm text-muted-foreground py-6"
-          >
-            No DQ issues recorded yet.
+          <div className="text-center text-sm text-white/60 py-6">
+            No data available for this card yet.
           </div>
         ) : (
           <div className="space-y-2.5">
@@ -122,10 +105,10 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-foreground truncate">
+                    <span className="text-xs font-medium text-white truncate">
                       {issue.name}
                     </span>
-                    <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0 ml-2">
+                    <span className="text-xs font-mono tabular-nums text-white/60 shrink-0 ml-2">
                       {issue.count.toLocaleString()}
                     </span>
                   </div>

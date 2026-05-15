@@ -38,11 +38,11 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
 
 function getStatusColor(status: string) {
     switch (status) {
-        case "SUCCESS": return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
+        case "SUCCESS": return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
         case "FAILED": return "bg-red-500/15 text-red-600 border-red-500/25"
         case "PARTIAL": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
         case "AWAITING_REVIEW": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-        case "NO_CHANGES": return "bg-slate-500/15 text-slate-600 border-slate-500/25"
+        case "NO_CHANGES": return "bg-slate-500/20 text-slate-300 border-slate-500/30"
         default: return "bg-muted text-muted-foreground border-border"
     }
 }
@@ -59,7 +59,7 @@ function getStatusIcon(status: string) {
 }
 
 function getScoreColor(score: number) {
-    if (score >= 90) return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
+    if (score >= 90) return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
     if (score >= 70) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
     return "bg-red-500/15 text-red-600 border-red-500/25"
 }

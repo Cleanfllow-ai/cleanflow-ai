@@ -4,15 +4,15 @@ import { memo, useMemo } from "react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import type { DqChartsProps } from "@/modules/dashboard/components/chart-constants"
-import { ProfessionalChartsCarousel } from "@/modules/dashboard/components/professional-charts-carousel"
 import { DqScoreChart } from "@/modules/dashboard/components/charts/dq-score-chart"
+import { ProfessionalChartsCarousel } from "@/modules/dashboard/components/professional-charts-carousel"
 
 import { RowDistributionChart } from "@/modules/dashboard/components/charts/row-distribution-chart"
 
+export type { DqChartsProps } from "@/modules/dashboard/components/chart-constants"
 export { MonthlyTrendsCompact } from "@/modules/dashboard/components/monthly-trends-compact"
 export { ProcessingSummary } from "@/modules/dashboard/components/processing-summary"
 export { ProfessionalChartsCarousel } from "@/modules/dashboard/components/professional-charts-carousel"
-export type { DqChartsProps } from "@/modules/dashboard/components/chart-constants"
 
 function DqChartsComponent({ files }: DqChartsProps) {
   const completedFiles = useMemo(
@@ -47,7 +47,7 @@ function DqChartsComponent({ files }: DqChartsProps) {
         <DqScoreChart completedFiles={completedFiles} />
       </div>
 
-      <Card className="border-border bg-card">
+      <Card className="border-[#69C04B]/40 bg-[#0f2d23]/50 backdrop-blur-sm">
         <CardContent className="px-4 pb-4 pt-2">
           <ProfessionalChartsCarousel files={files} />
         </CardContent>

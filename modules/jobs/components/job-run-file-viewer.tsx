@@ -37,26 +37,26 @@ import { useJobRunFiles } from "./use-job-run-files"
 function getStatusColor(status: string) {
     const s = (status || "").toUpperCase()
     if (s.includes("FIXED") || s.includes("COMPLETED") || s.includes("PROCESSED"))
-        return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
+        return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
     if (s.includes("FAILED"))
         return "bg-red-500/15 text-red-600 border-red-500/25"
     if (s.includes("RUNNING") || s.includes("PROCESSING") || s.includes("QUEUED"))
         return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-    return "bg-blue-500/15 text-blue-600 border-blue-500/25"
+    return "bg-blue-500/15 text-blue-400 border-blue-500/30"
 }
 
 function getScoreColor(score: number) {
-    if (score >= 90) return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
+    if (score >= 90) return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
     if (score >= 70) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
     return "bg-red-500/15 text-red-600 border-red-500/25"
 }
 
 function getRunStatusColor(status: string) {
     switch (status) {
-        case "SUCCESS": return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
+        case "SUCCESS": return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
         case "FAILED": return "bg-red-500/15 text-red-600 border-red-500/25"
         case "PARTIAL": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-        default: return "bg-slate-500/15 text-slate-600 border-slate-500/25"
+        default: return "bg-slate-500/20 text-slate-300 border-slate-500/30"
     }
 }
 

@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RightRev — Brand Style Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Barlow+Condensed:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ═══════════════════════════════════════════
+       CSS VARIABLES — RightRev Brand Tokens
+    ═══════════════════════════════════════════ */
+    :root {
+      /* Primary Colors */
+      --color-black:       #000000;
+      --color-forest:      #164234;
+      --color-green:       #69C04B;
+      --color-mint:        #F1FFEE;
+      --color-white:       #FFFFFF;
+
+      /* Secondary / Gradients */
+      --gradient:          linear-gradient(90deg, #154234 1.97%, #69C04B 21.5%, #154234 38.93%);
+      --gradient-light:    linear-gradient(39deg, #69C04B 37.87%, #A2F087 81.89%);
+      --gradient-dark:     linear-gradient(43deg, #15421A 15.21%, #6AC04C 123.6%);
+      --gradient-white:    linear-gradient(39deg, #FFF 37.87%, #CDE7C4 81.89%);
+
+      /* Typography */
+      --font-primary: 'Barlow', sans-serif;
+      --font-display: 'Barlow Condensed', sans-serif;
+
+      /* Spacing */
+      --section-gap: 80px;
+    }
+
+    /* ═══════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-primary);
+      background-color: var(--color-white);
+      color: var(--color-black);
+      line-height: 1.5;
+    }
+
+    /* ═══════════════════════════════════════════
+       LAYOUT
+    ═══════════════════════════════════════════ */
+    .guide-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 60px 40px 120px;
+    }
+
+    .guide-section {
+      margin-bottom: var(--section-gap);
+      padding-bottom: var(--section-gap);
+      border-bottom: 1px solid #E0E0E0;
+    }
+
+    .guide-section:last-child { border-bottom: none; }
+
+    /* ═══════════════════════════════════════════
+       COVER / HERO
+    ═══════════════════════════════════════════ */
+    .guide-hero {
+      background: var(--color-forest);
+      padding: 80px 60px;
+      margin-bottom: 80px;
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .guide-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--gradient);
+      opacity: 0.25;
+    }
+
+    /* Diamond logo shape */
+    .hero-logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 32px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-eyebrow {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--color-green);
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 64px;
+      font-weight: 300;
+      color: var(--color-white);
+      letter-spacing: 0.04em;
+      line-height: 1;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-subtitle {
+      font-size: 16px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.6);
+      margin-top: 12px;
+      letter-spacing: 0.02em;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ═══════════════════════════════════════════
+       SECTION LABELS (eyebrow style)
+    ═══════════════════════════════════════════ */
+    .section-label {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--color-black);
+      margin-bottom: 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #E0E0E0;
+    }
+
+    /* ═══════════════════════════════════════════
+       PAGE 1 & 2 — TEXT STYLES
+    ═══════════════════════════════════════════ */
+    .type-row {
+      display: grid;
+      grid-template-columns: 140px 1fr 160px;
+      align-items: baseline;
+      gap: 24px;
+      padding: 20px 0;
+      border-bottom: 1px solid #EBEBEB;
+    }
+
+    .type-row:last-child { border-bottom: none; }
+
+    .type-meta {
+      font-family: var(--font-display);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #888;
+    }
+
+    .type-spec {
+      font-size: 11px;
+      color: #aaa;
+      font-family: 'Courier New', monospace;
+      text-align: right;
+    }
+
+    /* Actual type styles — Desktop */
+    .type-h1 { font-family: var(--font-primary); font-size: 80px; font-weight: 300; line-height: 1; letter-spacing: -0.01em; }
+    .type-h2 { font-family: var(--font-primary); font-size: 60px; font-weight: 300; line-height: 1.05; }
+    .type-h3 { font-family: var(--font-primary); font-size: 48px; font-weight: 300; line-height: 1.1; }
+    .type-h4 { font-family: var(--font-primary); font-size: 32px; font-weight: 400; line-height: 1.2; }
+    .type-h5 { font-family: var(--font-primary); font-size: 22px; font-weight: 400; line-height: 1.3; }
+    .type-h6 { font-family: var(--font-primary); font-size: 18px; font-weight: 400; line-height: 1.35; }
+    .type-eyebrow {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    .type-p1 { font-family: var(--font-primary); font-size: 18px; font-weight: 400; line-height: 1.6; }
+    .type-p2 { font-family: var(--font-primary); font-size: 16px; font-weight: 700; line-height: 1.6; }
+    .type-p3 { font-family: var(--font-primary); font-size: 16px; font-weight: 400; line-height: 1.6; }
+    .type-p4 { font-family: var(--font-primary); font-size: 14px; font-weight: 400; line-height: 1.6; }
+    .type-p5 { font-family: var(--font-primary); font-size: 12px; font-weight: 400; line-height: 1.6; }
+    .type-btn {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .type-link {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--color-green);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .type-footer1 { font-family: var(--font-primary); font-size: 14px; font-weight: 400; }
+    .type-footer2 {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .type-footer3 { font-family: var(--font-primary); font-size: 11px; font-weight: 400; color: #888; }
+
+    /* Mobile type tab */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      margin-bottom: 40px;
+      border-bottom: 1px solid #E0E0E0;
+    }
+
+    .tab-btn {
+      font-family: var(--font-display);
+      font-size: 12px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 10px 24px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      color: #888;
+      margin-bottom: -1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .tab-btn.active {
+      color: var(--color-forest);
+      border-bottom-color: var(--color-green);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Mobile type sizes (slightly smaller) */
+    .mobile .type-h1 { font-size: 52px; }
+    .mobile .type-h2 { font-size: 40px; }
+    .mobile .type-h3 { font-size: 32px; }
+    .mobile .type-h4 { font-size: 24px; }
+    .mobile .type-h5 { font-size: 20px; }
+    .mobile .type-h6 { font-size: 16px; }
+    .mobile .type-p1 { font-size: 16px; }
+    .mobile .type-p3 { font-size: 15px; }
+
+    /* ═══════════════════════════════════════════
+       PAGE 3 — COLORS
+    ═══════════════════════════════════════════ */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 20px;
+      margin-bottom: 48px;
+    }
+
+    .secondary-color-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .color-swatch {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .swatch-box {
+      width: 100%;
+      padding-bottom: 100%;
+      border-radius: 12px;
+      position: relative;
+    }
+
+    /* Specific primary swatches */
+    .swatch-black   { background: #000000; }
+    .swatch-forest  { background: #164234; }
+    .swatch-green   { background: #69C04B; }
+    .swatch-mint    { background: #F1FFEE; border: 1px solid #DDF0D8; }
+    .swatch-white   { background: #FFFFFF; border: 1px solid #E0E0E0; }
+
+    /* Gradient swatches */
+    .swatch-grad1   { background: linear-gradient(90deg, #154234 1.97%, #69C04B 21.5%, #154234 38.93%); }
+    .swatch-grad2   { background: linear-gradient(39deg, #69C04B 37.87%, #A2F087 81.89%); }
+    .swatch-grad3   { background: linear-gradient(43deg, #15421A 15.21%, #6AC04C 123.6%); }
+    .swatch-grad4   { background: linear-gradient(39deg, #FFF 37.87%, #CDE7C4 81.89%); border: 1px solid #DDF0D8; }
+
+    .swatch-name {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #333;
+    }
+
+    .swatch-hex {
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .swatch-gradient-label {
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      color: #888;
+      line-height: 1.5;
+    }
+
+    .color-subsection-title {
+      font-family: var(--font-display);
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 24px;
+      margin-top: 0;
+    }
+
+    /* ═══════════════════════════════════════════
+       PAGE 4 — BUTTONS & LINKS
+    ═══════════════════════════════════════════ */
+    .btn-section-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 48px;
+    }
+
+    .btn-group-label {
+      font-family: var(--font-display);
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 24px;
+    }
+
+    .btn-group-box {
+      border: 2px dashed #9B59B6;
+      border-radius: 8px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Primary CTA — filled green, pill shape */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-green);
+      color: var(--color-forest);
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 16px 36px;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+      width: fit-content;
+    }
+
+    .btn-primary:hover { background: #5db040; transform: translateY(-1px); }
+
+    /* Primary CTA — dark filled, pill shape */
+    .btn-primary-dark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-forest);
+      color: var(--color-green);
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 16px 36px;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+      width: fit-content;
+    }
+
+    .btn-primary-dark:hover { background: #0f2d23; transform: translateY(-1px); }
+
+    /* Secondary CTA — text link style */
+    .btn-secondary-text {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      color: var(--color-green);
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    .btn-secondary-text:hover { opacity: 0.75; }
+
+    /* Secondary CTA — outlined pill */
+    .btn-secondary-outline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      color: var(--color-green);
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 14px 36px;
+      border-radius: 50px;
+      border: 1.5px solid var(--color-green);
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .btn-secondary-outline:hover {
+      background: var(--color-green);
+      color: var(--color-forest);
+    }
+
+    /* LINK section — dark bg */
+    .link-section {
+      margin-top: 0;
+    }
+
+    .link-dark-bg {
+      background: var(--color-forest);
+      border-radius: 8px;
+      padding: 32px;
+      display: inline-block;
+    }
+
+    .link-dashed-box {
+      border: 2px dashed #9B59B6;
+      border-radius: 4px;
+      padding: 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .link-green {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--color-green);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .link-green:hover { text-decoration: underline; }
+
+    .link-white {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--color-white);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .link-white:hover { opacity: 0.75; }
+
+    /* ═══════════════════════════════════════════
+       PAGE 5 — GRAPHIC ELEMENTS
+    ═══════════════════════════════════════════ */
+    .graphic-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+    }
+
+    .graphic-subsection {
+      margin-bottom: 48px;
+    }
+
+    /* Diamond logo mark recreation */
+    .logo-mark-wrap {
+      background: var(--color-forest);
+      border-radius: 12px;
+      padding: 40px;
+      display: inline-block;
+    }
+
+    /* Image overlay cards */
+    .overlay-demo {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .overlay-card-blur {
+      width: 120px;
+      height: 140px;
+      background: var(--gradient-dark);
+      border-radius: 16px;
+      filter: blur(2px);
+      opacity: 0.85;
+    }
+
+    .overlay-card-outline {
+      width: 160px;
+      height: 110px;
+      border: 1.5px solid var(--color-green);
+      border-radius: 12px;
+      position: relative;
+    }
+
+    .overlay-card-outline::after {
+      content: '';
+      position: absolute;
+      bottom: -18px;
+      right: -18px;
+      width: 150px;
+      height: 100px;
+      border: 1.5px solid rgba(105, 192, 75, 0.4);
+      border-radius: 12px;
+    }
+
+    /* Pattern — subtle dots */
+    .pattern-demo {
+      background: var(--color-forest);
+      border-radius: 12px;
+      height: 200px;
+      background-image: radial-gradient(circle, rgba(105,192,75,0.15) 1px, transparent 1px);
+      background-size: 16px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pattern-demo::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 50%, rgba(105,192,75,0.08) 0%, transparent 60%);
+    }
+
+    /* ═══════════════════════════════════════════
+       PAGE 6 — ICONOGRAPHY
+    ═══════════════════════════════════════════ */
+    .icon-panel {
+      border-radius: 12px;
+      padding: 36px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+
+    .icon-panel-light {
+      background: #F1FFEE;
+    }
+
+    .icon-panel-dark {
+      background: var(--color-forest);
+    }
+
+    .icon-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .icon-svg {
+      width: 40px;
+      height: 40px;
+    }
+
+    /* Light panel icons — green stroke */
+    .icon-panel-light .icon-svg svg path,
+    .icon-panel-light .icon-svg svg circle,
+    .icon-panel-light .icon-svg svg rect,
+    .icon-panel-light .icon-svg svg polyline,
+    .icon-panel-light .icon-svg svg line,
+    .icon-panel-light .icon-svg svg polygon { stroke: var(--color-forest); }
+
+    /* ═══════════════════════════════════════════
+       USAGE EXAMPLES SECTION
+    ═══════════════════════════════════════════ */
+    .example-card {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #E5E5E5;
+    }
+
+    .example-card-dark {
+      background: var(--color-forest);
+      padding: 60px;
+      color: var(--color-white);
+    }
+
+    .example-card-light {
+      background: var(--color-mint);
+      padding: 60px;
+    }
+
+    .example-card-white {
+      background: var(--color-white);
+      padding: 60px;
+    }
+
+    .example-eyebrow {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--color-green);
+      margin-bottom: 16px;
+    }
+
+    .example-h2 {
+      font-family: var(--font-primary);
+      font-size: 48px;
+      font-weight: 300;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+
+    .example-body {
+      font-size: 16px;
+      font-weight: 300;
+      line-height: 1.65;
+      opacity: 0.8;
+      max-width: 480px;
+      margin-bottom: 32px;
+    }
+
+    .example-btns {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      .guide-wrap { padding: 40px 20px 80px; }
+      .guide-hero { padding: 48px 32px; }
+      .hero-title { font-size: 40px; }
+      .color-grid { grid-template-columns: repeat(3, 1fr); }
+      .secondary-color-grid { grid-template-columns: repeat(2, 1fr); }
+      .btn-section-grid { grid-template-columns: 1fr; }
+      .icon-panel { grid-template-columns: repeat(4, 1fr); }
+      .type-row { grid-template-columns: 100px 1fr; }
+      .type-spec { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="guide-wrap">
+
+  <!-- ─── HERO ─────────────────────────────── -->
+  <div class="guide-hero">
+    <!-- SVG logo mark — two overlapping rounded diamonds -->
+    <svg class="hero-logo" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="dg1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#69C04B"/>
+          <stop offset="100%" stop-color="#164234"/>
+        </linearGradient>
+        <linearGradient id="dg2" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#A2F087"/>
+          <stop offset="100%" stop-color="#164234"/>
+        </linearGradient>
+      </defs>
+      <!-- Left diamond -->
+      <path d="M28 8C22 8 8 22 8 28C8 34 22 52 28 52C34 52 52 38 52 32C52 26 34 8 28 8Z" fill="url(#dg1)" opacity="0.9" rx="8"/>
+      <!-- Right diamond -->
+      <path d="M52 28C46 28 32 42 32 48C32 54 46 72 52 72C58 72 72 58 72 52C72 46 58 28 52 28Z" fill="url(#dg2)" opacity="0.9"/>
+    </svg>
+
+    <div class="hero-eyebrow">Brand Style Guide</div>
+    <h1 class="hero-title">RightRev</h1>
+    <p class="hero-subtitle">Visual Identity System · Colors · Typography · Components</p>
+  </div>
+
+  <!-- ─── SECTION 1: TEXT STYLES ─────────────────────── -->
+  <section class="guide-section">
+    <div class="section-label">Typography System</div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('desktop', this)">Desktop</button>
+      <button class="tab-btn" onclick="switchTab('mobile', this)">Mobile</button>
+    </div>
+
+    <!-- DESKTOP tab -->
+    <div class="tab-panel active" id="tab-desktop">
+      <div class="type-row">
+        <span class="type-meta">H1</span>
+        <span class="type-h1">Heading 1</span>
+        <span class="type-spec">Barlow 300 · 80px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">H2</span>
+        <span class="type-h2">Heading 2</span>
+        <span class="type-spec">Barlow 300 · 60px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">H3</span>
+        <span class="type-h3">Heading 3</span>
+        <span class="type-spec">Barlow 300 · 48px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">H4</span>
+        <span class="type-h4">Heading 4</span>
+        <span class="type-spec">Barlow 400 · 32px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">H5</span>
+        <span class="type-h5">Heading 5</span>
+        <span class="type-spec">Barlow 400 · 22px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">H6</span>
+        <span class="type-h6">Heading 6</span>
+        <span class="type-spec">Barlow 400 · 18px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Eyebrow</span>
+        <span class="type-eyebrow">Eyebrow Label</span>
+        <span class="type-spec">Barlow Condensed 500 · 12px · 0.22em</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Paragraph 1</span>
+        <span class="type-p1">Body text large — clear and readable at scale.</span>
+        <span class="type-spec">Barlow 400 · 18px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Paragraph 2</span>
+        <span class="type-p2">Body text bold — used for emphasis and lead copy.</span>
+        <span class="type-spec">Barlow 700 · 16px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Paragraph 3</span>
+        <span class="type-p3">Body text regular — standard reading weight.</span>
+        <span class="type-spec">Barlow 400 · 16px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Paragraph 4</span>
+        <span class="type-p4">Small body text — captions and secondary info.</span>
+        <span class="type-spec">Barlow 400 · 14px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Paragraph 5</span>
+        <span class="type-p5">Extra small text — fine print, legal, metadata.</span>
+        <span class="type-spec">Barlow 400 · 12px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Button</span>
+        <span class="type-btn">Button Label</span>
+        <span class="type-spec">Barlow Condensed 500 · 13px · 0.12em</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Link</span>
+        <a href="#" class="type-link">Learn More</a>
+        <span class="type-spec">Barlow Condensed 500 · 13px · uppercase</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Footer 1</span>
+        <span class="type-footer1">Footer text — standard weight</span>
+        <span class="type-spec">Barlow 400 · 14px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Footer 2</span>
+        <span class="type-footer2">Footer 2</span>
+        <span class="type-spec">Barlow Condensed 500 · 11px · 0.18em</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Footer 3</span>
+        <span class="type-footer3">Footer legal and micro text</span>
+        <span class="type-spec">Barlow 400 · 11px · #888</span>
+      </div>
+    </div>
+
+    <!-- MOBILE tab -->
+    <div class="tab-panel mobile" id="tab-mobile">
+      <div class="type-row">
+        <span class="type-meta">H1</span>
+        <span class="type-h1">Heading 1</span>
+        <span class="type-spec">Barlow 300 · 52px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">H2</span>
+        <span class="type-h2">Heading 2</span>
+        <span class="type-spec">Barlow 300 · 40px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">H3</span>
+        <span class="type-h3">Heading 3</span>
+        <span class="type-spec">Barlow 300 · 32px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">H4</span>
+        <span class="type-h4">Heading 4</span>
+        <span class="type-spec">Barlow 400 · 24px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">H5</span>
+        <span class="type-h5">Heading 5</span>
+        <span class="type-spec">Barlow 400 · 20px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">H6</span>
+        <span class="type-h6">Heading 6</span>
+        <span class="type-spec">Barlow 400 · 16px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Eyebrow</span>
+        <span class="type-eyebrow">Eyebrow Label</span>
+        <span class="type-spec">Barlow Condensed 500 · 11px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Paragraph 1</span>
+        <span class="type-p1">Body text large — clear at scale.</span>
+        <span class="type-spec">Barlow 400 · 16px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Paragraph 2</span>
+        <span class="type-p2">Body text bold — lead copy.</span>
+        <span class="type-spec">Barlow 700 · 15px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Paragraph 3</span>
+        <span class="type-p3">Body text regular reading weight.</span>
+        <span class="type-spec">Barlow 400 · 15px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Paragraph 4</span>
+        <span class="type-p4">Small text — captions and secondary info.</span>
+        <span class="type-spec">Barlow 400 · 13px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Paragraph 5</span>
+        <span class="type-p5">Extra small text — fine print.</span>
+        <span class="type-spec">Barlow 400 · 11px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Button</span>
+        <span class="type-btn">Button Label</span>
+        <span class="type-spec">Barlow Condensed 500 · 12px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Link</span>
+        <a href="#" class="type-link">Learn More</a>
+        <span class="type-spec">Barlow Condensed 500 · 12px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Footer 1</span>
+        <span class="type-footer1">Footer text</span>
+        <span class="type-spec">Barlow 400 · 13px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Footer 2</span>
+        <span class="type-footer2">Footer 2</span>
+        <span class="type-spec">Barlow Condensed 500 · 10px</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Footer 3</span>
+        <span class="type-footer3">Footer micro text</span>
+        <span class="type-spec">Barlow 400 · 10px</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SECTION 2: COLORS ─────────────────────────── -->
+  <section class="guide-section">
+    <div class="section-label">Color System</div>
+
+    <p class="color-subsection-title">Primary Colors (do not remove)</p>
+    <div class="color-grid">
+      <div class="color-swatch">
+        <div class="swatch-box swatch-black"></div>
+        <span class="swatch-name">Black</span>
+        <span class="swatch-hex">#000000</span>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-box swatch-forest"></div>
+        <span class="swatch-name">Forest</span>
+        <span class="swatch-hex">#164234</span>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-box swatch-green"></div>
+        <span class="swatch-name">Green</span>
+        <span class="swatch-hex">#69C04B</span>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-box swatch-mint"></div>
+        <span class="swatch-name">Mint</span>
+        <span class="swatch-hex">#F1FFEE</span>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-box swatch-white"></div>
+        <span class="swatch-name">White</span>
+        <span class="swatch-hex">#FFFFFF</span>
+      </div>
+    </div>
+
+    <p class="color-subsection-title" style="margin-top:48px;">Secondary Colors — Gradients</p>
+    <div class="secondary-color-grid">
+      <div class="color-swatch">
+        <div class="swatch-box swatch-grad1"></div>
+        <span class="swatch-name">Gradient 1</span>
+        <span class="swatch-gradient-label">--Gradient<br>linear-gradient(90deg,<br>#154234 1.97%,<br>#69C04B 21.5%,<br>#154234 38.93%)</span>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-box swatch-grad2"></div>
+        <span class="swatch-name">Gradient 2</span>
+        <span class="swatch-gradient-label">--Gradient_Light<br>linear-gradient(39deg,<br>#69C04B 37.87%,<br>#A2F087 81.89%)</span>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-box swatch-grad3"></div>
+        <span class="swatch-name">Gradient 3</span>
+        <span class="swatch-gradient-label">--Gradient_Dark<br>linear-gradient(43deg,<br>#15421A 15.21%,<br>#6AC04C 123.6%)</span>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-box swatch-grad4"></div>
+        <span class="swatch-name">Gradient 4</span>
+        <span class="swatch-gradient-label">--Gradient_White<br>linear-gradient(39deg,<br>#FFF 37.87%,<br>#CDE7C4 81.89%)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SECTION 3: BUTTONS & LINKS ──────────────────── -->
+  <section class="guide-section">
+    <div class="section-label">Buttons &amp; Links</div>
+
+    <div class="btn-section-grid">
+      <!-- Primary CTA -->
+      <div>
+        <p class="btn-group-label">Primary CTA</p>
+        <div class="btn-group-box">
+          <a href="#" class="btn-primary">Request a Demo</a>
+          <a href="#" class="btn-primary-dark">Request a Demo</a>
+        </div>
+      </div>
+
+      <!-- Secondary CTA -->
+      <div>
+        <p class="btn-group-label">Secondary CTA</p>
+        <div class="btn-group-box">
+          <a href="#" class="btn-secondary-text">Watch Video</a>
+          <a href="#" class="btn-secondary-outline">Watch Video</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Link -->
+    <div class="link-section">
+      <p class="btn-group-label">Link</p>
+      <div class="link-dark-bg">
+        <div class="link-dashed-box">
+          <a href="#" class="link-green">Learn More</a>
+          <a href="#" class="link-white">Learn More</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SECTION 4: GRAPHIC ELEMENTS ─────────────────── -->
+  <section class="guide-section">
+    <div class="section-label">Graphic Elements</div>
+
+    <!-- Logo mark -->
+    <div class="graphic-subsection">
+      <p class="btn-group-label">Graphic Element — Logo Mark</p>
+      <div class="logo-mark-wrap">
+        <svg width="200" height="180" viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="lm1" x1="0" y1="0" x2="0.8" y2="1">
+              <stop offset="0%" stop-color="#A2F087"/>
+              <stop offset="60%" stop-color="#69C04B"/>
+              <stop offset="100%" stop-color="#164234"/>
+            </linearGradient>
+            <linearGradient id="lm2" x1="1" y1="0" x2="0.2" y2="1">
+              <stop offset="0%" stop-color="#69C04B"/>
+              <stop offset="100%" stop-color="#164234"/>
+            </linearGradient>
+          </defs>
+          <!-- Top diamond -->
+          <path d="M100 10 C85 10, 30 55, 30 80 C30 105, 85 130, 100 130 C115 130, 170 105, 170 80 C170 55, 115 10, 100 10Z"
+                fill="url(#lm1)" opacity="0.85" rx="16"/>
+          <!-- Bottom offset diamond -->
+          <path d="M80 50 C65 50, 10 95, 10 120 C10 145, 65 170, 80 170 C95 170, 150 145, 150 120 C150 95, 95 50, 80 50Z"
+                fill="url(#lm2)" opacity="0.75"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Image Overlay -->
+    <div class="graphic-subsection">
+      <p class="btn-group-label">Image Overlay</p>
+      <div style="background: var(--color-forest); border-radius: 12px; padding: 40px; display: flex; gap: 24px; align-items: flex-start;">
+        <div class="overlay-card-blur"></div>
+        <div style="position:relative; margin-top: 10px;">
+          <div class="overlay-card-outline"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pattern -->
+    <div class="graphic-subsection">
+      <p class="btn-group-label">Pattern</p>
+      <div class="pattern-demo"></div>
+    </div>
+  </section>
+
+  <!-- ─── SECTION 5: ICONOGRAPHY ──────────────────────── -->
+  <section class="guide-section">
+    <div class="section-label">Iconography</div>
+
+    <!-- Light icon panel -->
+    <div class="icon-panel icon-panel-light">
+      <!-- Row 1 -->
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="20" cy="18" rx="10" ry="7"/>
+          <circle cx="20" cy="18" r="3"/>
+          <circle cx="26" cy="26" r="4" stroke="#69C04B"/>
+          <text x="25" y="29" font-size="5" fill="#69C04B" stroke="none" font-family="sans-serif" font-weight="bold">$</text>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="17" cy="16" r="6"/>
+          <polygon points="27,12 33,10 31,16" fill="none"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="20" cy="20" r="10"/>
+          <path d="M20 10 L20 20 L28 14"/>
+          <path d="M28 8 L32 12" stroke="#69C04B"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="20" cy="18" rx="10" ry="7"/>
+          <circle cx="20" cy="18" r="3"/>
+          <path d="M28 22 L32 28" stroke="#888"/>
+          <circle cx="27" cy="27" r="3" stroke="#888"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="26" width="5" height="7"/>
+          <rect x="16" y="20" width="5" height="13"/>
+          <rect x="24" y="14" width="5" height="19"/>
+          <polyline points="10,20 18,15 26,10" stroke="#69C04B"/>
+          <polygon points="26,8 30,10 28,14" fill="#69C04B" stroke="none"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="8" width="20" height="26" rx="2"/>
+          <line x1="13" y1="14" x2="27" y2="14"/>
+          <line x1="13" y1="18" x2="27" y2="18"/>
+          <line x1="13" y1="22" x2="21" y2="22"/>
+          <text x="22" y="30" font-size="7" fill="#164234" stroke="none" font-family="sans-serif">$</text>
+        </svg>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="20" cy="18" r="8"/>
+          <path d="M20 26 L20 32"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="12" width="24" height="5" rx="1"/>
+          <rect x="8" y="22" width="18" height="5" rx="1"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 30 L14 14 L20 20 L26 14 L30 30"/>
+          <path d="M8 30 L32 30"/>
+          <circle cx="30" cy="12" r="3"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="10" width="15" height="10" rx="1"/>
+          <rect x="8" y="24" width="24" height="8" rx="1"/>
+          <rect x="26" y="10" width="6" height="10" rx="1"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="20" cy="18" r="8"/>
+          <line x1="20" y1="10" x2="20" y2="8"/>
+          <line x1="20" y1="26" x2="20" y2="28"/>
+          <line x1="8" y1="30" x2="32" y2="30"/>
+          <line x1="16" y1="18" x2="24" y2="18"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="10" y="10" width="14" height="14" rx="1"/>
+          <path d="M26 16 L32 16 L32 30 L18 30 L18 26"/>
+          <polyline points="26,22 28,24 32,20"/>
+        </svg>
+      </div>
+
+      <!-- Row 3 -->
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="20" cy="20" r="8"/>
+          <polyline points="14,20 20,20 20,14"/>
+          <line x1="8" y1="20" x2="6" y2="20"/>
+          <line x1="32" y1="20" x2="34" y2="20"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="20" cy="20" rx="10" ry="4"/>
+          <ellipse cx="20" cy="25" rx="10" ry="4"/>
+          <ellipse cx="20" cy="30" rx="10" ry="4"/>
+          <line x1="10" y1="20" x2="10" y2="30"/>
+          <line x1="30" y1="20" x2="30" y2="30"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="8" width="10" height="10" rx="1"/>
+          <rect x="22" y="8" width="10" height="10" rx="1"/>
+          <rect x="8" y="22" width="10" height="10" rx="1"/>
+          <path d="M22 27 L27 27 L27 22"/>
+          <polyline points="22,32 32,32 32,22"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="20" cy="20" r="10"/>
+          <polyline points="14,20 20,14 26,20"/>
+          <path d="M20 14 L20 26"/>
+          <path d="M14 26 C14 26 17 22 20 26 C23 30 26 26 26 26"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#164234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="16" y="8" width="8" height="6" rx="1"/>
+          <rect x="8" y="26" width="8" height="6" rx="1"/>
+          <rect x="24" y="26" width="8" height="6" rx="1"/>
+          <line x1="20" y1="14" x2="20" y2="20"/>
+          <line x1="20" y1="20" x2="12" y2="26"/>
+          <line x1="20" y1="20" x2="28" y2="26"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Dark icon panel -->
+    <div class="icon-panel icon-panel-dark">
+      <!-- Row 1 -->
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="16" cy="20" r="6"/>
+          <circle cx="16" cy="20" r="3"/>
+          <circle cx="28" cy="28" r="4"/>
+          <circle cx="28" cy="28" r="2"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="12" width="24" height="5" rx="1"/>
+          <rect x="8" y="22" width="18" height="5" rx="1"/>
+          <rect x="8" y="22" width="6" height="5" rx="1" stroke="#69C04B"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="12" y="8" width="8" height="6" rx="1"/>
+          <rect x="8" y="26" width="8" height="6" rx="1"/>
+          <rect x="24" y="26" width="8" height="6" rx="1"/>
+          <line x1="16" y1="14" x2="16" y2="20"/>
+          <line x1="16" y1="20" x2="12" y2="26"/>
+          <line x1="16" y1="20" x2="28" y2="26"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 10 C14 10, 10 14, 10 18 C10 22, 14 26, 20 28 C26 26, 30 22, 30 18 C30 14, 26 10, 20 10Z"/>
+          <circle cx="26" cy="26" r="5" stroke="#69C04B"/>
+          <polyline points="23,26 25,28 29,24" stroke="#69C04B"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="#69C04B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 30 L10 20 L20 10 L30 20 Z"/>
+          <line x1="14" y1="26" x2="26" y2="14"/>
+          <circle cx="20" cy="35" r="3"/>
+          <text x="19" y="23" font-size="6" fill="#69C04B" stroke="none" font-family="sans-serif">★</text>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="22" cy="16" r="7"/>
+          <path d="M10 32 C10 26, 15 22, 22 22"/>
+          <circle cx="30" cy="28" r="5" stroke="#69C04B"/>
+          <polyline points="27,28 29,30 33,26" stroke="#69C04B"/>
+        </svg>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="16" cy="20" r="8"/>
+          <circle cx="26" cy="20" r="8"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M30 12 C24 8, 14 10, 12 18 C10 26, 16 32, 22 30"/>
+          <polyline points="26,28 30,32 34,24"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M28 14 L22 8 L14 8 C12 8, 10 10, 10 12 L10 28 C10 30, 12 32, 14 32 L26 32 C28 32, 30 30, 30 28 L30 16 Z"/>
+          <polyline points="22,8 22,16 30,16"/>
+          <circle cx="26" cy="14" r="2" fill="#69C04B" stroke="none"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="22" y="8" width="12" height="16" rx="2"/>
+          <path d="M22 16 L16 16 L16 30 L28 30 L28 24"/>
+          <line x1="19" y1="20" x2="25" y2="20"/>
+          <line x1="19" y1="24" x2="25" y2="24"/>
+          <polyline points="16,12 10,12 10,32 22,32"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="26" width="5" height="7"/>
+          <rect x="16" y="20" width="5" height="13"/>
+          <rect x="24" y="14" width="5" height="19"/>
+        </svg>
+      </div>
+      <div class="icon-item">
+        <svg class="icon-svg" viewBox="0 0 40 40" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="8" width="20" height="26" rx="2"/>
+          <line x1="13" y1="14" x2="27" y2="14"/>
+          <line x1="13" y1="18" x2="27" y2="18"/>
+          <line x1="13" y1="22" x2="21" y2="22"/>
+          <rect x="18" y="26" width="10" height="6" rx="1" stroke="#69C04B"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SECTION 6: USAGE EXAMPLES ───────────────────── -->
+  <section class="guide-section">
+    <div class="section-label">Usage Examples</div>
+
+    <!-- Dark background example -->
+    <div class="example-card" style="margin-bottom: 24px;">
+      <div class="example-card-dark">
+        <div class="example-eyebrow">Revenue Intelligence</div>
+        <h2 class="example-h2" style="color: var(--color-white);">Automate your<br>revenue recognition</h2>
+        <p class="example-body">Purpose-built for SaaS and subscription businesses, RightRev handles the complexity of revenue accounting so your team can focus on growth.</p>
+        <div class="example-btns">
+          <a href="#" class="btn-primary">Request a Demo</a>
+          <a href="#" class="btn-secondary-text">Watch Video</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mint background example -->
+    <div class="example-card" style="margin-bottom: 24px;">
+      <div class="example-card-light">
+        <div class="example-eyebrow">Why RightRev</div>
+        <h2 class="example-h2" style="color: var(--color-forest);">Built for the way<br>modern teams work</h2>
+        <p class="example-body" style="color: var(--color-forest);">From multi-element arrangements to contract modifications, our engine handles every edge case with audit-ready accuracy.</p>
+        <div class="example-btns">
+          <a href="#" class="btn-primary">Get Started</a>
+          <a href="#" class="btn-secondary-outline">Learn More</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- White background example -->
+    <div class="example-card">
+      <div class="example-card-white">
+        <div class="example-eyebrow">Integrations</div>
+        <h2 class="example-h2" style="color: var(--color-black);">Connects with your<br>existing stack</h2>
+        <p class="example-body" style="color: #444;">Native integrations with Salesforce, NetSuite, and more — get up and running in days, not months.</p>
+        <div class="example-btns">
+          <a href="#" class="btn-primary-dark">Explore Integrations</a>
+          <a href="#" class="link-green">View All →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /guide-wrap -->
+
+<script>
+  function switchTab(tab, btn) {
+    // Update buttons
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Update panels
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+  }
+</script>
+
+</body>
+</html>
