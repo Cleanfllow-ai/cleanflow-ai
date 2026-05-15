@@ -21,7 +21,7 @@ const SUBPROCESSORS: Subprocessor[] = [
     name: "Amazon Web Services (AWS)",
     purpose: "Cloud hosting (compute, storage, database, encryption)",
     data: "All customer data + operational",
-    region: "ap-south-1 (Mumbai)",
+    region: "us-east-2 (Ohio, United States)",
     dpa: "Signed",
   },
   {
@@ -70,14 +70,14 @@ const SUBPROCESSORS: Subprocessor[] = [
     name: "AWS SES",
     purpose: "Transactional email (invites, password resets)",
     data: "Email addresses",
-    region: "ap-south-1 (Mumbai)",
+    region: "us-east-2 (Ohio, United States)",
     dpa: "Signed (under AWS DPA)",
   },
   {
     name: "AWS Cognito",
     purpose: "Identity + authentication (MFA, password)",
     data: "Email, password hash, MFA secret, login metadata",
-    region: "ap-south-1 (Mumbai)",
+    region: "us-east-2 (Ohio, United States)",
     dpa: "Signed (under AWS DPA)",
   },
 ];
