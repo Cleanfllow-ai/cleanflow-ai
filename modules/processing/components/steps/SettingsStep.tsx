@@ -397,6 +397,9 @@ export function SettingsStep() {
   const handleSelectPreset = async (presetId: string, presetList?: SettingsPreset[]) => {
     if (presetId === "none") {
       setSelectedPreset(null)
+      // Clear overrides so the BE receives an empty preset_overrides payload
+      // and the run uses pure default rules.
+      setPresetOverrides({})
       return
     }
     const list = presetList || presets
@@ -405,6 +408,12 @@ export function SettingsStep() {
     if (localPreset && presetId === DEFAULT_PRESET.preset_id) {
       setSelectedPreset(localPreset)
       hydrateFromConfig(localPreset.config || {})
+      // 2026-05-16: ALWAYS push the preset's config into presetOverrides so
+      // POST /files/{id}/process actually carries the preset settings. Previously
+      // only the "Save Changes" edit-mode button populated overrides, which meant
+      // simply picking a preset and clicking Next applied ZERO of its fields.
+      // BE consumes preset_overrides verbatim and merges into dq_rules_config.
+      setPresetOverrides(localPreset.config || {})
       return
     }
 
@@ -413,6 +422,8 @@ export function SettingsStep() {
       const response = await fileManagementAPI.getSettingsPreset(presetId, authToken)
       setSelectedPreset(response)
       hydrateFromConfig(response.config || {})
+      // See comment above — push preset config to overrides on every select.
+      setPresetOverrides((response as any).config || {})
     } catch (err) {
       console.error("Failed to load preset:", err)
     }
@@ -557,7 +568,13 @@ export function SettingsStep() {
                       <div className="flex items-center gap-2">
                         {preset.is_default && <Star className="w-3 h-3 text-amber-500" />}
                         {preset.preset_name}
-                        {preset.preset_id.startsWith("preset_rr_") && (
+                        {/* 2026-05-16: backend seeds use `rightrev_*` IDs, not `preset_rr_*`
+                            — the old prefix never matched any preset so the badge was dead UI.
+                            Match both prefixes plus the visible "RightRev" name token so
+                            user-created presets named "RightRev — …" also get the badge. */}
+                        {(preset.preset_id.startsWith("rightrev_") ||
+                          preset.preset_id.startsWith("preset_rr_") ||
+                          preset.preset_name.toLowerCase().includes("rightrev")) && (
                           <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-semibold bg-violet-100 text-violet-700 border border-violet-200 ml-1">RightRev</span>
                         )}
                       </div>
