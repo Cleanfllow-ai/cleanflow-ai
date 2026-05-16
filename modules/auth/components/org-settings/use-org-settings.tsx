@@ -320,6 +320,17 @@ export function useOrgSettings() {
     const [isSendingInvite, setIsSendingInvite] = useState(false);
     const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
 
+    // After a successful invite POST, we surface the shareable link inside the
+    // same dialog so admins can copy/paste it even if SES email delivery
+    // failed (or isn't configured yet). lastInviteResult is cleared when the
+    // dialog closes or another invite is started.
+    const [lastInviteResult, setLastInviteResult] = useState<{
+        email: string;
+        role: AppRole;
+        invite_link: string;
+        email_sent: boolean;
+    } | null>(null);
+
     // AlertDialog state for destructive RBAC flows (replaces native confirm())
     const [pendingRevokeInvite, setPendingRevokeInvite] = useState<{ inviteId: string; email: string } | null>(null);
     const [pendingRemoveMember, setPendingRemoveMember] = useState<{ memberId: string; name: string; email: string } | null>(null);
@@ -1135,14 +1146,34 @@ export function useOrgSettings() {
         setIsSendingInvite(true);
         try {
             const inviteFrontendBaseUrl = getInviteFrontendBaseUrl();
-            await orgAPI.createInvite(email, inviteRole, inviteFrontendBaseUrl);
+            const resp: any = await orgAPI.createInvite(email, inviteRole, inviteFrontendBaseUrl);
             // Refresh members AND invites — the BE auto-claims an invite if
             // the email already maps to an existing user, so a "create
             // invite" can materialize a member row instead of a pending
             // invite row. Reloading both keeps the member tab honest.
             await Promise.all([loadInvites(), loadMembers()]);
-            toast({ title: "Invitation Sent", description: `An invitation has been sent to ${email} as ${inviteRole}.` });
-            setIsInviteDialogOpen(false);
+            const inviteLink: string = resp?.invite_link || "";
+            const emailSent: boolean = !!resp?.email_sent;
+            if (inviteLink) {
+                // Surface the shareable link in the dialog (the rendering side
+                // checks lastInviteResult). The toast still confirms the action
+                // happened but is no longer the only feedback channel.
+                setLastInviteResult({
+                    email,
+                    role: inviteRole,
+                    invite_link: inviteLink,
+                    email_sent: emailSent,
+                });
+                toast({
+                    title: emailSent ? "Invitation sent" : "Invite created (share link below)",
+                    description: emailSent
+                        ? `An email is on the way to ${email}.`
+                        : "Email delivery isn't available right now — copy the link from the dialog and share it manually.",
+                });
+            } else {
+                toast({ title: "Invitation sent", description: `An invitation has been sent to ${email} as ${inviteRole}.` });
+                setIsInviteDialogOpen(false);
+            }
         } catch (err: any) {
             console.error("Failed to send invite", err);
             if (isApiError(err) && (err.code === "InviteEmailTakenError" || (err.action === "signin" && err.code?.startsWith("Invite")))) {
@@ -1355,6 +1386,8 @@ export function useOrgSettings() {
         pendingRemoveMember,
         setPendingRemoveMember,
         // Invite dialog
+        lastInviteResult,
+        setLastInviteResult,
         isInviteDialogOpen,
         setIsInviteDialogOpen,
         inviteEmail,

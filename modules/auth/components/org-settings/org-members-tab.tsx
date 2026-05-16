@@ -1,7 +1,8 @@
 "use client";
 
-// TODO: re-enable once SES domain verified (~2026-05-17)
-const INVITES_ENABLED = false;
+// Invites re-enabled with a copy-URL fallback (admin can share the link
+// manually when SES email delivery is unavailable).
+const INVITES_ENABLED = true;
 
 import { useState } from "react";
 import { Loader2, MoreHorizontal, Search, UserCog, UserMinus, UserPlus, X } from "lucide-react";

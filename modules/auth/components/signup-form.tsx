@@ -496,7 +496,7 @@ export function SignUpForm() {
                 <Label htmlFor="orgPhone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
-                  <Input id="orgPhone" placeholder="+91 000 000 0000" value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
+                  <Input id="orgPhone" type="tel" placeholder="Phone number" value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
                 </div>
               </div>
             </div>

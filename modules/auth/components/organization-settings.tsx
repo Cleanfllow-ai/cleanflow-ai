@@ -1,9 +1,10 @@
 "use client";
 
-// TODO: re-enable once SES domain verified (~2026-05-17)
-const INVITES_ENABLED = false;
+// Invites are re-enabled with a copy-URL fallback so admins can share the
+// link manually even when SES isn't yet configured for the customer's domain.
+const INVITES_ENABLED = true;
 
-import { Building2, Cable, ClipboardCheck, Cog, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Building2, Cable, ClipboardCheck, Cog, Copy, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -24,81 +25,175 @@ export function OrganizationSettings() {
   return (
     <Tabs value={hookData.activeTab} onValueChange={hookData.setActiveTab} className="space-y-6">
       {/* Invite Dialog — hidden while INVITES_ENABLED=false (SES unverified) */}
-      <Dialog open={INVITES_ENABLED && hookData.isInviteDialogOpen} onOpenChange={hookData.setIsInviteDialogOpen}>
+      <Dialog
+        open={INVITES_ENABLED && hookData.isInviteDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            // Closing the dialog clears the share-link panel so the next
+            // invite starts on the form view again.
+            hookData.setLastInviteResult(null);
+            hookData.setInviteEmail("");
+          }
+          hookData.setIsInviteDialogOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden rounded-xl border border-border bg-card">
-          <div className="p-8 pb-4 flex flex-col items-center text-center">
-            <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5">
-              <UserPlus className="w-7 h-7 text-primary" />
-            </div>
-            <DialogHeader className="space-y-2">
-              <DialogTitle className="font-sans text-xl font-bold tracking-tight text-foreground">
-                Add Team Member
-              </DialogTitle>
-              <DialogDescription className="text-muted-foreground text-sm leading-relaxed max-w-[320px]">
-                Enter the email address and select their role within the organization.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-
-          <div className="px-8 pb-8 pt-4 space-y-5">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="invite-email" className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground font-medium flex items-center gap-2">
-                  <Mail className="w-3.5 h-3.5" />
-                  Email Address
-                </Label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  placeholder="colleague@company.com"
-                  value={hookData.inviteEmail}
-                  onChange={(e) => hookData.setInviteEmail(e.target.value)}
-                  disabled={hookData.isSendingInvite}
-                  className="h-10"
-                />
+          {hookData.lastInviteResult ? (
+            // ── Post-invite share-link view ─────────────────────────────────
+            // Shown after a successful invite POST. The link is ALWAYS displayed
+            // (even when email delivery succeeded) so admins can share it
+            // out-of-band as well — and is the ONLY channel when SES isn't
+            // configured for the customer domain.
+            <div className="p-8 space-y-5">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5">
+                  <Mail className="w-7 h-7 text-primary" />
+                </div>
+                <DialogHeader className="space-y-2">
+                  <DialogTitle className="font-sans text-xl font-bold tracking-tight text-foreground">
+                    Invite created for {hookData.lastInviteResult.email}
+                  </DialogTitle>
+                  <DialogDescription className="text-muted-foreground text-sm leading-relaxed max-w-[360px]">
+                    {hookData.lastInviteResult.email_sent
+                      ? "We've tried to send an email with this link. If it doesn't arrive within a few minutes, share it manually:"
+                      : "Email delivery is not available right now. Copy the link below and share it with the invitee manually:"}
+                  </DialogDescription>
+                </DialogHeader>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="invite-role" className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground font-medium flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Access Level
+
+              <div className="space-y-2">
+                <Label className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground font-medium">
+                  Invitation link
                 </Label>
-                <Select
-                  value={hookData.inviteRole}
-                  onValueChange={(value) => hookData.setInviteRole(value as AppRole)}
-                  disabled={hookData.isSendingInvite}
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    value={hookData.lastInviteResult.invite_link}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="h-10 font-mono text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(hookData.lastInviteResult!.invite_link);
+                      } catch {
+                        // Older browsers without clipboard API — fall back to selecting the input.
+                      }
+                    }}
+                    className="h-10 px-3 shrink-0"
+                  >
+                    <Copy className="w-4 h-4 mr-1.5" />
+                    Copy
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  This link grants <strong>{hookData.lastInviteResult.role}</strong> access. Share it only with the intended recipient.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    hookData.setLastInviteResult(null);
+                    hookData.setInviteEmail("");
+                  }}
                 >
-                  <SelectTrigger id="invite-role" className="h-10">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {hookData.allowedInviteRoles.map((role) => (
-                      <SelectItem key={role} value={role}>
-                        <span className="font-medium">{role}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  Invite another
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    hookData.setLastInviteResult(null);
+                    hookData.setInviteEmail("");
+                    hookData.setIsInviteDialogOpen(false);
+                  }}
+                >
+                  Done
+                </Button>
               </div>
             </div>
+          ) : (
+            // ── Initial invite form view ────────────────────────────────────
+            <>
+              <div className="p-8 pb-4 flex flex-col items-center text-center">
+                <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5">
+                  <UserPlus className="w-7 h-7 text-primary" />
+                </div>
+                <DialogHeader className="space-y-2">
+                  <DialogTitle className="font-sans text-xl font-bold tracking-tight text-foreground">
+                    Add Team Member
+                  </DialogTitle>
+                  <DialogDescription className="text-muted-foreground text-sm leading-relaxed max-w-[360px]">
+                    Enter the email and choose a role. You'll get a copy-able invitation link in the next step — share it directly if email delivery fails.
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
 
-            <Button
-              onClick={hookData.handleSubmitInvite}
-              disabled={hookData.isSendingInvite || !hookData.inviteEmail.includes("@")}
-              className="w-full h-10 font-semibold"
-            >
-              {hookData.isSendingInvite ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Adding Member...
+              <div className="px-8 pb-8 pt-4 space-y-5">
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="invite-email" className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground font-medium flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5" />
+                      Email Address
+                    </Label>
+                    <Input
+                      id="invite-email"
+                      type="email"
+                      placeholder="colleague@company.com"
+                      value={hookData.inviteEmail}
+                      onChange={(e) => hookData.setInviteEmail(e.target.value)}
+                      disabled={hookData.isSendingInvite}
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="invite-role" className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground font-medium flex items-center gap-2">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      Access Level
+                    </Label>
+                    <Select
+                      value={hookData.inviteRole}
+                      onValueChange={(value) => hookData.setInviteRole(value as AppRole)}
+                      disabled={hookData.isSendingInvite}
+                    >
+                      <SelectTrigger id="invite-role" className="h-10">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {hookData.allowedInviteRoles.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            <span className="font-medium">{role}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              ) : (
-                <div className="flex items-center justify-center gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Member
-                </div>
-              )}
-            </Button>
-          </div>
+
+                <Button
+                  onClick={hookData.handleSubmitInvite}
+                  disabled={hookData.isSendingInvite || !hookData.inviteEmail.includes("@")}
+                  className="w-full h-10 font-semibold"
+                >
+                  {hookData.isSendingInvite ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Adding Member...
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <Plus className="w-4 h-4" />
+                      Add Member
+                    </div>
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
