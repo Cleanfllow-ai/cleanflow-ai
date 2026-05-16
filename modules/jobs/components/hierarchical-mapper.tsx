@@ -429,6 +429,7 @@ export function HierarchicalMapper({
         }
         const cb = c.getBoundingClientRect()
         const next: Line[] = []
+        let maxLineY = 0
 
         // Track which (sourceEntity → destEntity) pairs already have at least
         // one field-line drawn. We avoid drawing the entity-summary line over
