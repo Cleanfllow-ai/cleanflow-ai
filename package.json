@@ -77,7 +77,7 @@
     "react-markdown": "^10.1.0",
     "react-redux": "^9.2.0",
     "react-resizable-panels": "^2.1.7",
-    "recharts": "latest",
+    "recharts": "^2.15.0",
     "redux": "latest",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.5.5",
