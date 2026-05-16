@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CleanFlowAI — User Guide</title>
+<style>
+
+@page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.5;
+  color: #1f2328;
+  max-width: 100%;
+  margin: 0;
+}
+h1, h2, h3, h4 { color: #0b3d91; line-height: 1.25; margin-top: 1.6em; margin-bottom: 0.5em; page-break-after: avoid; }
+h1 { font-size: 22pt; border-bottom: 2px solid #0b3d91; padding-bottom: 6px; margin-top: 0; }
+h2 { font-size: 16pt; border-bottom: 1px solid #d0d7de; padding-bottom: 4px; }
+h3 { font-size: 13pt; }
+h4 { font-size: 11pt; color: #24292f; }
+hr { border: 0; border-top: 1px solid #d0d7de; margin: 1.6em 0; }
+p { margin: 0.5em 0; }
+a { color: #0969da; text-decoration: none; }
+code {
+  font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+  background: #f6f8fa;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+pre {
+  background: #f6f8fa;
+  padding: 12px 14px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+pre code { background: transparent; padding: 0; }
+blockquote {
+  margin: 0.8em 0;
+  padding: 4px 14px;
+  color: #57606a;
+  border-left: 4px solid #d0d7de;
+  background: #f6f8fa;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.8em 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+th, td { border: 1px solid #d0d7de; padding: 6px 9px; vertical-align: top; text-align: left; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+ul, ol { margin: 0.4em 0 0.7em 0; padding-left: 1.6em; }
+li { margin: 0.18em 0; }
+strong { color: #0b3d91; }
+.toc { font-size: 10pt; }
+
+/* Force page breaks before Part 1 / Part 2 main headings */
+h1 + h1, h2:has(+ #part-2--administrator-guide) { page-break-before: always; }
+
+</style>
+</head>
+<body>
+<h1 id="cleanflowai-user-guide">CleanFlowAI — User Guide</h1>
+<p><strong>Application URL:</strong> https://rightrev.vercel.app/</p>
+<p>Welcome to CleanFlowAI. This guide walks you through everything you need to use the platform — from your first login to scheduling recurring data jobs and connecting your ERP systems.</p>
+<p>The guide is split into two parts:</p>
+<ul>
+<li><strong>Part 1 — End-User Guide:</strong> Day-to-day use (uploading files, checking results, downloading data, importing from QuickBooks, etc.).</li>
+<li><strong>Part 2 — Administrator Guide:</strong> Organization setup, inviting team members, connecting providers, managing presets and scheduled jobs.</li>
+</ul>
+<hr>
+<h2 id="table-of-contents">Table of Contents</h2>
+<p><strong>Part 1 — End-User Guide</strong></p>
+<ol>
+<li><a href="#1-what-is-cleanflowai">What is CleanFlowAI?</a></li>
+<li><a href="#2-getting-started-sign-up--first-login">Getting Started: Sign Up &amp; First Login</a></li>
+<li><a href="#3-the-dashboard">The Dashboard</a></li>
+<li><a href="#4-uploading--processing-files">Uploading &amp; Processing Files</a></li>
+<li><a href="#5-viewing--understanding-results">Viewing &amp; Understanding Results</a></li>
+<li><a href="#6-downloading-cleaned-data">Downloading Cleaned Data</a></li>
+<li><a href="#7-data-augmentation-ai-enrichment">Data Augmentation (AI Enrichment)</a></li>
+<li><a href="#8-account--password-help">Account &amp; Password Help</a></li>
+</ol>
+<p><strong>Part 2 — Administrator Guide</strong></p>
+<ol start="9">
+<li><a href="#9-organization-setup">Organization Setup</a></li>
+<li><a href="#10-managing-team-members--roles">Managing Team Members &amp; Roles</a></li>
+<li><a href="#11-connecting-erps-quickbooks--zoho-books">Connecting ERPs: QuickBooks &amp; Zoho Books</a></li>
+<li><a href="#12-connecting-a-data-warehouse-snowflake">Connecting a Data Warehouse: Snowflake</a></li>
+<li><a href="#13-connecting-cloud-storage-google-drive">Connecting Cloud Storage: Google Drive</a></li>
+<li><a href="#14-data-quality-rule-presets">Data Quality Rule Presets</a></li>
+<li><a href="#15-scheduling-recurring-jobs">Scheduling Recurring Jobs</a></li>
+<li><a href="#16-status-reference--glossary">Status Reference &amp; Glossary</a></li>
+<li><a href="#17-troubleshooting--faq">Troubleshooting &amp; FAQ</a></li>
+</ol>
+<hr>
+<h1 id="part-1-end-user-guide">PART 1 — END-USER GUIDE</h1>
+<h2 id="1-what-is-cleanflowai">1. What is CleanFlowAI?</h2>
+<p>CleanFlowAI is a data quality and transformation platform. You upload data files (CSV or Excel) — typically exported from an ERP system — and CleanFlowAI:</p>
+<ul>
+<li><strong>Validates</strong> the data against built-in quality rules (formatting, missing values, duplicates, invalid emails, bad dates, etc.).</li>
+<li><strong>Fixes</strong> issues automatically where it safely can.</li>
+<li><strong>Quarantines</strong> rows it cannot fix so you can review them.</li>
+<li><strong>Transforms</strong> the cleaned data into the format expected by your target ERP.</li>
+</ul>
+<p>You can also schedule the entire process to run automatically on a recurring basis.</p>
+<hr>
+<h2 id="2-getting-started-sign-up-first-login">2. Getting Started: Sign Up &amp; First Login</h2>
+<h3 id="21-creating-an-account">2.1 Creating an Account</h3>
+<ol>
+<li>Go to <strong>https://rightrev.vercel.app/</strong>.</li>
+<li>Click <strong>Sign Up</strong>.</li>
+<li>Enter your <strong>email</strong> and a <strong>password</strong> that meets these rules:
+   - At least 8 characters
+   - At least one uppercase letter
+   - At least one lowercase letter
+   - At least one number
+   - A special character is recommended</li>
+<li>Click <strong>Create Account</strong>.</li>
+</ol>
+<h3 id="22-verifying-your-email">2.2 Verifying Your Email</h3>
+<p>After signup you'll receive a 6-digit verification code by email.</p>
+<ol>
+<li>Enter the 6-digit code on the verification screen.</li>
+<li>Click <strong>Verify</strong>.</li>
+<li>If the code expires (5 minute timer), click <strong>Resend Code</strong>.</li>
+</ol>
+<h3 id="23-joining-an-organization">2.3 Joining an Organization</h3>
+<p>After your first login, one of two things happens:</p>
+<p><strong>Scenario A — You were invited:</strong> Your admin sent you an invite email. Click the link in that email; you'll be taken to a <strong>Set Password</strong> page. Set your password, then sign in — you'll be added to the organization automatically.</p>
+<p><strong>Scenario B — You're the first user:</strong> You're routed to <strong>Create Organization</strong>. Fill in:</p>
+<ul>
+<li>Organization name</li>
+<li>Industry</li>
+<li>Contact email</li>
+<li>Phone number</li>
+<li>Address</li>
+<li>GSTIN / PAN (if applicable)</li>
+</ul>
+<p>Click <strong>Register &amp; Continue</strong>.</p>
+<hr>
+<h2 id="3-the-dashboard">3. The Dashboard</h2>
+<p><strong>Route:</strong> <code>/dashboard</code></p>
+<p>The dashboard is your home screen and shows the overall health of your data.</p>
+<h3 id="top-metrics-cards-along-the-top">Top Metrics (cards along the top)</h3>
+<table>
+<thead>
+<tr>
+<th>Card</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Total Files</strong></td>
+<td>Number of files you've uploaded. Sub-text shows how many are fully processed.</td>
+</tr>
+<tr>
+<td><strong>Average DQ Score</strong></td>
+<td>Average data-quality score across all files. Badge color: green ≥ 90%, yellow ≥ 70%, red &lt; 70%.</td>
+</tr>
+<tr>
+<td><strong>Rows Processed</strong></td>
+<td>Total input rows across all files; sub-text shows clean output rows.</td>
+</tr>
+<tr>
+<td><strong>Issues Fixed</strong></td>
+<td>Total rows the system automatically corrected; sub-text shows how many were quarantined.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="charts">Charts</h3>
+<ul>
+<li><strong>Data Quality Distribution</strong> (pie chart) — Clean (green) / Fixed (yellow) / Quarantined (red) rows across all files.</li>
+<li><strong>DQ Score Distribution</strong> (bar chart) — How many of your files fall into Excellent, Good, or Needs-Attention buckets.</li>
+</ul>
+<h3 id="header-buttons">Header Buttons</h3>
+<ul>
+<li><strong>Refresh</strong> — Reloads metrics.</li>
+<li><strong>Export</strong> — Downloads <code>overall-dq-report.json</code> with all your metrics in one file.</li>
+<li><strong>Logout</strong> — Signs you out.</li>
+</ul>
+<h3 id="activity-feed-right-side">Activity Feed (right side)</h3>
+<p>A live feed of recent actions: uploads, transforms, downloads, errors. Each item shows what happened, by whom, and when (in IST).</p>
+<hr>
+<h2 id="4-uploading-processing-files">4. Uploading &amp; Processing Files</h2>
+<p><strong>Route:</strong> <code>/files</code></p>
+<p>The File Manager has two tabs at the top: <strong>File Upload</strong> and <strong>File Explorer</strong>.</p>
+<h3 id="41-uploading-a-local-file">4.1 Uploading a Local File</h3>
+<ol>
+<li>Click the <strong>File Upload</strong> tab.</li>
+<li>From the <strong>Source</strong> dropdown, choose <strong>Local File</strong>.</li>
+<li>Check the <strong>AI Processing</strong> toggle:
+   - <strong>On</strong> <em>(default)</em> — the file is processed automatically after upload.
+   - <strong>Off</strong> — the file is only uploaded; you'll need to start processing manually.</li>
+<li><strong>Drag and drop</strong> your CSV/Excel file into the upload zone, or click the zone to open a file picker.</li>
+<li>Wait for the upload bar to reach 100%.</li>
+</ol>
+<p><strong>Supported formats:</strong> <code>.csv</code>, <code>.xlsx</code>, <code>.xls</code></p>
+<h3 id="42-importing-from-quickbooks-online">4.2 Importing from QuickBooks Online</h3>
+<p><em>(Requires QuickBooks to be connected — see §11.)</em></p>
+<ol>
+<li>From the <strong>Source</strong> dropdown, choose <strong>QuickBooks Online</strong>.</li>
+<li>Fill in:
+   - <strong>Entity</strong> — Customers, Invoices, Vendors, or Items.
+   - <strong>Max Records</strong> — default 1000.
+   - <strong>From Date / To Date</strong> <em>(optional)</em> — date range.</li>
+<li>Click <strong>Import from QuickBooks</strong>.</li>
+<li>The file appears in File Explorer and processing starts automatically.</li>
+</ol>
+<h3 id="43-importing-from-zoho-books">4.3 Importing from Zoho Books</h3>
+<p>Same flow as QuickBooks — pick <strong>Zoho Books</strong> as the source, choose the entity, click <strong>Import</strong>.</p>
+<h3 id="44-the-file-explorer">4.4 The File Explorer</h3>
+<p>Click the <strong>File Explorer</strong> tab to see all your files. You can:</p>
+<ul>
+<li><strong>Search</strong> by filename (top of the table).</li>
+<li><strong>Filter</strong> by status (All / Uploaded / Processed / Processing / Queued / Failed).</li>
+<li><strong>Sort</strong> by any column (Score, Rows, Uploaded date, etc.).</li>
+</ul>
+<p>Each row has these <strong>action icons</strong> in the rightmost column:</p>
+<table>
+<thead>
+<tr>
+<th>Icon</th>
+<th>Action</th>
+<th>Available When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>▶ Play</td>
+<td>Start processing</td>
+<td>UPLOADED, DQ_FAILED, or FAILED</td>
+</tr>
+<tr>
+<td>👁 Eye</td>
+<td>View file details</td>
+<td>Always</td>
+</tr>
+<tr>
+<td>⬇ Download</td>
+<td>Download file</td>
+<td>Always</td>
+</tr>
+<tr>
+<td>🗑 Trash</td>
+<td>Delete file</td>
+<td>Always</td>
+</tr>
+</tbody>
+</table>
+<h3 id="45-what-happens-during-processing">4.5 What Happens During Processing</h3>
+<p>A file moves through these statuses:</p>
+<pre><code>UPLOADED → QUEUED → DQ_RUNNING → DQ_FIXED  ✅ Done
+                              ↘ DQ_FAILED  ❌ Click Play to retry
+</code></pre>
+<p>Larger files take longer — you can keep browsing or check back later.</p>
+<hr>
+<h2 id="5-viewing-understanding-results">5. Viewing &amp; Understanding Results</h2>
+<h3 id="51-the-file-details-dialog">5.1 The File Details Dialog</h3>
+<p>Click the 👁 <strong>Eye</strong> icon next to any file. A dialog opens with three tabs:</p>
+<h4 id="details-tab">Details Tab</h4>
+<p>Shows:</p>
+<ul>
+<li><strong>Rows In</strong> — total input rows</li>
+<li><strong>Clean</strong> — rows with no issues</li>
+<li><strong>Fixed</strong> — rows the system corrected</li>
+<li><strong>Quarantined</strong> — rows it could not fix</li>
+<li><strong>DQ Score</strong> — overall quality percentage</li>
+<li>File size, upload time, last updated time</li>
+</ul>
+<h4 id="preview-tab">Preview Tab</h4>
+<p>Shows the first ~20 rows of your file in a scrollable table.</p>
+<h4 id="dq-report-tab-only-for-processed-files">DQ Report Tab <em>(only for processed files)</em></h4>
+<p>Shows detailed quality metrics per column. Click <strong>Download Report</strong> to get the full JSON.</p>
+<h3 id="52-understanding-row-categories">5.2 Understanding Row Categories</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Clean</strong></td>
+<td>The system found no issues with this row.</td>
+</tr>
+<tr>
+<td><strong>Fixed</strong></td>
+<td>The system found issues but corrected them automatically (e.g., trimmed whitespace, normalized a date).</td>
+</tr>
+<tr>
+<td><strong>Quarantined</strong></td>
+<td>The system found issues it could not safely fix. These rows are <strong>excluded</strong> from the clean output — review them and either correct them at the source or accept the loss.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-understanding-the-dq-score">5.3 Understanding the DQ Score</h3>
+<table>
+<thead>
+<tr>
+<th>Range</th>
+<th>Rating</th>
+<th>Color</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>90 – 100%</td>
+<td>Excellent</td>
+<td>Green</td>
+</tr>
+<tr>
+<td>70 – 89%</td>
+<td>Good</td>
+<td>Yellow</td>
+</tr>
+<tr>
+<td>&lt; 70%</td>
+<td>Needs Attention</td>
+<td>Red</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="6-downloading-cleaned-data">6. Downloading Cleaned Data</h2>
+<ol>
+<li>Click the ⬇ <strong>Download</strong> icon on a processed file.</li>
+<li><strong>Step 1 — Pick data type:</strong>
+   - <strong>Cleaned Data</strong> — quality-checked output (recommended).
+   - <strong>Original Data</strong> — the raw file you uploaded.</li>
+<li><strong>Step 2 — Pick format:</strong>
+   - <strong>CSV</strong> — universal compatibility (Excel, Google Sheets, etc.).
+   - <strong>Excel (.xlsx)</strong> — native Excel format.
+   - <strong>JSON</strong> — for programming / API use.</li>
+<li>Click <strong>Download</strong>.</li>
+</ol>
+<h3 id="downloading-the-detailed-issue-matrix">Downloading the Detailed Issue Matrix</h3>
+<p>For very large files, the system stores an issue-only matrix (the <code>dq_matrix</code>) that lists exactly which cell in which row had what problem.</p>
+<ol>
+<li>Open the file via the 👁 Eye icon.</li>
+<li>Click <strong>Download DQ Matrix</strong>.</li>
+<li>Enter:
+   - <strong>Limit</strong> — how many issue rows to download (default 25).
+   - <strong>Start offset</strong> — skip the first N rows.
+   - <strong>End</strong> <em>(optional)</em> — last row index to include.</li>
+<li>Click <strong>Download</strong>. You get a JSON file containing only the rows with issues.</li>
+</ol>
+<hr>
+<h2 id="7-data-augmentation-ai-enrichment">7. Data Augmentation (AI Enrichment)</h2>
+<p><strong>Route:</strong> <code>/augmentation</code></p>
+<p>Augmentation uses AI to enrich your data — for example, filling in missing fields, classifying records, or generating natural-language summaries.</p>
+<h3 id="71-creating-an-augmentation-job">7.1 Creating an Augmentation Job</h3>
+<ol>
+<li>Go to <strong>/augmentation</strong>.</li>
+<li>Click <strong>New job</strong>.</li>
+<li>In the form, pick:
+   - <strong>Prompt template</strong> (e.g., "Classify vendor by industry")
+   - <strong>Input dataset</strong> (one of your processed files)</li>
+<li>Click <strong>Submit</strong>.</li>
+</ol>
+<h3 id="72-monitoring-downloading">7.2 Monitoring &amp; Downloading</h3>
+<ul>
+<li>The job appears in the table with a status badge: Pending → Running → Succeeded / Failed.</li>
+<li>Click the job ID to open the detail panel — it shows row count, cost (USD), template, timestamps, and any error.</li>
+<li>Once status is <strong>Succeeded</strong>, click <strong>Download output</strong> to get the enriched CSV.</li>
+</ul>
+<h3 id="73-prompt-templates-tab">7.3 Prompt Templates Tab</h3>
+<p>Switch to the <strong>Prompt Templates</strong> tab to see all augmentation templates available to your organization.</p>
+<hr>
+<h2 id="8-account-password-help">8. Account &amp; Password Help</h2>
+<h3 id="81-logging-out">8.1 Logging Out</h3>
+<p>Click your email/avatar at the bottom of the sidebar → <strong>Logout</strong>. Or use the <strong>Logout</strong> button in the dashboard header.</p>
+<h3 id="82-forgot-password">8.2 Forgot Password</h3>
+<ol>
+<li>On the login page, click <strong>Forgot password?</strong>.</li>
+<li>Enter your email → click <strong>Send reset code</strong>.</li>
+<li>Check your inbox for a numeric code.</li>
+<li>Enter the code, a new password, and confirm.</li>
+<li>Click <strong>Reset password</strong> — you'll be redirected to sign in.</li>
+</ol>
+<h3 id="83-switching-theme">8.3 Switching Theme</h3>
+<p>Click the sun/moon icon in the bottom-right corner of any page to switch between light and dark mode. The <strong>System</strong> option follows your operating system's preference.</p>
+<hr>
+<h1 id="part-2-administrator-guide">PART 2 — ADMINISTRATOR GUIDE</h1>
+<p>This section is for users with <strong>Super Admin</strong> or <strong>Admin</strong> roles. Most controls live under <strong>Admin</strong> in the sidebar.</p>
+<h2 id="9-organization-setup">9. Organization Setup</h2>
+<p><strong>Route:</strong> <code>/admin</code> → <strong>Organization</strong> tab <em>(default)</em></p>
+<h3 id="91-organization-information">9.1 Organization Information</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What it controls</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Organization Name</td>
+<td>Displayed throughout the app and on invitation emails.</td>
+</tr>
+<tr>
+<td>Email</td>
+<td>Primary contact email for the org.</td>
+</tr>
+<tr>
+<td>Contact Number</td>
+<td>Phone number.</td>
+</tr>
+<tr>
+<td>Address</td>
+<td>Business address.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="92-logo">9.2 Logo</h3>
+<p>Click <strong>Upload Logo</strong> → pick an image. Used in the sidebar and on reports.</p>
+<h3 id="93-preferred-data-format">9.3 Preferred Data Format</h3>
+<p>Default format used when downloading: CSV / JSON / XLSX / SQL / Parquet.</p>
+<p>Click <strong>Save Changes</strong> at the bottom to apply.</p>
+<hr>
+<h2 id="10-managing-team-members-roles">10. Managing Team Members &amp; Roles</h2>
+<p><strong>Route:</strong> <code>/admin</code> → <strong>Members</strong> tab</p>
+<h3 id="101-inviting-a-member">10.1 Inviting a Member</h3>
+<ol>
+<li>Click <strong>Invite Member</strong>.</li>
+<li>Enter the member's email.</li>
+<li>Pick a role:
+   - <strong>Super Admin</strong> — Full access including billing.
+   - <strong>Admin</strong> — All access except billing &amp; subscription.
+   - <strong>Data Steward</strong> — Can edit files and resolve quarantined rows.</li>
+<li>Click <strong>Send Invite</strong>.</li>
+</ol>
+<p>The invitee receives an email with a link to <strong>/auth/set-password</strong>. After setting their password, they're automatically added to your org.</p>
+<h3 id="102-member-status-badges">10.2 Member Status Badges</h3>
+<table>
+<thead>
+<tr>
+<th>Badge</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Active</strong> <em>(green)</em></td>
+<td>Has accepted the invite and signed in.</td>
+</tr>
+<tr>
+<td><strong>Pending</strong> <em>(yellow)</em></td>
+<td>Invite sent but not yet accepted.</td>
+</tr>
+<tr>
+<td><strong>Inactive</strong> <em>(gray)</em></td>
+<td>Account disabled.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="103-changing-a-members-role">10.3 Changing a Member's Role</h3>
+<ol>
+<li>Click the three-dot (⋮) menu on the member's row.</li>
+<li>Pick the new role.</li>
+<li>The change takes effect immediately.</li>
+</ol>
+<h3 id="104-removing-a-member">10.4 Removing a Member</h3>
+<ol>
+<li>Click the three-dot menu → <strong>Remove Member</strong>.</li>
+<li>Confirm. The member loses access and is detached from the org (their uploaded files remain).</li>
+</ol>
+<h3 id="105-the-permissions-tab">10.5 The Permissions Tab</h3>
+<p><strong>Route:</strong> <code>/admin</code> → <strong>Permissions</strong> tab</p>
+<p>Shows a matrix of what each role can do. You can toggle individual permissions and click <strong>Save Permissions</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Permission</th>
+<th style="text-align: center;">Super Admin</th>
+<th style="text-align: center;">Admin</th>
+<th style="text-align: center;">Data Steward</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>File Management</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>Data Transformation</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>Export Data</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>Manage Members</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>Billing &amp; Subscription</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>Organization Settings</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>API Access</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>Audit Logs</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">❌</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="11-connecting-erps-quickbooks-zoho-books">11. Connecting ERPs: QuickBooks &amp; Zoho Books</h2>
+<p>Connectors live in <strong>Admin</strong> → <strong>Connectors</strong> tab (or <strong>Services</strong> tab in older builds). Providers are grouped into <strong>Applications</strong> (ERPs), <strong>Data Warehouses</strong>, and <strong>Cloud Storage</strong>.</p>
+<h3 id="111-connecting-quickbooks-online">11.1 Connecting QuickBooks Online</h3>
+<ol>
+<li>In the <strong>Applications</strong> section, find <strong>QuickBooks Online</strong>.</li>
+<li>Click the <strong>Connect</strong> (power) button on the card.</li>
+<li>A popup opens at the QuickBooks sign-in page.</li>
+<li>Sign in and click <strong>Authorize</strong>.</li>
+<li>The popup redirects to <strong>/connectors/callback</strong>, confirms success, and closes automatically after ~2 seconds.</li>
+<li>The card now shows <strong>Connected</strong> with the last-connected date.</li>
+</ol>
+<p><strong>If the popup fails:</strong> it stays open with <strong>Try Again</strong> and <strong>Cancel</strong> buttons. Click Try Again or check that your browser allows popups for <code>rightrev.vercel.app</code>.</p>
+<h3 id="112-connecting-zoho-books">11.2 Connecting Zoho Books</h3>
+<p>Same as QuickBooks — find <strong>Zoho Books</strong> in Applications, click <strong>Connect</strong>, sign in, authorize. After connection, the <strong>Configure</strong> link lets you pick your Zoho organization (if you have more than one).</p>
+<h3 id="113-disconnecting">11.3 Disconnecting</h3>
+<p>Click the power button again on a connected provider → <strong>Disconnect</strong> → confirm. Tokens are revoked immediately.</p>
+<hr>
+<h2 id="12-connecting-a-data-warehouse-snowflake">12. Connecting a Data Warehouse: Snowflake</h2>
+<p>Used to <strong>import</strong> data from a Snowflake table into CleanFlowAI for processing.</p>
+<h3 id="121-connecting-snowflake">12.1 Connecting Snowflake</h3>
+<ol>
+<li><strong>Admin</strong> → <strong>Connectors</strong> → <strong>Data Warehouses</strong> section → <strong>Snowflake</strong>.</li>
+<li>Click <strong>Connect</strong>.</li>
+<li>Enter:
+   - <strong>Account identifier</strong> (e.g., <code>xy12345.ap-south-1</code>)
+   - <strong>Username</strong>
+   - <strong>Password</strong> (or key-pair credentials)
+   - <strong>Warehouse</strong>
+   - <strong>Role</strong></li>
+<li>Click <strong>Save</strong>.</li>
+</ol>
+<h3 id="122-importing-from-snowflake">12.2 Importing from Snowflake</h3>
+<ol>
+<li>Go to <strong>/files</strong> → <strong>File Upload</strong> tab.</li>
+<li>Source → <strong>Snowflake</strong>.</li>
+<li>Pick <strong>Database</strong> → <strong>Schema</strong> → <strong>Table</strong>.</li>
+<li>Optionally add a <strong>WHERE</strong> clause to limit rows.</li>
+<li>Click <strong>Import</strong>. The data is fetched, saved as a file, and processed.</li>
+</ol>
+<hr>
+<h2 id="13-connecting-cloud-storage-google-drive">13. Connecting Cloud Storage: Google Drive</h2>
+<p>Used to import files from Google Drive instead of uploading from your computer.</p>
+<h3 id="131-connecting-google-drive">13.1 Connecting Google Drive</h3>
+<ol>
+<li><strong>Admin</strong> → <strong>Connectors</strong> → <strong>Cloud Storage</strong> section → <strong>Google Drive</strong>.</li>
+<li>Click <strong>Connect</strong>.</li>
+<li>Sign in to Google and grant the requested permissions.</li>
+<li>The popup closes; status flips to <strong>Connected</strong>.</li>
+</ol>
+<h3 id="132-importing-a-file-from-drive">13.2 Importing a File from Drive</h3>
+<ol>
+<li><strong>/files</strong> → <strong>File Upload</strong>.</li>
+<li>Source → <strong>Google Drive</strong>.</li>
+<li>Browse your folders, pick a file, click <strong>Import</strong>.</li>
+<li>The file is downloaded to CleanFlowAI and queued for processing.</li>
+</ol>
+<hr>
+<h2 id="14-data-quality-rule-presets">14. Data Quality Rule Presets</h2>
+<p>Presets let you save a reusable set of DQ rules (which rules apply to which columns, severity thresholds, required columns, etc.) and apply them to multiple files.</p>
+<h3 id="141-where-presets-live">14.1 Where Presets Live</h3>
+<p>When you process a file, you go through a <strong>Settings</strong> step. That step has a preset selector at the top.</p>
+<ul>
+<li>A <strong>Default</strong> preset is auto-seeded for every org and cannot be deleted.</li>
+<li>You can create as many additional presets as you need.</li>
+</ul>
+<h3 id="142-creating-a-preset">14.2 Creating a Preset</h3>
+<ol>
+<li>In the <strong>Settings</strong> step, click <strong>New Preset</strong>.</li>
+<li>Pick <strong>Start from</strong> — either current edits or any existing preset.</li>
+<li>Give it a name (e.g., "Vendor master rules").</li>
+<li>Click <strong>Create</strong>.</li>
+</ol>
+<h3 id="143-editing-saving">14.3 Editing &amp; Saving</h3>
+<p>Make any changes to rules, required columns, severity thresholds. Click <strong>Save Preset</strong>. (You cannot save changes onto the Default preset — create a new one first.)</p>
+<h3 id="144-deleting">14.4 Deleting</h3>
+<p>Click <strong>Delete Preset</strong> to remove the selected preset. The Default preset cannot be deleted.</p>
+<h3 id="145-using-a-preset">14.5 Using a Preset</h3>
+<p>In the <strong>Rules</strong> step before processing, the selected preset's rules are pre-loaded. You can still toggle individual rules or add custom (LLM-generated) rules just for this run.</p>
+<hr>
+<h2 id="15-scheduling-recurring-jobs">15. Scheduling Recurring Jobs</h2>
+<p><strong>Route:</strong> <code>/jobs</code></p>
+<p>Jobs let you automate the full pipeline — pull data from a source, run DQ, optionally augment — on a schedule.</p>
+<h3 id="151-the-jobs-list">15.1 The Jobs List</h3>
+<p>The <code>/jobs</code> page shows all your scheduled jobs with:</p>
+<ul>
+<li><strong>Name</strong></li>
+<li><strong>Frequency</strong> (e.g., daily, hourly, every 15 min, or custom cron)</li>
+<li><strong>Status</strong> — Active (green, pulsing) / Paused (yellow) / Failed (red)</li>
+<li><strong>Last Run</strong> and <strong>Next Run</strong> timestamps</li>
+<li>A row-actions menu: <strong>Edit</strong>, <strong>Pause / Resume</strong>, <strong>View Runs</strong>, <strong>Delete</strong></li>
+</ul>
+<p>Click any row to expand and see recent run history (date, records processed, status).</p>
+<h3 id="152-creating-a-job">15.2 Creating a Job</h3>
+<ol>
+<li>Click <strong>New Job</strong> → routes to <code>/jobs/create</code>.</li>
+<li><strong>Step 1 — Configure Job:</strong>
+   - Pick a <strong>Source</strong> provider (one you've already connected).
+   - Pick the <strong>Source entity</strong> (e.g., Invoices).
+   - Pick a <strong>Destination</strong> provider.
+   - Give the job a <strong>Name</strong>.
+   - Set <strong>Frequency</strong>: every 15 min, hourly, daily, or a custom cron expression.
+   - Click <strong>Continue</strong>.</li>
+<li><strong>Step 2 — Field Mapping:</strong>
+   - The system auto-maps source columns to destination columns.
+   - Review and adjust any mismatches.
+   - <em>(Optional)</em> Toggle <strong>Advanced DQ</strong> if you want to define quality rules.
+   - Click <strong>Continue</strong>.</li>
+<li><strong>Step 3 — DQ Configuration</strong> <em>(only if Advanced DQ is on):</em>
+   - Pick a preset or define rules.
+   - Set error policies (skip / quarantine / fail).</li>
+<li>Click <strong>Create Job</strong>. You're redirected back to <code>/jobs</code> with a success toast.</li>
+</ol>
+<h3 id="153-pausing-editing-deleting">15.3 Pausing, Editing &amp; Deleting</h3>
+<p>From the three-dot menu on any job row:</p>
+<ul>
+<li><strong>Pause</strong> — stops further runs but keeps the schedule. Click <strong>Resume</strong> to restart.</li>
+<li><strong>Edit</strong> — opens the same stepper, pre-filled with current values.</li>
+<li><strong>Delete</strong> — removes the job and its schedule. Past run records are kept.</li>
+</ul>
+<h3 id="154-reviewing-failed-runs">15.4 Reviewing Failed Runs</h3>
+<p>If a job is in <strong>Failed</strong> status, click <strong>View Runs</strong> to see the per-run log. Each failed run shows the error message and (where available) the input file ID so you can open it in the File Manager and re-process manually.</p>
+<hr>
+<h2 id="16-status-reference-glossary">16. Status Reference &amp; Glossary</h2>
+<h3 id="161-file-statuses">16.1 File Statuses</h3>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UPLOADING</code></td>
+<td>Upload in progress</td>
+<td>Wait</td>
+</tr>
+<tr>
+<td><code>UPLOADED</code></td>
+<td>Upload complete, not yet processed</td>
+<td>Click ▶ Play to process</td>
+</tr>
+<tr>
+<td><code>VALIDATED</code></td>
+<td>File structure validated</td>
+<td>Wait</td>
+</tr>
+<tr>
+<td><code>QUEUED</code></td>
+<td>In processing queue</td>
+<td>Wait</td>
+</tr>
+<tr>
+<td><code>DQ_DISPATCHED</code></td>
+<td>Sent to DQ engine</td>
+<td>Wait</td>
+</tr>
+<tr>
+<td><code>DQ_RUNNING</code></td>
+<td>Processing in progress</td>
+<td>Wait</td>
+</tr>
+<tr>
+<td><code>NORMALIZING</code></td>
+<td>Standardizing formats</td>
+<td>Wait</td>
+</tr>
+<tr>
+<td><code>DQ_FIXED</code></td>
+<td>Done — issues fixed</td>
+<td>Download cleaned data</td>
+</tr>
+<tr>
+<td><code>COMPLETED</code></td>
+<td>Fully complete</td>
+<td>Download cleaned data</td>
+</tr>
+<tr>
+<td><code>FAILED</code> / <code>DQ_FAILED</code></td>
+<td>Processing failed</td>
+<td>Click ▶ Play to retry</td>
+</tr>
+<tr>
+<td><code>UPLOAD_FAILED</code></td>
+<td>Upload didn't finish</td>
+<td>Re-upload</td>
+</tr>
+<tr>
+<td><code>REJECTED</code></td>
+<td>File rejected (e.g., &gt; 200 GB)</td>
+<td>Check size / requirements</td>
+</tr>
+</tbody>
+</table>
+<h3 id="162-member-roles">16.2 Member Roles</h3>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Summary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Super Admin</strong></td>
+<td>Full access including billing.</td>
+</tr>
+<tr>
+<td><strong>Admin</strong></td>
+<td>All access except billing &amp; subscription.</td>
+</tr>
+<tr>
+<td><strong>Data Steward</strong></td>
+<td>Can edit files and resolve quarantined rows.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="163-glossary">16.3 Glossary</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DQ</strong></td>
+<td>Data Quality</td>
+</tr>
+<tr>
+<td><strong>DQ Score</strong></td>
+<td>A 0–100% rating of how clean your file is.</td>
+</tr>
+<tr>
+<td><strong>Clean / Fixed / Quarantined</strong></td>
+<td>The three outcomes for each row after processing.</td>
+</tr>
+<tr>
+<td><strong>Preset</strong></td>
+<td>A saved set of DQ rules you can reuse across files.</td>
+</tr>
+<tr>
+<td><strong>Connector</strong></td>
+<td>A configured link to an external system (QB, Zoho, Snowflake, Drive).</td>
+</tr>
+<tr>
+<td><strong>Job</strong></td>
+<td>A scheduled, recurring run of the full pipeline.</td>
+</tr>
+<tr>
+<td><strong>Augmentation</strong></td>
+<td>AI-driven enrichment of your data after DQ processing.</td>
+</tr>
+<tr>
+<td><strong>Quarantine Editor</strong></td>
+<td>UI for manually fixing rows that were quarantined.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="17-troubleshooting-faq">17. Troubleshooting &amp; FAQ</h2>
+<p><strong>Q: My file is stuck at UPLOADED status — why?</strong>
+AI Processing was probably turned <strong>Off</strong> at upload time. Click the ▶ Play icon to start processing manually.</p>
+<p><strong>Q: I get "Invalid email or password" but my password is right.</strong>
+Make sure you've verified your email (check the inbox for the 6-digit code). If still failing, use <strong>Forgot password</strong>.</p>
+<p><strong>Q: My QuickBooks connection popup closed but it says "Not Connected".</strong>
+Check that your browser allows third-party cookies and popups for <code>rightrev.vercel.app</code>. Try the connect flow again — most one-off failures resolve on retry.</p>
+<p><strong>Q: How big a file can I upload?</strong>
+The hard ceiling is <strong>200 GB</strong>. Files larger than that are rejected.</p>
+<p><strong>Q: How do I share results with someone who doesn't have an account?</strong>
+Download the file as CSV / Excel / JSON and email it. Or invite them as a <strong>Data Steward</strong>.</p>
+<p><strong>Q: How do I retry a failed scheduled job?</strong>
+Go to <code>/jobs</code>, click <strong>View Runs</strong> on the failed job, find the failed run, then open the source file from the File Manager and run it manually. To prevent the failure recurring, edit the job's mapping or DQ config.</p>
+<p><strong>Q: Can I delete an account?</strong>
+Yes — open a support request and we'll initiate a DSAR (data subject access request) cascade delete, which removes your files and account data.</p>
+<p><strong>Q: How do I export a list of all my files and their scores?</strong>
+Go to the Dashboard → click <strong>Export</strong> in the header. You get <code>overall-dq-report.json</code> with everything.</p>
+<p><strong>Q: What about audit logs?</strong>
+Admins can view audit logs from <strong>Admin → Audit Logs</strong>. All edits to cells, role changes, and connector changes are recorded.</p>
+<hr>
+<h2 id="need-help">Need Help?</h2>
+<ul>
+<li><strong>In-app:</strong> Click <strong>Help &amp; Support</strong> in the sidebar.</li>
+<li><strong>Email:</strong> Contact your project sponsor at the CleanFlowAI team.</li>
+</ul>
+<hr>
+<p><em>Document version 1.1 — covers the platform as deployed at https://rightrev.vercel.app/.</em></p>
+</body>
+</html>

@@ -134,6 +134,14 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
     const [fileViewerOpen, setFileViewerOpen] = useState(false)
     const [liveSummaries, setLiveSummaries] = useState<Record<string, RunLiveSummary>>({})
 
+    // `loading` is captured via ref so that toggling it inside loadRuns
+    // doesn't change loadRuns' identity — otherwise the useEffect below
+    // would re-fire on every toggle, creating an infinite re-render loop
+    // (the original bug: stuck at "Loading run history..." while the API
+    // got hammered 100+ times/minute).
+    const loadingRef = useRef(true)
+    useEffect(() => { loadingRef.current = loading }, [loading])
+
     const loadRuns = useCallback(async (isManual = false) => {
         if (isManual) setIsRefreshing(true)
         else setLoading(true)
@@ -149,14 +157,14 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
             setRunsError(message)
             // Only toast on the initial load + manual refresh; auto-polls
             // would otherwise spam toasts every 3s when the API is down.
-            if (isManual || loading) {
+            if (isManual || loadingRef.current) {
                 toast({ title: "Failed to load runs", description: message, variant: "destructive" })
             }
         } finally {
             setLoading(false)
             setIsRefreshing(false)
         }
-    }, [jobId, toast, loading])
+    }, [jobId, toast])
 
     useEffect(() => {
         loadRuns()
