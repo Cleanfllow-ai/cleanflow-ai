@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Upload, CheckSquare, Square, ArrowRight } from "lucide-react"
 import { cn }
   from "@/shared/lib/utils"
@@ -88,48 +90,63 @@ export function ColumnSelectionStep() {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" size="sm" onClick={handleSelectAll}>
-          {allSelected ? (
-            <CheckSquare className="w-4 h-4 mr-2 text-primary" />
-          ) : (
-            <Square className="w-4 h-4 mr-2 text-muted-foreground" />
-          )}
-          Select All
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleDeselectAll}>
-          {selectedColumns.length === 0 ? (
-            <CheckSquare className="w-4 h-4 mr-2 text-primary" />
-          ) : (
-            <Square className="w-4 h-4 mr-2 text-muted-foreground" />
-          )}
-          Deselect All
-        </Button>
-        <div className="relative">
-          <Input
-            type="file"
-            accept=".csv,.json"
-            onChange={handleUploadSelection}
-            className="absolute inset-0 opacity-0 cursor-pointer"
-          />
-          <Button variant="outline" size="sm">
-            <Upload className="w-4 h-4 mr-2" />
-            Upload Selection
-          </Button>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium text-sm">Columns</h3>
+          <Badge variant="secondary" className="text-xs">{selectedColumns.length} of {allColumns.length} selected</Badge>
         </div>
-        <div className="flex-1" />
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search columns..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 w-64"
-          />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleSelectAll}>
+              {allSelected ? (
+                <CheckSquare className="w-4 h-4 mr-2 text-primary" />
+              ) : (
+                <Square className="w-4 h-4 mr-2 text-muted-foreground" />
+              )}
+              Select All
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleDeselectAll}>
+              {selectedColumns.length === 0 ? (
+                <CheckSquare className="w-4 h-4 mr-2 text-primary" />
+              ) : (
+                <Square className="w-4 h-4 mr-2 text-muted-foreground" />
+              )}
+              Deselect All
+            </Button>
+            <div className="relative">
+              <Input
+                type="file"
+                accept=".csv,.json"
+                onChange={handleUploadSelection}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+              <Button variant="outline" size="sm">
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Selection
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1" />
+          <div className="relative min-w-[16rem]">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search columns..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
       </div>
 
       <div className="border border-muted rounded-lg flex-1 overflow-y-auto mt-6">
+        {allColumns.length === 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 p-3">
+            {Array.from({ length: 24 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 rounded-md" />
+            ))}
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 p-2">
           {filtered.map((col) => {
             const isSelected = selectedColumns.includes(col)
@@ -160,7 +177,7 @@ export function ColumnSelectionStep() {
           Selected: <span className="font-medium text-foreground">{selectedColumns.length}</span> of {allColumns.length} columns
         </div>
         <Button onClick={nextStep} disabled={!canProceed}>
-          <ArrowRight className="w-4 h-4" />
+          Next <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     </div>
