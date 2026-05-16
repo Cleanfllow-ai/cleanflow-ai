@@ -28,6 +28,14 @@ export function useWelcomeTour(autoOpenOnDashboard = false): UseWelcomeTourRetur
       // Let the dashboard layout settle before popping the tour
       const timer = setTimeout(() => {
         setIsOpen(true)
+        // Mark as seen the MOMENT the tour auto-opens. This makes "shown once"
+        // = "seen forever", so the tour never re-opens on subsequent logins —
+        // even if the user navigates away mid-tour, closes the browser tab,
+        // or refreshes the page without hitting Skip / Complete. Manual replay
+        // via "Take the tour" sidebar item still works (handleWatchAgain wipes
+        // the flag, then user calls openTour() explicitly).
+        localStorage.setItem(TOUR_COMPLETED_KEY, "true")
+        setHasCompleted(true)
       }, 600)
       return () => clearTimeout(timer)
     }
