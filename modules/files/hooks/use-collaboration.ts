@@ -41,6 +41,14 @@ export interface BulkLockResultMessage {
 interface UseCollaborationParams {
   uploadId: string
   accessToken: string | null
+  /**
+   * idToken is forwarded to useWebSocket so the FE can extract `custom:org_id`
+   * for the WS `$connect` URL (SOC2-P0 — WS_REQUIRE_ORG_ID=true). Without it
+   * the server returns HTTP 400 on every handshake (QE-01/Q6/Q9 root cause).
+   *
+   * Optional for unit-test convenience; in production callers MUST pass it.
+   */
+  idToken?: string | null
   enabled: boolean
   onRemoteCellUpdate?: (column: string, rowId: string, value: string) => void
 }
@@ -109,6 +117,7 @@ function mergePresenceSnapshot(snapshot: WsUserInfo[], now?: number): Collaborat
 export function useCollaboration({
   uploadId,
   accessToken,
+  idToken = null,
   enabled,
   onRemoteCellUpdate,
 }: UseCollaborationParams) {
@@ -392,6 +401,7 @@ export function useCollaboration({
   const { connected, send } = useWebSocket({
     fileId: uploadId,
     accessToken,
+    idToken,
     enabled,
     onMessage: handleMessage,
     // Case 5 + Case 4: on reconnect, clear stale lock/presence state and

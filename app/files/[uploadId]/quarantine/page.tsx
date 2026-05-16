@@ -197,6 +197,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
   const collab = useCollaboration({
     uploadId,
     accessToken,
+    idToken,
     enabled: Boolean(editor.sessionInfo),
     onRemoteCellUpdate: handleRemoteCellUpdate,
   })
