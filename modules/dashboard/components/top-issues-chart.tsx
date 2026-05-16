@@ -41,7 +41,8 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
     .slice(0, 5)
     .map((issue, idx) => ({
       id: idx + 1,
-      name: issue.violation.replace(/_/g, " "),
+      name: issue.short_label || issue.violation.replace(/_/g, " "),
+      code: issue.short_label && issue.short_label !== issue.violation ? issue.violation : null,
       count: issue.count,
       color: COLORS[idx % COLORS.length],
       barColor: BAR_COLORS[idx % BAR_COLORS.length],
@@ -126,9 +127,14 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {issue.name}
-                    </span>
+                    <div className="min-w-0 flex flex-col">
+                      <span className="text-xs font-medium text-foreground truncate">
+                        {issue.name}
+                      </span>
+                      {issue.code && (
+                        <span className="text-[10px] text-muted-foreground/60 font-mono leading-tight">{issue.code}</span>
+                      )}
+                    </div>
                     <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0 ml-2">
                       {issue.count.toLocaleString()}
                     </span>

@@ -91,6 +91,7 @@ export interface IssuesResponse {
 export interface TopIssue {
     violation: string
     count: number
+    short_label?: string  // business-friendly chip label from BE registry
 }
 
 export interface MonthlyDqStats {
