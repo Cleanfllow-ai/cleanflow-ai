@@ -420,6 +420,7 @@ export function HierarchicalMapper({
         key: string
     }
     const [lines, setLines] = useState<Line[]>([])
+    const [contentSize, setContentSize] = useState({ w: 0, h: 0 })
 
     const recomputeLines = useCallback(() => {
         const c = containerRef.current
@@ -531,6 +532,8 @@ export function HierarchicalMapper({
         // The SVG must at minimum cover the deepest line endpoint; falling
         // back to scrollHeight when no lines were drawn or when the DOM
         // content extends further than the lines.
+        const measuredW = c.scrollWidth
+        const measuredH = c.scrollHeight
         setContentSize(prev => {
             const w = measuredW
             // 8px breathing room so antialiased stroke tails don't sit on
