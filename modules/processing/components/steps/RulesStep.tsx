@@ -10,10 +10,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Play, ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Loader2, Code, ArrowRight } from "lucide-react"
+import { ArrowLeft, Play, ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Loader2, Code, ArrowRight, X } from "lucide-react"
 import { useProcessingWizard, type RuleWithState, type CrossFieldRuleWithState } from "../WizardContext"
 import { fileManagementAPI, type CustomRuleDefinition } from "@/modules/files"
-import { AugmentationsPanel } from "./augmentations-panel"
+import { AugmentationPipelineTab } from "./augmentation-pipeline-tab"
 import { cn } from "@/shared/lib/utils"
 import { getRuleLabel } from "@/shared/lib/dq-rules"
 import { deriveRulesV2, CORE_TYPES, TYPE_ALIASES } from "@/shared/lib/type-catalog"
@@ -343,38 +343,28 @@ export function RulesStep() {
           <h2 className="text-xl font-semibold">Rule Configuration</h2>
           <p className="text-sm text-muted-foreground mt-1">Configure which rules to apply during processing.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline" className="text-xs">
-            AI: {totalAutoRules}
+            AI-suggested: {totalAutoRules}
           </Badge>
           <Badge variant="outline" className="text-xs">
-            Custom: {totalCustomRules}
+            Custom rules: {totalCustomRules}
           </Badge>
           <Badge variant="outline" className="text-xs">
-            Cross: {totalSelectedCrossRules}/{totalCrossRules}
+            Cross-field: {totalSelectedCrossRules}/{totalCrossRules}
           </Badge>
           <Badge variant="default" className="text-xs">
-            Selected: {totalSelectedRules + totalCustomRules + totalSelectedCrossRules}
+            Active: {totalSelectedRules + totalCustomRules + totalSelectedCrossRules}
           </Badge>
         </div>
       </div>
 
-      {/* Augmentations panel — optional, runs before DQ */}
-      <div className="mt-4">
-        <AugmentationsPanel
-          authToken={authToken}
-          augmentations={augmentations}
-          onChange={setAugmentations}
-        />
-      </div>
-
-      {/* Main content area split into tabs so Business Consistency Rules
-          gets equal billing alongside per-column DQ rules instead of being
-          buried at the bottom of one long scroll list. */}
+      {/* Main content area split into tabs */}
       <Tabs defaultValue="dq" className="flex-1 min-h-0 mt-4 gap-3">
       <TabsList className="h-9 w-fit">
         <TabsTrigger value="dq" className="px-3">DQ Rules</TabsTrigger>
         <TabsTrigger value="bcr" className="px-3">Business Consistency Rules</TabsTrigger>
+        <TabsTrigger value="aug" className="px-3">Data Augmentation {augmentations.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 text-[10px]">{augmentations.length}</Badge>}</TabsTrigger>
       </TabsList>
       <TabsContent value="bcr" className="border border-muted rounded-lg overflow-hidden min-h-0 mt-0 data-[state=inactive]:hidden">
         <div className="h-full overflow-y-auto p-4">
@@ -478,7 +468,17 @@ export function RulesStep() {
               {/* AI cross-rule suggestion form */}
               {showCrossRuleForm && (
                 <div className="border border-dashed border-muted rounded-md p-3 space-y-3 mt-1">
-                  <p className="text-xs text-muted-foreground font-medium">Describe the business consistency rule in plain language:</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground font-medium">Describe the business consistency rule in plain language:</p>
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground ml-2"
+                      onClick={() => { setShowCrossRuleForm(false); setPendingCrossRules(null); setCrossRuleError(null); setCrossRulePrompt(""); closeMention() }}
+                      aria-label="Close"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
 
                   {/* Textarea with @ mention highlight overlay */}
                   <div className="relative rounded-lg border border-violet-200 bg-violet-50/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white">
@@ -629,8 +629,11 @@ export function RulesStep() {
               <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 rounded-md border border-muted hover:bg-muted/30">
                 {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 <span className="font-medium">{col}</span>
-                <div className="text-xs text-muted-foreground ml-2">
-                  {columnKeyTypes[col] && columnKeyTypes[col] !== "none" ? columnKeyTypes[col] : "type"} | {columnCoreTypes[col] || columnProfiles[col]?.type_guess}
+                <div className="flex items-center gap-1 ml-2">
+                  <Badge variant="outline" className="text-[10px] font-mono">{columnCoreTypes[col] || columnProfiles[col]?.type_guess || "?"}</Badge>
+                  {columnKeyTypes[col] && columnKeyTypes[col] !== "none" && (
+                    <Badge variant="secondary" className="text-[10px] font-mono">{columnKeyTypes[col]}</Badge>
+                  )}
                 </div>
                 <div className="ml-auto flex items-center gap-1">
                   <Badge variant="outline" className="text-xs">AI:{autoCount}</Badge>
@@ -899,6 +902,11 @@ export function RulesStep() {
           </div>
         </div>
       </TabsContent>
+      <TabsContent value="aug" className="border border-muted rounded-lg overflow-hidden min-h-0 mt-0 data-[state=inactive]:hidden">
+        <div className="h-full overflow-y-auto">
+          <AugmentationPipelineTab selectedColumns={selectedColumns} />
+        </div>
+      </TabsContent>
       </Tabs>
 
       {/* Footer with navigation buttons - fixed at bottom */}
@@ -908,7 +916,7 @@ export function RulesStep() {
           Back
         </Button>
         <Button onClick={nextStep} disabled={!canProceed}>
-          <ArrowRight className="w-4 h-4" />
+          Next <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     </div>
