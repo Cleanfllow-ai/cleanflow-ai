@@ -129,6 +129,13 @@ export interface FileStatusResponse {
   // REJECTED rows so users see a specific, actionable reason instead of a
   // generic "Rejected" pill.
   failure_reason?: string
+  // ── Augmentation lineage (B3/B4, 2026-05-16) ─────────────────────────────
+  // Set by StartDQProcessing when one or more augmentations ran before DQ.
+  // The FE uses ``augmented_columns`` to violet-tint columns in the
+  // quarantine grid and profiling preview so users see which columns were
+  // produced by an augmentation versus which ones came from the upload.
+  s3_augmented_key?: string | null
+  augmented_columns?: string[]
 }
 
 export interface FileListResponse {

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Loader2, CheckCircle, XCircle, Play, RotateCw } from "lucide-react"
 import { useProcessingWizard } from "../WizardContext"
@@ -183,15 +184,31 @@ export function ProcessStep({
       const referenceData = presetOverrides?.reference_data || (selectedPreset as any)?.config?.reference_data || undefined
 
       // Only include augmentations that have a non-empty prompt and at least one source column
-      const augmentationsPayload = (augmentations ?? []).filter(
-        (a) => a.prompt_text.trim().length > 0 && a.source_columns.length > 0
-      ).map((a) => ({
-        mode: a.mode,
-        prompt_text: a.prompt_text,
-        preset_id: a.preset_id,
-        source_columns: a.source_columns,
-        destination_columns: a.destination_columns,
-      }))
+      // B2 (2026-05-16): count and toast on filtered-out rows so the user doesn't
+      // silently lose work.  We do NOT block submit — the rest of the pipeline
+      // still proceeds; the toast just makes the drop visible.
+      const augmentationsWithPrompt = (augmentations ?? []).filter(
+        (a) => a.prompt_text.trim().length > 0,
+      )
+      const augmentationsPayload = augmentationsWithPrompt
+        .filter((a) => a.source_columns.length > 0)
+        .map((a) => ({
+          mode: a.mode,
+          prompt_text: a.prompt_text,
+          preset_id: a.preset_id,
+          source_columns: a.source_columns,
+          destination_columns: a.destination_columns,
+        }))
+      const droppedAugCount =
+        augmentationsWithPrompt.length - augmentationsPayload.length
+      if (droppedAugCount > 0) {
+        toast.error(
+          droppedAugCount === 1
+            ? "1 augmentation skipped because no source columns were selected. Aug rows must have at least one source column to run."
+            : `${droppedAugCount} augmentations skipped because no source columns were selected. Aug rows must have at least one source column to run.`,
+          { duration: 6000 },
+        )
+      }
 
       await fileManagementAPI.startProcessing(uploadId, authToken, {
         selected_columns: selectedColumns,

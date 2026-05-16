@@ -57,6 +57,13 @@ interface QuarantineAgGridTableProps {
   /** True when the caller has permission to unlock pushed rows. Drives
    *  whether the lock badge is interactive. */
   canUnlock?: boolean
+  /** B4 (2026-05-16): list of column names introduced by augmentation
+   *  presets / custom augmentation rules before DQ ran.  When present,
+   *  the grid violet-tints these columns and prefixes the header with
+   *  a "✨" so users can tell augmented columns apart from upload columns.
+   *  Sourced from FileStatusResponse.augmented_columns (BE-persisted in
+   *  start_dq_processing.py). */
+  augmentedColumns?: string[]
 }
 
 const GRID_THEME = themeQuartz.withParams({
@@ -226,7 +233,14 @@ export function QuarantineAgGridTable({
   onGridApiReady,
   onUnlockRowClick,
   canUnlock = false,
+  augmentedColumns,
 }: QuarantineAgGridTableProps) {
+  // B4 (2026-05-16): pre-build a Set for O(1) membership checks inside the
+  // cellClass closure (called once per cell render — every scroll tick).
+  const augmentedColumnsSet = useMemo(
+    () => new Set(augmentedColumns ?? []),
+    [augmentedColumns],
+  )
   const wrapperRef = useRef<HTMLDivElement>(null)
   const apiRef = useRef<GridApi<QuarantineRow> | null>(null)
   const getCellValueRef = useRef(getCellValue)
@@ -363,11 +377,37 @@ export function QuarantineAgGridTable({
         flex: 1,
         minWidth: 180,
         sortable: false,
+        // B4 (2026-05-16): augmented columns get a violet bar on the
+        // left edge of each cell so they're visually distinct from upload
+        // columns.  The class is appended ALONGSIDE the existing DQ status
+        // classes; it doesn't replace cell highlighting for issues.
         headerComponent: filterComponent
           ? () => (
               <div className="flex items-center">
+                {augmentedColumnsSet.has(column) && (
+                  <span
+                    className="text-violet-500 mr-1"
+                    title="Augmented column (created by an augmentation rule before DQ)"
+                    aria-hidden="true"
+                  >
+                    ✨
+                  </span>
+                )}
                 <span>{column}</span>
                 {filterComponent(column)}
+              </div>
+            )
+          : augmentedColumnsSet.has(column)
+          ? () => (
+              <div className="flex items-center">
+                <span
+                  className="text-violet-500 mr-1"
+                  title="Augmented column (created by an augmentation rule before DQ)"
+                  aria-hidden="true"
+                >
+                  ✨
+                </span>
+                <span>{column}</span>
               </div>
             )
           : undefined,
@@ -389,7 +429,21 @@ export function QuarantineAgGridTable({
           return getCellTooltip(column, params.data)
         },
         valueFormatter: (params: ValueFormatterParams<QuarantineRow>) => formatCellValue(params.value),
-        cellClass: (params) => getCellStatusClass(params, isCellEditedRef.current, isCellSavedRef.current, findMatchSetRef.current, currentMatchKeyRef.current, cellLocksRefInternal.current),
+        cellClass: (params) => {
+          const classes = getCellStatusClass(
+            params,
+            isCellEditedRef.current,
+            isCellSavedRef.current,
+            findMatchSetRef.current,
+            currentMatchKeyRef.current,
+            cellLocksRefInternal.current,
+          )
+          // B4 (2026-05-16): violet tint + left-border on augmented columns.
+          if (augmentedColumnsSet.has(column)) {
+            classes.push('bg-violet-50/40', 'border-l-2', 'border-violet-300')
+          }
+          return classes
+        },
         cellStyle: (params): CellStyle | undefined => {
           const field = params.colDef.field
           const rowId = String(params.data?.row_id ?? '')
@@ -402,7 +456,7 @@ export function QuarantineAgGridTable({
         },
       }
     })
-  }, [columns, editableColumnSet, filterComponent, canUnlock, onUnlockRowClick])
+  }, [columns, editableColumnSet, filterComponent, canUnlock, onUnlockRowClick, augmentedColumnsSet])
 
   // fetchRows is accessed via ref so the datasource object stays stable across
   // cell edits and row merges. AG Grid resets scroll/cache whenever datasource

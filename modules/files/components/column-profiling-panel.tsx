@@ -42,9 +42,16 @@ interface ColumnProfilingPanelProps {
   data: ProfilingResponse | null
   loading: boolean
   embedded?: boolean
+  /** B4 (2026-05-16): list of column names produced by augmentation rules
+   *  before DQ ran. When supplied, those columns get a violet tint + a
+   *  "✨" marker in the profiling table so users can tell augmented
+   *  columns apart from upload columns at a glance. Sourced from
+   *  FileStatusResponse.augmented_columns. */
+  augmentedColumns?: string[]
 }
 
-export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilingPanelProps) {
+export function ColumnProfilingPanel({ data, loading, embedded, augmentedColumns }: ColumnProfilingPanelProps) {
+  const augmentedColumnsSet = new Set(augmentedColumns ?? [])
   const [typeFilter, setTypeFilter] = useState<string>("all")
 
   if (loading) {
@@ -249,10 +256,25 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
             {filteredColumns.map(([name, profile]) => {
               const autoCount = profile.rules.filter(r => r.decision === 'auto').length
               const humanCount = profile.rules.filter(r => r.decision === 'human').length
+              const isAugmented = augmentedColumnsSet.has(name)
               return (
-              <TableRow key={name}>
-                <TableCell className="font-medium align-top">
-                  {name}
+              <TableRow
+                key={name}
+                className={isAugmented ? "bg-violet-50/40" : undefined}
+              >
+                <TableCell className={`font-medium align-top ${isAugmented ? "border-l-2 border-violet-300" : ""}`}>
+                  <div className="flex items-center gap-1">
+                    {isAugmented && (
+                      <span
+                        className="text-violet-500"
+                        title="Augmented column (created by an augmentation rule before DQ)"
+                        aria-hidden="true"
+                      >
+                        ✨
+                      </span>
+                    )}
+                    <span>{name}</span>
+                  </div>
                   <div className="flex gap-1 mt-1">
                     <Badge variant="outline" className="text-[10px] px-1 h-5">
                       {profile.rules.length} rules

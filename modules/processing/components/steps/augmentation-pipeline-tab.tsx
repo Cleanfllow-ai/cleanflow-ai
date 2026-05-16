@@ -16,6 +16,18 @@ import { cn } from "@/shared/lib/utils"
 
 const MAX_AUGMENTATIONS = 5
 
+/**
+ * B1 (2026-05-16): Fuzzy column name matcher for preset hydration.
+ * Normalises by lowercasing + stripping ./_/-/whitespace so RightRev
+ * presets shipped with names like ``invoice.month`` match a parquet
+ * column called ``invoice_month`` (or ``INVOICE-MONTH``).  Returns the
+ * original (un-normalised) selected column name on match so downstream
+ * AG-Grid lookups still hit the actual parquet header.
+ */
+export function normalizeColName(s: string): string {
+  return s.toLowerCase().replace(/[._\s-]/g, "")
+}
+
 interface AugmentationPipelineTabProps {
   selectedColumns: string[]
 }
@@ -80,11 +92,25 @@ function AugRowEditor({ config, index, selectedColumns, presets, onChange, onRem
     }
     const preset = presets.find((p) => p.preset_id === value)
     if (!preset) return
-    const srcCols = preset.required_columns.filter((c) => selectedColumns.includes(c))
-    const destCols: DestColumn[] = preset.produces_columns.map((c) => ({
-      name: c,
-      is_new: !selectedColumns.includes(c),
-    }))
+    // B1 (2026-05-16): fuzzy match — case-insensitive + dotted/underscored
+    // tolerant — fixes the silent "no source columns selected" filter-drop
+    // bug when preset metadata uses ``invoice.month`` but the parquet
+    // header is ``invoice_month``.  We resolve each preset column to its
+    // real selectedColumns counterpart so the AG-Grid lookups still hit
+    // the actual on-disk header.
+    const lookupMap = new Map(selectedColumns.map((c) => [normalizeColName(c), c]))
+    const srcCols = preset.required_columns
+      .map((c) => lookupMap.get(normalizeColName(c)))
+      .filter((v): v is string => v !== undefined)
+    const destCols: DestColumn[] = preset.produces_columns.map((c) => {
+      const matched = lookupMap.get(normalizeColName(c))
+      // If a fuzzy match exists in selectedColumns, treat as existing
+      // (NOT new) and use the real header.  Otherwise it's a brand-new
+      // augmented column → keep the preset's casing and flag is_new.
+      return matched
+        ? { name: matched, is_new: false }
+        : { name: c, is_new: true }
+    })
     const newCfg: AugmentationConfig = {
       mode: preset.cardinality,
       prompt_text: preset.prompt_text,
@@ -137,8 +163,29 @@ function AugRowEditor({ config, index, selectedColumns, presets, onChange, onRem
     ? destOptions.filter((c) => c.toLowerCase().includes(destQuery.toLowerCase()))
     : destOptions
 
+  // B2 (2026-05-16): visual feedback when this row has a non-empty prompt
+  // but zero source columns — the BE will silently filter the row out of
+  // the payload (ProcessStep.tsx) and the user won't know why no
+  // augmentation ran.  Render a red-tinted border + an inline warning so
+  // the mistake is caught BEFORE Submit.
+  const hasPromptWithoutSources =
+    config.source_columns.length === 0 && config.prompt_text.trim().length > 0
+
   return (
-    <div className="rounded-md border border-muted p-3 space-y-2 bg-muted/10">
+    <div
+      className={cn(
+        "rounded-md border p-3 space-y-2",
+        hasPromptWithoutSources
+          ? "border-destructive bg-destructive/5"
+          : "border-muted bg-muted/10",
+      )}
+    >
+      {hasPromptWithoutSources && (
+        <div className="text-[11px] text-destructive flex items-center gap-1">
+          <span>⚠</span>
+          <span>Pick at least one source column for this augmentation to run.</span>
+        </div>
+      )}
       {/* Row 1: preset + cardinality + delete */}
       <div className="flex items-center gap-2">
         <Select value={config.preset_id ?? "__custom__"} onValueChange={handlePreset}>

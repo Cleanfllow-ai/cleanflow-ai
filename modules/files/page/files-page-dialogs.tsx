@@ -679,7 +679,17 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                         <DialogDescription>Detailed analysis of data types, quality issues, and suggested rules.</DialogDescription>
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto p-6 pt-2">
-                        <ColumnProfilingPanel data={profilingData} loading={loadingProfiling} />
+                        {/* B4 (2026-05-16): pass augmented_columns from the file's
+                            DDB row so the profiling table can violet-tint + ✨ mark
+                            augmented columns.  Falls back to [] when the file isn't
+                            in state.files yet (race) — non-fatal, no visual change. */}
+                        <ColumnProfilingPanel
+                            data={profilingData}
+                            loading={loadingProfiling}
+                            augmentedColumns={
+                                (state.files?.find?.((f: { upload_id?: string }) => f?.upload_id === profilingFileId) as { augmented_columns?: string[] } | undefined)?.augmented_columns ?? []
+                            }
+                        />
                     </div>
                 </DialogContent>
             </Dialog>

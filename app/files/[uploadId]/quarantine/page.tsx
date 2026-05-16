@@ -26,6 +26,7 @@ import { ArrowLeft, ClipboardCheck, Check, Clock, Loader2, Unlock, X } from 'luc
 import type { GridApi } from 'ag-grid-community'
 import type { QuarantineRow } from '@/modules/files/types'
 import { unlockRow } from '@/modules/files/api/file-quarantine-api'
+import { fileManagementAPI } from '@/modules/files'
 import { toast } from 'sonner'
 
 interface PageProps {
@@ -54,6 +55,28 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     authToken: idToken,
     filters: filterState.filters,
   })
+
+  // B4 (2026-05-16): fetch augmented_columns for the violet-tint + ✨ header
+  // decoration in the quarantine grid.  One-shot fetch on mount — the list
+  // never changes for a given upload (set at start_dq_processing time).
+  const [augmentedColumns, setAugmentedColumns] = useState<string[]>([])
+  useEffect(() => {
+    if (!idToken || !uploadId) return
+    let cancelled = false
+    fileManagementAPI
+      .getFileStatus(uploadId, idToken)
+      .then((resp) => {
+        if (cancelled) return
+        const cols = (resp as { augmented_columns?: string[] }).augmented_columns
+        if (Array.isArray(cols) && cols.length > 0) setAugmentedColumns(cols)
+      })
+      .catch(() => {
+        /* non-fatal — grid still renders, just without violet tinting */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [uploadId, idToken])
 
   // ── Optimistic overlay restore (sessionStorage) ─────────────────────
   // Persist in-progress edits per {file_id, session_id} so an accidental
@@ -574,6 +597,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
                 onGridApiReady={handleGridApiReady}
                 onUnlockRowClick={handleUnlockRowClick}
                 canUnlock={isSuperAdmin}
+                augmentedColumns={augmentedColumns}
                 filterComponent={(column) => (
                   <QuarantineColumnFilter
                     column={column}
