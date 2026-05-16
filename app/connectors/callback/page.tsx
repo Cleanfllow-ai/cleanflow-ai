@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react"
 
 /**
@@ -13,9 +12,11 @@ import { Loader2, CheckCircle2, AlertCircle } from "lucide-react"
  * This page sends a postMessage to the opener window so the
  * ConnectorsHub / ERPImport popup flow completes correctly.
  *
- * On success: auto-closes after 2s.
+ * On success: shows countdown (3…2…1) then auto-closes.
  * On error: stays open with a friendly explanation, "Try again" and "Cancel"
- * buttons (auto-close on error has been removed for better UX).
+ * buttons (auto-close on error removed for better UX).
+ *
+ * No AuthGuard, no MainLayout, no sidebar — this is a stripped shell.
  */
 
 const ERROR_COPY: Record<string, string> = {
@@ -34,6 +35,7 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
   quickbooks: "QuickBooks",
   zohobooks: "Zoho Books",
   snowflake: "Snowflake",
+  salesforce: "Salesforce",
 }
 
 function providerLabel(p: string): string {
@@ -59,13 +61,14 @@ function buildErrorMessage(
 }
 
 export default function ConnectorCallbackPage() {
-  const router = useRouter()
   const [status, setStatus] = useState<"processing" | "success" | "error">(
     "processing",
   )
   const [message, setMessage] = useState("Completing connection...")
   const [provider, setProvider] = useState("unknown")
   const [errorCode, setErrorCode] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const [cannotClose, setCannotClose] = useState(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -129,26 +132,26 @@ export default function ConnectorCallbackPage() {
       }
     }
 
-    function autoClose(delay: number) {
-      setTimeout(() => {
-        // Always TRY to close — browsers permit window.close() on
-        // popups opened by window.open(), even when COOP has severed
-        // the window.opener reference. If close fails we surface a
-        // "you can close this tab" message rather than redirecting
-        // through AuthGuard (which would land on /auth/login since
-        // this popup window has no Cognito session of its own).
-        try { window.close() } catch { /* noop */ }
-        // If the window is still open ~500ms later, we're in a
-        // direct-navigation (non-popup) scenario — only THEN redirect.
-        setTimeout(() => {
-          if (!window.closed) {
-            // Show a permanent "you can close this tab" instead of
-            // redirecting. The parent already got the postMessage and
-            // refreshed its connector status.
-            setMessage("You can close this tab.")
-          }
-        }, 500)
-      }, delay)
+    function startCountdownAndClose(seconds: number) {
+      setCountdown(seconds)
+      let remaining = seconds
+      const tick = setInterval(() => {
+        remaining -= 1
+        if (remaining <= 0) {
+          clearInterval(tick)
+          setCountdown(0)
+          try { window.close() } catch { /* noop */ }
+          // If the window is still open ~500ms later, we're in a
+          // direct-navigation (non-popup) scenario — show a manual-close hint.
+          setTimeout(() => {
+            if (!window.closed) {
+              setCannotClose(true)
+            }
+          }, 500)
+        } else {
+          setCountdown(remaining)
+        }
+      }, 1000)
     }
 
     if (error) {
@@ -166,21 +169,19 @@ export default function ConnectorCallbackPage() {
 
     if (success === "true") {
       setStatus("success")
-      setMessage("Connected successfully!")
       notifyOpener(`${providerParam}-auth-success`, {
         realmId: params.get("realmId") || undefined,
       })
-      autoClose(2000)
+      startCountdownAndClose(3)
       return
     }
 
     // No explicit success/error — assume success (backend already processed
     // the callback)
     setStatus("success")
-    setMessage("Connected successfully!")
     notifyOpener(`${providerParam}-auth-success`, {})
-    autoClose(2000)
-  }, [router])
+    startCountdownAndClose(3)
+  }, [])
 
   const handleTryAgain = () => {
     // Notify opener so it can re-trigger the OAuth flow, then close.
@@ -214,11 +215,25 @@ export default function ConnectorCallbackPage() {
             <div className="w-14 h-14 mx-auto bg-green-500/10 rounded-full flex items-center justify-center mb-5">
               <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
-            <h2 className="text-lg font-semibold mb-1">Connected</h2>
-            <p className="text-sm text-muted-foreground mb-3">{message}</p>
-            <p className="text-xs text-muted-foreground">
-              This window will close automatically...
+            <h2 className="text-lg font-semibold mb-1">
+              {providerLabel(provider)} connected
+            </h2>
+            <p className="text-sm text-muted-foreground mb-3">
+              Your account has been linked successfully.
             </p>
+            {cannotClose ? (
+              <p className="text-xs text-muted-foreground">
+                You can close this tab now.
+              </p>
+            ) : countdown !== null && countdown > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                This window will close in {countdown}…
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Closing window…
+              </p>
+            )}
           </div>
         )}
         {status === "error" && (
@@ -243,7 +258,7 @@ export default function ConnectorCallbackPage() {
                 onClick={handleCancel}
                 className="flex-1 inline-flex items-center justify-center rounded-md border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               >
-                Cancel
+                Close
               </button>
             </div>
           </div>
