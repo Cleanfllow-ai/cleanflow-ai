@@ -10,11 +10,13 @@ import {
     removeFile,
     selectFiles,
     selectFilesStatus,
+    selectFilesError,
 } from "@/modules/files/store/filesSlice";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/modules/auth";
 import { ApiError } from "@/modules/shared/api-error";
-import { toastFromError } from "@/lib/error-toast-jsx";
+import { toastFromError, toastFromQuarantineError } from "@/lib/error-toast-jsx";
+import { ToastAction as _ToastAction } from "@/components/ui/toast";
 import { buildPrefixedDataFilename, sanitizeFilenamePart } from "@/modules/files/utils/download-filenames";
 import { triggerBlobDownload, triggerPresignedDownload } from "@/modules/files/utils/trigger-download";
 import {
@@ -24,6 +26,8 @@ import {
     type CustomRuleDefinition,
     type CustomRuleSuggestionResponse,
 } from "@/modules/files";
+import { useImportingFilesPoll } from "@/modules/files/hooks/use-importing-files-poll";
+import { useOptimizingFilesPoll } from "@/modules/files/hooks/use-optimizing-files-poll";
 import {
     STATUS_OPTIONS,
 } from "@/modules/files/page/constants";
@@ -35,6 +39,7 @@ export function useFilesPage() {
     const dispatch = useAppDispatch();
     const files = useAppSelector(selectFiles);
     const filesStatus = useAppSelector(selectFilesStatus);
+    const filesError = useAppSelector(selectFilesError);
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
@@ -56,6 +61,40 @@ export function useFilesPage() {
         setLoading(filesStatus === "loading");
     }, [filesStatus]);
 
+    // ─── Files-list load error toast (States 4 + 5) ──────────────────
+    // React to Redux "failed" status and surface the appropriate toast.
+    // 401 → session-expired + Sign In; 5xx / network → retry prompt.
+    // A stable ref prevents re-showing the same toast on unrelated re-renders.
+    const shownListErrorRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (filesStatus !== "failed" || !filesError) return;
+        const key = `${filesError.status ?? "net"}-${filesError.message}`;
+        if (shownListErrorRef.current === key) return;
+        shownListErrorRef.current = key;
+
+        // Build a typed ApiError so mapQuarantineErrorToToast can route
+        // 401 (session expired + Sign In) vs 5xx (server error + Retry).
+        const apiErr = new ApiError({
+            status: filesError.status ?? 500,
+            message: filesError.message,
+            action: filesError.status === 401 ? "signin" : "retry",
+        });
+
+        const retryFn = () => {
+            shownListErrorRef.current = null;
+            loadFiles(true);
+        };
+
+        if (filesError.status === 401) {
+            toast(toastFromQuarantineError(apiErr, { action: "load your files" }));
+        } else {
+            toast(toastFromQuarantineError(apiErr, {
+                action: "load your files",
+                retryFn,
+            }));
+        }
+    }, [filesStatus, filesError]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [downloading, setDownloading] = useState<string | null>(null);
@@ -68,6 +107,12 @@ export function useFilesPage() {
     const [deleting, setDeleting] = useState<string | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [fileToDelete, setFileToDelete] = useState<FileStatusResponse | null>(null);
+    // ─── Stop (cancel in-flight import / processing) ─────────────────────
+    // Functionally distinct from delete: hits POST /uploads/{id}/cancel and
+    // transitions the row to IMPORT_FAILED / DQ_FAILED instead of removing it.
+    const [stopping, setStopping] = useState<string | null>(null);
+    const [showStopModal, setShowStopModal] = useState(false);
+    const [fileToStop, setFileToStop] = useState<FileStatusResponse | null>(null);
     const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
     const [bulkDeleting, setBulkDeleting] = useState(false);
     const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -231,6 +276,49 @@ export function useFilesPage() {
 
     // Highlighted file (from activity feed click — animates the row)
     const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null);
+
+    // ── URL-state hydration: pick up search/sort/status from query on mount ─
+    // We persist these on change too (effect below) so a Cmd+R / opening the
+    // page in a new tab preserves the filtered view. Hydration runs exactly
+    // once per page-mount via a ref guard — otherwise the URL-write effect
+    // and this hydration effect would ping-pong.
+    const urlStateHydratedRef = useRef(false);
+    useEffect(() => {
+        if (urlStateHydratedRef.current) return;
+        urlStateHydratedRef.current = true;
+        const q = searchParams.get("q");
+        const sf = searchParams.get("sort");
+        const sd = searchParams.get("dir");
+        if (q) setSearchQuery(q);
+        if (sf === "name" || sf === "score" || sf === "status" || sf === "uploaded" || sf === "updated") {
+            setSortField(sf);
+        }
+        if (sd === "asc" || sd === "desc") setSortDirection(sd);
+        // statusFilter is hydrated by the existing effect below
+    }, [searchParams]);
+
+    // ── URL-state write-back: keep ?q / ?status / ?sort / ?dir in sync ──
+    // Debounced to avoid a router.replace per keystroke. Skipped until the
+    // hydration ref has flipped so we don't clobber URL params during the
+    // initial mount race. Uses replace() so the browser back-stack stays
+    // clean — these are view-state changes, not navigation.
+    useEffect(() => {
+        if (!urlStateHydratedRef.current) return;
+        const timer = setTimeout(() => {
+            const next = new URLSearchParams(searchParams.toString());
+            if (searchQuery) next.set("q", searchQuery); else next.delete("q");
+            if (statusFilter && statusFilter !== "all") next.set("status", statusFilter); else next.delete("status");
+            if (sortField && sortField !== "uploaded") next.set("sort", sortField); else next.delete("sort");
+            if (sortDirection && sortDirection !== "desc") next.set("dir", sortDirection); else next.delete("dir");
+            const qs = next.toString();
+            const target = qs ? `${pathname}?${qs}` : pathname;
+            // Only replace if URL actually changed — guards against an
+            // infinite loop with the hydration effect.
+            const current = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+            if (target !== current) router.replace(target, { scroll: false });
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, statusFilter, sortField, sortDirection, pathname, router, searchParams]);
 
     // Handle query params from Dashboard → Catalog navigation
     const consumedFileParamRef = useRef(false);
@@ -424,17 +512,28 @@ export function useFilesPage() {
                 false,
             );
             toast({ title: "Upload Complete", description: "File uploaded successfully." });
-            await loadFiles();
-            // Find the newly uploaded file and show post-upload prompt
-            const refreshedFiles = dispatch(fetchFiles(idToken));
+            // Refresh the list and read the refreshed items directly from the
+            // thunk result so we don't search the stale closure `files` (which
+            // is captured at upload-time and never sees the just-uploaded row).
+            // Previously this branch dispatched fetchFiles twice and never
+            // surfaced the post-upload prompt — fixed in fe/files audit (CC4).
             setActiveSection("explorer");
-            // Set recently uploaded for the prompt banner (auto-dismiss after 15s)
-            const latestFile = files.find((f) =>
-                (f.original_filename || f.filename || "").toLowerCase() === file.name.toLowerCase()
-            );
-            if (latestFile) {
-                setRecentlyUploaded(latestFile);
-                setTimeout(() => setRecentlyUploaded(null), 15000);
+            try {
+                const action: any = await dispatch(fetchFiles(idToken));
+                const refreshedItems: FileStatusResponse[] = Array.isArray(action?.payload)
+                    ? action.payload
+                    : (filesRef.current ?? files);
+                const target = refreshedItems.find((f) =>
+                    (f.original_filename || f.filename || "").toLowerCase() ===
+                    file.name.toLowerCase()
+                );
+                if (target) {
+                    setRecentlyUploaded(target);
+                    setTimeout(() => setRecentlyUploaded(null), 15000);
+                }
+            } catch {
+                // Refresh failure here is non-fatal — the upload itself
+                // succeeded and the polling loops will pick up the row.
             }
         } catch (error) {
             console.error("Upload failed:", error);
@@ -548,10 +647,58 @@ export function useFilesPage() {
     };
 
     // ─── Details / processing / profiling ─────────────────────────────
-    const handleViewDetails = (file: FileStatusResponse) => {
+    const handleViewDetails = useCallback(async (file: FileStatusResponse) => {
+        // State 6: guard against clicking a stale row (file deleted in another
+        // tab). Verify the file still exists before opening the detail panel;
+        // on 404, remove it from the store and show a toast with a Refresh button.
+        if (idToken) {
+            try {
+                await fileManagementAPI.getFileStatus(file.upload_id, idToken);
+            } catch (err: any) {
+                const isNotFound =
+                    err?.status === 404 ||
+                    (err?.message || "").toLowerCase().includes("not found");
+                if (isNotFound) {
+                    dispatch(removeFile(file.upload_id));
+                    toast({
+                        title: "This file was deleted.",
+                        description: "It may have been removed in another session.",
+                        variant: "destructive",
+                        action: (
+                            <_ToastAction altText="Refresh List" onClick={() => loadFiles(true)}>
+                                Refresh List
+                            </_ToastAction>
+                        ) as any,
+                    });
+                    return;
+                }
+                // Non-404 errors: surface the failure (401 → Sign In, 5xx →
+                // Retry) instead of silently opening with stale cached data.
+                // Previously this branch fell through and the user saw a
+                // detail panel that looked fine but had outdated rows /
+                // missing DQ score. Toast routes via the standard matrix.
+                if (err instanceof ApiError && err.status === 401) {
+                    toast(toastFromQuarantineError(err, { action: "view file details" }));
+                    return;
+                }
+                if (err instanceof ApiError && err.status >= 500) {
+                    toast(
+                        toastFromQuarantineError(err, {
+                            action: "view file details",
+                            retryFn: () => handleViewDetails(file),
+                        }),
+                    );
+                    return;
+                }
+                // Network / unknown errors: fall through and open with
+                // cached data, but surface a non-blocking warning so the
+                // user knows the panel may be stale.
+                console.warn("getFileStatus pre-check failed; opening with cached data", err);
+            }
+        }
         setSelectedFile(file);
         setDetailsOpen(true);
-    };
+    }, [idToken, dispatch, toast, loadFiles]);
 
     const handleOpenQuarantineEditor = (file: FileStatusResponse) => {
         if (!ensureFilesPermission()) return;
@@ -625,6 +772,24 @@ export function useFilesPage() {
                     clearInterval(reprocessPollRef.current);
                     reprocessPollRef.current = null;
                 }
+                if (pollCount >= maxPolls && stillActive) {
+                    // 30-min ceiling hit while at least one file is still
+                    // active. Previously this branch silently stopped the
+                    // poll and the user had no indication that we'd given
+                    // up. Surface a non-blocking warning + manual-refresh
+                    // affordance so the user can re-check the status.
+                    toast({
+                        title: "Reprocess is taking longer than expected",
+                        description:
+                            "We stopped auto-polling after 30 minutes. Use Refresh to check the latest status.",
+                        variant: "destructive",
+                        action: (
+                            <_ToastAction altText="Refresh" onClick={() => loadFiles(true)}>
+                                Refresh
+                            </_ToastAction>
+                        ) as any,
+                    });
+                }
             }
         }, 5000); // poll every 5s for snappier UX
     }, [dispatch, loadFiles, quarantineEditorFile]);
@@ -635,6 +800,23 @@ export function useFilesPage() {
             if (reprocessPollRef.current) clearInterval(reprocessPollRef.current);
         };
     }, []);
+
+    // Background polling for in-flight connector imports (Google Drive, …).
+    // Refreshes the file list every 2 s while ≥ 1 row is IMPORTING so the
+    // inline progress bar in the data-catalog row stays live even when the
+    // Import Data dialog has been closed (or the page was just reloaded
+    // mid-import). No-op once all imports terminate.
+    // While the user-initiated Stop & Delete chain is mid-flight we pause the
+    // 2-second IMPORTING refresh so a stale list response doesn't clobber the
+    // optimistic local state between the cancel and delete API calls.
+    useImportingFilesPoll({ files, onRefresh: loadFiles, isPaused: stopping !== null });
+
+    // Phase 7B (logical sharding): while ≥ 1 file is OPTIMIZING, refresh the
+    // catalog list every 5 s so the badge transitions out promptly when the
+    // optimizer Lambda finishes (→ UPLOADED / VALIDATED / OPTIMIZE_FAILED).
+    // Same pause semantics as the IMPORTING poller — suspend during a
+    // user-initiated stop+delete to avoid clobbering optimistic state.
+    useOptimizingFilesPoll({ files, onRefresh: loadFiles, isPaused: stopping !== null });
 
     const handleQuarantineEditorComplete = () => {
         // Reload files to reflect new version
@@ -985,13 +1167,28 @@ export function useFilesPage() {
                 const parsed = parseSelectionRows(rows);
                 if (parsed) { applySelection(parsed.mode, parsed.columns); return; }
             } else if (ext === "xlsx" || ext === "xls") {
-                const XLSX = await import("xlsx");
-                const data = await file.arrayBuffer();
-                const workbook = XLSX.read(data, { type: "array" });
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
-                const parsed = parseSelectionRows(rows);
+                // 5 MB cap — selection files are tiny; reject anything larger to avoid
+                // parsing a user-uploaded data file with the CVE-free exceljs parser.
+                if (file.size > 5 * 1024 * 1024) {
+                    setSelectionFileError("Selection file must be under 5 MB.");
+                    return;
+                }
+                const ExcelJS = await import("exceljs");
+                const buffer = await file.arrayBuffer();
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(buffer);
+                const worksheet = workbook.worksheets[0];
+                if (!worksheet) {
+                    setSelectionFileError("Could not understand selection file. Use columns with 'name' and 'include'.");
+                    return;
+                }
+                const rows: any[][] = [];
+                worksheet.eachRow((row) => {
+                    rows.push(row.values as any[]);
+                });
+                // exceljs rows are 1-indexed (row.values[0] is undefined); strip it
+                const normalizedRows = rows.map((r) => (Array.isArray(r) && r[0] === undefined ? r.slice(1) : r));
+                const parsed = parseSelectionRows(normalizedRows);
                 if (parsed) { applySelection(parsed.mode, parsed.columns); return; }
             }
             setSelectionFileError("Could not understand selection file. Use columns with 'name' and 'include'.");
@@ -1037,19 +1234,164 @@ export function useFilesPage() {
         setDeleting(fileToDelete.upload_id);
         setShowDeleteModal(false);
         try {
-            await fileManagementAPI.deleteUpload(fileToDelete.upload_id, idToken);
+            const result = await fileManagementAPI.deleteUpload(fileToDelete.upload_id, idToken);
+            // 202 path: poll the operation until terminal before clearing the row.
+            if (result?.accepted && result.operation_id) {
+                await fileManagementAPI.pollDeleteOperation(result.operation_id, idToken);
+            }
             toast({ title: "File deleted", description: "File removed successfully" });
             await loadFiles();
         } catch (error) {
             console.error("Delete error:", error);
-            const message =
-                error instanceof Error && error.message.toLowerCase().includes("permission denied")
-                    ? "You do not have permission for this action. Contact your organization admin."
-                    : "Unable to delete file";
-            toast({ title: "Delete failed", description: message, variant: "destructive" });
+            // 409 = backend's in-flight delete guard (Phase 1) or the file was
+            // already removed concurrently. Treat both as a soft success — the
+            // user's intent (row gone) is satisfied either way; if the row is
+            // still there, the polling loop will refresh it and the user can
+            // click Stop instead.
+            if (error instanceof ApiError && error.status === 409) {
+                const msg = (error.message || "").toLowerCase();
+                if (msg.includes("in progress") || msg.includes("uploading") || msg.includes("importing") || msg.includes("processing")) {
+                    toast({
+                        title: "Cannot delete while in progress",
+                        description: "Stop the import first, then delete.",
+                        variant: "destructive",
+                    });
+                } else {
+                    toast({ title: "Already deleted", description: "The file is no longer in the catalog." });
+                    await loadFiles();
+                }
+            } else {
+                // Route through the quarantine error matrix so 401 shows Sign In,
+                // 403 shows Contact Support, 500 shows Retry — matching CC3's spec.
+                toast(toastFromQuarantineError(error, { action: "delete" }));
+            }
         } finally {
             setDeleting(null);
             setFileToDelete(null);
+        }
+    };
+
+    // ─── Stop (cancel in-flight import / processing) ─────────────────────
+    const handleStopClick = (file: FileStatusResponse) => {
+        setFileToStop(file);
+        setShowStopModal(true);
+    };
+
+    /**
+     * Stop & Delete in one click.
+     *
+     * Flow:
+     *   1. POST /uploads/{id}/cancel   — transitions the row to a terminal
+     *      state (IMPORT_FAILED / DQ_FAILED / UPLOAD_FAILED). Idempotent
+     *      ("noop" + new_status terminal also counts as success).
+     *   2. DELETE /uploads/{id}        — clears the row from the catalog.
+     *      Only attempted if (1) succeeded.
+     *
+     * Toasts:
+     *   • Success path        → "Import stopped and deleted"
+     *   • cancel 403          → "Only Super Admin or Admin can stop imports"
+     *   • cancel 404          → "Already deleted" (skip delete, refresh list)
+     *   • cancel other error  → "Failed to stop import" (skip delete)
+     *   • cancel ok, delete err → "Import stopped (delete failed: …)" so the
+     *                              user can manually delete via trash later.
+     *
+     * The IMPORTING poll loop is suspended for the duration of this chain
+     * (see `useImportingFilesPoll({ isPaused: stopping !== null })`) so a
+     * stale list refresh between the two HTTP calls can't reintroduce a row
+     * that's about to be deleted.
+     */
+    const handleStopConfirm = async () => {
+        if (!fileToStop || !idToken) return;
+        if (!ensureFilesPermission()) return;
+        const target = fileToStop;
+        setStopping(target.upload_id);
+        setShowStopModal(false);
+
+        // ── Step 1: cancel ──────────────────────────────────────────────
+        let cancelOk = false;
+        try {
+            const result = await fileManagementAPI.cancelUpload(target.upload_id, idToken);
+            const newStatus = (result?.new_status || "").toUpperCase();
+            const isTerminal =
+                newStatus === "IMPORT_FAILED" ||
+                newStatus === "DQ_FAILED" ||
+                newStatus === "UPLOAD_FAILED" ||
+                newStatus === "REJECTED" ||
+                newStatus === "DQ_FIXED";
+            const reqStatusCancelling = (result?.status || "").toLowerCase() === "cancelling";
+            const reqStatusNoop = (result?.status || "").toLowerCase() === "noop";
+            // Treat a fresh cancel OR a no-op-on-terminal as successful — both
+            // mean it's safe to follow up with delete. (The row is or will be
+            // in a deletable state.)
+            cancelOk = reqStatusCancelling || (reqStatusNoop && isTerminal) || isTerminal;
+        } catch (error) {
+            console.error("Cancel error:", error);
+            if (error instanceof ApiError && error.status === 403) {
+                toast({
+                    title: "Permission denied",
+                    description: "Only Super Admin or Admin can stop imports.",
+                    variant: "destructive",
+                });
+            } else if (error instanceof ApiError && error.status === 404) {
+                // The upload row is already gone — there is nothing to delete.
+                toast({ title: "Already deleted", description: "This file no longer exists in the catalog." });
+                await loadFiles();
+            } else {
+                const code =
+                    error instanceof ApiError && error.code
+                        ? ` (${error.code})`
+                        : error instanceof ApiError
+                          ? ` (HTTP ${error.status})`
+                          : "";
+                toast({
+                    title: "Failed to stop import",
+                    description: `Could not cancel the operation${code}. Please try again.`,
+                    variant: "destructive",
+                });
+            }
+            setStopping(null);
+            setFileToStop(null);
+            return;
+        }
+
+        if (!cancelOk) {
+            // Defensive: cancel returned an unexpected shape — treat as
+            // partial success and surface the ambiguity to the user.
+            toast({
+                title: "Import stop status unclear",
+                description: "The cancel call returned unexpectedly. Please refresh and retry the trash icon.",
+                variant: "destructive",
+            });
+            await loadFiles();
+            setStopping(null);
+            setFileToStop(null);
+            return;
+        }
+
+        // ── Step 2: delete ──────────────────────────────────────────────
+        try {
+            const result = await fileManagementAPI.deleteUpload(target.upload_id, idToken);
+            if (result?.accepted && result.operation_id) {
+                await fileManagementAPI.pollDeleteOperation(result.operation_id, idToken);
+            }
+            toast({
+                title: "Import stopped and deleted",
+                description: "The in-progress operation was cancelled and the file removed.",
+            });
+        } catch (error) {
+            console.error("Post-cancel delete error:", error);
+            // Cancel succeeded but delete didn't — surface a partial-success
+            // toast and let the user retry the trash icon manually. The row
+            // is now in a terminal state so the trash icon will be visible.
+            toast({
+                title: "Import stopped",
+                description: "Cancelled, but the file could not be deleted. You can retry from the trash icon.",
+                variant: "destructive",
+            });
+        } finally {
+            await loadFiles();
+            setStopping(null);
+            setFileToStop(null);
         }
     };
 
@@ -1083,12 +1425,30 @@ export function useFilesPage() {
         const ids = Array.from(selectedFiles);
         let successCount = 0;
         let failCount = 0;
+        // Capture last error so we can surface session-expired / permission
+        // distinctly instead of the previous opaque "Bulk delete partial"
+        // toast. A 401 also bails the loop early — every subsequent call
+        // would 401 too, and the user needs to re-auth before retrying.
+        let lastError: unknown = null;
+        let bailedOnAuth = false;
         for (const id of ids) {
             try {
-                await fileManagementAPI.deleteUpload(id, idToken);
+                setDeleting(id);
+                const result = await fileManagementAPI.deleteUpload(id, idToken);
+                if (result?.accepted && result.operation_id) {
+                    await fileManagementAPI.pollDeleteOperation(result.operation_id, idToken);
+                }
                 successCount++;
-            } catch {
+            } catch (err) {
+                lastError = err;
                 failCount++;
+                console.error(`Bulk delete failed for ${id}:`, err);
+                if (err instanceof ApiError && err.status === 401) {
+                    bailedOnAuth = true;
+                    break;
+                }
+            } finally {
+                setDeleting(null);
             }
         }
         setSelectedFiles(new Set());
@@ -1096,6 +1456,16 @@ export function useFilesPage() {
         await loadFiles();
         if (failCount === 0) {
             toast({ title: "Files deleted", description: `${successCount} file(s) removed successfully` });
+        } else if (bailedOnAuth) {
+            // Session expired mid-loop — route through the typed-error mapper
+            // so the toast carries the standard "Sign In" action.
+            toast(toastFromQuarantineError(lastError, { action: "delete files" }));
+        } else if (lastError instanceof ApiError && lastError.status === 403) {
+            toast({
+                title: "Permission denied",
+                description: `${successCount} deleted, ${failCount} blocked. You don't have permission to delete some of the selected files.`,
+                variant: "destructive",
+            });
         } else {
             toast({ title: "Bulk delete partial", description: `${successCount} deleted, ${failCount} failed`, variant: "destructive" });
         }
@@ -1297,7 +1667,22 @@ export function useFilesPage() {
             toast({ title: "Success", description: "File downloaded" });
         } catch (error) {
             console.error("Download error:", error);
-            toast({ title: "Download failed", description: "Unable to download file", variant: "destructive" });
+            // Route 401 / 403 / 5xx through the typed-error matrix so the
+            // toast carries the correct action (Sign In / Contact Support /
+            // Retry) instead of the previous opaque "Unable to download".
+            if (error instanceof ApiError) {
+                toast(
+                    toastFromQuarantineError(error, {
+                        action: "download this file",
+                        retryFn:
+                            error.status >= 500
+                                ? () => handleDirectDownload(file, format, dataType)
+                                : undefined,
+                    }),
+                );
+            } else {
+                toast({ title: "Download failed", description: "Unable to download file", variant: "destructive" });
+            }
         } finally {
             setDownloadingFormat(null);
             setDownloading(null);
@@ -1341,7 +1726,19 @@ export function useFilesPage() {
             });
         } catch (error) {
             console.error("Download error:", error);
-            toast({ title: "Download failed", description: "Unable to download file", variant: "destructive" });
+            if (error instanceof ApiError) {
+                toast(
+                    toastFromQuarantineError(error, {
+                        action: "download this file",
+                        retryFn:
+                            error.status >= 500
+                                ? () => handleDownloadWithErp(targetErp, dataType)
+                                : undefined,
+                    }),
+                );
+            } else {
+                toast({ title: "Download failed", description: "Unable to download file", variant: "destructive" });
+            }
         } finally {
             setDownloadingFormat(null);
             setDownloading(null);
@@ -1409,6 +1806,8 @@ export function useFilesPage() {
         profilingFileId, setProfilingFileId, profilingData, loadingProfiling, handleViewProfiling,
         // Delete
         deleting, showDeleteModal, setShowDeleteModal, fileToDelete, handleDeleteClick, handleDeleteConfirm,
+        // Stop (cancel in-flight import / processing)
+        stopping, showStopModal, setShowStopModal, fileToStop, handleStopClick, handleStopConfirm,
         // Multi-select & Bulk Delete
         selectedFiles, handleSelectFile, handleSelectAll, handleBulkDeleteClick,
         showBulkDeleteModal, setShowBulkDeleteModal, handleBulkDeleteConfirm, bulkDeleting,

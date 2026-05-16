@@ -39,7 +39,22 @@ export const calculateProcessingTime = (
  * Used to show a pulsing indicator next to the badge.
  */
 export const isActiveStatus = (status: string): boolean => {
-  return ["DQ_RUNNING", "NORMALIZING", "REPROCESSING", "UPLOADING", "QUEUED", "DQ_DISPATCHED", "SHARDING"].includes(status)
+  return [
+    "DQ_RUNNING",
+    "NORMALIZING",
+    "REPROCESSING",
+    "UPLOADING",
+    "QUEUED",
+    "DQ_DISPATCHED",
+    "SHARDING",
+    "IMPORTING",
+    // Phase 7B (logical sharding): backend is repacking the file into
+    // shard-aligned blocks. The OptimizingBadge component still owns its
+    // bespoke amber pill + spinner; this entry only keeps the in-flight
+    // dot-pulse pattern consistent for any other consumer that calls
+    // isActiveStatus() directly.
+    "OPTIMIZING",
+  ].includes(status)
 }
 
 /**
@@ -57,6 +72,8 @@ export const getStatusLabel = (status: string): string => {
     case "QUEUED": return "Queued"
     case "UPLOADED": return "Uploaded"
     case "UPLOADING": return "Uploading"
+    case "IMPORTING": return "Importing"
+    case "IMPORT_FAILED": return "Import Failed"
     case "DQ_FAILED": return "Failed"
     case "FAILED": return "Failed"
     case "UPLOAD_FAILED": return "Upload Failed"
@@ -66,6 +83,12 @@ export const getStatusLabel = (status: string): string => {
     case "SHARDING": return "Initiating..."
     case "SHARDED": return "Ready"
     case "SHARD_FAILED": return "Shard Failed"
+    // Phase 7B: optimizer pipeline states. The dedicated OptimizingBadge
+    // component renders these with a custom pill + tooltip — this label is
+    // only used as a fallback when getStatusLabel() is called outside the
+    // table cell renderer.
+    case "OPTIMIZING": return "Optimizing…"
+    case "OPTIMIZE_FAILED": return "Optimize failed"
     default: return status
   }
 }
@@ -81,6 +104,7 @@ export const getStatusBadgeColor = (status: string) => {
     case "FAILED":
     case "DQ_FAILED":
     case "UPLOAD_FAILED":
+    case "IMPORT_FAILED":
     case "REJECTED":
     case "REPROCESS_FAILED":
       return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25"
@@ -96,6 +120,7 @@ export const getStatusBadgeColor = (status: string) => {
       return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/25"
     // Upload in progress — purple
     case "UPLOADING":
+    case "IMPORTING":
       return "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-400 dark:border-violet-500/25"
     // Sharding in progress — amber (processing indicator)
     case "SHARDING":
@@ -105,6 +130,11 @@ export const getStatusBadgeColor = (status: string) => {
       return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/25"
     // Sharding failed — red (error state)
     case "SHARD_FAILED":
+      return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25"
+    // Phase 7B: optimizer states
+    case "OPTIMIZING":
+      return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/25"
+    case "OPTIMIZE_FAILED":
       return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25"
     default:
       return "bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-500/15 dark:text-gray-400 dark:border-gray-500/25"

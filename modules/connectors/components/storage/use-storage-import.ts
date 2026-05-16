@@ -82,9 +82,24 @@ export function useStorageImport({
     const [importStatus, setImportStatus] = useState<string>("")
     const [importResult, setImportResult] =
         useState<StorageImportResponse | null>(null)
+    // Chrome-style progress fields surfaced by FileRegistry-V3 (BE contract).
+    // Read-only mirror of the latest poll response — drives ImportProgressCard.
+    const [progressDetail, setProgressDetail] = useState<{
+        importStatus: "downloading" | "uploading" | "completed" | "failed"
+        bytesDownloaded: number
+        bytesTotal: number
+        startedAt: string
+        updatedAt: string
+        finishedAt?: string
+        errorMessage?: string
+    } | null>(null)
+    // Sticky error message for the failure card so the FE can offer a retry.
+    const [importError, setImportError] = useState<string | null>(null)
 
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const progressRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    // Latest file the user clicked Import on; used by retryImport().
+    const lastFileRef = useRef<StorageFile | null>(null)
 
     // ── Connection ────────────────────────────────────────────────────
 
@@ -110,10 +125,12 @@ export function useStorageImport({
                 await checkConnection()
                 onNotification?.(`Connected to ${providerDisplayName}`, "success")
             } else {
-                onNotification?.(result.error || "Connection failed", "error")
+                console.error("[Connectors:connectOAuth:storage]", result.error)
+                onNotification?.("We couldn't complete the connection. Please try again or check your provider's permissions.", "error")
             }
         } catch (error) {
-            onNotification?.(describeError(error, "Connection failed"), "error")
+            console.error("[Connectors:connectOAuth:storage]", error)
+            onNotification?.(describeError(error, `Could not connect to ${providerDisplayName}. Please try again.`), "error")
         } finally {
             setIsConnecting(false)
         }
@@ -218,6 +235,17 @@ export function useStorageImport({
             setImportProgress(100)
             setImportStatus("Complete!")
             setImportResult({ ...result, file_size: fileSize })
+            // Mark the chrome-card terminal so it shows the green ✓ + "took N s".
+            setProgressDetail((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          importStatus: "completed",
+                          bytesDownloaded: prev.bytesTotal || prev.bytesDownloaded,
+                          finishedAt: new Date().toISOString(),
+                      }
+                    : prev
+            )
             onNotification?.(`Imported "${fileName}" successfully`, "success")
             onImportComplete?.(result.upload_id)
 
@@ -227,7 +255,9 @@ export function useStorageImport({
                 setImportingFileName("")
                 setImportProgress(0)
                 setImportStatus("")
-            }, 2000)
+                setProgressDetail(null)
+                setImportError(null)
+            }, 4000)
         },
         [stopPolling, onNotification, onImportComplete]
     )
@@ -238,8 +268,19 @@ export function useStorageImport({
             setImportingFileId(file.id)
             setImportingFileName(file.name)
             setImportResult(null)
+            setImportError(null)
             setImportProgress(0)
             setImportStatus("Starting import...")
+            lastFileRef.current = file
+            // Seed the Chrome card immediately so the user sees the row appear
+            // before the first poll lands.
+            setProgressDetail({
+                importStatus: "downloading",
+                bytesDownloaded: 0,
+                bytesTotal: file.size ?? 0,
+                startedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            })
 
             try {
                 // Start async import — returns immediately
@@ -251,18 +292,8 @@ export function useStorageImport({
                 setImportStatus("Importing...")
                 setImportProgress(2)
 
-                // Known file size from storage provider metadata (bytes)
+                // Known file size from storage provider metadata (bytes).
                 const expectedSize = file.size ?? 0
-
-                // Simulated progress: advances toward 95% while waiting for UPLOADED signal.
-                // Steps slow down as we approach 95% to avoid feeling "stuck".
-                let simProgress = 2
-                const advanceSim = () => {
-                    const remaining = 95 - simProgress
-                    const step = Math.max(0.5, remaining * 0.06)
-                    simProgress = Math.min(95, simProgress + step)
-                    setImportProgress(simProgress)
-                }
 
                 let pollFailures = 0
                 pollRef.current = setInterval(async () => {
@@ -270,67 +301,132 @@ export function useStorageImport({
                         const status = await storageConnectorsAPI.getImportStatus(provider, result.upload_id)
                         pollFailures = 0
 
-                        // Use real bytes_transferred when available, otherwise advance simulation
-                        if (status.bytes_transferred && expectedSize > 0) {
-                            const realPct = Math.min((status.bytes_transferred / expectedSize) * 100, 95)
-                            simProgress = realPct
+                        // ── Chrome-style progress (FileRegistry-V3 contract) ──
+                        // Prefer the unified bytes_downloaded/bytes_total pair;
+                        // fall back to the legacy bytes_transferred for back-compat
+                        // until the BE rolls out fully.
+                        const beImportStatus = status.import_status
+                        const bytesDownloaded =
+                            typeof status.bytes_downloaded === "number"
+                                ? status.bytes_downloaded
+                                : typeof status.bytes_transferred === "number"
+                                    ? status.bytes_transferred
+                                    : 0
+                        const bytesTotal =
+                            typeof status.bytes_total === "number" && status.bytes_total > 0
+                                ? status.bytes_total
+                                : typeof status.file_size === "number" && status.file_size > 0
+                                    ? status.file_size
+                                    : expectedSize
+
+                        // Map legacy status if BE hasn't shipped import_status yet.
+                        const inferredImportStatus: "downloading" | "uploading" | "completed" | "failed" =
+                            beImportStatus
+                                ?? (status.status === "UPLOADED" ? "completed"
+                                : status.status === "IMPORT_FAILED" ? "failed"
+                                : "downloading")
+
+                        setProgressDetail({
+                            importStatus: inferredImportStatus,
+                            bytesDownloaded,
+                            bytesTotal,
+                            startedAt: status.download_started_at ?? new Date().toISOString(),
+                            updatedAt: status.download_updated_at ?? new Date().toISOString(),
+                            finishedAt: status.download_finished_at,
+                            errorMessage: status.error_message,
+                        })
+
+                        // Maintain the legacy 0–100 bar for any callsites that
+                        // still consume `importProgress` directly.
+                        if (bytesTotal > 0) {
+                            const realPct = Math.min((bytesDownloaded / bytesTotal) * 100, 99)
                             setImportProgress(realPct)
-                            const mb = (status.bytes_transferred / (1024 * 1024)).toFixed(0)
-                            const totalMb = (expectedSize / (1024 * 1024)).toFixed(0)
+                            const mb = (bytesDownloaded / (1024 * 1024)).toFixed(0)
+                            const totalMb = (bytesTotal / (1024 * 1024)).toFixed(0)
                             setImportStatus(`Importing... ${mb} MB / ${totalMb} MB`)
-                        } else if (status.bytes_transferred) {
-                            const mb = (status.bytes_transferred / (1024 * 1024)).toFixed(0)
+                        } else if (bytesDownloaded > 0) {
+                            const mb = (bytesDownloaded / (1024 * 1024)).toFixed(0)
                             setImportStatus(`Importing... ${mb} MB transferred`)
-                            advanceSim()
-                        } else {
-                            advanceSim()
                         }
 
-                        if (status.status === "UPLOADED") {
+                        if (status.status === "UPLOADED" || inferredImportStatus === "completed") {
                             finishImport(result, file.name, status.file_size ?? undefined)
                             return
                         }
 
-                        if (status.status === "IMPORT_FAILED") {
+                        if (status.status === "IMPORT_FAILED" || inferredImportStatus === "failed") {
                             stopPolling()
+                            console.error("[Connectors:importFile:poll] import failed", status.error_message)
+                            const userMsg = `Could not import "${file.name}". Please try again.`
+                            setImportError(userMsg)
+                            setProgressDetail((prev) =>
+                                prev
+                                    ? {
+                                          ...prev,
+                                          importStatus: "failed",
+                                          finishedAt: new Date().toISOString(),
+                                          errorMessage: userMsg,
+                                      }
+                                    : prev
+                            )
+                            // Leave the card visible so the user can hit Retry; clear
+                            // legacy state so the old bar doesn't double up.
                             setImportProgress(0)
                             setImportStatus("")
-                            setIsImporting(false)
-                            setImportingFileId(null)
-                            setImportingFileName("")
-                            onNotification?.(
-                                status.error_message || `Import of "${file.name}" failed`,
-                                "error"
-                            )
+                            onNotification?.(userMsg, "error")
                             return
                         }
                     } catch {
                         pollFailures++
                         if (pollFailures >= 20) {
                             finishImport(result, file.name)
-                        } else {
-                            // Keep the bar moving even when a poll fails — prevents it from
-                            // freezing at 2% during transient network errors or Lambda cold starts.
-                            advanceSim()
                         }
+                        // No fake-progress on transient poll errors — the chrome
+                        // card's last-known bytes stay put until the next success.
                     }
-                }, 2000)
+                }, 1500)
 
             } catch (error) {
                 stopPolling()
-                setIsImporting(false)
-                setImportingFileId(null)
-                setImportingFileName("")
+                const errMsg = describeError(error, "Import failed")
+                setImportError(errMsg)
+                setProgressDetail((prev) =>
+                    prev
+                        ? { ...prev, importStatus: "failed", errorMessage: errMsg }
+                        : {
+                              importStatus: "failed",
+                              bytesDownloaded: 0,
+                              bytesTotal: file.size ?? 0,
+                              startedAt: new Date().toISOString(),
+                              updatedAt: new Date().toISOString(),
+                              finishedAt: new Date().toISOString(),
+                              errorMessage: errMsg,
+                          }
+                )
                 setImportProgress(0)
                 setImportStatus("")
-                onNotification?.(
-                    describeError(error, "Import failed"),
-                    "error"
-                )
+                onNotification?.(errMsg, "error")
             }
         },
         [provider, onImportComplete, onNotification, stopPolling, finishImport]
     )
+
+    const cancelImport = useCallback(() => {
+        stopPolling()
+        setIsImporting(false)
+        setImportingFileId(null)
+        setImportingFileName("")
+        setImportProgress(0)
+        setImportStatus("")
+        setProgressDetail(null)
+        setImportError(null)
+    }, [stopPolling])
+
+    const retryImport = useCallback(() => {
+        if (lastFileRef.current) {
+            void importFile(lastFileRef.current)
+        }
+    }, [importFile])
 
     // ── Effects ───────────────────────────────────────────────────────
 
@@ -383,5 +479,10 @@ export function useStorageImport({
         importStatus,
         importResult,
         importFile,
+        // Chrome-download-tray progress card (preferred over importProgress).
+        progressDetail,
+        importError,
+        cancelImport,
+        retryImport,
     }
 }

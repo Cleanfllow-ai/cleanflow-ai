@@ -20,14 +20,45 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
+import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/shared/hooks/use-toast"
 import { cn } from "@/shared/lib/utils"
 import { jobsAPI, type Job, frequencyFromBackend } from "@/modules/jobs/api/jobs-api"
+import { isApiError } from "@/modules/shared/api-error"
+import { PermissionWrapper } from "@/modules/auth/components/permission-wrapper"
 import { JobDialog } from "./job-dialog"
 import { JobRunsExplorer } from "./job-runs-explorer"
+
+// Map an unknown error → user-facing toast copy + UX-correct severity.
+// Distinguishes:
+//   401 → session expired / re-login
+//   403 → insufficient role (no point re-logging in)
+//   409 → conflict (pause/resume mismatch, concurrent edit)
+//   5xx → generic backend failure
+// Anything else falls back to the API-provided message.
+function describeJobError(err: unknown, fallback: string): { title: string; description: string } {
+    if (isApiError(err)) {
+        if (err.status === 401) {
+            return { title: "Session expired", description: "Please sign in again to continue." }
+        }
+        if (err.status === 403) {
+            return { title: "Permission denied", description: "Your role doesn't allow this action." }
+        }
+        if (err.status === 409) {
+            return { title: "Conflict", description: "The job state changed — refresh and retry." }
+        }
+        if (err.status >= 500) {
+            return { title: "Server error", description: "The service is temporarily unavailable. Please try again." }
+        }
+        return { title: fallback, description: "Please try again." }
+    }
+    return { title: fallback, description: "Something went wrong. Please try again." }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -107,6 +138,7 @@ export function JobsList() {
     const [jobs, setJobs] = useState<Job[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const [statusFilter, setStatusFilter] = useState<string>("all")
 
     // Dialog state
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -172,13 +204,22 @@ export function JobsList() {
 
     const filteredJobs = jobs
         .filter(job => {
-            if (!searchQuery) return true
-            const q = searchQuery.toLowerCase()
-            return (
-                job.name.toLowerCase().includes(q) ||
-                (getProviderDisplayName(job.source_provider || "")).toLowerCase().includes(q) ||
-                (getProviderDisplayName(job.destination_provider || "")).toLowerCase().includes(q)
-            )
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase()
+                const matchesSearch =
+                    job.name.toLowerCase().includes(q) ||
+                    (getProviderDisplayName(job.source_provider || "")).toLowerCase().includes(q) ||
+                    (getProviderDisplayName(job.destination_provider || "")).toLowerCase().includes(q)
+                if (!matchesSearch) return false
+            }
+            if (statusFilter !== "all") {
+                // ACTIVE/PAUSED/FAILED map directly; "FAILED" also catches AUTO_PAUSED
+                if (statusFilter === "FAILED") {
+                    return job.status === "FAILED" || job.status === "AUTO_PAUSED"
+                }
+                return job.status === statusFilter
+            }
+            return true
         })
         .sort((a, b) => {
             const tA = a.created_at ? new Date(a.created_at).getTime() : 0
@@ -202,7 +243,9 @@ export function JobsList() {
             }
             await loadJobs()
         } catch (err) {
-            toast({ title: "Error", description: `Failed to ${job.status === "ACTIVE" ? "pause" : "resume"} job`, variant: "destructive" })
+            const verb = job.status === "ACTIVE" ? "pause" : "resume"
+            const { title, description } = describeJobError(err, `Failed to ${verb} job`)
+            toast({ title, description, variant: "destructive" })
         } finally {
             setActionLoading(null)
         }
@@ -218,7 +261,8 @@ export function JobsList() {
             setJobToDelete(null)
             await loadJobs()
         } catch (err) {
-            toast({ title: "Error", description: "Failed to delete job", variant: "destructive" })
+            const { title, description } = describeJobError(err, "Failed to delete job")
+            toast({ title, description, variant: "destructive" })
         } finally {
             setDeleting(false)
         }
@@ -230,8 +274,9 @@ export function JobsList() {
             await jobsAPI.triggerJob(job.job_id)
             toast({ title: "Job triggered", description: `${job.name} is now running.` })
             await loadJobs()
-        } catch (err: any) {
-            toast({ title: "Trigger failed", description: err?.message || "Failed to trigger job", variant: "destructive" })
+        } catch (err) {
+            const { title, description } = describeJobError(err, "Trigger failed")
+            toast({ title, description, variant: "destructive" })
         } finally {
             setActionLoading(null)
         }
@@ -296,9 +341,10 @@ export function JobsList() {
             clearSelection()
             await loadJobs()
         } catch (err) {
+            console.error(`Batch ${action} error:`, err)
             toast({
                 title: `Batch ${action} failed`,
-                description: err instanceof Error ? err.message : "Unknown error",
+                description: "Could not complete the action. Please try again.",
                 variant: "destructive",
             })
         } finally {
@@ -356,21 +402,31 @@ export function JobsList() {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={loadJobs}
+                        // CRITICAL: do NOT pass `loadJobs` directly — React
+                        // hands the MouseEvent to the click handler, which
+                        // `loadJobs(silent=false)` coerces as truthy and
+                        // skips the loading spinner + suppresses the error
+                        // toast. Wrap in an arrow so we invoke with no args.
+                        onClick={() => { void loadJobs() }}
                         disabled={loading}
                         className="border-border/60 bg-card/50 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", loading && "animate-spin")} />
                         <span className="text-[12px] tracking-wide">Refresh</span>
                     </Button>
-                    <Button
-                        size="sm"
-                        onClick={handleCreateNew}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                    >
-                        <Plus className="h-3.5 w-3.5 mr-1.5" />
-                        <span className="text-[12px] tracking-wide">New Job</span>
-                    </Button>
+                    {/* Job creation is a mutating action — Members are read-only.
+                        Hide the button entirely instead of disabling so the
+                        header isn't visually cluttered for Members. */}
+                    <PermissionWrapper requiredRole={["Data Steward", "Admin", "Super Admin"]} fallback="hide" showLock={false}>
+                        <Button
+                            size="sm"
+                            onClick={handleCreateNew}
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                        >
+                            <Plus className="h-3.5 w-3.5 mr-1.5" />
+                            <span className="text-[12px] tracking-wide">New Job</span>
+                        </Button>
+                    </PermissionWrapper>
                 </div>
             </div>
 
@@ -397,12 +453,16 @@ export function JobsList() {
                             </span>
                         </div>
                         {/* Active */}
-                        <div className="flex items-center gap-2 px-5 py-2.5 border-r border-border/30">
+                        <button
+                            data-testid="stats-active"
+                            className={cn(
+                                "flex items-center gap-2 px-5 py-2.5 border-r border-border/30 cursor-pointer hover:bg-muted/20 transition-colors",
+                                statusFilter === "ACTIVE" && "bg-emerald-500/5"
+                            )}
+                            onClick={() => setStatusFilter(statusFilter === "ACTIVE" ? "all" : "ACTIVE")}
+                        >
                             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                            <span
-                                className="text-[10px] text-muted-foreground uppercase tracking-widest"
-                                
-                            >
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
                                 Active
                             </span>
                             <span
@@ -411,14 +471,18 @@ export function JobsList() {
                             >
                                 {active}
                             </span>
-                        </div>
+                        </button>
                         {/* Paused */}
-                        <div className="flex items-center gap-2 px-5 py-2.5 border-r border-border/30">
+                        <button
+                            data-testid="stats-paused"
+                            className={cn(
+                                "flex items-center gap-2 px-5 py-2.5 border-r border-border/30 cursor-pointer hover:bg-muted/20 transition-colors",
+                                statusFilter === "PAUSED" && "bg-amber-500/5"
+                            )}
+                            onClick={() => setStatusFilter(statusFilter === "PAUSED" ? "all" : "PAUSED")}
+                        >
                             <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-                            <span
-                                className="text-[10px] text-muted-foreground uppercase tracking-widest"
-                                
-                            >
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
                                 Paused
                             </span>
                             <span
@@ -427,15 +491,19 @@ export function JobsList() {
                             >
                                 {paused}
                             </span>
-                        </div>
+                        </button>
                         {/* Failed */}
                         {failed > 0 && (
-                            <div className="flex items-center gap-2 px-5 py-2.5">
+                            <button
+                                data-testid="stats-failed"
+                                className={cn(
+                                    "flex items-center gap-2 px-5 py-2.5 cursor-pointer hover:bg-muted/20 transition-colors",
+                                    statusFilter === "FAILED" && "bg-red-500/5"
+                                )}
+                                onClick={() => setStatusFilter(statusFilter === "FAILED" ? "all" : "FAILED")}
+                            >
                                 <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-                                <span
-                                    className="text-[10px] text-muted-foreground uppercase tracking-widest"
-                                    
-                                >
+                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
                                     Failed
                                 </span>
                                 <span
@@ -444,22 +512,35 @@ export function JobsList() {
                                 >
                                     {failed}
                                 </span>
-                            </div>
+                            </button>
                         )}
                     </div>
                 )
             })()}
 
-            {/* Search */}
+            {/* Search + Status Filter */}
             <div className="px-6 py-3 border-b border-border/40 bg-background">
-                <div className="relative max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
-                    <Input
-                        placeholder="Search jobs..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 h-9 bg-muted/20 border-border/50 text-sm placeholder:text-muted-foreground/40 focus:border-primary/40 focus:bg-muted/30 transition-colors"
-                    />
+                <div className="flex items-center gap-2">
+                    <div className="relative max-w-sm flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
+                        <Input
+                            placeholder="Search jobs..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9 h-9 bg-muted/20 border-border/50 text-sm placeholder:text-muted-foreground/40 focus:border-primary/40 focus:bg-muted/30 transition-colors"
+                        />
+                    </div>
+                    <Select value={statusFilter} onValueChange={setStatusFilter} data-testid="status-filter-select">
+                        <SelectTrigger className="w-[140px] h-9 bg-muted/20 border-border/50 text-sm" data-testid="status-filter-trigger">
+                            <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="ACTIVE">Active</SelectItem>
+                            <SelectItem value="PAUSED">Paused</SelectItem>
+                            <SelectItem value="FAILED">Failed</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
@@ -752,35 +833,48 @@ export function JobsList() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="bg-card border-border/60">
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleTrigger(job)}
-                                                            disabled={actionLoading === job.job_id}
-                                                        >
-                                                            <Play className="h-4 w-4 mr-2" />
-                                                            Run Now
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleEdit(job)}>
-                                                            <Edit2 className="h-4 w-4 mr-2" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() => handlePauseResume(job)}
-                                                            disabled={actionLoading === job.job_id}
-                                                        >
-                                                            {job.status === "ACTIVE" ? (
-                                                                <><Pause className="h-4 w-4 mr-2" />Pause</>
-                                                            ) : (
-                                                                <><Play className="h-4 w-4 mr-2" />Resume</>
-                                                            )}
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator className="bg-border/40" />
-                                                        <DropdownMenuItem
-                                                            className="text-destructive focus:text-destructive"
-                                                            onClick={() => { setJobToDelete(job); setDeleteDialogOpen(true) }}
-                                                        >
-                                                            <Trash2 className="h-4 w-4 mr-2" />
-                                                            Delete
-                                                        </DropdownMenuItem>
+                                                        {/* All four actions mutate scheduler / pipeline state.
+                                                            Members shouldn't be able to invoke them. Wrap each
+                                                            with PermissionWrapper(fallback=hide) so the menu
+                                                            simply doesn't surface them for Members — instead
+                                                            of letting the click hit the BE and return a 403. */}
+                                                        <PermissionWrapper requiredRole={["Data Steward", "Admin", "Super Admin"]} fallback="hide" showLock={false}>
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleTrigger(job)}
+                                                                disabled={actionLoading === job.job_id}
+                                                            >
+                                                                <Play className="h-4 w-4 mr-2" />
+                                                                Run Now
+                                                            </DropdownMenuItem>
+                                                        </PermissionWrapper>
+                                                        <PermissionWrapper requiredRole={["Data Steward", "Admin", "Super Admin"]} fallback="hide" showLock={false}>
+                                                            <DropdownMenuItem onClick={() => handleEdit(job)}>
+                                                                <Edit2 className="h-4 w-4 mr-2" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                        </PermissionWrapper>
+                                                        <PermissionWrapper requiredRole={["Data Steward", "Admin", "Super Admin"]} fallback="hide" showLock={false}>
+                                                            <DropdownMenuItem
+                                                                onClick={() => handlePauseResume(job)}
+                                                                disabled={actionLoading === job.job_id}
+                                                            >
+                                                                {job.status === "ACTIVE" ? (
+                                                                    <><Pause className="h-4 w-4 mr-2" />Pause</>
+                                                                ) : (
+                                                                    <><Play className="h-4 w-4 mr-2" />Resume</>
+                                                                )}
+                                                            </DropdownMenuItem>
+                                                        </PermissionWrapper>
+                                                        <PermissionWrapper requiredRole={["Admin", "Super Admin"]} fallback="hide" showLock={false}>
+                                                            <DropdownMenuSeparator className="bg-border/40" />
+                                                            <DropdownMenuItem
+                                                                className="text-destructive focus:text-destructive"
+                                                                onClick={() => { setJobToDelete(job); setDeleteDialogOpen(true) }}
+                                                            >
+                                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </PermissionWrapper>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>

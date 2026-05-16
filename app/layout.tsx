@@ -1,6 +1,6 @@
 import "./globals.css"
 
-import { Inter } from "next/font/google"
+import { Inter, IBM_Plex_Mono } from "next/font/google"
 import { AuthProvider } from "@/modules/auth"
 import { CookieBanner } from "@/modules/privacy/components/cookie-banner"
 import { FilePreloader } from "@/modules/files/components/file-preloader"
@@ -16,25 +16,17 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-ibm-plex-mono",
+})
+
 export const metadata: Metadata = {
-  title: "CleanFlowAI - Data Quality Platform",
+  title: "RightRev - Data Quality Platform",
   description: "Enterprise data quality, transformation, and ERP integration platform",
   generator: 'v0.app',
-  icons: {
-    icon: [
-      { url: '/favicon_io/favicon.ico' },
-      { url: '/favicon_io/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon_io/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/favicon_io/apple-touch-icon.png' },
-    ],
-    other: [
-      { rel: 'android-chrome-192x192', url: '/favicon_io/android-chrome-192x192.png' },
-      { rel: 'android-chrome-512x512', url: '/favicon_io/android-chrome-512x512.png' },
-    ],
-  },
-  manifest: '/favicon_io/site.webmanifest',
 }
 
 export default function RootLayout({
@@ -43,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${ibmPlexMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased bg-background text-foreground min-h-screen">
         <ReduxProvider>
           <AuthProvider>

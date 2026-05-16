@@ -23,6 +23,7 @@ import { cn } from "@/shared/lib/utils"
 import { useJobRunsExplorer, type SortField, type StatusFilter } from "./use-job-runs-explorer"
 import { JobRunDetailModal } from "./job-run-detail-modal"
 import { JobRunFileViewer } from "./job-run-file-viewer"
+import { JobErrorBanner } from "./job-error-banner"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,11 @@ function getScoreColor(score: number) {
     if (score >= 90) return "bg-emerald-500/15 text-emerald-600 border-emerald-500/25"
     if (score >= 70) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
     return "bg-red-500/15 text-red-600 border-red-500/25"
+}
+
+function safeFormatDate(value: string | undefined, fmt: string): string {
+    if (!value) return "—"
+    try { return format(new Date(value), fmt) } catch { return "—" }
 }
 
 function formatDuration(seconds: number | undefined): string {
@@ -156,6 +162,22 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
                     <span className="text-sm text-muted-foreground">Loading run history...</span>
                 </div>
+            ) : state.runsError && state.runs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 px-3 rounded-md border border-red-500/25 bg-red-500/5">
+                    <AlertTriangle className="h-5 w-5 text-red-500 mb-2" />
+                    <span className="text-sm text-red-600 dark:text-red-400 text-center max-w-md">
+                        {state.runsError}
+                    </span>
+                    <Button
+                        variant="outline" size="sm"
+                        className="mt-2 h-7 text-xs"
+                        onClick={state.handleRefresh}
+                        disabled={state.isRefreshing}
+                    >
+                        <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", state.isRefreshing && "animate-spin")} />
+                        Retry
+                    </Button>
+                </div>
             ) : state.filteredRuns.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-6">
                     <Activity className="h-5 w-5 text-muted-foreground/50 mb-2" />
@@ -225,6 +247,14 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                                         {run.total_exported || 0}/{run.total_imported} pushed
                                                     </span>
                                                 )}
+                                                {/* Structured error code pill — visible on failed/skipped runs */}
+                                                {run.error_code && (
+                                                    <JobErrorBanner
+                                                        errorCode={run.error_code}
+                                                        errorMessage={run.error_message}
+                                                        compact
+                                                    />
+                                                )}
                                                 {live?.reprocessed && (
                                                     <Badge
                                                         variant="outline"
@@ -236,10 +266,7 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground tabular-nums">
-                                            {run.started_at
-                                                ? (() => { try { return format(new Date(run.started_at), "MMM d, HH:mm:ss") } catch { return "\u2014" } })()
-                                                : "\u2014"
-                                            }
+                                            {safeFormatDate(run.started_at, "MMM d, HH:mm:ss")}
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground tabular-nums text-right">
                                             {formatDuration(run.duration_ms ? run.duration_ms / 1000 : undefined)}

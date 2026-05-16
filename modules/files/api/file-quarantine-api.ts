@@ -37,6 +37,8 @@ import type {
     QuarantineFilters,
     QuarantineFindRequest,
     QuarantineFindResponse,
+    ReplaceInQuarantineRequest,
+    ReplaceInQuarantineResponse,
 } from '@/modules/files/types'
 
 // AWS Configuration
@@ -55,6 +57,7 @@ const ENDPOINTS = {
     DOWNLOAD: (id: string) => `/files/${id}/download`,
     QUARANTINED_EXPORT: (id: string) => `/files/${id}/quarantined`,
     FIND: (id: string) => `/files/${id}/quarantined/find`,
+    FIND_REPLACE: (id: string) => `/files/${id}/quarantined/find-replace`,
     AUDIT_LOG: (id: string) => `/files/${id}/audit-log`,
     UNLOCK_ROW: (id: string, rowId: string) => `/files/${id}/rows/${rowId}/unlock`,
 }
@@ -424,6 +427,213 @@ export async function findInQuarantineRows(
             body: JSON.stringify(payload),
         }
     )
+}
+
+/**
+ * Bulk Find & Replace — cursor-paginated server-side rewrite (sync path).
+ * Frontend chains calls until `next_cursor` is null. Filters honoured;
+ * locked rows skipped + counted; audit entries tagged "find_replace".
+ *
+ * @deprecated For large/whole-quarantine scopes prefer
+ * {@link submitFindReplaceAsync} + {@link pollFindReplaceOperation}.
+ * Kept for back-compat with small in-view replace calls.
+ */
+export async function replaceInQuarantineRows(
+    uploadId: string,
+    authToken: string,
+    payload: ReplaceInQuarantineRequest
+): Promise<ReplaceInQuarantineResponse> {
+    return makeRequest(
+        ENDPOINTS.FIND_REPLACE(uploadId),
+        authToken,
+        {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }
+    )
+}
+
+// ========== Async Find & Replace (Phase 3D — operations poll) ==========
+
+/** Wire body for the async submit. Maps to `POST /quarantined/find-replace`
+ *  with `scope=ENTIRE_QUARANTINE` (or `estimated_cells > threshold`) flipping
+ *  the backend into async-worker mode. */
+export interface AsyncFindReplaceRequest {
+    type?: 'find_replace'
+    scope: 'ENTIRE_QUARANTINE' | 'column' | 'row'
+    session_id: string
+    if_match_etag?: string
+    find_pattern: string
+    replace_pattern: string
+    column?: string | null
+    match_case?: boolean
+    regex?: boolean
+    whole_cell?: boolean
+    dry_run?: boolean
+    filters?: unknown
+    estimated_cells?: number
+}
+
+export interface AsyncFindReplaceSubmitResponse {
+    operation_id: string
+    status: string
+    /** Synthesised by the client (Location header from 202). */
+    location: string
+    async: true
+}
+
+export type OperationStatus =
+    | 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED_TERMINAL' | 'CANCELLED'
+    | string
+
+export interface OperationStatusResponse {
+    operation_id: string
+    operation_type?: string
+    status: OperationStatus
+    kind: string
+    progress: { done: number; total: number; percent: number }
+    started_at: string | null
+    finished_at: string | null
+    audit_initiator?: string
+    result: {
+        applied_count?: number; skipped_count?: number; failed_count?: number
+        results?: Array<Record<string, unknown>>
+        skipped_rows?: Array<{ row_id: string; reason: string }>
+        error_msg?: string
+        [k: string]: unknown
+    }
+}
+
+const TERMINAL_OP_STATUSES: ReadonlySet<string> = new Set([
+    'COMPLETED', 'FAILED_TERMINAL', 'CANCELLED',
+])
+
+/** POST /files/{id}/quarantined/find-replace (async branch). 202 → {operation_id}. */
+export async function submitFindReplaceAsync(
+    uploadId: string,
+    authToken: string,
+    body: AsyncFindReplaceRequest,
+): Promise<AsyncFindReplaceSubmitResponse> {
+    // Backend keys are `search`/`replace`; map the UI-friendly aliases here.
+    const wire = {
+        type: body.type ?? 'find_replace',
+        scope: body.scope || 'ENTIRE_QUARANTINE',
+        session_id: body.session_id,
+        if_match_etag: body.if_match_etag ?? '',
+        search: body.find_pattern,
+        replace: body.replace_pattern,
+        column: body.column ?? null,
+        match_case: !!body.match_case,
+        regex: !!body.regex,
+        whole_cell: !!body.whole_cell,
+        dry_run: !!body.dry_run,
+        filters: body.filters,
+        estimated_cells: body.estimated_cells,
+    }
+    const resp = await makeRequest(
+        ENDPOINTS.FIND_REPLACE(uploadId),
+        authToken,
+        { method: 'POST', body: JSON.stringify(wire) },
+    )
+    const opId = String(resp?.operation_id || '')
+    if (!opId) throw new Error('Async F&R submit returned no operation_id')
+    return {
+        operation_id: opId,
+        status: String(resp?.status || 'PENDING'),
+        location: `/files/${uploadId}/quarantined/operations/${opId}`,
+        async: true,
+    }
+}
+
+// ── Dry-run preview (K5) ──────────────────────────────────────────────
+/** Sample match for the dry-run preview side-panel. */
+export interface FindReplacePreviewMatch {
+    row_id: string
+    column: string
+    old_value: string
+    new_value: string
+    locked?: boolean
+    reason?: string | null
+}
+
+export interface FindReplacePreviewResponse {
+    sample_matches: FindReplacePreviewMatch[]
+    total_count: number
+    truncated: boolean
+}
+
+/**
+ * POST /files/{id}/quarantined/find-replace with `dry_run: true`.
+ *
+ * Backend returns up to 100 sample matches WITHOUT writing any cells. The
+ * shape is best-effort — older backends may inline matches under
+ * `result.sample_matches`, return `matches`, or surface them via the async
+ * poll under `result`. This adapter normalises whichever variant comes back.
+ */
+export async function previewFindReplace(
+    uploadId: string,
+    authToken: string,
+    body: AsyncFindReplaceRequest,
+): Promise<FindReplacePreviewResponse> {
+    const wire = {
+        type: body.type ?? 'find_replace',
+        scope: body.scope || 'ENTIRE_QUARANTINE',
+        session_id: body.session_id,
+        if_match_etag: body.if_match_etag ?? '',
+        search: body.find_pattern,
+        replace: body.replace_pattern,
+        column: body.column ?? null,
+        match_case: !!body.match_case,
+        regex: !!body.regex,
+        whole_cell: !!body.whole_cell,
+        dry_run: true,
+        filters: body.filters,
+        estimated_cells: body.estimated_cells,
+    }
+    const resp = await makeRequest(
+        ENDPOINTS.FIND_REPLACE(uploadId),
+        authToken,
+        { method: 'POST', body: JSON.stringify(wire) },
+    )
+    // Variant A: inline 200 response with sample_matches at root.
+    const rawMatches =
+        (Array.isArray(resp?.sample_matches) && resp.sample_matches) ||
+        (Array.isArray(resp?.matches) && resp.matches) ||
+        (Array.isArray(resp?.result?.sample_matches) && resp.result.sample_matches) ||
+        []
+    const total = Number(
+        resp?.total_count ?? resp?.total_matches ?? resp?.result?.total_count ?? rawMatches.length,
+    ) || 0
+    const sample_matches: FindReplacePreviewMatch[] = rawMatches.slice(0, 100).map((m: any) => ({
+        row_id: String(m?.row_id ?? ''),
+        column: String(m?.column ?? ''),
+        old_value: String(m?.old_value ?? m?.value ?? ''),
+        new_value: String(m?.new_value ?? m?.replacement ?? ''),
+        locked: !!m?.locked,
+        reason: m?.reason ?? null,
+    }))
+    return {
+        sample_matches,
+        total_count: total,
+        truncated: total > sample_matches.length,
+    }
+}
+
+/** GET /files/{id}/quarantined/operations/{op_id}. */
+export async function pollFindReplaceOperation(
+    uploadId: string,
+    operationId: string,
+    authToken: string,
+): Promise<OperationStatusResponse> {
+    return makeRequest(
+        `/files/${uploadId}/quarantined/operations/${operationId}`,
+        authToken,
+        { method: 'GET' },
+    )
+}
+
+export function isOperationTerminal(status: string): boolean {
+    return TERMINAL_OP_STATUSES.has(status)
 }
 
 // ========== Maintenance Operations ==========

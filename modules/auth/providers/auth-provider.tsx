@@ -10,6 +10,7 @@ import {
   setReconnectHandler,
   setConnectHandler,
   setSigninHandler,
+  setSignOutHandler,
 } from "@/lib/error-toast";
 
 interface AuthContextType {
@@ -22,11 +23,15 @@ interface AuthContextType {
   mfaRequired: boolean;
   mfaSession: string | null;
   mfaUsername: string | null;
+  // Idle timeout warning (case 5)
+  idleWarnSecondsRemaining: number | null;
   // Auth functions
   signup: (email: string, password: string, confirmPassword: string, name?: string) => Promise<any>;
   confirmSignup: (email: string, code: string) => Promise<any>;
   login: (email: string, password: string) => Promise<any>;
   logout: () => void;
+  logoutExpired: () => void;
+  dismissIdleWarning: () => void;
   // MFA functions
   verifyMfaCode: (mfaCode: string) => Promise<any>;
   setupMfa: (accessToken: string) => Promise<MfaSetupData>;
@@ -43,6 +48,9 @@ interface AuthContextType {
   userRole: string | null;
   hasPermission: (key: string) => boolean;
   refreshPermissions: () => Promise<void>;
+  /** True when /org/me returns onboarding_required=true or no membership exists.
+   *  AuthGuard uses this to redirect to /create-organization. */
+  onboardingRequired: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,6 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [userRole, setUserRole] = useState<string | null>(null);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [onboardingRequired, setOnboardingRequired] = useState(false);
 
   // ── Wire API-error toast handlers + 401 token-refresh bridge ──────
   // These run once at boot; non-React code (api/base.ts, file-upload-api.ts,
@@ -70,21 +79,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setSigninHandler(() => {
       router.push("/auth/login");
     });
+    // Sign-out helper invoked BEFORE redirect to /auth/login. Clears stored
+    // tokens + in-memory auth state so a "Back" press can't land the user
+    // in the same broken-JWT loop. `auth.logout()` is synchronous (just
+    // clears localStorage + resets useState), so this returns synchronously.
+    setSignOutHandler(() => {
+      auth.logout();
+    });
     return () => {
       setValidTokenGetter(null);
       setReconnectHandler(null);
       setConnectHandler(null);
       setSigninHandler(null);
+      setSignOutHandler(null);
     };
-    // `getValidToken` is recreated on every render of useAuthHook, so we
-    // intentionally re-register it whenever it changes to capture the
-    // latest auth state closure.
-  }, [auth.getValidToken, router]);
+    // `getValidToken` / `logout` are recreated on every render of
+    // useAuthHook, so we intentionally re-register them whenever they
+    // change to capture the latest auth state closure.
+  }, [auth.getValidToken, auth.logout, router]);
 
   const refreshPermissions = useCallback(async () => {
     if (!auth.isAuthenticated || !auth.idToken) return;
     try {
       const me = await orgAPI.getMe(auth.idToken);
+      // BE trap-state signal: HTTP 200 but no membership exists
+      if (me?.onboarding_required || !me?.membership?.org_id) {
+        setOnboardingRequired(true);
+        setPermissionsLoaded(true);
+        return;
+      }
+      // Normal path: membership present
+      setOnboardingRequired(false);
       if (me?.role_permissions) {
         setPermissions(me.role_permissions);
       }
@@ -114,6 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setPermissions({});
     setUserRole(null);
     setPermissionsLoaded(false);
+    setOnboardingRequired(false);
   }, [auth.isAuthenticated]);
 
   // Keep permissions fresh even without navigation.
@@ -174,11 +200,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         mfaRequired: auth.mfaRequired,
         mfaSession: auth.mfaSession,
         mfaUsername: auth.mfaUsername,
+        // Idle timeout warning (case 5)
+        idleWarnSecondsRemaining: auth.idleWarnSecondsRemaining ?? null,
         // Auth functions
         signup: auth.signup,
         confirmSignup: auth.confirmSignup,
         login: auth.login,
         logout: auth.logout,
+        logoutExpired: auth.logoutExpired,
+        dismissIdleWarning: auth.dismissIdleWarning,
         // MFA functions
         verifyMfaCode: auth.verifyMfaCode,
         setupMfa: auth.setupMfa,
@@ -196,6 +226,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         userRole,
         hasPermission,
         refreshPermissions,
+        onboardingRequired,
       }}
     >
       {children}

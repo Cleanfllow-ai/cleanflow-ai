@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "@/modules/auth"
 import { useToast } from "@/shared/hooks/use-toast"
+import { toastFromError } from "@/lib/error-toast-jsx"
 import { buildPrefixedDataFilename } from "@/modules/files/utils/download-filenames"
 import { triggerBlobDownload, triggerPresignedDownload } from "@/modules/files/utils/trigger-download"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
@@ -32,7 +33,7 @@ export interface JobRunFilesState {
     handleDownloadPrompt: (file: FileStatusResponse) => void
     handleColumnExport: (options: {
         format: "csv" | "excel" | "json"
-        dataType: "all" | "clean" | "quarantine"
+        dataType: "all" | "clean" | "raw" | "quarantine"
         columns: string[]
         columnMapping: Record<string, string>
     }) => Promise<void>
@@ -266,7 +267,7 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
 
     const handleColumnExport = useCallback(async (options: {
         format: "csv" | "excel" | "json"
-        dataType: "all" | "clean" | "quarantine"
+        dataType: "all" | "clean" | "raw" | "quarantine"
         columns: string[]
         columnMapping: Record<string, string>
     }) => {
@@ -299,11 +300,16 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
             }
             setDownloadOpen(false)
         } catch (err) {
-            console.error("Download failed:", err)
+            // Surface the failure: previously this only console.error'd, so the
+            // user clicked Download, the spinner went away, nothing happened,
+            // and they had no idea why. Now they see a toast with the API
+            // message (e.g. "Insufficient role" / "Quota exceeded").
+            const message = (err as Error)?.message || "Failed to download export"
+            toast({ title: "Download failed", description: message, variant: "destructive" })
         } finally {
             setDownloading(false)
         }
-    }, [downloadFile, idToken, erpMode, erpTarget])
+    }, [downloadFile, idToken, erpMode, erpTarget, toast])
 
     const handleDelete = useCallback(async (uploadId: string) => {
         if (!idToken) return
@@ -314,10 +320,15 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
                     ? { ...e, file: null, error: "Deleted" }
                     : e
             ))
+            toast({ title: "File deleted" })
         } catch (err) {
-            console.error("Delete failed:", err)
+            // Surface deletion failures (commonly 403 from non-admin members,
+            // or 409 if the file is mid-reprocess). Previously the row stayed
+            // visible with no feedback, leaving the user to guess why.
+            const message = (err as Error)?.message || "Failed to delete file"
+            toast({ title: "Delete failed", description: message, variant: "destructive" })
         }
-    }, [idToken])
+    }, [idToken, toast])
 
     const handleOpenQuarantineEditor = useCallback((file: FileStatusResponse, entity?: string) => {
         setQuarantineFile(file)
@@ -399,11 +410,8 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
             ))
             toast({ title: "Reprocess complete", description: "File refreshed with the new version" })
         } catch (err: any) {
-            toast({
-                title: "Reprocess status check failed",
-                description: err?.message || "Could not confirm reprocess completion. Refresh to retry.",
-                variant: "destructive",
-            })
+            console.error("[useJobRunFiles] reprocess status check failed:", err)
+            toast(toastFromError(err))
         } finally {
             setExporting(false)
         }

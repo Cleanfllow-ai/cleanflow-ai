@@ -1,8 +1,9 @@
 import { AWS_CONFIG } from "@/shared/config/aws-config";
+import { parseApiError } from "@/modules/shared/api-error";
 
 const API_BASE_URL = AWS_CONFIG.API_BASE_URL || "";
 
-export type OrgRole = "Super Admin" | "Admin" | "Data Steward";
+export type OrgRole = "Super Admin" | "Admin" | "Data Steward" | "Member";
 
 export interface OrgRecord {
   org_id: string;
@@ -42,6 +43,10 @@ export interface OrgMeResponse {
   membership: OrgMembership;
   permissions_by_role: Record<string, Record<string, boolean>>;
   role_permissions: Record<string, boolean>;
+  /** Present when the user has no org membership (HTTP 200 trap-state signal from BE) */
+  onboarding_required?: boolean;
+  /** "create_organization" when onboarding_required is true */
+  next_action?: string;
 }
 
 export interface OrgMembersResponse {
@@ -132,8 +137,13 @@ class OrgAPI {
 
     const response = await fetch(url, { ...options, headers });
     if (!response.ok) {
+      // Preserve the structured BE envelope ({error, code, action, provider})
+      // so callers can branch on err.code (e.g. OrgLastAdminError,
+      // InviteEmailTakenError, PermissionDeniedError). Previously this layer
+      // collapsed to a plain Error which made every isApiError() check
+      // downstream silently return false and fall through to generic toasts.
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+      throw parseApiError(response, errorData);
     }
     return response.json();
   }

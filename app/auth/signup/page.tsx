@@ -28,10 +28,10 @@ export default function SignUpPage() {
           {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="relative w-8 h-8">
-              <Image src="/images/infiniqon-logo-light.png" alt="CleanFlowAI" width={32} height={32} className="object-contain" />
+              <Image src="/images/rightrev-logo.png" alt="RightRev" width={32} height={32} className="object-contain" />
             </div>
             <div>
-              <span className="font-semibold text-[15px] text-white tracking-tight">CleanFlowAI</span>
+              <span className="font-semibold text-[15px] text-white tracking-tight">RightRev</span>
               <p className="text-[9px] uppercase tracking-[0.25em] text-white/50 font-medium">Data Quality Platform</p>
             </div>
           </div>

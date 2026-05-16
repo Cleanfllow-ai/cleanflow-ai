@@ -16,10 +16,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { useState } from "react"
 import { useStorageImport } from "./use-storage-import"
 import type { StorageFile } from "@/modules/connectors/types"
+import { ImportProgressCard } from "@/modules/files/components/import-progress-card"
 
 interface StorageImportProps {
     provider: string
@@ -197,25 +197,21 @@ export default function StorageImport({
                 </div>
             )}
 
-            {/* Import progress bar */}
-            {g.isImporting && g.importingFileName && (
-                <div className="border rounded-lg p-4 bg-muted/5 space-y-2">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            <span className="text-sm font-medium truncate max-w-[300px]">
-                                {g.importingFileName}
-                            </span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                            {Math.round(g.importProgress)}%
-                        </span>
-                    </div>
-                    <Progress value={g.importProgress} className="h-2" />
-                    <p className="text-xs text-muted-foreground">
-                        {g.importStatus}
-                    </p>
-                </div>
+            {/* Chrome-style import progress card — real bytes / speed / ETA */}
+            {(g.isImporting || g.progressDetail) && g.importingFileName && g.progressDetail && (
+                <ImportProgressCard
+                    filename={g.importingFileName}
+                    importStatus={g.progressDetail.importStatus}
+                    bytesDownloaded={g.progressDetail.bytesDownloaded}
+                    bytesTotal={g.progressDetail.bytesTotal}
+                    startedAt={g.progressDetail.startedAt}
+                    updatedAt={g.progressDetail.updatedAt}
+                    finishedAt={g.progressDetail.finishedAt}
+                    errorMessage={g.progressDetail.errorMessage ?? g.importError ?? undefined}
+                    providerLabel={g.providerDisplayName}
+                    onCancel={g.cancelImport}
+                    onRetry={g.retryImport}
+                />
             )}
 
             {/* Import success */}

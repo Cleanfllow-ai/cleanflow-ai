@@ -26,7 +26,13 @@ import {
 import { Button } from '@/components/ui/button'
 import { Wand2, Loader2, Code2, ArrowRight, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { applyColumnRule, applyColumnRuleAll } from '@/modules/files/api/file-quarantine-api'
-import type { CrossRuleFix, QuarantineRow, QuarantineSession } from '@/modules/files/types'
+import { detectGeneratedRuleFormat } from './rule-format'
+import type {
+  CrossRuleFix,
+  QuarantineFilters,
+  QuarantineRow,
+  QuarantineSession,
+} from '@/modules/files/types'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +45,9 @@ interface QuarantineCustomRuleDialogProps {
   authToken: string | null
   /** Active session — required for server-side apply-all */
   session: QuarantineSession | null
+  /** Active filter envelope — forwarded so apply-all stays scoped to the
+   *  user's filtered view (Bug #2 fix). */
+  filters?: QuarantineFilters
   /** Called after server-side apply-all so the editor can refresh */
   onApplied: (newEtag: string, rowsAffected: number) => void
 }
@@ -77,6 +86,7 @@ const TEXTAREA_STYLE: React.CSSProperties = {
   overflowWrap: 'break-word',
 }
 
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function QuarantineCustomRuleDialog({
@@ -86,6 +96,7 @@ export function QuarantineCustomRuleDialog({
   uploadId,
   authToken,
   session,
+  filters,
   onApplied,
 }: QuarantineCustomRuleDialogProps) {
   const [description, setDescription] = useState('')
@@ -244,7 +255,8 @@ export function QuarantineCustomRuleDialog({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((result as any)._debug) setDebugInfo((result as any)._debug)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'AI rule generation failed')
+      console.error("AI rule generation failed:", err)
+      setError("Could not generate the rule. Please try rephrasing your description.")
     } finally {
       setLoading(false)
     }
@@ -273,6 +285,7 @@ export function QuarantineCustomRuleDialog({
           session_id: session.session_id,
           cursor,
           if_match_etag: etag,
+          filters,  // Bug #2 — apply-all now respects active filter scope.
         })
         totalFixed += result.rows_affected
         cursor = result.next_cursor
@@ -289,7 +302,8 @@ export function QuarantineCustomRuleDialog({
       // so the user can see the diagnostic info.
       if (totalFixed > 0) setTimeout(handleClose, 1800)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Apply to all failed')
+      console.error("Apply to all failed:", err)
+      setError("Could not apply the rule to all rows. Please try again.")
     } finally {
       setApplying(false)
     }
@@ -517,24 +531,45 @@ export function QuarantineCustomRuleDialog({
                 </div>
               )}
 
-              {/* Generated rule code (collapsible) */}
-              {ruleCode && (
-                <div className="border-t">
-                  <button
-                    type="button"
-                    onClick={() => setShowCode((v) => !v)}
-                    className="flex items-center gap-1.5 w-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Code2 className="h-3.5 w-3.5" />
-                    {showCode ? 'Hide' : 'Show'} generated rule
-                  </button>
-                  {showCode && (
-                    <pre className="px-3 pb-3 text-[11px] font-mono bg-muted/30 whitespace-pre-wrap break-all">
-                      {ruleCode}
-                    </pre>
-                  )}
-                </div>
-              )}
+              {/* Generated rule code (collapsible) — Phase 8: render either
+                  the DSL JSON document or the legacy Python source, picked
+                  by the payload shape (see detectGeneratedRuleFormat). */}
+              {ruleCode && (() => {
+                const { format, display } = detectGeneratedRuleFormat(ruleCode)
+                const label =
+                  format === 'dsl'
+                    ? 'Generated rule (DSL)'
+                    : 'Generated rule (Python — legacy)'
+                return (
+                  <div className="border-t">
+                    <button
+                      type="button"
+                      onClick={() => setShowCode((v) => !v)}
+                      className="flex items-center gap-1.5 w-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Code2 className="h-3.5 w-3.5" />
+                      {showCode ? 'Hide' : 'Show'} generated rule
+                    </button>
+                    {showCode && (
+                      <div className="px-3 pb-3 space-y-1">
+                        <p
+                          className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium"
+                          data-testid="rule-format-label"
+                        >
+                          {label}
+                        </p>
+                        <pre
+                          className="text-[11px] font-mono bg-muted/30 whitespace-pre-wrap break-all rounded-sm p-2"
+                          data-testid="rule-code-block"
+                          data-format={format}
+                        >
+                          {display}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 

@@ -266,6 +266,16 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
     }
   }
 
+  // Close on Escape key for keyboard accessibility
+  useEffect(() => {
+    if (!isOpen) return
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [isOpen, onClose])
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -282,6 +292,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
           {/* Drawer */}
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="RightRev Assistant"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -295,7 +308,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                   <Sparkles className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-sm">CleanFlowAI Assistant</h2>
+                  <h2 className="font-semibold text-sm">RightRev Assistant</h2>
                   <p className="text-xs text-muted-foreground">AI-powered help</p>
                 </div>
               </div>
@@ -305,7 +318,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                   size="icon"
                   onClick={clearHistory}
                   className="h-8 w-8"
-                  title="Clear history"
+                  aria-label="Clear chat history"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -314,6 +327,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                   size="icon"
                   onClick={onClose}
                   className="h-8 w-8"
+                  aria-label="Close assistant"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -330,7 +344,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                   </div>
                   <h3 className="font-medium mb-2">How can I help you?</h3>
                   <p className="text-sm text-muted-foreground mb-6">
-                    Ask me anything about CleanFlowAI - file uploads, data quality, ERP integrations, and more.
+                    Ask me anything about RightRev - file uploads, data quality, ERP integrations, and more.
                   </p>
                   <div className="space-y-2 w-full max-w-[280px]">
                     {suggestions.map((suggestion) => (

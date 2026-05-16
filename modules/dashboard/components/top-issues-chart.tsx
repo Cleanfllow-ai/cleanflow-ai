@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Inbox } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { TopIssue } from "@/modules/files"
 
@@ -26,16 +26,23 @@ const BAR_COLORS = [
 type Props = {
   issues?: TopIssue[]
   isLoading?: boolean
+  /**
+   * When non-null, the DQ report fetch failed for a non-benign reason. The
+   * widget renders an error state instead of the ambiguous "no data" empty
+   * state so users can tell "no issues yet" apart from "fetch failed".
+   */
+  errorMessage?: string | null
 }
 
-export function TopIssuesChart({ issues, isLoading }: Props) {
+export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
   const normalized = (issues || [])
     .filter((i) => typeof i.count === "number" && i.count > 0)
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
     .map((issue, idx) => ({
       id: idx + 1,
-      name: issue.violation.replace(/_/g, " "),
+      name: issue.short_label || issue.violation.replace(/_/g, " "),
+      code: issue.short_label && issue.short_label !== issue.violation ? issue.violation : null,
       count: issue.count,
       color: COLORS[idx % COLORS.length],
       barColor: BAR_COLORS[idx % BAR_COLORS.length],
@@ -89,9 +96,24 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
               </div>
             ))}
           </div>
+        ) : errorMessage ? (
+          <div
+            data-testid="top-issues-error"
+            role="alert"
+            className="text-center text-sm text-rose-600 dark:text-rose-400 py-6"
+          >
+            We couldn’t load DQ issues right now. Please refresh.
+          </div>
         ) : issuesWithPct.length === 0 ? (
-          <div className="text-center text-sm text-muted-foreground py-6">
-            No data available for this card yet.
+          <div
+            data-testid="top-issues-empty"
+            className="flex flex-col items-center gap-2 py-6 text-center"
+          >
+            <Inbox className="h-7 w-7 text-muted-foreground/50" aria-hidden />
+            <p className="text-sm font-medium text-muted-foreground">No DQ issues yet</p>
+            <p className="text-xs text-muted-foreground/70">
+              Run data quality on a file to see top issues here.
+            </p>
           </div>
         ) : (
           <div className="space-y-2.5">
@@ -105,9 +127,14 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {issue.name}
-                    </span>
+                    <div className="min-w-0 flex flex-col">
+                      <span className="text-xs font-medium text-foreground truncate">
+                        {issue.name}
+                      </span>
+                      {issue.code && (
+                        <span className="text-[10px] text-muted-foreground/60 font-mono leading-tight">{issue.code}</span>
+                      )}
+                    </div>
                     <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0 ml-2">
                       {issue.count.toLocaleString()}
                     </span>

@@ -1,5 +1,5 @@
 "use client"
-import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sun, X } from "lucide-react"
+import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, Compass, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sparkles, Sun, X } from "lucide-react"
 import { memo, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
@@ -11,17 +11,22 @@ import { usePathname, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useAppSelector } from "@/shared/store/store"
 import { selectFiles } from "@/modules/files/store/filesSlice"
+import { WelcomeTour } from "@/modules/onboarding"
+import { useWelcomeTour } from "@/modules/onboarding/hooks/use-welcome-tour"
 const ChatDrawer = dynamic(
 	() => import("@/modules/chat/components/chat-drawer").then((mod) => ({ default: mod.ChatDrawer })),
 	{ ssr: false }
 )
+// TODO: re-enable after augmentation audit completes (track: a575f372010d13bca)
+const AUGMENTATION_ENABLED = false
 const mainNav = [
-	{ name: "Dashboard", href: "/dashboard", icon: BarChart3 },
-	{ name: "Data Catalog", href: "/files", icon: FileText },
-	{ name: "Jobs", href: "/jobs", icon: CalendarClock },
+	{ name: "Dashboard", href: "/dashboard", icon: BarChart3, tourId: "nav-dashboard" },
+	{ name: "Data Catalog", href: "/files", icon: FileText, tourId: "nav-data-catalog" },
+	...(AUGMENTATION_ENABLED ? [{ name: "Augmentation", href: "/augmentation", icon: Sparkles, tourId: "nav-augmentation" }] : []),
+	{ name: "Jobs", href: "/jobs", icon: CalendarClock, tourId: "nav-jobs" },
 ]
 const settingsNav = [
-	{ name: "Admin", href: "/admin", icon: Settings },
+	{ name: "Admin", href: "/admin", icon: Settings, tourId: "nav-admin" },
 ]
 function AppSidebarComponent() {
 	const [collapsed, setCollapsed] = useState(false)
@@ -32,6 +37,14 @@ function AppSidebarComponent() {
 	const router = useRouter()
 	const { logout, isAuthenticated, user } = useAuth()
 	const { theme, setTheme } = useTheme()
+	const {
+		isOpen: tourOpen,
+		currentStep: tourStep,
+		setCurrentStep: setTourStep,
+		openTour,
+		completeTour,
+		closeTour,
+	} = useWelcomeTour(pathname === "/dashboard")
 	// ─── UX Improvement: Live attention badges ──────────────────────────
 	const files = useAppSelector(selectFiles)
 	const attentionCount = useMemo(() => {
@@ -67,6 +80,7 @@ function AppSidebarComponent() {
 		return (
 			<Link key={item.name} href={item.href}>
 				<div
+					data-tour={item.tourId}
 					className={cn(
 						"group flex items-center gap-2.5 px-3 py-[7px] rounded-lg transition-colors",
 						isActive
@@ -136,11 +150,11 @@ function AppSidebarComponent() {
 					</Button>
 				)}
 				{/* Logo */}
-				<div className="flex items-center gap-2.5 px-3 py-3 border-b border-sidebar-border">
+				<div data-tour="logo" className="flex items-center gap-2.5 px-3 py-3 border-b border-sidebar-border">
 					<div className="relative w-7 h-7 flex-shrink-0">
 						<Image
-							src="/images/infiniqon-logo-light.png"
-							alt="CleanFlowAI"
+							src="/images/rightrev-logo.png"
+							alt="RightRev"
 							width={28}
 							height={28}
 							className="rounded-md object-contain"
@@ -149,7 +163,7 @@ function AppSidebarComponent() {
 					{!collapsed && (
 						<div className="flex-1 min-w-0">
 							<div className="text-sm font-semibold text-foreground tracking-tight leading-none">
-								CleanFlowAI
+								RightRev
 							</div>
 							<div className="text-[10px] text-muted-foreground leading-none mt-0.5">
 								Data Quality Platform
@@ -174,7 +188,7 @@ function AppSidebarComponent() {
 							</span>
 						) : undefined
 					)}
-					{renderNavItem(mainNav[2])}
+					{mainNav.slice(2).map((item) => renderNavItem(item))}
 					{/* Settings section */}
 					{!collapsed && (
 						<p className="px-3 pt-3 pb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
@@ -212,6 +226,15 @@ function AppSidebarComponent() {
 								<span className="text-[12px]">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
 							</button>
 							<button
+								onClick={openTour}
+								aria-label="Take the product tour"
+								className="flex items-center gap-2.5 px-3 py-[6px] text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg w-full transition-colors"
+							>
+								<Compass className="w-4 h-4" aria-hidden="true" />
+								<span className="text-[12px]">Take the tour</span>
+							</button>
+							<button
+								data-tour="help-support"
 								onClick={() => setChatOpen(true)}
 								aria-label="Open help and support"
 								className="flex items-center gap-2.5 px-3 py-[6px] text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg w-full transition-colors"
@@ -272,6 +295,13 @@ function AppSidebarComponent() {
 				</div>
 			</aside>
 			<ChatDrawer isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+			<WelcomeTour
+				isOpen={tourOpen}
+				currentStep={tourStep}
+				setCurrentStep={setTourStep}
+				onComplete={completeTour}
+				onSkip={closeTour}
+			/>
 		</div>
 	)
 }

@@ -17,6 +17,7 @@ import { useAuth } from "@/modules/auth"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
 import type { FileStatusResponse } from "@/modules/files/types"
 import type { JobRun } from "@/modules/jobs/types/jobs.types"
+import { JobErrorBanner } from "./job-error-banner"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,11 @@ function formatDuration(seconds: number | undefined): string {
     const hrs = Math.floor(mins / 60)
     const remMins = mins % 60
     return `${hrs}h ${remMins}m`
+}
+
+function safeFormatDate(value: string | undefined, fmt: string): string {
+    if (!value) return "—"
+    try { return format(new Date(value), fmt) } catch { return "—" }
 }
 
 function formatEntityName(entity: string): string {
@@ -218,15 +224,11 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                     </div>
                     <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Started</p>
-                        <p className="text-xs">
-                            {run.started_at ? (() => { try { return format(new Date(run.started_at), "MMM d, yyyy HH:mm:ss") } catch { return "\u2014" } })() : "\u2014"}
-                        </p>
+                        <p className="text-xs">{safeFormatDate(run.started_at, "MMM d, yyyy HH:mm:ss")}</p>
                     </div>
                     <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Completed</p>
-                        <p className="text-xs">
-                            {run.completed_at ? (() => { try { return format(new Date(run.completed_at), "MMM d, yyyy HH:mm:ss") } catch { return "\u2014" } })() : "\u2014"}
-                        </p>
+                        <p className="text-xs">{safeFormatDate(run.completed_at, "MMM d, yyyy HH:mm:ss")}</p>
                     </div>
                     {run.correlation_id && (
                         <div className="col-span-2 space-y-1">
@@ -235,6 +237,21 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                         </div>
                     )}
                 </div>
+
+                {/* ── Structured failure banner ─────────────────────────── */}
+                {run.error_code && (
+                    <JobErrorBanner
+                        errorCode={run.error_code}
+                        errorMessage={run.error_message}
+                        onAction={(key) => {
+                            if (key === "edit" || key === "manage") {
+                                onOpenChange(false)
+                            }
+                            // "rerun" / "view_logs" handled by parent — bubble via onAction prop if needed
+                        }}
+                        className="mt-1"
+                    />
+                )}
 
                 {/* ── Partial-success CTA ───────────────────────────────── */}
                 {showPartialBanner && (
@@ -312,7 +329,7 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                             {run.pipeline_logs.map((log, i) => (
                                 <div key={i} className="flex items-start gap-2 text-xs font-mono">
                                     <span className="text-muted-foreground shrink-0 w-[70px]">
-                                        {log.timestamp ? (() => { try { return format(new Date(log.timestamp), "HH:mm:ss") } catch { return "" } })() : ""}
+                                        {safeFormatDate(log.timestamp, "HH:mm:ss").replace("—", "")}
                                     </span>
                                     <Badge variant="outline" className={cn("text-[10px] shrink-0 w-[50px] justify-center", {
                                         "text-blue-600 border-blue-500/25": log.phase === "import",
@@ -453,7 +470,10 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                         <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-1 text-xs max-h-[200px] overflow-y-auto">
                             {run.pipeline_logs
                                 .filter(l => l.phase === "export" && l.details?.errors?.length)
-                                .flatMap(l => (l.details.errors as Array<{ row?: number; error: string }>))
+                                // l.details is guaranteed by the filter above, but the
+                                // strict-null compiler doesn't narrow across .filter →
+                                // .flatMap, so coerce safely with `?? []`.
+                                .flatMap(l => (l.details?.errors as Array<{ row?: number; error: string }> | undefined) ?? [])
                                 .map((err, i) => (
                                     <div key={i} className="text-red-600">
                                         {err.row != null && <span className="text-muted-foreground mr-1">Row {err.row}:</span>}

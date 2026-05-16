@@ -9,6 +9,7 @@ import {
   type CellClassParams,
   type CellEditingStartedEvent,
   type CellEditingStoppedEvent,
+  type CellStyle,
   type CellValueChangedEvent,
   type ColDef,
   type GetRowIdParams,
@@ -29,7 +30,7 @@ interface QuarantineAgGridTableProps {
   getCellValue: (rowId: string, column: string, row: Record<string, any>) => any
   isCellEdited: (rowId: string, column: string) => boolean
   isCellSaved: (rowId: string, column: string) => boolean
-  onCellEdit: (rowId: string, column: string, value: string) => void
+  onCellEdit: (rowId: string, column: string, value: string, oldValue?: string) => void
   loading: boolean
   uploadId: string
   reloadToken: number
@@ -37,6 +38,15 @@ interface QuarantineAgGridTableProps {
   findMatches?: Array<{ row_id: string; column: string; index?: number }>
   currentMatch?: { row_id: string; column: string; index?: number } | null
   cellLocksRef?: React.MutableRefObject<Map<string, CellLockInfo>>
+  /** Lock-hole #1 fix: cells the server has confirmed our ownership via
+   *  cellLockGranted. editable predicate treats these as "mine" even if
+   *  cellLocksRef doesn't yet reflect our own lock (we set peer locks, not
+   *  our own, in cellLocksRef). */
+  myGrantedCellsRef?: React.MutableRefObject<Set<string>>
+  /** Cells for which we sent cellFocus but haven't yet received the server
+   *  ack (cellLockGranted or cellLockDenied). Predicate allows editing
+   *  optimistically, relying on server to reject if we lost the race. */
+  pendingLockCellsRef?: React.MutableRefObject<Set<string>>
   onCellEditingStarted?: (column: string, rowId: string) => void
   onCellEditingStopped?: (column: string, rowId: string) => void
   onGridApiReady?: (api: GridApi<QuarantineRow>) => void
@@ -47,6 +57,13 @@ interface QuarantineAgGridTableProps {
   /** True when the caller has permission to unlock pushed rows. Drives
    *  whether the lock badge is interactive. */
   canUnlock?: boolean
+  /** B4 (2026-05-16): list of column names introduced by augmentation
+   *  presets / custom augmentation rules before DQ ran.  When present,
+   *  the grid violet-tints these columns and prefixes the header with
+   *  a "✨" so users can tell augmented columns apart from upload columns.
+   *  Sourced from FileStatusResponse.augmented_columns (BE-persisted in
+   *  start_dq_processing.py). */
+  augmentedColumns?: string[]
 }
 
 const GRID_THEME = themeQuartz.withParams({
@@ -209,12 +226,21 @@ export function QuarantineAgGridTable({
   findMatches,
   currentMatch,
   cellLocksRef,
+  myGrantedCellsRef,
+  pendingLockCellsRef,
   onCellEditingStarted: onCellEditStart,
   onCellEditingStopped: onCellEditStop,
   onGridApiReady,
   onUnlockRowClick,
   canUnlock = false,
+  augmentedColumns,
 }: QuarantineAgGridTableProps) {
+  // B4 (2026-05-16): pre-build a Set for O(1) membership checks inside the
+  // cellClass closure (called once per cell render — every scroll tick).
+  const augmentedColumnsSet = useMemo(
+    () => new Set(augmentedColumns ?? []),
+    [augmentedColumns],
+  )
   const wrapperRef = useRef<HTMLDivElement>(null)
   const apiRef = useRef<GridApi<QuarantineRow> | null>(null)
   const getCellValueRef = useRef(getCellValue)
@@ -328,18 +354,60 @@ export function QuarantineAgGridTable({
           // until super-admin unlocks (FE source of truth: `is_locked`
           // attached by the QueryQuarantineRowsUseCase).
           if (params.data?.is_locked) return false
-          const lockInfo = cellLocksRefInternal.current.get(`${column}:${rowId}`)
-          return !lockInfo
+          const cellKey = `${column}:${rowId}`
+          const lockInfo = cellLocksRefInternal.current.get(cellKey)
+          // Lock-hole #1 fix: lockInfo represents PEER locks (cellLocked
+          // broadcasts). If WE hold this cell — confirmed by cellLockGranted
+          // OR still pending — we must return true despite lockInfo being
+          // absent from the map (our own locks don't appear there).
+          // The server enforces the winner at cellUpdate time; this predicate
+          // only controls whether AG Grid starts the inline editor.
+          const isMineGranted = myGrantedCellsRef?.current.has(cellKey) ?? false
+          const isMePending = pendingLockCellsRef?.current.has(cellKey) ?? false
+          if (lockInfo) {
+            // Someone else holds this cell — only editable if it's us.
+            return isMineGranted || isMePending
+          }
+          // No lock info: editable. We may be in the race window (between
+          // our cellFocus and the cellLocked broadcast from the server), but
+          // the server rejects the cellUpdate if we don't own the lock.
+          return true
         },
         field: column,
         flex: 1,
         minWidth: 180,
         sortable: false,
+        // B4 (2026-05-16): augmented columns get a violet bar on the
+        // left edge of each cell so they're visually distinct from upload
+        // columns.  The class is appended ALONGSIDE the existing DQ status
+        // classes; it doesn't replace cell highlighting for issues.
         headerComponent: filterComponent
           ? () => (
               <div className="flex items-center">
+                {augmentedColumnsSet.has(column) && (
+                  <span
+                    className="text-violet-500 mr-1"
+                    title="Augmented column (created by an augmentation rule before DQ)"
+                    aria-hidden="true"
+                  >
+                    ✨
+                  </span>
+                )}
                 <span>{column}</span>
                 {filterComponent(column)}
+              </div>
+            )
+          : augmentedColumnsSet.has(column)
+          ? () => (
+              <div className="flex items-center">
+                <span
+                  className="text-violet-500 mr-1"
+                  title="Augmented column (created by an augmentation rule before DQ)"
+                  aria-hidden="true"
+                >
+                  ✨
+                </span>
+                <span>{column}</span>
               </div>
             )
           : undefined,
@@ -361,20 +429,34 @@ export function QuarantineAgGridTable({
           return getCellTooltip(column, params.data)
         },
         valueFormatter: (params: ValueFormatterParams<QuarantineRow>) => formatCellValue(params.value),
-        cellClass: (params) => getCellStatusClass(params, isCellEditedRef.current, isCellSavedRef.current, findMatchSetRef.current, currentMatchKeyRef.current, cellLocksRefInternal.current),
-        cellStyle: (params) => {
+        cellClass: (params) => {
+          const classes = getCellStatusClass(
+            params,
+            isCellEditedRef.current,
+            isCellSavedRef.current,
+            findMatchSetRef.current,
+            currentMatchKeyRef.current,
+            cellLocksRefInternal.current,
+          )
+          // B4 (2026-05-16): violet tint + left-border on augmented columns.
+          if (augmentedColumnsSet.has(column)) {
+            classes.push('bg-violet-50/40', 'border-l-2', 'border-violet-300')
+          }
+          return classes
+        },
+        cellStyle: (params): CellStyle | undefined => {
           const field = params.colDef.field
           const rowId = String(params.data?.row_id ?? '')
           if (!field || field === 'row_id' || !rowId) return undefined
           const lockInfo = cellLocksRefInternal.current.get(`${field}:${rowId}`)
           if (lockInfo) {
-            return { '--lock-color': lockInfo.color } as React.CSSProperties
+            return { '--lock-color': lockInfo.color } as CellStyle
           }
           return undefined
         },
       }
     })
-  }, [columns, editableColumnSet, filterComponent, canUnlock, onUnlockRowClick])
+  }, [columns, editableColumnSet, filterComponent, canUnlock, onUnlockRowClick, augmentedColumnsSet])
 
   // fetchRows is accessed via ref so the datasource object stays stable across
   // cell edits and row merges. AG Grid resets scroll/cache whenever datasource
@@ -431,10 +513,17 @@ export function QuarantineAgGridTable({
     }
 
     const nextValue = formatCellValue(event.newValue)
+    // ── Undo fix (2026-05-15) ──────────────────────────────────────────
+    // AG-Grid's CellValueChangedEvent carries the pre-edit oldValue. We
+    // forward it to the editor so the per-cell undo history can revert
+    // to the ORIGINAL value instead of writing '' (the previous code
+    // looked up the old value in editsMap, which was empty for first-time
+    // edits, falling through to `?? ''` and blanking the cell on Undo).
+    const oldValue = formatCellValue(event.oldValue)
     if (event.data) {
       event.data[field] = nextValue
     }
-    onCellEditRef.current(rowId, field, nextValue)
+    onCellEditRef.current(rowId, field, nextValue, oldValue)
   }, [])
 
   return (

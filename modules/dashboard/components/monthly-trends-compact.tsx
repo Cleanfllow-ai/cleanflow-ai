@@ -36,21 +36,32 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
     const [timePeriod, setTimePeriod] = useState<'day' | 'week' | 'month' | 'year'>('month');
 
     useEffect(() => {
+        let cancelled = false;
         const loadOverallReport = async () => {
-            if (!idToken) return;
+            // If no auth yet, still clear the loading state — otherwise the
+            // chart sits on a spinner forever and looks like a hang.
+            if (!idToken) {
+                if (!cancelled) setLoading(false);
+                return;
+            }
             try {
                 const report = await fileManagementAPI.downloadOverallDqReport(idToken);
-                setOverallReport(report);
+                if (!cancelled) setOverallReport(report);
             } catch (error: any) {
                 const message = (error?.message || "").toLowerCase();
                 if (!message.includes("permission denied") && !message.includes("organization membership required")) {
                     console.error("Error loading overall DQ report:", error);
                 }
+                // Soft-degrade: don't block the widget on a fetch error;
+                // the `files` prop is enough to render most periods.
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
-        loadOverallReport();
+        void loadOverallReport();
+        return () => {
+            cancelled = true;
+        };
     }, [idToken]);
 
     const monthlyData = useMemo(() => {
@@ -200,8 +211,28 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ];
 
-    if (monthlyData.length === 0) {
-        return null;
+    // Distinguish "no data" from "hidden" — if every bucket is zero we still
+    // mount a tiny empty-state card so the layout doesn't shift unexpectedly.
+    const hasAnyData = monthlyData.some((d) => (d.rows || 0) > 0);
+    if (!hasAnyData) {
+        return (
+            <Card>
+                <CardHeader className="py-3 px-4 pb-1">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+                        Trends
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 pt-2">
+                    <p
+                        data-testid="trends-empty"
+                        className="text-center text-xs text-muted-foreground py-6"
+                    >
+                        No processed files in this period yet.
+                    </p>
+                </CardContent>
+            </Card>
+        );
     }
 
     return (

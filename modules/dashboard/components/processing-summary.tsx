@@ -8,7 +8,11 @@ import {
 } from "@/components/ui/card";
 import type { DqChartsProps } from "./chart-constants";
 export function ProcessingSummary({ files }: DqChartsProps) {
-    const completedFiles = files.filter((f) => f.status === "DQ_FIXED");
+    // Exclude augmentation child rows (they have parent_upload_id) — otherwise
+    // we double-count rows that already contribute via their parent upload.
+    const completedFiles = files.filter(
+        (f) => f.status === "DQ_FIXED" && !f.parent_upload_id
+    );
     const totalRowsIn = completedFiles.reduce(
         (sum, f) => sum + (f.rows_in || 0),
         0
@@ -21,7 +25,9 @@ export function ProcessingSummary({ files }: DqChartsProps) {
         (sum, f) => sum + (f.rows_quarantined || 0),
         0
     );
-    const totalRowsOut = totalRowsIn - totalRowsQuarantined;
+    // Clamp at zero: inconsistent rows_quarantined > rows_in shouldn't render
+    // as a negative count in the UI.
+    const totalRowsOut = Math.max(totalRowsIn - totalRowsQuarantined, 0);
     const metrics = [
         { label: "Input Rows", value: totalRowsIn, color: "text-foreground", bg: "bg-muted/30" },
         { label: "Valid Output", value: totalRowsOut, color: "text-emerald-500", bg: "bg-emerald-500/5" },

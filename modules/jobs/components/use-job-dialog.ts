@@ -15,6 +15,7 @@ import { connectorsAPI, warehouseConnectorsAPI, erpConnectorsAPI } from '@/modul
 import { ensureConnectorConfig } from '@/modules/connectors/hooks/use-connector-metadata-cache'
 import { isApiError } from '@/modules/shared/api-error'
 import { toastFromError } from '@/lib/error-toast-jsx'
+import { parseCron } from './cron-builder'
 import type { ProviderInfo } from '@/modules/connectors/api/connectors-api'
 import type { WarehouseMetadataItem } from '@/modules/connectors/api/warehouse-connectors-api'
 import { getSettingsPresets } from '@/modules/files/api/file-settings-api'
@@ -84,6 +85,11 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
     const [entities, setEntities] = useState<string[]>([])
     const [availableEntities, setAvailableEntities] = useState<EntityOption[]>([])
     const [entitiesLoading, setEntitiesLoading] = useState(false)
+    // Surfaces the most recent entity-discovery failure for the FE to render
+    // inline. Without this, a 401/403/500 on /connectors/.../entities silently
+    // showed an empty dropdown that looked identical to "this provider has no
+    // entities", and the user had no signal to reconnect or retry.
+    const [entitiesError, setEntitiesError] = useState<string | null>(null)
 
     // ── Source config (generic) ───────────────────────────────────────────────
     const [sourceConfig, setSourceConfig] = useState<Record<string, any>>({})
@@ -276,6 +282,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         let cancelled = false
         setEntitiesLoading(true)
         setAvailableEntities([])
+        setEntitiesError(null)
 
         const fetchEntities = async () => {
             try {
@@ -293,8 +300,22 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                     value: e.key || e.name || e.entity || e.value || "",
                 })).filter((e: EntityOption) => e.value)
                 setAvailableEntities(opts)
+                setEntitiesError(null)
             } catch (err) {
+                if (cancelled) return
                 console.error("[job-dialog] Entity discovery failed:", err)
+                // Surface the failure: an empty entity dropdown without any
+                // visible error looks identical to a clean "this provider
+                // has no entities" state, so users sit confused. Capture
+                // the message + show a toast so the user knows to retry or
+                // reconnect.
+                const message = (err as Error)?.message || "Could not load entities for this source."
+                setEntitiesError(message)
+                toast({
+                    title: "Entity discovery failed",
+                    description: message,
+                    variant: "destructive",
+                })
             } finally {
                 if (!cancelled) setEntitiesLoading(false)
             }
@@ -640,7 +661,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             }
             return mappings
         } catch (err: any) {
-            toast({ title: "Auto-map failed", description: err?.message || "Failed to generate mapping", variant: "destructive" })
+            console.error("[useJobDialog] auto-map failed:", err)
+            toast(toastFromError(err))
             return []
         } finally {
             setMappingLoading(false)
@@ -750,7 +772,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 setCachedSourceFields(srcFields)
                 setCachedDestFields(dstFields)
             } catch (err: any) {
-                toast({ title: "Failed to load fields", description: err?.message, variant: "destructive" })
+                console.error("[useJobDialog] field load failed:", err)
+                toast(toastFromError(err))
                 return
             }
         }
@@ -776,9 +799,22 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             toast({ title: "Entities required", description: "Please select at least one entity", variant: "destructive" })
             return
         }
-        if (frequency === "cron" && !cronExpression.trim()) {
-            toast({ title: "Cron expression required", variant: "destructive" })
-            return
+        if (frequency === "cron") {
+            const trimmed = cronExpression.trim()
+            if (!trimmed) {
+                toast({ title: "Cron expression required", variant: "destructive" })
+                return
+            }
+            // Validate the cron syntax client-side before the BE rejects it with
+            // JOB_CRON_INVALID. Previously a malformed cron silently passed
+            // client validation and only failed at the server (after the spinner
+            // had cleared), leaving users staring at "Saving..." for ~3s with
+            // no preview of the problem.
+            const parsed = parseCron(trimmed)
+            if (parsed.error) {
+                toast({ title: "Invalid cron expression", description: parsed.error, variant: "destructive" })
+                return
+            }
         }
 
         setSaving(true)
@@ -846,9 +882,19 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             }
             onSuccess()
         } catch (err: any) {
+            // Surface BE field-level validation errors inline (e.g.
+            // `{fields: {name: "Name must be unique"}}`) instead of just the
+            // generic top-level message. Previously the user got "Creation
+            // failed: Validation error" with no clue which field broke.
+            let description = err?.message || "Something went wrong"
+            if (isApiError(err) && err.fields && Object.keys(err.fields).length > 0) {
+                description = Object.entries(err.fields)
+                    .map(([field, msg]) => `${field}: ${msg}`)
+                    .join("; ")
+            }
             toast({
                 title: isEdit ? "Update failed" : "Creation failed",
-                description: err?.message || "Something went wrong",
+                description,
                 variant: "destructive"
             })
         } finally {
@@ -876,6 +922,7 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
         entities,
         availableEntities,
         entitiesLoading,
+        entitiesError,
         selectEntity,
         clearAllEntities,
         // Source / destination config

@@ -54,13 +54,11 @@ export interface ProviderInfo {
 }
 
 export const UI_ONLY_PROVIDERS: ProviderInfo[] = [
-  {
-    provider_id: "salesforce",
-    display_name: "Salesforce",
-    category: "erp",
-    ui_only: true,
-    auth_method: "OAuth2",
-  },
+  // Salesforce is now BE-registered (rightrev-demo) — flipped out of UI-only on
+  // 2026-05-16 as part of the v62.0 connector scaffold. The BE deploy is
+  // pending the Connected App credentials in Secrets Manager. Once
+  // `cdk deploy connectors-context` completes, `/connectors/available` will
+  // return salesforce in the live registry, so this entry is no longer needed.
   {
     provider_id: "netsuite",
     display_name: "NetSuite",
@@ -348,7 +346,17 @@ class ConnectorsAPI extends ConnectorAPIBase {
         `/connectors/${provider}/connections`,
         { method: "GET" },
       )
-    } catch {
+    } catch (err) {
+      // We swallow the error here so consumers don't have to distinguish
+      // "not connected" from "endpoint failed" — but log the original so
+      // support can diagnose 401/5xx vs a genuine 404. Without this, a
+      // Cognito JWT expiry on this endpoint is indistinguishable from an
+      // intentional "no connection yet" reply.
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[connectors] getConnectionStatus(${provider}) failed; treating as disconnected:`,
+        err,
+      )
       return { connected: false }
     }
   }

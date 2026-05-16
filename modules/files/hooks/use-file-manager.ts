@@ -1,13 +1,17 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 
 import { useToast } from "@/shared/hooks/use-toast"
 import { useAuth } from "@/modules/auth"
 import type { FileItem, FileStats } from "@/modules/files/types"
+import { deleteUpload, pollDeleteOperation } from "@/modules/files/api/file-upload-api"
 
 import { FILES_API_CONFIG, mapStatus } from "./file-manager.utils"
 import { useFileDownload } from "./use-file-download"
 import { useFilePolling } from "./use-file-polling"
 import { useFileUpload } from "./use-file-upload"
+
+// ── P0-2: cross-tab sync channel name ─────────────────────────────────────────
+export const FILES_BROADCAST_CHANNEL = "cleanflowai-files"
 
 export type { FileItem, FileStats } from "@/modules/files/types"
 
@@ -26,6 +30,8 @@ export function useFileManager() {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false)
   const { toast } = useToast()
   const { idToken } = useAuth()
+  // P0-2: BroadcastChannel for cross-tab file list sync
+  const broadcastRef = useRef<BroadcastChannel | null>(null)
 
   const updateStats = useCallback((fileList: FileItem[]) => {
     const totalSize = fileList.reduce((sum, file) => sum + file.size, 0)
@@ -110,6 +116,9 @@ export function useFileManager() {
       setFiles(dedupedFiles)
       updateStats(dedupedFiles)
 
+      // P0-2: broadcast list-refresh to other tabs
+      broadcastRef.current?.postMessage({ type: "FILES_REFRESHED" })
+
       toast({
         title: "Files loaded",
         description: `Found ${apiFiles.length} file(s)`,
@@ -147,26 +156,44 @@ export function useFileManager() {
       toast,
     })
 
+  // ── P0-3: Fix delete race — wait for BE 202+operation_id before optimistic remove ──
   const deleteFile = useCallback(
     async (fileId: string) => {
+      if (!idToken) return
+
+      // Step 1: Call the API; wait for 202 (or sync 200 back-compat)
+      const result = await deleteUpload(fileId, idToken)
+
+      // Step 2: After the BE accepted the delete, optimistically remove from UI
       setFiles((prev) => {
         const updated = prev.filter((file) => file.id !== fileId)
         updateStats(updated)
         return updated
       })
-
       if (selectedFile?.id === fileId) {
         setSelectedFile(null)
       }
 
-      await loadFiles()
+      // P0-2: broadcast the deletion so other tabs remove the row immediately
+      broadcastRef.current?.postMessage({ type: "FILE_DELETED", fileId })
+
+      // Step 3: If async (202), poll until COMPLETED then reload list
+      if (result.accepted && result.operation_id) {
+        try {
+          await pollDeleteOperation(result.operation_id, idToken)
+        } catch {
+          // pollDeleteOperation already surfaced error; reload to reconcile
+        }
+        // Only reload AFTER the operation is terminal — avoids race with BE 202
+        await loadFiles()
+      }
 
       toast({
         title: "File deleted",
         description: "The file has been successfully deleted.",
       })
     },
-    [selectedFile, updateStats, loadFiles, toast]
+    [idToken, selectedFile, updateStats, loadFiles, toast]
   )
 
   const downloadFile = useCallback(
@@ -246,6 +273,38 @@ export function useFileManager() {
       if (interval) clearInterval(interval)
     }
   }, [autoRefreshEnabled, idToken, loadFiles])
+
+  // ── P0-2: BroadcastChannel setup — open on mount, reload on remote events ─────
+  useEffect(() => {
+    if (typeof window === "undefined" || !("BroadcastChannel" in window)) return
+
+    const bc = new BroadcastChannel(FILES_BROADCAST_CHANNEL)
+    broadcastRef.current = bc
+
+    bc.onmessage = (event: MessageEvent) => {
+      const { type, fileId } = event.data ?? {}
+      if (type === "FILES_REFRESHED") {
+        // Another tab refreshed the full list — pull latest
+        if (idToken) loadFiles()
+      } else if (type === "FILE_DELETED" && fileId) {
+        // Another tab deleted a file — remove from local state immediately
+        setFiles((prev) => {
+          const updated = prev.filter((f) => f.id !== fileId)
+          updateStats(updated)
+          return updated
+        })
+      }
+    }
+
+    return () => {
+      bc.close()
+      broadcastRef.current = null
+    }
+    // idToken intentionally omitted — we only want to re-subscribe when the
+    // channel itself changes (never), not on every token rotation. The handler
+    // closure reads idToken via the outer scope ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return {
     files,

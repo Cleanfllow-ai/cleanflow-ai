@@ -1,5 +1,28 @@
+# Per-package allowBuilds rationale (pnpm 11 native-build gate):
+#   '@tailwindcss/oxide': false  — already in ignoredBuiltDependencies; Tailwind v4
+#                                  falls back to prebuilt wasm; current build works
+#                                  without compiling the native binary.
+#   '@vercel/speed-insights': false — postinstall is telemetry/analytics setup; no
+#                                     build needed.
+#   aws-sdk: false               — postinstall regenerates service typings (~5 MB,
+#                                  10-30 s); not used at runtime.
+#   cypress: false               — postinstall downloads ~150 MB binary; only useful
+#                                  if running Cypress locally; CI uses a separate
+#                                  Docker image.
+#   msw: true                    — postinstall copies the Mock Service Worker JS into
+#                                  public/; tests fail without it.
+#   sharp: false                 — Next.js Image works without it (JS fallback in
+#                                  dev; Vercel platform has sharp natively).
+allowBuilds:
+  '@tailwindcss/oxide': false
+  '@vercel/speed-insights': false
+  aws-sdk: false
+  cypress: false
+  msw: true
+  sharp: false
 ignoredBuiltDependencies:
   - '@tailwindcss/oxide'
   - '@vercel/speed-insights'
   - aws-sdk
   - sharp
+  - cypress

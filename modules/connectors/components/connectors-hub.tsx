@@ -138,7 +138,8 @@ export function ConnectorsHub() {
         }
       }
     } catch (err) {
-      setError((err as Error).message || "Failed to load connectors")
+      console.error("[Connectors:loadProviders]", err)
+      setError("Could not load connectors. Please try again.")
       setLoading(false)
     }
   }, [])
@@ -170,8 +171,39 @@ export function ConnectorsHub() {
         } else if (provider?.category === "erp") {
           prefetchERPEntities(providerId).catch(() => {})
         }
+        toast({
+          title: `Connected to ${provider?.display_name ?? providerId}`,
+          description: "Your connection is ready.",
+        })
+      } else {
+        // `result.error` is set when the popup either failed, the user
+        // dismissed it, or COOP / safety-timeout fired. Surface a
+        // user-visible toast so the FE doesn't sit silently with the
+        // "Connect" spinner spinning forever after the user closes the
+        // popup.
+        const msg = result.error || "Connection cancelled."
+        // "Auth window closed" is the friendly path — show a non-destructive
+        // toast. Other strings are genuine failures.
+        const closed = /closed/i.test(msg)
+        console.error("[Connectors:handleConnect]", result.error)
+        toast({
+          title: closed
+            ? "Connection cancelled"
+            : `Could not connect ${provider?.display_name ?? providerId}`,
+          description: closed
+            ? "You closed the authorization window before it finished."
+            : "We couldn't complete the connection. Please try again or check your provider's permissions.",
+          variant: closed ? "default" : "destructive",
+        })
       }
-    } catch { /* popup closed */ } finally { setConnectingProvider(null) }
+    } catch (err) {
+      console.error("Connect error:", err)
+      toast({
+        title: `Could not connect ${provider?.display_name ?? providerId}`,
+        description: "Please try again.",
+        variant: "destructive",
+      })
+    } finally { setConnectingProvider(null) }
   }
 
   const handleDisconnect = (providerId: string, displayName: string) => {
@@ -193,9 +225,10 @@ export function ConnectorsHub() {
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: { connected: false } } : p))
       toast({ title: "Disconnected", description: `${displayName} has been disconnected.` })
     } catch (err) {
+      console.error("Disconnect error:", err)
       toast({
         title: "Disconnect failed",
-        description: (err as Error)?.message || `Could not disconnect ${displayName}. Please try again.`,
+        description: `Could not disconnect ${displayName}. Please try again.`,
         variant: "destructive",
       })
     } finally { setDisconnectingProvider(null) }
@@ -208,9 +241,10 @@ export function ConnectorsHub() {
       const status = await connectorsAPI.getConnectionStatus(providerId)
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: status } : p))
     } catch (err) {
+      console.error("Save config error:", err)
       toast({
         title: "Could not save configuration",
-        description: (err as Error)?.message || "Please try again.",
+        description: "Please try again.",
         variant: "destructive",
       })
     } finally { setSavingConfig(null) }
@@ -225,9 +259,10 @@ export function ConnectorsHub() {
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: status } : p))
       if (key === "database" && value) prefetchDatabaseDeep(providerId, value).catch(() => {})
     } catch (err) {
+      console.error("Save warehouse default error:", err)
       toast({
         title: `Could not save ${key}`,
-        description: (err as Error)?.message || "Please try again.",
+        description: "Please try again.",
         variant: "destructive",
       })
     } finally { setSavingConfig(null) }
@@ -339,9 +374,9 @@ export function ConnectorsHub() {
               Disconnect from {pendingDisconnect?.displayName}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              CleanFlow AI will stop using this {pendingDisconnect?.displayName} connection.
+              RightRev will stop using this {pendingDisconnect?.displayName} connection.
               Any in-progress imports or exports for this connector will stop, and you can
-              reconnect at any time. To fully revoke CleanFlow AI's access at the provider,
+              reconnect at any time. To fully revoke RightRev's access at the provider,
               also remove the app from your {pendingDisconnect?.displayName} account.
             </AlertDialogDescription>
           </AlertDialogHeader>

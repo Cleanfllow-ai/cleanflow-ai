@@ -1388,34 +1388,16 @@ export function HierarchicalMapper({
                 </div>
 
                 {/* SVG overlay.
-                    Sized to the full scrollable content (not just clientHeight)
-                    so connection lines drawn below the initial fold don't get
-                    clipped. The SVG sits absolutely inside the scroll container
-                    so it scrolls naturally with the field DOM rows. Paths are
-                    drawn in CONTENT space (see toContentCoords).
-
-                    NOTE on `overflow="visible"`: SVG defaults to
-                    `overflow: hidden`, which clips any path whose endpoints
-                    fall outside the SVG's width/height box. We size the SVG
-                    from `c.scrollHeight` inside recomputeLines, but that value
-                    can momentarily under-report the true content extent
-                    (e.g. between an async field-load and the matching
-                    ResizeObserver tick, or while React batches the
-                    setContentSize commit). When that happens, lines anchored
-                    to rows below the stale height would be clipped and the
-                    user sees only the surviving stub in the middle of the
-                    canvas — which renders as a small X / broken-link
-                    artifact. Forcing `overflow="visible"` makes the SVG box
-                    purely advisory for layout; the cubic-bezier line itself
-                    always paints from anchor to anchor, irrespective of
-                    contentSize being temporarily stale. */}
+                    `overflow="visible"` defends against the rendered cubic
+                    beziers being clipped when an endpoint computes outside
+                    the SVG's width/height box (e.g. after async field loads
+                    extend the scroll content past the initial measurement).
+                    Without it, mid-line stubs can show up as broken-link
+                    artifacts in the gap between source and dest. */}
                 <svg
-                    className="absolute top-0 left-0 pointer-events-none"
+                    className="absolute inset-0 pointer-events-none"
                     overflow="visible"
-                    style={{
-                        width: Math.max(contentSize.w, 1),
-                        height: Math.max(contentSize.h, 1),
-                    }}
+                    style={{ width: '100%', height: '100%' }}
                 >
                     {lines.map(l =>
                         l.kind === 'field' ? (

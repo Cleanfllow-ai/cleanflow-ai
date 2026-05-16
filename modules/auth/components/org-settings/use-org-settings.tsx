@@ -11,6 +11,7 @@ import {
     type OrgMembership,
     type OrgRole,
 } from "@/modules/auth/api/org-api";
+import { isApiError } from "@/modules/shared/api-error";
 import {
     fileManagementAPI,
     type SettingsPreset,
@@ -20,7 +21,7 @@ import {
 export type AppRole = OrgRole;
 
 // ─── Constants ────────────────────────────────────────────────────
-export const VALID_ROLES = ["Super Admin", "Admin", "Data Steward"];
+export const VALID_ROLES = ["Super Admin", "Admin", "Data Steward", "Member"];
 
 export const ERP_OPTIONS = [
     { value: "quickbooks", label: "QUICKBOOKS ONLINE" },
@@ -235,6 +236,8 @@ export const getRoleBadgeVariant = (role: string) => {
             return "secondary";
         case "Data Steward":
             return "outline";
+        case "Member":
+            return "outline";
         default:
             return "outline";
     }
@@ -296,7 +299,18 @@ export function useOrgSettings() {
     const [orgId, setOrgId] = useState<string | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [invites, setInvites] = useState<OrgInvite[]>([]);
-    const [, setMembersLoadError] = useState<string | null>(null);
+    // Track invite-list load errors so the FE can render an inline retry
+    // banner instead of a silent empty list. (loadInvites() used to swallow
+    // failures entirely, making 403/500 indistinguishable from "no invites".)
+    const [invitesLoadError, setInvitesLoadError] = useState<string | null>(null);
+    const [membersLoadError, setMembersLoadError] = useState<string | null>(null);
+    const [permissionsLoadError, setPermissionsLoadError] = useState<string | null>(null);
+    // Separate loading state for the role-permissions matrix so the UI can
+    // render a spinner while the GET /org/permissions call is in flight,
+    // instead of locking the matrix to INITIAL_PERMISSIONS until reloadOrgData
+    // resolves (which made the matrix appear "stuck" for Super Admin/Admin
+    // users on tab switch).
+    const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
     const [isLoadingOrg, setIsLoadingOrg] = useState(true);
     const [isRefreshingOrg, setIsRefreshingOrg] = useState(false);
     const [logoDataUrl, setLogoDataUrl] = useState<string>("");
@@ -305,14 +319,38 @@ export function useOrgSettings() {
     const [inviteRole, setInviteRole] = useState<AppRole>("Data Steward");
     const [isSendingInvite, setIsSendingInvite] = useState(false);
     const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
+
+    // After a successful invite POST, we surface the shareable link inside the
+    // same dialog so admins can copy/paste it even if SES email delivery
+    // failed (or isn't configured yet). lastInviteResult is cleared when the
+    // dialog closes or another invite is started.
+    const [lastInviteResult, setLastInviteResult] = useState<{
+        email: string;
+        role: AppRole;
+        invite_link: string;
+        email_sent: boolean;
+    } | null>(null);
+
+    // AlertDialog state for destructive RBAC flows (replaces native confirm())
+    const [pendingRevokeInvite, setPendingRevokeInvite] = useState<{ inviteId: string; email: string } | null>(null);
+    const [pendingRemoveMember, setPendingRemoveMember] = useState<{ memberId: string; name: string; email: string } | null>(null);
+
     const logoInputRef = useRef<HTMLInputElement | null>(null);
     const presetFileInputRef = useRef<HTMLInputElement | null>(null);
 
     // Approvals state
     const [approvals, setApprovals] = useState<ApprovalRecord[]>([]);
     const [isLoadingApprovals, setIsLoadingApprovals] = useState(false);
+    const [approvalsLoadError, setApprovalsLoadError] = useState<string | null>(null);
     const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
     const [approvalStatusFilter, setApprovalStatusFilter] = useState<ApprovalStatus | "">("PENDING");
+
+    // Monotonic request token guarding reloadOrgData against parallel races.
+    // useEffect on activeTab plus mutation-triggered reloads (e.g. after
+    // updateMemberRole + invite send) could fire 2-3 concurrent getMe()
+    // calls; the slowest one used to win and clobber fresh state. We now
+    // discard any reload whose token is stale.
+    const reloadTokenRef = useRef(0);
 
     // ─── Data helpers ───────────────────────────────────────────────
     const mapMemberToRow = (member: OrgMembership) => {
@@ -330,29 +368,63 @@ export function useOrgSettings() {
     };
 
     const loadMembers = async () => {
-        const response = await orgAPI.listMembers();
-        const items = (response.members || []).map(mapMemberToRow);
-        setMembers(items);
-        setMembersLoadError(null);
+        try {
+            const response = await orgAPI.listMembers();
+            const items = (response.members || []).map(mapMemberToRow);
+            setMembers(items);
+            setMembersLoadError(null);
+        } catch (err) {
+            // Mirror loadInvites: surface via inline banner state, not toast.
+            // Mutation paths still emit their own failure toasts.
+            const message = (err as Error)?.message || "Could not load members.";
+            console.error("Failed to load members", err);
+            setMembersLoadError(message);
+            throw err;
+        }
     };
 
     const loadInvites = async () => {
         try {
             const response = await orgAPI.listInvites();
             setInvites(response.invites || []);
+            setInvitesLoadError(null);
         } catch (err) {
+            const message = (err as Error)?.message || "Could not load invites.";
             console.error("Failed to load invites", err);
+            setInvitesLoadError(message);
+            // Don't toast here — loadInvites is called on initial mount and
+            // on every refresh; surfacing a banner via state is enough.
+            // Mutation-failure toasts live in invite/revoke/send paths.
         }
     };
 
     const loadPermissions = async () => {
-        const response = await orgAPI.listPermissions();
-        setPermissions(mergePermissionsFromServer(response.permissions_by_role));
+        setIsLoadingPermissions(true);
+        try {
+            const response = await orgAPI.listPermissions();
+            setPermissions(mergePermissionsFromServer(response.permissions_by_role));
+            setPermissionsLoadError(null);
+        } catch (err) {
+            const message = (err as Error)?.message || "Could not load role permissions.";
+            console.error("Failed to load permissions", err);
+            setPermissionsLoadError(message);
+            throw err;
+        } finally {
+            setIsLoadingPermissions(false);
+        }
     };
 
     const reloadOrgData = async () => {
+        const myToken = ++reloadTokenRef.current;
+        const isStale = () => reloadTokenRef.current !== myToken;
         try {
             const me = await orgAPI.getMe();
+            // If another reload was kicked off while ours was in flight,
+            // discard this result — committing it would clobber fresher state
+            // (the second mutation's post-reload). Without this guard, fast
+            // tab clicks + a role change racing would leave the UI showing
+            // the pre-mutation snapshot.
+            if (isStale()) return me;
 
             const nextOrgId = me.organization?.org_id || null;
             const nextUserId = me.membership?.user_id || null;
@@ -392,21 +464,26 @@ export function useOrgSettings() {
             await Promise.all([
                 nextCanViewMembers
                     ? loadMembers().catch((e) => {
-                        console.warn("Could not load members:", e.message);
-                        setMembers([]);
-                        setMembersLoadError(e?.message || "Could not load members.");
+                        // loadMembers already records its own error state;
+                        // swallow here so the other parallel fetches still
+                        // resolve and the user sees partial data instead of
+                        // an aborted reload.
+                        console.warn("Could not load members:", e?.message);
                     })
                     : Promise.resolve().then(() => {
                         setMembers([]);
                         setInvites([]);
                     }),
                 nextCanViewMembers
-                    ? loadInvites().catch((e) => console.warn("Could not load invites:", e.message))
+                    ? loadInvites().catch((e) => console.warn("Could not load invites:", e?.message))
                     : Promise.resolve(),
                 nextCanManageSettings
-                    ? loadPermissions().catch((e) => console.warn("Could not load permissions:", e.message))
+                    ? loadPermissions().catch((e) => console.warn("Could not load permissions:", e?.message))
                     : Promise.resolve(),
             ]);
+            // Re-check staleness after the parallel batch — a fresh reload
+            // could have started while we were waiting on loadMembers/Invites.
+            if (isStale()) return me;
             return me;
         } catch (err: any) {
             const message = err?.message || "";
@@ -482,9 +559,11 @@ export function useOrgSettings() {
                 }
             } catch (err: any) {
                 console.error("File upload error:", err);
+                // Only surface the message for known user-friendly validation errors thrown above.
+                const isValidationMsg = typeof err?.message === "string" && err.message.startsWith("Please upload");
                 toast({
                     title: "Invalid file",
-                    description: err.message || "Could not parse the uploaded file.",
+                    description: isValidationMsg ? err.message : "Could not parse the uploaded file.",
                     variant: "destructive",
                 });
             }
@@ -640,6 +719,14 @@ export function useOrgSettings() {
 
     useEffect(() => {
         if (!orgId) return;
+        // Only refetch on tabs that surface mutable lists — tab clicks on
+        // "organization" / "services" / "connectors" don't need a fresh
+        // getMe + members + invites round-trip and were causing unnecessary
+        // load + flicker + race-prone overlapping fetches. The mutation
+        // handlers already call reloadOrgData() after every write, so the
+        // data on these tabs cannot go stale from in-app activity.
+        const refetchTabs = new Set(["members", "permissions", "approvals"]);
+        if (!refetchTabs.has(activeTab)) return;
         reloadOrgData().catch((err) =>
             console.warn("Could not refresh org data on tab switch:", err?.message || err),
         );
@@ -652,6 +739,7 @@ export function useOrgSettings() {
         if (currentUserRole === "Super Admin") return ["Super Admin", "Admin", "Data Steward"];
         if (currentUserRole === "Admin") return ["Admin", "Data Steward"];
         if (currentUserRole === "Data Steward") return ["Data Steward"];
+        // "Member" and any unknown roles cannot invite
         return [];
     }, [currentUserRole, canManageMembersPermission]);
 
@@ -715,20 +803,49 @@ export function useOrgSettings() {
     }, [currentUserRole, canManageMembersPermission]);
 
     // ─── Handlers ───────────────────────────────────────────────────
-    const handleRevokeInvite = async (inviteId: string, email: string) => {
+    const handleRevokeInvite = (inviteId: string, email: string) => {
         if (!canManageMembersPermission) {
             toast({ title: "Not allowed", description: "You do not have permission to manage invitations.", variant: "destructive" });
             return;
         }
-        if (!confirm(`Revoke invitation for ${email}?`)) return;
+        setPendingRevokeInvite({ inviteId, email });
+    };
 
+    const confirmRevokeInvite = async () => {
+        if (!pendingRevokeInvite) return;
+        const { inviteId, email } = pendingRevokeInvite;
+        setPendingRevokeInvite(null);
         setRevokingInviteId(inviteId);
         try {
             await orgAPI.revokeInvite(inviteId);
             await loadInvites();
             toast({ title: "Invite revoked", description: `Invitation for ${email} has been cancelled.` });
         } catch (err: any) {
-            toast({ title: "Failed to revoke", description: err?.message || "Could not revoke the invite.", variant: "destructive" });
+            console.error("Failed to revoke invite", err);
+            if (isApiError(err) && err.code === "PermissionDeniedError") {
+                toast({
+                    title: "Your role doesn't have permission.",
+                    description: "Ask a Super Admin or Admin to revoke this invite.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            if (isApiError(err) && err.code === "InviteNotFoundError") {
+                // The invite was already revoked or accepted in another
+                // session — refresh the list so the row disappears and
+                // tell the user the action was effectively a no-op.
+                await loadInvites();
+                toast({
+                    title: "Invite no longer exists.",
+                    description: "It was already revoked or accepted.",
+                });
+                return;
+            }
+            toast({
+                title: "Failed to revoke",
+                description: "Could not revoke the invite. Please try again.",
+                variant: "destructive",
+            });
         } finally {
             setRevokingInviteId(null);
         }
@@ -774,7 +891,28 @@ export function useOrgSettings() {
                     : "Your organization details were saved and you are the Super Admin.",
             });
         } catch (err: any) {
-            toast({ title: "Failed to save", description: err?.message || "Could not register the organization." });
+            console.error("Failed to save org", err);
+            if (isApiError(err) && err.code === "PermissionDeniedError") {
+                toast({
+                    title: "Your role doesn't have permission.",
+                    description: "Only Super Admins or Admins can update organization details.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            if (isApiError(err) && err.code === "OrgValidationError") {
+                toast({
+                    title: "Invalid organization details",
+                    description: "Please check the details and try again.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            toast({
+                title: "Failed to save",
+                description: "Could not save organization details. Please try again.",
+                variant: "destructive",
+            });
         } finally {
             setIsSavingOrg(false);
         }
@@ -817,7 +955,20 @@ export function useOrgSettings() {
             window.localStorage.setItem("cleanflowai.permissionsUpdatedAt", String(Date.now()));
             toast({ title: "Permissions saved", description: "Role permissions have been updated successfully." });
         } catch (err: any) {
-            toast({ title: "Failed to save permissions", description: err?.message || "Could not update role permissions." });
+            console.error("Failed to save permissions", err);
+            if (isApiError(err) && err.code === "PermissionDeniedError") {
+                toast({
+                    title: "Your role doesn't have permission.",
+                    description: "Only Super Admins (Admin perms) or Admins (Data Steward perms) can save here.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            toast({
+                title: "Failed to save permissions",
+                description: "Could not update role permissions. Please try again.",
+                variant: "destructive",
+            });
         } finally {
             setIsSavingPermissions(false);
         }
@@ -855,11 +1006,33 @@ export function useOrgSettings() {
             await reloadOrgData();
             toast({ title: "Role updated", description: "Member role has been updated successfully." });
         } catch (err: any) {
-            toast({ title: "Failed to update role", description: err?.message || "Could not update the member role." });
+            console.error("Failed to update role", err);
+            if (isApiError(err) && (err.code === "OrgLastAdminError" || err.action === "cancel")) {
+                toast({
+                    id: "org-ORG_LAST_ADMIN",
+                    title: "You can't demote the last admin.",
+                    description: "Promote another member to Super Admin first.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            if (isApiError(err) && err.code === "PermissionDeniedError") {
+                toast({
+                    title: "Your role doesn't have permission.",
+                    description: "Only Super Admins can change Admin or Super Admin roles.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            toast({
+                title: "Failed to update role",
+                description: "Could not update the member role. Please try again.",
+                variant: "destructive",
+            });
         }
     };
 
-    const removeMember = async (memberId: string) => {
+    const removeMember = (memberId: string) => {
         if (!canManageMembersPermission) {
             toast({ title: "Not allowed", description: "You do not have permission to remove members.", variant: "destructive" });
             return;
@@ -872,17 +1045,45 @@ export function useOrgSettings() {
             return;
         }
 
-        if (!confirm(`Are you sure you want to remove ${targetMember.name} (${targetMember.email}) from the organization? This action cannot be undone.`)) {
-            return;
-        }
+        setPendingRemoveMember({ memberId, name: targetMember.name, email: targetMember.email });
+    };
 
+    const confirmRemoveMember = async () => {
+        if (!pendingRemoveMember) return;
+        const { memberId, name } = pendingRemoveMember;
+        setPendingRemoveMember(null);
         try {
             await orgAPI.removeMember(memberId);
-            toast({ title: "Member removed", description: `${targetMember.name} has been removed from the organization.` });
-            await loadMembers();
+            toast({ title: "Member removed", description: `${name} has been removed from the organization.` });
+            // Full reload — a remove can clear pending invites whose email
+            // matches the now-departed member's, and it can shift the
+            // last-admin guard state (e.g. demoting becomes impossible).
+            await reloadOrgData();
         } catch (err: any) {
             console.error("Failed to remove member", err);
-            toast({ title: "Remove failed", description: err?.message || "Could not remove the member.", variant: "destructive" });
+            // ORG_LAST_ADMIN: surface a clear, non-generic message so the admin
+            // knows they must promote someone before removing themselves.
+            if (isApiError(err) && (err.code === "OrgLastAdminError" || err.action === "cancel")) {
+                toast({
+                    id: "org-ORG_LAST_ADMIN",
+                    title: "You can't remove the last admin.",
+                    description: "Promote another member first.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            // PermissionDenied: surface role-specific copy instead of the
+            // raw BE message, so a Member who somehow reached this codepath
+            // sees actionable text.
+            if (isApiError(err) && err.code === "PermissionDeniedError") {
+                toast({
+                    title: "Your role doesn't have permission.",
+                    description: "Ask a Super Admin to remove this member.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            toast({ title: "Remove failed", description: "Could not remove the member. Please try again.", variant: "destructive" });
         }
     };
 
@@ -923,6 +1124,20 @@ export function useOrgSettings() {
             toast({ title: "Email required", description: "Enter a valid email address to send the invite." });
             return;
         }
+        // Defensive client-side format check — the dialog's Add button is
+        // disabled on `!email.includes("@")` but a paste of e.g. "foo@" or
+        // "@bar" used to slip through and surface a 422 from the BE. The
+        // regex is intentionally permissive (RFC 5322 in full is impractical
+        // and the BE re-validates) — we only catch the obviously-malformed.
+        const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!EMAIL_RE.test(email)) {
+            toast({
+                title: "Invalid email",
+                description: "Enter a valid email address (e.g. name@example.com).",
+                variant: "destructive",
+            });
+            return;
+        }
         if (!allowedInviteRoles.includes(inviteRole)) {
             toast({ title: "Invalid role", description: `Allowed roles: ${allowedInviteRoles.join(", ")}` });
             return;
@@ -931,12 +1146,80 @@ export function useOrgSettings() {
         setIsSendingInvite(true);
         try {
             const inviteFrontendBaseUrl = getInviteFrontendBaseUrl();
-            await orgAPI.createInvite(email, inviteRole, inviteFrontendBaseUrl);
-            await loadInvites();
-            toast({ title: "Invitation Sent", description: `An invitation has been sent to ${email} as ${inviteRole}.` });
-            setIsInviteDialogOpen(false);
+            const resp: any = await orgAPI.createInvite(email, inviteRole, inviteFrontendBaseUrl);
+            // Refresh members AND invites — the BE auto-claims an invite if
+            // the email already maps to an existing user, so a "create
+            // invite" can materialize a member row instead of a pending
+            // invite row. Reloading both keeps the member tab honest.
+            await Promise.all([loadInvites(), loadMembers()]);
+            const inviteLink: string = resp?.invite_link || "";
+            const emailSent: boolean = !!resp?.email_sent;
+            const emailChannel: string | null = resp?.email_channel ?? null;
+            const emailError: string | null = resp?.email_error ?? null;
+            if (inviteLink) {
+                setLastInviteResult({
+                    email,
+                    role: inviteRole,
+                    invite_link: inviteLink,
+                    email_sent: emailSent,
+                });
+                // Branch toast copy on the email-delivery channel so admins
+                // see specific guidance for each failure mode.
+                let toastTitle = "Invitation sent";
+                let toastDesc = `An email is on the way to ${email}.`;
+                let toastVariant: "default" | "destructive" = "default";
+                if (emailSent && emailChannel === "cognito_builtin") {
+                    toastDesc = `Cognito sent the invitation email to ${email}. It comes from no-reply@verificationemail.com — ask them to check spam.`;
+                } else if (emailSent && emailChannel === "ses") {
+                    toastDesc = `An invitation email was sent to ${email}.`;
+                } else if (!emailSent && emailChannel === "quota_exceeded") {
+                    toastTitle = "Daily email limit reached";
+                    toastDesc = "Cognito's free email quota for today is exhausted (50/day). Copy the invite link from the dialog and share it directly with the invitee.";
+                    toastVariant = "destructive";
+                } else if (!emailSent && emailChannel === "cognito_unavailable") {
+                    toastTitle = "Email service unavailable";
+                    toastDesc = "We couldn't deliver the invitation email right now. Copy the link below and share it with the invitee.";
+                    toastVariant = "destructive";
+                } else if (!emailSent) {
+                    toastTitle = "Invite created — share link manually";
+                    toastDesc = emailError
+                        ? `Email delivery failed: ${emailError}. Copy the link below and share it manually.`
+                        : "Email delivery isn't available right now — copy the link from the dialog and share it manually.";
+                    toastVariant = "destructive";
+                }
+                toast({ title: toastTitle, description: toastDesc, variant: toastVariant });
+            } else {
+                toast({ title: "Invitation sent", description: `An invitation has been sent to ${email} as ${inviteRole}.` });
+                setIsInviteDialogOpen(false);
+            }
         } catch (err: any) {
-            toast({ title: "Failed to invite", description: err?.message || "Could not create invite." });
+            console.error("Failed to send invite", err);
+            if (isApiError(err) && (err.code === "InviteEmailTakenError" || (err.action === "signin" && err.code?.startsWith("Invite")))) {
+                toast({
+                    id: "org-INVITE_EMAIL_TAKEN",
+                    title: "This email is already registered.",
+                    description: "Sign in to switch orgs.",
+                    variant: "destructive",
+                });
+            } else if (isApiError(err) && err.code === "DuplicateInviteError") {
+                toast({
+                    title: "Invite already exists.",
+                    description: `An open invite for ${email} is already pending.`,
+                    variant: "destructive",
+                });
+            } else if (isApiError(err) && err.code === "PermissionDeniedError") {
+                toast({
+                    title: "Your role doesn't have permission.",
+                    description: "Ask a Super Admin or Admin to send this invite.",
+                    variant: "destructive",
+                });
+            } else {
+                toast({
+                    title: "Failed to invite",
+                    description: "Could not send the invitation. Please try again.",
+                    variant: "destructive",
+                });
+            }
         } finally {
             setIsSendingInvite(false);
         }
@@ -964,7 +1247,8 @@ export function useOrgSettings() {
                 setLogoDataUrl(response?.logo_url || result);
                 toast({ title: "Logo updated", description: "Your organization logo was saved." });
             } catch (err: any) {
-                toast({ title: "Logo upload failed", description: err?.message || "Could not upload the logo." });
+                console.error("Logo upload error:", err);
+                toast({ title: "Logo upload failed", description: "Could not upload the logo. Please try again." });
             } finally {
                 if (logoInputRef.current) {
                     logoInputRef.current.value = "";
@@ -981,7 +1265,6 @@ export function useOrgSettings() {
         setServicesSettings((prev) => ({ ...prev, [field]: value }));
     };
 
-    // TODO: Wire to backend API
     const handleSaveServices = async () => {
         toast({
             title: "Services settings saved",
@@ -999,7 +1282,8 @@ export function useOrgSettings() {
             await refreshPermissions();
             toast({ title: "Refreshed", description: "Admin data has been refreshed." });
         } catch (err: any) {
-            toast({ title: "Refresh failed", description: err?.message || "Could not refresh admin data.", variant: "destructive" });
+            console.error("Refresh admin data error:", err);
+            toast({ title: "Refresh failed", description: "Could not refresh. Please try again.", variant: "destructive" });
         } finally {
             setIsRefreshingOrg(false);
         }
@@ -1014,8 +1298,14 @@ export function useOrgSettings() {
             if (approvalStatusFilter) params.status = approvalStatusFilter;
             const data = await orgAPI.listApprovals(params);
             setApprovals(data.approvals || []);
+            setApprovalsLoadError(null);
         } catch (err: any) {
+            // Surface via inline state — the Approvals tab can render a
+            // retry banner instead of an empty list that looks identical
+            // to the "no pending approvals" empty state.
+            const message = (err as Error)?.message || "Could not load approvals.";
             console.error("Failed to load approvals", err);
+            setApprovalsLoadError(message);
         } finally {
             setIsLoadingApprovals(false);
         }
@@ -1053,7 +1343,8 @@ export function useOrgSettings() {
             await loadApprovals();
             await loadPendingCount();
         } catch (err: any) {
-            toast({ title: "Failed", description: err?.message || "Could not approve request.", variant: "destructive" });
+            console.error("Approve request error:", err);
+            toast({ title: "Approval failed", description: "Could not approve the request. Please try again.", variant: "destructive" });
         }
     };
 
@@ -1064,7 +1355,8 @@ export function useOrgSettings() {
             await loadApprovals();
             await loadPendingCount();
         } catch (err: any) {
-            toast({ title: "Failed", description: err?.message || "Could not reject request.", variant: "destructive" });
+            console.error("Reject request error:", err);
+            toast({ title: "Rejection failed", description: "Could not reject the request. Please try again.", variant: "destructive" });
         }
     };
 
@@ -1102,10 +1394,18 @@ export function useOrgSettings() {
         inviteHelpText,
         handleInviteMember,
         handleRevokeInvite,
+        confirmRevokeInvite,
+        pendingRevokeInvite,
+        setPendingRevokeInvite,
         revokingInviteId,
         updateMemberRole,
         removeMember,
+        confirmRemoveMember,
+        pendingRemoveMember,
+        setPendingRemoveMember,
         // Invite dialog
+        lastInviteResult,
+        setLastInviteResult,
         isInviteDialogOpen,
         setIsInviteDialogOpen,
         inviteEmail,
@@ -1159,5 +1459,12 @@ export function useOrgSettings() {
         setApprovalStatusFilter,
         handleApproveRequest,
         handleRejectRequest,
+        // Load-error surface for FE inline banners. Mutation-failure toasts
+        // are still emitted by their respective handlers.
+        invitesLoadError,
+        membersLoadError,
+        permissionsLoadError,
+        approvalsLoadError,
+        isLoadingPermissions,
     };
 }

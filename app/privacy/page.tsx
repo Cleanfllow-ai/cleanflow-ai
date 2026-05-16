@@ -1,20 +1,31 @@
-"use client";
-
 import Link from "next/link";
+import type { Metadata } from "next";
 
-const _LAST_UPDATED = "2026-05-03";
+const LAST_UPDATED = "2026-05-03";
+
+export const metadata: Metadata = {
+  title: "Privacy Notice — RightRev",
+  description:
+    "How RightRev processes personal data, your rights under GDPR + DPDPA, sub-processors, retention, and how to contact our DPO.",
+};
 
 export default function PrivacyNoticePage() {
   return (
-    <div className="container mx-auto max-w-3xl py-10 px-6">
-      <h1 className="text-3xl font-bold mb-2">Privacy Notice</h1>
+    <main
+      className="container mx-auto max-w-3xl py-10 px-6"
+      aria-labelledby="privacy-title"
+    >
+      <h1 id="privacy-title" className="text-3xl font-bold mb-2">
+        Privacy Notice
+      </h1>
       <p className="text-sm text-muted-foreground mb-8">
-        Last updated: {_LAST_UPDATED}
+        Last updated:{" "}
+        <time dateTime={LAST_UPDATED}>{LAST_UPDATED}</time>
       </p>
 
-      <section className="space-y-6 prose prose-sm dark:prose-invert">
+      <article className="space-y-6 prose prose-sm dark:prose-invert">
         <p>
-          CleanFlowAI (&quot;we&quot;) provides a data quality platform that
+          RightRev (&quot;we&quot;) provides a data quality platform that
           ingests, validates, and exports business data on behalf of our
           customers. This notice describes what personal data we process,
           why, and your rights under the General Data Protection
@@ -114,10 +125,10 @@ export default function PrivacyNoticePage() {
 
         <h2>6. Data transfers</h2>
         <p>
-          Your data is processed in AWS region <code>ap-south-1</code>{" "}
-          (Mumbai). Some sub-processors are based in the US (Groq,
-          Intuit, GitHub) or globally; cross-border transfers to those
-          rely on Standard Contractual Clauses or equivalent.
+          Your data is processed in AWS region <code>us-east-2</code>{" "}
+          (Ohio, United States). Some sub-processors are based in the US
+          (Groq, Intuit, GitHub) or globally; cross-border transfers to
+          those rely on Standard Contractual Clauses or equivalent.
         </p>
 
         <h2>7. Security</h2>
@@ -152,7 +163,7 @@ export default function PrivacyNoticePage() {
           banner and (where you&apos;re an account holder) by email at
           least 30 days before they take effect.
         </p>
-      </section>
-    </div>
+      </article>
+    </main>
   );
 }

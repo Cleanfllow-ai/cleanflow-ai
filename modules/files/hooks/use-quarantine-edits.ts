@@ -166,6 +166,19 @@ export function useQuarantineEdits() {
     setState({ editsMap: {}, savedEditsMap: {}, activeCell: null })
   }, [])
 
+  /**
+   * Bulk-replace the pending edits map. Used by `useOverlayPersist` to
+   * restore unsaved edits after a browser refresh.
+   */
+  const hydrateEdits = useCallback(
+    (map: Record<string, Record<string, any>>) => {
+      const safe =
+        map && typeof map === 'object' && !Array.isArray(map) ? map : {}
+      setState((prev) => ({ ...prev, editsMap: { ...safe } }))
+    },
+    [],
+  )
+
   return {
     editsMap: state.editsMap,
     activeCell: state.activeCell,
@@ -182,5 +195,6 @@ export function useQuarantineEdits() {
     getEditsBatch,
     clearPending,
     reset,
+    hydrateEdits,
   }
 }

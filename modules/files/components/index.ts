@@ -21,4 +21,7 @@ export { PushToERPModal, PushToERPContent } from "./push-to-erp-modal"
 export { PartialCompletionBanner } from "./partial-completion-banner"
 export type { FailedShard } from "./partial-completion-banner"
 export { RowWiseIssues } from "./row-wise-issues"
+export { ImportProgressRow } from "./import-progress-row"
+export type { ImportProgressRowProps } from "./import-progress-row"
+export { OptimizingBadge } from "./optimizing-badge"
 

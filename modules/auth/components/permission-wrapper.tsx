@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Lock } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
-type AppRole = "Super Admin" | "Admin" | "Data Steward";
+type AppRole = "Super Admin" | "Admin" | "Data Steward" | "Member";
 
 interface PermissionWrapperProps {
     children: React.ReactNode;
@@ -24,6 +24,7 @@ const ROLE_HIERARCHY: Record<AppRole, number> = {
     "Super Admin": 3,
     "Admin": 2,
     "Data Steward": 1,
+    "Member": 0,
 };
 
 

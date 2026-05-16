@@ -17,6 +17,9 @@ export type ApiErrorAction =
     | "connect"
     | "retry"
     | "signin"
+    | "open_mapping"
+    | "request_new_invite"
+    | "cancel"
     | null
 
 export interface ApiErrorOpts {
@@ -118,7 +121,10 @@ export function parseApiError(response: Response, body: unknown): ApiError {
         rawAction === "reconnect" ||
         rawAction === "connect" ||
         rawAction === "retry" ||
-        rawAction === "signin"
+        rawAction === "signin" ||
+        rawAction === "open_mapping" ||
+        rawAction === "request_new_invite" ||
+        rawAction === "cancel"
     ) {
         action = rawAction
     } else if (response.status === 401 && code === null) {

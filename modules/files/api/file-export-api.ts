@@ -22,13 +22,11 @@ const ENDPOINTS = {
 const MAX_EXPORT_PREPARE_ATTEMPTS = 90
 const DEFAULT_EXPORT_PREPARE_DELAY_MS = 2000
 // Beyond this row count, skip the in-memory blob fetch and let the browser
-// stream the download natively via <a href>.
-// Set to 0 so every presigned download goes through the direct-link path —
-// the inline blob roundtrip was adding a full extra S3 fetch round-trip on
-// the hot path (column-export "Clean Only" felt slow for 78-row files
-// because it meant: backend writes csv to S3 → presigns → frontend re-fetches
-// from S3 into a Blob → triggers download). Direct link is always faster.
-const INLINE_BLOB_ROW_THRESHOLD = 0
+// stream the download natively via <a href>. Small files use the inline blob
+// path so callers (preview, column-rename, etc.) can read the bytes directly;
+// large files (>100k rows ~= >10MB CSV) avoid buffering through the JS heap,
+// which was stalling the spinner for 30-60s on 100+ MB exports.
+const INLINE_BLOB_ROW_THRESHOLD = 100_000
 // Hard ceiling on the in-memory blob fetch. 60s covers a ~50 MB download on
 // typical connections; anything slower should fall back to the direct link.
 const S3_FETCH_TIMEOUT_MS = 60_000
@@ -85,7 +83,6 @@ async function resolveExportDownload(
             if (isPreparedExport || exceedsRowThreshold || noSizeHint) {
                 return { downloadUrl: data.presigned_url, filename: data.filename }
             }
-            console.log('Fetching from presigned URL:', data.filename || 'file')
             const controller = new AbortController()
             const timeoutId = setTimeout(() => controller.abort(), S3_FETCH_TIMEOUT_MS)
             try {
@@ -172,8 +169,6 @@ export async function exportWithColumns(
         body.entity = options.entity
     }
 
-    console.log('📤 Export with columns:', { uploadId, ...options })
-
     return resolveExportDownload(
         () => fetch(url, {
             method: 'POST',
@@ -188,11 +183,11 @@ export async function exportWithColumns(
 
 // ─── File Preview ───
 
-export async function getFilePreview(uploadId: string, authToken: string): Promise<{ headers: string[], sample_data: any[], total_rows: number, has_dq_status?: boolean }> {
+export async function getFilePreview(uploadId: string, authToken: string, signal?: AbortSignal): Promise<{ headers: string[], sample_data: any[], total_rows: number, has_dq_status?: boolean }> {
     // Use dedicated preview-data endpoint that returns only first N rows
     try {
         const endpoint = `${ENDPOINTS.FILES_PREVIEW_DATA(uploadId)}?limit=50`
-        const data = await makeRequest(endpoint, authToken, { method: 'GET' })
+        const data = await makeRequest(endpoint, authToken, { method: 'GET', signal })
         return {
             headers: data.headers || [],
             sample_data: data.sample_data || [],

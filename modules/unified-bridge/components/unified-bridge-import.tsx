@@ -110,18 +110,20 @@ export default function UnifiedBridgeImport({
       : "Connect to systems like QuickBooks to export data",
   }
 
-  // Export mode: skip protocol tabs, show only ERP/Warehouse/Storage connectors
+  // Export mode: skip protocol tabs, show only ERP/Warehouse/Storage connectors.
+  // ErpSourceForm doesn't accept onNotification / onPermissionDenied directly;
+  // those are surfaced via the unified handleIngestionComplete / handleIngestionError
+  // callbacks above. Passing them here used to cause TS2322 on every build.
   if (mode === "destination") {
     return (
       <div className="flex flex-col h-full min-h-[300px] sm:min-h-[400px] lg:min-h-[500px]">
         <ErpSourceForm
           mode="destination"
           uploadId={uploadId}
+          token={idToken || ""}
           onIngestionStart={handleIngestionStart}
           onIngestionComplete={handleIngestionComplete}
           onError={handleIngestionError}
-          onNotification={onNotification}
-          onPermissionDenied={onPermissionDenied}
           disabled={isIngesting}
         />
       </div>

@@ -57,6 +57,8 @@ export {
   getFileStatus,
   getFileColumns,
   deleteUpload,
+  pollDeleteOperation,
+  cancelUpload,
   uploadToS3,
   uploadToS3Post,
   pollFileStatus,
@@ -65,6 +67,12 @@ export {
   suggestCustomRule,
   suggestCrossColumnRule,
   uploadFileComplete,
+} from './file-upload-api'
+
+export type {
+  CancelUploadResponse,
+  DeleteUploadResult,
+  OperationStatus,
 } from './file-upload-api'
 
 export {
@@ -155,6 +163,8 @@ export const fileManagementAPI = {
   getFileStatus: uploadApi.getFileStatus,
   getFileColumns: uploadApi.getFileColumns,
   deleteUpload: uploadApi.deleteUpload,
+  pollDeleteOperation: uploadApi.pollDeleteOperation,
+  cancelUpload: uploadApi.cancelUpload,
   uploadToS3: uploadApi.uploadToS3,
   uploadToS3Post: uploadApi.uploadToS3Post,
   pollFileStatus: uploadApi.pollFileStatus,
@@ -174,6 +184,7 @@ export const fileManagementAPI = {
   downloadFile: exportApi.downloadFileFromApi,
   exportWithColumns: exportApi.exportWithColumns,
   getFilePreview: exportApi.getFilePreview,
+  // Note: getFilePreview accepts an optional AbortSignal as third arg — pass through from callers.
   getFilePreviewFromS3: exportApi.getFilePreviewFromS3,
 
   // Profiling

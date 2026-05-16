@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { jobsAPI, type JobRun } from "@/modules/jobs/api/jobs-api"
 import { useAuth } from "@/modules/auth"
+import { useToast } from "@/shared/hooks/use-toast"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
 import type { FileStatusResponse } from "@/modules/files/types"
 
@@ -45,6 +46,7 @@ export interface JobRunsExplorerState {
     handleRetry: () => Promise<void>
     isRetrying: boolean
     liveSummaries: Record<string, RunLiveSummary>
+    runsError: string | null
 }
 
 async function fetchLiveSummaryForRun(run: JobRun, token: string): Promise<RunLiveSummary> {
@@ -114,9 +116,14 @@ async function fetchLiveSummaryForRun(run: JobRun, token: string): Promise<RunLi
 
 export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
     const { idToken } = useAuth()
+    const { toast } = useToast()
     const [runs, setRuns] = useState<JobRun[]>([])
     const [loading, setLoading] = useState(true)
     const [isRefreshing, setIsRefreshing] = useState(false)
+    // Surface fetch failures so the UI can render a "failed to load runs"
+    // panel instead of an empty-state that looks identical to "no runs yet".
+    // Previously a 401/403/500 was silently swallowed → blank panel forever.
+    const [runsError, setRunsError] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
     const [sortField, setSortField] = useState<SortField>("started_at")
@@ -133,13 +140,23 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         try {
             const res = await jobsAPI.getJobRuns(jobId, 50)
             setRuns(res.runs || [])
-        } catch {
-            setRuns([])
+            setRunsError(null)
+        } catch (err) {
+            // Don't reset `runs` to [] here — we'd lose the previous payload
+            // on a transient blip (e.g. token refresh in flight). Keep stale
+            // data + surface the error so the user can retry.
+            const message = (err as Error)?.message || "Failed to load job runs"
+            setRunsError(message)
+            // Only toast on the initial load + manual refresh; auto-polls
+            // would otherwise spam toasts every 3s when the API is down.
+            if (isManual || loading) {
+                toast({ title: "Failed to load runs", description: message, variant: "destructive" })
+            }
         } finally {
             setLoading(false)
             setIsRefreshing(false)
         }
-    }, [jobId])
+    }, [jobId, toast, loading])
 
     useEffect(() => {
         loadRuns()
@@ -177,17 +194,39 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
 
     // Fetch live file status per run so the row can reflect reprocess state
     // (REPROCESSED, PROCESSING, FIXED, etc.) without waiting for a resume.
+    //
+    // Race-condition fix: previously `refreshLiveSummaries` depended on `runs`,
+    // and the effect that drives it depended on the callback identity, so
+    // every 3-second poll → mutated `runs` → new callback → effect re-fires →
+    // another Promise.all storm of file-status calls (one per run). For a job
+    // with 10 runs each having 3 entities that meant 30 concurrent HTTP calls
+    // every 3s. Guard with an in-flight ref + a runs-ref so the effect can stay
+    // dep-stable on `[idToken, jobId]`, eliminating the loop.
+    const runsRef = useRef(runs)
+    runsRef.current = runs
+    const refreshingLiveRef = useRef(false)
     const refreshLiveSummaries = useCallback(async () => {
-        if (!idToken || runs.length === 0) return
-        const results = await Promise.all(
-            runs.map(async (run) => [run.run_id, await fetchLiveSummaryForRun(run, idToken)] as const)
-        )
-        setLiveSummaries(Object.fromEntries(results))
-    }, [runs, idToken])
+        if (!idToken || runsRef.current.length === 0) return
+        if (refreshingLiveRef.current) return // dedup concurrent refreshes
+        refreshingLiveRef.current = true
+        try {
+            const snapshot = runsRef.current
+            const results = await Promise.all(
+                snapshot.map(async (run) => [run.run_id, await fetchLiveSummaryForRun(run, idToken)] as const)
+            )
+            setLiveSummaries(Object.fromEntries(results))
+        } finally {
+            refreshingLiveRef.current = false
+        }
+    }, [idToken])
 
+    // Only refire when the SET of run_ids changes — not on every per-run field
+    // update from a poll. This is the actual trigger we care about.
+    const runIdsKey = useMemo(() => runs.map(r => r.run_id).join("|"), [runs])
     useEffect(() => {
+        if (runIdsKey.length === 0) return
         void refreshLiveSummaries()
-    }, [refreshLiveSummaries])
+    }, [runIdsKey, refreshLiveSummaries])
 
     // Poll live summaries every 5s while any file is still processing.
     useEffect(() => {
@@ -226,14 +265,19 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         setIsRetrying(true)
         try {
             await jobsAPI.triggerJob(jobId)
+            toast({ title: "Retry triggered", description: "Job is starting now" })
             // Quick refresh to pick up RUNNING status, then auto-poll takes over
             setTimeout(() => loadRuns(true), 500)
-        } catch {
-            // ignore — user will see no new run appear
+        } catch (err) {
+            // Previously silent — user clicked Retry and got zero feedback if
+            // the trigger failed (403, quota, downstream unavailable). Now we
+            // surface the API message so they know to fix permissions / retry.
+            const message = (err as Error)?.message || "Failed to retry job"
+            toast({ title: "Retry failed", description: message, variant: "destructive" })
         } finally {
             setIsRetrying(false)
         }
-    }, [jobId, loadRuns])
+    }, [jobId, loadRuns, toast])
 
 
     const filteredRuns = useMemo(() => {
@@ -306,5 +350,6 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
         handleRetry,
         isRetrying,
         liveSummaries,
+        runsError,
     }
 }

@@ -29,6 +29,7 @@ import { FilePreviewTab } from '@/modules/files/components/file-details/file-pre
 import type { FilePreviewData } from '@/modules/files/types'
 import { buildPrefixedDataFilename } from '@/modules/files/utils/download-filenames'
 import { triggerBlobDownload, triggerPresignedDownload } from '@/modules/files/utils/trigger-download'
+import { toastFromError } from '@/lib/error-toast-jsx'
 
 interface FileVersionHistoryProps {
   rootUploadId: string
@@ -162,12 +163,12 @@ export function FileVersionHistory({
       const data = await fileManagementAPI.getFilePreview(v.upload_id, authToken)
       setPreviewCache((prev) => ({ ...prev, [v.upload_id]: data as FilePreviewData }))
     } catch (err: any) {
-      const message = err?.message || 'Failed to load preview'
       // Surface the error inside the preview dialog instead of silently
       // showing the empty-state, which made transient backend failures look
       // like "this version has no data".
-      setPreviewError(message)
-      toast({ title: 'Failed to load preview', description: message, variant: 'destructive' })
+      setPreviewError('Failed to load preview. Please try again.')
+      console.error('[FileVersionHistory] preview load failed:', err)
+      toast(toastFromError(err))
     } finally {
       setPreviewLoadingId(null)
     }

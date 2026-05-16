@@ -24,6 +24,83 @@ import { fileManagementAPI } from "@/modules/files"
 import { useProcessingWizard } from "../WizardContext"
 import { SOURCE_OPTIONS, ERP_OPTIONS } from "@/modules/files/page/constants"
 import { useUploadManager } from "@/modules/files/context/upload-manager"
+import { isApiError } from "@/modules/shared/api-error"
+
+/**
+ * Map an upload/columns-load error to a user-actionable message.
+ *
+ * Differentiates 401 (re-auth), 403 (permission), 413 (file too large),
+ * REJECTED-status (empty/malformed CSV), 5xx (server), and network errors.
+ * Falls back to the raw API error message rather than swallowing it.
+ */
+function formatUploadError(err: unknown): string {
+    if (isApiError(err)) {
+        if (err.status === 401) return "Your sign-in session has expired. Please refresh and try again."
+        if (err.status === 403) return "You do not have permission to upload files in this organization."
+        if (err.status === 413) return "File is too large for upload. Try a smaller file or contact support."
+        if (err.status === 422 || err.status === 400) {
+            return err.message || "File rejected: please check the file format."
+        }
+        if (err.status >= 500) {
+            return "Server error during upload. Please try again in a moment."
+        }
+        return err.message || "Upload failed. Please try again."
+    }
+    const msg = (err as { message?: string })?.message || ""
+    const lower = msg.toLowerCase()
+    if (lower.includes("permission denied") || lower.includes("forbidden")) {
+        return "You do not have permission to upload files."
+    }
+    if (lower.includes("cancelled")) {
+        return "Upload was cancelled."
+    }
+    if (lower.includes("network") || lower.includes("failed to fetch")) {
+        return "Network error during upload. Check your connection and retry."
+    }
+    return msg || "Upload failed. Please try again."
+}
+
+/**
+ * Map a post-upload getFileColumns failure to a useful message.
+ *
+ * If the file was REJECTED by the validator (empty / malformed CSV / encoding
+ * mismatch), the column fetch typically fails. We try a status lookup to
+ * surface the specific `failure_reason` so the user sees "your file is empty"
+ * rather than "Failed to load file columns".
+ */
+async function describeColumnLoadFailure(
+    err: unknown,
+    uploadId: string,
+    authToken: string,
+): Promise<string> {
+    try {
+        const status = await fileManagementAPI.getFileStatus(uploadId, authToken)
+        if (status.status === "REJECTED") {
+            const raw = (status as { failure_reason?: string }).failure_reason || ""
+            const reason = raw.toLowerCase()
+            if (reason.startsWith("empty_file") || reason.startsWith("empty file")) {
+                return "Your file appears to be empty. Add at least one data row and re-upload."
+            }
+            if (reason.includes("no data rows")) {
+                return "File has headers but no data rows. Add at least one data row."
+            }
+            if (reason.includes("utf-16")) {
+                return "Encoding not supported. Save your CSV as UTF-8 and re-upload."
+            }
+            if (reason.includes("utf-8") || reason.includes("encoding")) {
+                return "File encoding issue — save as UTF-8 in your editor and re-upload."
+            }
+            if (reason.includes("unclosed quote")) {
+                return "Malformed CSV: an unclosed quote. Please fix and re-upload."
+            }
+            if (reason) return `File rejected: ${raw}`
+            return "File was rejected by validation. Please check the file and re-upload."
+        }
+    } catch {
+        // Best effort — fall through to generic
+    }
+    return formatUploadError(err)
+}
 
 interface SourceStepProps {
     onUploadComplete?: () => void
@@ -60,10 +137,21 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
             setLoadingColumns(true)
             setUploadError(null)
             const colsResp = await fileManagementAPI.getFileColumns(uploadId, authToken)
-            initializeWithFile(uploadId, fileName, colsResp.columns || [], authToken)
+            const cols = colsResp.columns || []
+            if (cols.length === 0) {
+                // Treat zero-column response as a REJECTED-or-empty file rather
+                // than silently advancing to a useless column-selection step.
+                setUploadError(await describeColumnLoadFailure(
+                    new Error("No columns returned"),
+                    uploadId,
+                    authToken,
+                ))
+                return
+            }
+            initializeWithFile(uploadId, fileName, cols, authToken)
             nextStep()
-        } catch (e: any) {
-            setUploadError("Failed to load file columns. Please try again.")
+        } catch (e: unknown) {
+            setUploadError(await describeColumnLoadFailure(e, uploadId, authToken))
         } finally {
             setLoadingColumns(false)
         }
@@ -86,10 +174,24 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
                 statusResp.status === "fulfilled"
                     ? statusResp.value?.original_filename || statusResp.value?.filename || "imported-file"
                     : "imported-file"
+            // If the status check reveals a REJECTED file, surface the reason
+            // instead of dropping the user into an empty column-selection step.
+            if (statusResp.status === "fulfilled" && statusResp.value?.status === "REJECTED") {
+                setUploadError(await describeColumnLoadFailure(
+                    new Error("File rejected"),
+                    uploadId,
+                    authToken,
+                ))
+                return
+            }
+            if (cols.length === 0 && colsResp.status === "rejected") {
+                setUploadError(await describeColumnLoadFailure(colsResp.reason, uploadId, authToken))
+                return
+            }
             initializeWithFile(uploadId, fileName, cols, authToken)
             nextStep()
-        } catch (e: any) {
-            setUploadError("Failed to load file data. Please try again.")
+        } catch (e: unknown) {
+            setUploadError(formatUploadError(e))
         } finally {
             setLoadingColumns(false)
         }
@@ -102,6 +204,11 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
             setUploadError("Please upload a CSV, Excel, or JSON file")
             return
         }
+        // Reject 0-byte files at the client before we waste a presign round-trip.
+        if (file.size === 0) {
+            setUploadError("Your file is empty (0 bytes). Add at least one data row and try again.")
+            return
+        }
         setUploadError(null)
         try {
             // Upload via the persistent manager — survives tab switches and dialog close
@@ -109,14 +216,9 @@ export function SourceStep({ onUploadComplete }: SourceStepProps = {}) {
             // If component unmounted during upload (dialog closed/tab switched), stop here
             if (!mountedRef.current) return
             await handleUploadSuccess(uploadId, file.name)
-        } catch (e: any) {
+        } catch (e: unknown) {
             if (!mountedRef.current) return
-            const message = e?.message?.toLowerCase() || ""
-            setUploadError(
-                message.includes("permission denied")
-                    ? "You do not have permission to upload files."
-                    : "Upload failed. Please try again.",
-            )
+            setUploadError(formatUploadError(e))
         }
     }
 

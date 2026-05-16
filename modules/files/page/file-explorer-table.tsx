@@ -52,6 +52,9 @@ import {
     STATUS_OPTIONS,
 } from "@/modules/files/page/constants";
 import { Progress } from "@/components/ui/progress";
+import { ImportProgressRow } from "@/modules/files/components/import-progress-row";
+import { OptimizingBadge } from "@/modules/files/components/optimizing-badge";
+import { RejectionReasonBadge } from "@/modules/files/components/rejection-reason-badge";
 import {
     calculateProcessingTime,
     getDqQualityLabel,
@@ -62,6 +65,9 @@ import {
 } from "@/modules/files/page/utils";
 import { useUploadManager } from "@/modules/files/context/upload-manager";
 import type { FilesPageState } from "./use-files-page";
+
+// Set to true to re-expose the Generic ERP-template badge (technical detail, hidden for customer-facing UI)
+const SHOW_GENERIC_BADGE = false;
 
 interface FileExplorerTableProps {
     state: FilesPageState;
@@ -77,6 +83,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         handleViewDetails, handleStartProcessing, handleQuickProcess,
         openActionsDialog, handleDeleteClick,
         downloading, deleting,
+        handleStopClick, stopping,
         handleOpenQuarantineEditor, highlightedFileId,
         selectedFiles, handleSelectFile, handleSelectAll, handleBulkDeleteClick, bulkDeleting,
         recentlyUploaded, setRecentlyUploaded,
@@ -119,6 +126,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                             size="sm"
                             className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                             onClick={() => setRecentlyUploaded(null)}
+                            aria-label="Dismiss upload notification"
                         >
                             <X className="h-3.5 w-3.5" />
                         </Button>
@@ -351,14 +359,29 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                             </div>
                                             <div className="space-y-1.5">
                                                 <p className="font-sans text-sm font-semibold tracking-tight">
-                                                    {searchQuery || statusFilter !== "all" ? "No matching files" : "No files yet"}
+                                                    {searchQuery || statusFilter !== "all" ? "No files match these filters." : "No files yet"}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground/60">
                                                     {searchQuery || statusFilter !== "all"
-                                                        ? "Try adjusting your search or filter"
+                                                        ? "Try clearing them to see all files."
                                                         : "Import a file to start analyzing data quality"}
                                                 </p>
                                             </div>
+                                            {(searchQuery || statusFilter !== "all") && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-1.5 mt-1"
+                                                    data-testid="clear-filters-button"
+                                                    onClick={() => {
+                                                        setSearchQuery("");
+                                                        setStatusFilter("all");
+                                                    }}
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                    Clear Filters
+                                                </Button>
+                                            )}
                                             {!searchQuery && statusFilter === "all" && (
                                                 <Button size="sm" className="gap-1.5 mt-1" onClick={handleNewImportOpen}>
                                                     <Plus className="h-3.5 w-3.5" />
@@ -403,6 +426,8 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                     {upload.progress?.percent ?? 0}%
                                                                 </span>
                                                             </div>
+                                                        ) : file.status === "REJECTED" ? (
+                                                            <RejectionReasonBadge failureReason={file.failure_reason} />
                                                         ) : (
                                                             <p className="text-[10px] sm:text-xs text-muted-foreground font-mono tabular-nums">
                                                                 {(file.input_size_bytes || file.file_size) ? formatBytes(file.input_size_bytes || file.file_size || 0) : <span className="text-muted-foreground/40">--</span>}
@@ -455,6 +480,61 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         : file.remediation_state === "REPROCESS_FAILED" && file.status === "DQ_FIXED"
                                                         ? "REPROCESS_FAILED"
                                                         : file.status;
+                                                // Inline progress bar for in-flight connector imports — replaces
+                                                // the static "IMPORTING" pill so the user sees real bytes / MB·s /
+                                                // ETA in the row, even after closing the Import Data dialog.
+                                                // Phase 7B (logical sharding): the backend may emit OPTIMIZING
+                                                // / OPTIMIZE_FAILED while it repacks an upload into shard-aligned
+                                                // form. Render the dedicated badge component (amber pill +
+                                                // spinner / red pill + tooltip) and bail out before falling
+                                                // through to the generic status-pill renderer.
+                                                if (
+                                                    effectiveStatus === "OPTIMIZING" ||
+                                                    effectiveStatus === "OPTIMIZE_FAILED"
+                                                ) {
+                                                    return (
+                                                        <OptimizingBadge
+                                                            status={effectiveStatus}
+                                                            errorReason={file.error_reason}
+                                                        />
+                                                    );
+                                                }
+                                                if (effectiveStatus === "IMPORTING") {
+                                                    const importStatus =
+                                                        file.import_status === "downloading" ||
+                                                        file.import_status === "uploading" ||
+                                                        file.import_status === "completed" ||
+                                                        file.import_status === "failed"
+                                                            ? file.import_status
+                                                            : "downloading";
+                                                    const bytesDownloaded =
+                                                        typeof file.bytes_downloaded === "number"
+                                                            ? file.bytes_downloaded
+                                                            : typeof file.bytes_transferred === "number"
+                                                            ? file.bytes_transferred
+                                                            : 0;
+                                                    const bytesTotal =
+                                                        typeof file.bytes_total === "number" && file.bytes_total > 0
+                                                            ? file.bytes_total
+                                                            : typeof file.file_size === "number" && file.file_size > 0
+                                                            ? file.file_size
+                                                            : typeof file.input_size_bytes === "number" && file.input_size_bytes > 0
+                                                            ? file.input_size_bytes
+                                                            : 0;
+                                                    return (
+                                                        <ImportProgressRow
+                                                            importStatus={importStatus}
+                                                            bytesDownloaded={bytesDownloaded}
+                                                            bytesTotal={bytesTotal}
+                                                            updatedAt={
+                                                                file.download_updated_at ||
+                                                                file.updated_at ||
+                                                                file.status_timestamp ||
+                                                                ""
+                                                            }
+                                                        />
+                                                    );
+                                                }
                                                 const active = isActiveStatus(effectiveStatus);
                                                 const showPartialWarning = file.partial_completion === true;
                                                 return (
@@ -492,7 +572,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         )}
-                                                        {file.validation?.mode === "GENERIC_FALLBACK" && (
+                                                        {SHOW_GENERIC_BADGE && file.validation?.mode === "GENERIC_FALLBACK" && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Badge
@@ -556,47 +636,174 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                             <div className="flex justify-start gap-0.5 sm:gap-1">
                                                 {(() => {
                                                     const isUploading = file.status === "UPLOADING";
-                                                    const isProcessing =
-                                                        file.status === "DQ_RUNNING" ||
-                                                        file.status === "DQ_DISPATCHED" ||
-                                                        isUploading;
+                                                    const isImporting = file.status === "IMPORTING";
+                                                    // In-flight states share a single "Stop" affordance. Anything
+                                                    // here is non-terminal — Delete is intentionally hidden so the
+                                                    // user can't trip the backend's Phase-1 in-flight delete guard
+                                                    // (which returns 409 and produced the "unstoppable download"
+                                                    // bug this commit fixes).
+                                                    const inFlightStates = new Set([
+                                                        "UPLOADING",
+                                                        "IMPORTING",
+                                                        "INITIATING",
+                                                        "DQ_DISPATCHED",
+                                                        "DQ_RUNNING",
+                                                        "NORMALIZING",
+                                                        "SHARDING",
+                                                        "QUEUED",
+                                                        "REPROCESSING",
+                                                    ]);
+                                                    const isInFlight = inFlightStates.has(file.status);
                                                     const isProcessed = file.status === "DQ_FIXED" || file.status === "COMPLETED";
+
+                                                    // ─── In-flight: collapse to a single Stop button ───
+                                                    // This is the bug fix — previously this branch (for IMPORTING)
+                                                    // wired the X icon to handleDeleteClick, which then hit
+                                                    // DELETE /uploads/{id} and got blocked by the backend's
+                                                    // in-flight guard (409). Now X → POST /uploads/{id}/cancel,
+                                                    // which transitions the row to IMPORT_FAILED / DQ_FAILED so
+                                                    // the trash icon shows up on the next poll tick.
+                                                    // ─── Phase 7B: optimizer states ───
+                                                    // OPTIMIZING / OPTIMIZE_FAILED show a disabled Play (Process)
+                                                    // button with a contextual tooltip per spec, then defer to
+                                                    // the standard Delete affordance below. These are kept OUT
+                                                    // of `inFlightStates` because we want Process gating, not
+                                                    // the in-flight Stop button (the optimizer Lambda owns the
+                                                    // lifecycle and is not user-cancellable).
+                                                    const isOptimizing = file.status === "OPTIMIZING";
+                                                    const isOptimizeFailed = file.status === "OPTIMIZE_FAILED";
+                                                    if (isOptimizing || isOptimizeFailed) {
+                                                        const tooltip = isOptimizing
+                                                            ? "File is being optimized — please wait"
+                                                            : "Cannot process — optimize failed. Re-upload or contact support.";
+                                                        return (
+                                                            <>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <span className="inline-flex">
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-10 w-10 text-muted-foreground/40 cursor-not-allowed"
+                                                                                disabled
+                                                                                aria-label={tooltip}
+                                                                                data-testid="optimize-process-disabled"
+                                                                            >
+                                                                                <Play className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                                            </Button>
+                                                                        </span>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>{tooltip}</TooltipContent>
+                                                                </Tooltip>
+                                                                {/* Allow delete on OPTIMIZE_FAILED so user can re-upload;
+                                                                    suppress on OPTIMIZING — the optimizer is mid-flight
+                                                                    and an in-flight delete would race the backend. */}
+                                                                {isOptimizeFailed && (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-10 w-10 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                                                                onClick={() => handleDeleteClick(file)}
+                                                                                disabled={deleting === file.upload_id}
+                                                                                aria-label="Delete file"
+                                                                            >
+                                                                                {deleting === file.upload_id ? (
+                                                                                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                                                                                ) : (
+                                                                                    <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                                                )}
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>Delete</TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </>
+                                                        );
+                                                    }
+
+                                                    if (isInFlight) {
+                                                        // Tooltip mirrors the new "Stop & Delete" semantics —
+                                                        // clicking opens the confirm dialog whose primary action
+                                                        // cancels the in-flight op AND removes the catalog row.
+                                                        const tooltipLabel =
+                                                            isImporting ? "Stop import & delete" :
+                                                            isUploading ? "Cancel upload & delete" :
+                                                            "Stop processing & delete";
+                                                        return (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-10 w-10 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                                                        onClick={() => {
+                                                                            // For an in-browser XHR upload, also abort the
+                                                                            // local upload tracker so we don't keep streaming
+                                                                            // bytes to S3 after the user clicked Stop.
+                                                                            if (isUploading) {
+                                                                                cancelUpload(file.upload_id);
+                                                                                cancelUpload(file.original_filename || file.filename || "");
+                                                                            }
+                                                                            handleStopClick(file);
+                                                                        }}
+                                                                        disabled={stopping === file.upload_id}
+                                                                        data-testid="stop-import-button"
+                                                                        aria-label={tooltipLabel}
+                                                                    >
+                                                                        {stopping === file.upload_id ? (
+                                                                            <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                                                                        ) : (
+                                                                            <X className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                                        )}
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>{tooltipLabel}</TooltipContent>
+                                                            </Tooltip>
+                                                        );
+                                                    }
+
+                                                    // ─── Terminal: full actions bar (incl. Delete) ───
                                                     return (
                                                         <>
-                                                {!isUploading && (file.status === "UPLOADED" ||
+                                                {(file.status === "UPLOADED" ||
+                                                    file.status === "VALIDATED" ||
                                                     file.status === "DQ_FAILED" ||
-                                                    file.status === "FAILED" ||
-                                                    file.status === "UPLOAD_FAILED") && (
+                                                    file.status === "FAILED") && (
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-primary hover:text-primary hover:bg-primary/10"
+                                                                    className="h-10 w-10 text-primary hover:text-primary hover:bg-primary/10"
                                                                     onClick={() => handleStartProcessing(file)}
+                                                                    data-testid="run-dq-button"
+                                                                    aria-label="Run DQ"
                                                                 >
-                                                                    <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                    <Play className="h-4 w-4 sm:h-5 sm:w-5" />
                                                                 </Button>
                                                             </TooltipTrigger>
-                                                            <TooltipContent>Start Processing</TooltipContent>
+                                                            <TooltipContent>
+                                                                {file.status === "VALIDATED" ? "Run DQ" : "Start Processing"}
+                                                            </TooltipContent>
                                                         </Tooltip>
                                                     )}
-                                                {!isProcessing && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className={cn("h-7 w-7 sm:h-8 sm:w-8", isProcessed ? "text-muted-foreground hover:text-foreground" : "text-muted-foreground/40 cursor-not-allowed")}
-                                                                disabled={!isProcessed}
-                                                                onClick={() => isProcessed && handleViewDetails(file)}
-                                                            >
-                                                                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>{isProcessed ? "Details" : "Available after processing"}</TooltipContent>
-                                                    </Tooltip>
-                                                )}
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className={cn("h-10 w-10", isProcessed ? "text-muted-foreground hover:text-foreground" : "text-muted-foreground/40 cursor-not-allowed")}
+                                                            disabled={!isProcessed}
+                                                            onClick={() => isProcessed && handleViewDetails(file)}
+                                                            aria-label={isProcessed ? "View file details" : "Details available after processing"}
+                                                        >
+                                                            <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>{isProcessed ? "Details" : "Available after processing"}</TooltipContent>
+                                                </Tooltip>
                                                 {isProcessed && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -604,19 +811,21 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10"
+                                                                    className="h-10 w-10 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10"
                                                                     onClick={() => handleOpenQuarantineEditor(file)}
+                                                                    aria-label={`Edit quarantined rows (${file.rows_quarantined})`}
                                                                 >
-                                                                    <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                    <Pencil className="h-4 w-4 sm:h-5 sm:w-5" />
                                                                 </Button>
                                                             ) : (
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground/40 cursor-not-allowed"
+                                                                    className="h-10 w-10 text-muted-foreground/40 cursor-not-allowed"
                                                                     disabled
+                                                                    aria-label="No quarantined rows to edit"
                                                                 >
-                                                                    <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                    <Pencil className="h-4 w-4 sm:h-5 sm:w-5" />
                                                                 </Button>
                                                             )}
                                                         </TooltipTrigger>
@@ -628,50 +837,44 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                     </Tooltip>
                                                 )}
                                                 {/* Export button */}
-                                                {!isProcessing && !isUploading && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className={cn("h-7 w-7 sm:h-8 sm:w-8", isProcessed ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground/40 cursor-not-allowed")}
-                                                                disabled={!isProcessed || downloading === file.upload_id}
-                                                                onClick={() => isProcessed && openActionsDialog(file)}
-                                                            >
-                                                                {downloading === file.upload_id ? (
-                                                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                                                                ) : (
-                                                                    <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                                )}
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>{isProcessed ? "Export" : "Available after processing"}</TooltipContent>
-                                                    </Tooltip>
-                                                )}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-7 w-7 sm:h-8 sm:w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                                                            onClick={() => {
-                                                                // Cancel active upload if file is still uploading
-                                                                if (file.status === "UPLOADING") {
-                                                                    cancelUpload(file.upload_id);
-                                                                    cancelUpload(file.original_filename || file.filename || "");
-                                                                }
-                                                                handleDeleteClick(file);
-                                                            }}
-                                                            disabled={deleting === file.upload_id}
+                                                            className={cn("h-10 w-10", isProcessed ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground/40 cursor-not-allowed")}
+                                                            disabled={!isProcessed || downloading === file.upload_id}
+                                                            onClick={() => isProcessed && openActionsDialog(file)}
+                                                            aria-label={isProcessed ? "Export file" : "Export available after processing"}
                                                         >
-                                                            {deleting === file.upload_id ? (
-                                                                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                                            {downloading === file.upload_id ? (
+                                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                                                             ) : (
-                                                                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                                <Upload className="h-4 w-4 sm:h-5 sm:w-5" />
                                                             )}
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>{file.status === "UPLOADING" ? "Cancel & Delete" : "Delete"}</TooltipContent>
+                                                    <TooltipContent>{isProcessed ? "Export" : "Available after processing"}</TooltipContent>
+                                                </Tooltip>
+                                                {/* Delete (terminal states only) */}
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-10 w-10 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                                            onClick={() => handleDeleteClick(file)}
+                                                            disabled={deleting === file.upload_id}
+                                                            aria-label="Delete file"
+                                                        >
+                                                            {deleting === file.upload_id ? (
+                                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                            )}
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Delete</TooltipContent>
                                                 </Tooltip>
                                                         </>
                                                     );

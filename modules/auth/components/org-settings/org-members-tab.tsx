@@ -1,7 +1,15 @@
 "use client";
 
+// Invites re-enabled with a copy-URL fallback (admin can share the link
+// manually when SES email delivery is unavailable).
+const INVITES_ENABLED = true;
+
 import { useState } from "react";
-import { Loader2, MoreHorizontal, UserCog, UserMinus, UserPlus, X } from "lucide-react";
+import { Loader2, MoreHorizontal, Search, UserCog, UserMinus, UserPlus, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,9 +59,15 @@ interface OrgMembersTabProps {
   revokingInviteId: string | null;
   inviteHelpText: string;
   handleInviteMember: () => void;
-  handleRevokeInvite: (inviteId: string, email: string) => Promise<void>;
+  handleRevokeInvite: (inviteId: string, email: string) => void;
+  confirmRevokeInvite: () => Promise<void>;
+  pendingRevokeInvite: { inviteId: string; email: string } | null;
+  setPendingRevokeInvite: (val: { inviteId: string; email: string } | null) => void;
   updateMemberRole: (memberId: string, newRole: AppRole) => Promise<void>;
-  removeMember: (memberId: string) => Promise<void>;
+  removeMember: (memberId: string) => void;
+  confirmRemoveMember: () => Promise<void>;
+  pendingRemoveMember: { memberId: string; name: string; email: string } | null;
+  setPendingRemoveMember: (val: { memberId: string; name: string; email: string } | null) => void;
 }
 
 export function OrgMembersTab({
@@ -70,8 +84,14 @@ export function OrgMembersTab({
   inviteHelpText,
   handleInviteMember,
   handleRevokeInvite,
+  confirmRevokeInvite,
+  pendingRevokeInvite,
+  setPendingRevokeInvite,
   updateMemberRole,
   removeMember,
+  confirmRemoveMember,
+  pendingRemoveMember,
+  setPendingRemoveMember,
 }: OrgMembersTabProps) {
   const [pendingRoleChange, setPendingRoleChange] = useState<{
     memberId: string
@@ -79,6 +99,8 @@ export function OrgMembersTab({
     currentRole: string
     newRole: AppRole
   } | null>(null)
+  const [search, setSearch] = useState("")
+  const [roleFilter, setRoleFilter] = useState<string>("all")
 
   const handleRoleChangeRequest = (memberId: string, memberName: string, currentRole: string, newRole: AppRole) => {
     setPendingRoleChange({ memberId, memberName, currentRole, newRole })
@@ -113,17 +135,44 @@ export function OrgMembersTab({
                 Members & Roles
               </CardTitle>
             </div>
-            <Button
-              className="flex items-center gap-2"
-              onClick={handleInviteMember}
-              disabled={!canInviteMembers}
-              title={inviteHelpText}
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Member
-            </Button>
+            {INVITES_ENABLED && (
+              <Button
+                className="flex items-center gap-2"
+                onClick={handleInviteMember}
+                disabled={!canInviteMembers}
+                title={inviteHelpText}
+              >
+                <UserPlus className="w-4 h-4" />
+                Add Member
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
+            {/* Search + Role filter */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
+                <Input
+                  data-testid="members-search"
+                  placeholder="Search by name or email..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-8 text-sm"
+                />
+              </div>
+              <Select value={roleFilter} onValueChange={setRoleFilter} data-testid="role-filter-select">
+                <SelectTrigger className="w-[160px] h-8 text-sm" data-testid="role-filter-trigger">
+                  <SelectValue placeholder="All roles" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  <SelectItem value="Super Admin">Super Admin</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Data Steward">Data Steward</SelectItem>
+                  <SelectItem value="Member">Member</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -151,7 +200,18 @@ export function OrgMembersTab({
                   </TableRow>
                 )}
                 {!isLoadingOrg &&
-                  allMembers.map((person) => {
+                  allMembers
+                  .filter((person) => {
+                    const q = search.toLowerCase()
+                    const matchesSearch =
+                      !search ||
+                      person.displayName.toLowerCase().includes(q) ||
+                      person.displayEmail.toLowerCase().includes(q)
+                    const matchesRole =
+                      roleFilter === "all" || person.displayRole === roleFilter
+                    return matchesSearch && matchesRole
+                  })
+                  .map((person) => {
                     const isSelf = Boolean(
                       currentUserId && person.displayId === currentUserId,
                     );
@@ -337,6 +397,54 @@ export function OrgMembersTab({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleRoleChangeConfirm}>
               Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Revoke invite confirmation */}
+      <AlertDialog
+        open={!!pendingRevokeInvite}
+        onOpenChange={(open) => !open && setPendingRevokeInvite(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke Invitation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Revoke the invitation for <strong>{pendingRevokeInvite?.email}</strong>? They will no longer be able to use this invite link.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRevokeInvite}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Revoke
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove member confirmation */}
+      <AlertDialog
+        open={!!pendingRemoveMember}
+        onOpenChange={(open) => !open && setPendingRemoveMember(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove <strong>{pendingRemoveMember?.name}</strong> ({pendingRemoveMember?.email}) from the organization? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRemoveMember}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

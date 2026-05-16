@@ -34,17 +34,17 @@ export const AWS_CONFIG = {
       "NEXT_PUBLIC_COGNITO_CLIENT_ID",
       process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID
     ),
-    REGION: "ap-south-1",
+    REGION: getRequiredEnv("NEXT_PUBLIC_AWS_REGION", process.env.NEXT_PUBLIC_AWS_REGION),
   },
 
   // S3 Configuration
   S3: {
     BUCKET_NAME: process.env.NEXT_PUBLIC_S3_BUCKET_NAME,
-    REGION: "ap-south-1",
+    REGION: getRequiredEnv("NEXT_PUBLIC_AWS_REGION", process.env.NEXT_PUBLIC_AWS_REGION),
   },
 
   // AWS Region
-  AWS_REGION: "ap-south-1",
+  AWS_REGION: getRequiredEnv("NEXT_PUBLIC_AWS_REGION", process.env.NEXT_PUBLIC_AWS_REGION),
 
   // API Endpoints (matching backend exactly)
   ENDPOINTS: {
@@ -62,11 +62,6 @@ export const AWS_CONFIG = {
   },
 };
 
-// Demo mode configuration
 export const DEMO_CONFIG = {
-  ENABLED: false, // DISABLED - Connect to real AWS APIs
-  DEMO_USERS: [
-    { email: "demo@cleanflowai.com", password: "demo123" },
-    { email: "test@example.com", password: "test123" },
-  ],
+  ENABLED: false,
 };

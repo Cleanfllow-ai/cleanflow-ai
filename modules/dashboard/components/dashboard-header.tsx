@@ -54,6 +54,17 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
     try {
       const report = await fileManagementAPI.downloadOverallDqReport(idToken)
 
+      // The API returns null on 404 (no processed files yet) and on benign
+      // 401/403 paths. Don't download a literal "null" JSON in that case —
+      // tell the user there's nothing to export.
+      if (!report) {
+        toast({
+          title: "Nothing to export",
+          description: "No DQ report is available yet. Process a file first.",
+        })
+        return
+      }
+
       // Create blob and download
       const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -70,9 +81,10 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
         description: "Dashboard data exported successfully",
       })
     } catch (error: any) {
+      console.error("Dashboard export error:", error)
       toast({
         title: "Export failed",
-        description: error.message || "Failed to export dashboard data",
+        description: "Could not export dashboard data. Please try again.",
         variant: "destructive",
       })
     } finally {

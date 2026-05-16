@@ -7,6 +7,21 @@ import { useAuth } from '@/modules/auth/providers/auth-provider'
 import { orgAPI } from '@/modules/auth/api/org-api'
 import { useToast } from '@/shared/hooks/use-toast'
 
+// ─── Error sanitizer ──────────────────────────────────────────────────────────
+// Scrubs raw Cognito / APIG internal strings that must never reach the DOM.
+
+function sanitizeAuthError(raw: string): string {
+    if (/Invalid key=value pair.*Authorization header/i.test(raw)) {
+        return "Unable to reach the authentication service. Please refresh and try again."
+    }
+    if (/Authorization header.*SHA-256.*Base64/i.test(raw) || /hashed with SHA-256/i.test(raw)) {
+        return "Authentication error. Please sign out and sign in again."
+    }
+    const cognitoPrefix = /^(PreAuthentication|PostAuthentication|UserMigration) failed with error (.+)\.$/.exec(raw)
+    if (cognitoPrefix) return cognitoPrefix[2]
+    return raw
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useLoginForm() {
@@ -88,14 +103,42 @@ export function useLoginForm() {
                             contact_person: pendingOrg.contact_person,
                             subscriptionPlan: "standard",
                         })
+                        // Onboarding integrity (2026-05-14): verify membership
+                        // landed on the server BEFORE redirecting to /dashboard.
+                        // Closes the partial-write window that left
+                        // smahendran@infiniqon.com with an orphan Org row and no
+                        // membership.
+                        try {
+                            await orgAPI.getMe()
+                        } catch (verifyErr: any) {
+                            const vMsg = verifyErr?.message || ""
+                            if (vMsg.includes("Organization membership required")) {
+                                toast({
+                                    title: "Membership pending",
+                                    description: "Your organization was created but membership is still propagating. Please refresh.",
+                                    variant: "destructive",
+                                })
+                                return
+                            }
+                            // Other verification errors fall through to the dashboard redirect.
+                        }
                         sessionStorage.removeItem("pending_org_details")
                         if (regResult?.membership?.role) {
                             window.localStorage.setItem("cleanflowai.currentRole", regResult.membership.role)
                         }
                         window.location.href = "/dashboard"
                         return
-                    } catch {
-                        // Fall back to setup page
+                    } catch (regErr: any) {
+                        // Onboarding integrity (2026-05-14): surface the cause
+                        // so the user understands why they're being redirected
+                        // to /create-organization instead of /dashboard.
+                        const regMsg = regErr?.message || "Failed to register organization"
+                        console.error("Auto-reg failed during login:", regErr)
+                        toast({
+                            title: "Organization setup failed",
+                            description: regMsg,
+                            variant: "destructive",
+                        })
                     }
                 }
                 toast({
@@ -143,7 +186,7 @@ export function useLoginForm() {
                 setTimeout(() => { redirectAfterLogin() }, 1500)
             }
         } catch (err: any) {
-            setError(err.message)
+            setError(sanitizeAuthError(err.message))
             setIsLoading(false)
         }
     }

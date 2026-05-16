@@ -83,7 +83,22 @@ export function OrgGeneralTab({
     setIsExporting(true);
     try {
       const data = await orgAPI.exportMyData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
+      // Guard against an empty/null/string response sneaking through and
+      // producing a useless "null" blob — surface it to the user instead of
+      // silently downloading garbage.
+      if (data == null || typeof data !== "object") {
+        throw new Error("Server returned an empty data export.");
+      }
+      let serialised: string;
+      try {
+        serialised = JSON.stringify(data, null, 2);
+      } catch {
+        // Defensive: BE response with a circular ref or BigInt — extremely
+        // unlikely given the JSON contract, but better to surface than to
+        // download a broken file.
+        throw new Error("Could not serialize the data export.");
+      }
+      const blob = new Blob([serialised], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
@@ -96,8 +111,8 @@ export function OrgGeneralTab({
       URL.revokeObjectURL(url);
       toast.success("Your data export has been downloaded.");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Export failed";
-      toast.error(`Export failed: ${msg}`);
+      console.error("Data export error:", err)
+      toast.error("Data export failed. Please try again.");
     } finally {
       setIsExporting(false);
     }
@@ -112,11 +127,16 @@ export function OrgGeneralTab({
           `Account deletion blocked: you are the sole superadmin of ${result.blocking_orgs?.length ?? 0} organization(s). Transfer ownership or delete the org first.`,
         );
         setIsDeletingAccount(false);
+        // Close the modal so the user can re-read the blocking-orgs toast
+        // and act on it (previously the dialog stayed open on BLOCKED,
+        // making the toast hard to notice on top of an open overlay).
+        setAccountConfirmOpen(false);
         return;
       }
       toast.success(
         `Your account has been deleted. ${result.memberships_removed ?? 0} memberships removed.`,
       );
+      setAccountConfirmOpen(false);
       try {
         logout();
       } catch {
@@ -124,8 +144,8 @@ export function OrgGeneralTab({
       }
       router.replace("/auth/login");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Delete failed";
-      toast.error(`Account deletion failed: ${msg}`);
+      console.error("Account deletion error:", err)
+      toast.error("Account deletion failed. Please try again or contact support.");
       setIsDeletingAccount(false);
     }
   };
@@ -146,8 +166,8 @@ export function OrgGeneralTab({
       }
       router.replace("/auth/login");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Delete failed";
-      toast.error(`Failed to delete organization: ${message}`);
+      console.error("Organization deletion error:", err)
+      toast.error("Failed to delete organization. Please try again or contact support.");
       setIsDeleting(false);
     }
   };

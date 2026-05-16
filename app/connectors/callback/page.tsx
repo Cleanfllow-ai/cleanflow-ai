@@ -77,11 +77,55 @@ export default function ConnectorCallbackPage() {
     setProvider(providerParam)
 
     function notifyOpener(type: string, data: Record<string, unknown>) {
-      if (window.opener) {
-        window.opener.postMessage(
-          { type, ...data },
-          window.location.origin,
-        )
+      const payload = { type, ...data }
+
+      // Channel 1: window.opener.postMessage — fastest, but blocked under
+      // strict COOP / cross-origin-opener-policy isolation.
+      try {
+        if (window.opener) {
+          window.opener.postMessage(payload, window.location.origin)
+        }
+      } catch {
+        // Opener access blocked by COOP — fall through to the other channels.
+      }
+
+      // Channel 2: BroadcastChannel — works across documents in the same
+      // browsing context group even when the opener reference is severed
+      // by COOP.
+      try {
+        if (typeof BroadcastChannel !== "undefined") {
+          const channel = new BroadcastChannel("cleanflowai-oauth")
+          channel.postMessage(payload)
+          // Closing immediately is safe — the message has already been
+          // dispatched synchronously to other listeners.
+          channel.close()
+        }
+      } catch {
+        // BroadcastChannel unavailable — fall through to the storage fallback.
+      }
+
+      // Channel 3: localStorage — last resort. Browsers fire a `storage`
+      // event in OTHER same-origin windows whenever a key changes value,
+      // so the parent window can pick up the signal even when neither
+      // postMessage nor BroadcastChannel works.
+      try {
+        const provider = (payload.type || "").split("-auth-")[0] || "unknown"
+        const key = `cleanflowai-oauth:${provider}`
+        // Stamp with a unique nonce so consecutive successes/failures still
+        // fire a `storage` event (the event only dispatches when newValue
+        // differs from the previous value).
+        const stamped = { ...payload, _nonce: `${Date.now()}-${Math.random()}` }
+        window.localStorage.setItem(key, JSON.stringify(stamped))
+        // The parent does its own removal after acting on the signal, but
+        // we schedule a defensive cleanup in case the parent never wakes.
+        setTimeout(() => {
+          try { window.localStorage.removeItem(key) } catch { /* noop */ }
+        }, 30_000)
+      } catch {
+        // localStorage may be disabled (third-party-cookie blocking,
+        // private mode, quota). At this point the popup has done its best
+        // — the user will see the success/error UI in the popup and the
+        // parent will fall back to its safety timeout.
       }
     }
 

@@ -1,7 +1,7 @@
 import { FileText, GitBranch, History, ListTree, PieChart as PieChartIcon, Server, Table as TableIcon, Tags } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/shared/lib/utils"
 import { useAuth } from "@/modules/auth"
@@ -16,6 +16,7 @@ import { FileMetadataTab } from "./file-details/file-metadata-tab"
 import { FileOverviewTab } from "./file-details/file-overview-tab"
 import { FilePreviewTab } from "./file-details/file-preview-tab"
 import { FileVersionHistory } from "./file-version-history"
+import { OptimizingBadge } from "./optimizing-badge"
 import { RowWiseIssues } from "./row-wise-issues"
 
 export { DqMatrixDialog } from "./dq-matrix-dialog"
@@ -39,6 +40,8 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
     previewData,
     previewLoading,
     previewError,
+    previewErrorKind,
+    loadPreview,
     dqReport,
     dqReportLoading,
     dqReportError,
@@ -104,7 +107,10 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[98vw] h-[80vh] max-w-6xl max-h-none p-0 flex flex-col gap-0">
+        <DialogContent
+          className="w-[98vw] h-[80vh] max-w-6xl max-h-none p-0 flex flex-col gap-0"
+          aria-describedby="file-details-description"
+        >
           <div className="flex h-full flex-col">
             <DialogHeader className="px-6 py-3 border-b shrink-0">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -116,9 +122,24 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                     <DialogTitle className="flex items-center gap-2.5 font-sans text-base font-semibold tracking-tight truncate">
                       <span className="truncate">{resolvedFile.original_filename || resolvedFile.filename || "File"}</span>
                     </DialogTitle>
-                    <Badge className={cn("shrink-0 text-[10px] font-medium", getStatusColor(resolvedFile.status))} variant="outline">
-                      {resolvedFile.status}
-                    </Badge>
+                    <DialogDescription id="file-details-description" className="sr-only">
+                      File details for {resolvedFile.original_filename || resolvedFile.filename || "file"} — status: {resolvedFile.status}
+                    </DialogDescription>
+                    {/* Phase 7B: OPTIMIZING / OPTIMIZE_FAILED render via the
+                        dedicated badge so the spinner + failure tooltip stay
+                        consistent between the file list and detail header.
+                        Anything else falls back to the legacy text pill. */}
+                    {resolvedFile.status === "OPTIMIZING" || resolvedFile.status === "OPTIMIZE_FAILED" ? (
+                      <OptimizingBadge
+                        status={resolvedFile.status}
+                        errorReason={resolvedFile.error_reason}
+                        className="shrink-0"
+                      />
+                    ) : (
+                      <Badge className={cn("shrink-0 text-[10px] font-medium", getStatusColor(resolvedFile.status))} variant="outline">
+                        {resolvedFile.status}
+                      </Badge>
+                    )}
                     {versionInfo && (
                       <Badge variant="outline" className="shrink-0 text-[10px] font-medium">
                         v{versionInfo.versionNumber}
@@ -277,8 +298,12 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                 <FilePreviewTab
                   previewLoading={previewLoading}
                   previewError={previewError}
+                  previewErrorKind={previewErrorKind}
                   previewData={previewData}
                   synthesisedColumns={dqReport?.synthesised_columns}
+                  onRetry={loadPreview}
+                  onOpenEditor={onRemediate && resolvedFile ? () => onRemediate(resolvedFile) : undefined}
+                  onRefreshList={() => onOpenChange(false)}
                 />
               )}
               {activeTab === "dq-report" && (

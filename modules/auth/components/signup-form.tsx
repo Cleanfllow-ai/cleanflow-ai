@@ -1,8 +1,9 @@
 "use client";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Building2, Briefcase, Eye, EyeOff, FileText, Lock, Mail, User, Phone, MapPin } from "lucide-react";
+import { Building2, Briefcase, Eye, EyeOff, Lock, Mail, User, Phone, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
+import { validatePassword, PASSWORD_POLICY } from "@/shared/config/password-policy";
 
 import { Button } from "@/components/ui/button";
 import { EmailVerification } from "./email-verification";
@@ -13,6 +14,21 @@ import Link from "next/link";
 import { useAuth } from "@/modules/auth/providers/auth-provider";
 import { orgAPI } from "@/modules/auth/api/org-api";
 import { useToast } from "@/shared/hooks/use-toast";
+
+// ─── Error sanitizer ──────────────────────────────────────────────────────────
+// Scrubs raw Cognito / APIG internal strings that must never reach the DOM.
+
+function sanitizeAuthError(raw: string): string {
+    if (/Invalid key=value pair.*Authorization header/i.test(raw)) {
+        return "Unable to reach the authentication service. Please refresh and try again."
+    }
+    if (/Authorization header.*SHA-256.*Base64/i.test(raw) || /hashed with SHA-256/i.test(raw)) {
+        return "Authentication error. Please sign out and sign in again."
+    }
+    const cognitoPrefix = /^(PreAuthentication|PostAuthentication|UserMigration) failed with error (.+)\.$/.exec(raw)
+    if (cognitoPrefix) return cognitoPrefix[2]
+    return raw
+}
 
 export function SignUpForm() {
   const [step, setStep] = useState(1);
@@ -36,8 +52,6 @@ export function SignUpForm() {
   const [orgPhone, setOrgPhone] = useState("");
   const [orgAddress, setOrgAddress] = useState("");
   const [industry, setIndustry] = useState("");
-  const [gst, setGst] = useState("");
-  const [pan, setPan] = useState("");
   const [contactPerson, setContactPerson] = useState("");
 
   useEffect(() => {
@@ -53,13 +67,23 @@ export function SignUpForm() {
       setError("Passwords do not match.");
       return false;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    const { isValid, errors } = validatePassword(password);
+    if (!isValid) {
+      setError(`Password requirements not met: ${errors.join(", ")}.`);
       return false;
     }
     setError("");
     return true;
   };
+
+  // Derived step-1 validity — drives the Continue button disabled state
+  const isStep1Valid =
+    !!fullName &&
+    !!email &&
+    !!password &&
+    !!confirmPassword &&
+    password === confirmPassword &&
+    validatePassword(password).isValid;
 
   const nextStep = () => {
     if (validateStep1()) {
@@ -100,8 +124,6 @@ export function SignUpForm() {
           phone: orgPhone,
           address: orgAddress,
           industry,
-          gst,
-          pan,
           contact_person: contactPerson || fullName,
         };
         sessionStorage.setItem("pending_org_details", JSON.stringify(orgDetails));
@@ -118,7 +140,7 @@ export function SignUpForm() {
         setShowVerification(true);
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(sanitizeAuthError(err.message));
     } finally {
       setIsLoading(false);
     }
@@ -169,11 +191,31 @@ export function SignUpForm() {
                 phone: pendingOrg.phone,
                 address: pendingOrg.address,
                 industry: pendingOrg.industry,
-                gst: pendingOrg.gst,
-                pan: pendingOrg.pan,
                 contact_person: pendingOrg.contact_person,
                 subscriptionPlan: "standard",
               });
+              // Onboarding integrity (2026-05-14): verify membership landed on
+              // the server BEFORE redirecting to /dashboard. Without this, a
+              // partial BE failure (Org row written but Member row missing —
+              // the smahendran bug) would still redirect the user to the
+              // dashboard where every API call returns 403.
+              try {
+                await orgAPI.getMe();
+              } catch (verifyErr: any) {
+                const vMsg = verifyErr?.message || "";
+                if (vMsg.includes("Organization membership required")) {
+                  setError(
+                    "Organization registered but membership not yet active. Please refresh in a moment.",
+                  );
+                  toast({
+                    title: "Membership pending",
+                    description: "Your organization was created but membership is still propagating. Please refresh.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                // Some other auth/network error — fall through to redirect.
+              }
               sessionStorage.removeItem("pending_org_details");
               // Store the role from registration response so the dashboard
               // doesn't need to wait for GSI replication to resolve permissions.
@@ -187,7 +229,17 @@ export function SignUpForm() {
               window.location.href = `/dashboard${window.location.search}`;
               return;
             } catch (regErr: any) {
+              // Onboarding integrity (2026-05-14): never silently swallow the
+              // registration failure. Surface it so the user knows why they're
+              // being asked to retry from /create-organization.
+              const regMsg = regErr?.message || "Failed to register organization";
               console.error("Auto-reg failed:", regErr);
+              setError(regMsg);
+              toast({
+                title: "Organization setup failed",
+                description: regMsg,
+                variant: "destructive",
+              });
               window.location.href = `/create-organization${window.location.search}`;
               return;
             }
@@ -211,28 +263,20 @@ export function SignUpForm() {
     setSuccess("");
   };
 
-  const getPasswordStrength = (password: string) => {
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[a-z]/.test(password)) strength++;
-    if (/[0-9]/.test(password)) strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
-    return strength;
-  };
+  // Strength helpers — built on validatePassword so meter matches Cognito policy exactly.
+  // strengthLevel 4 = all 4 active requirements met = isValid = Strong (green).
+  const getPasswordStrength = (pw: string) => validatePassword(pw).strengthLevel;
 
   const getPasswordStrengthLabel = (strength: number) => {
     switch (strength) {
       case 0:
       case 1:
-        return "Very Weak";
-      case 2:
         return "Weak";
-      case 3:
+      case 2:
         return "Fair";
-      case 4:
+      case 3:
         return "Good";
-      case 5:
+      case 4:
         return "Strong";
       default:
         return "";
@@ -249,9 +293,7 @@ export function SignUpForm() {
       case 3:
         return "bg-yellow-500";
       case 4:
-        return "bg-blue-500";
-      case 5:
-        return "bg-emerald-500";
+        return "bg-emerald-500"; // Only when isValid=true
       default:
         return "bg-muted";
     }
@@ -276,7 +318,7 @@ export function SignUpForm() {
         {/* Mobile-only logo */}
         <div className="flex justify-center mb-6 lg:hidden">
           <div className="relative w-10 h-10">
-            <Image src="/images/infiniqon-logo-light.png" alt="CleanFlowAI" width={40} height={40} className="object-contain" />
+            <Image src="/images/rightrev-logo.png" alt="RightRev" width={40} height={40} className="object-contain" />
           </div>
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
@@ -348,7 +390,7 @@ export function SignUpForm() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Min. 8 characters"
+                  placeholder={`Min. ${PASSWORD_POLICY.minLength} characters`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -363,21 +405,36 @@ export function SignUpForm() {
                 </button>
               </div>
               {password && (
-                <div className="flex items-center gap-2 pt-1">
-                  <div className="flex-1 flex gap-1">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div
-                        key={i}
-                        className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                          i <= getPasswordStrength(password) ? getPasswordStrengthColor(getPasswordStrength(password)) : "bg-muted"
-                        }`}
-                      />
-                    ))}
+                <>
+                  <div className="flex items-center gap-2 pt-1">
+                    <div className="flex-1 flex gap-1">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                            i <= getPasswordStrength(password)
+                              ? getPasswordStrengthColor(getPasswordStrength(password))
+                              : "bg-muted"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider min-w-[50px] text-right">
+                      {getPasswordStrengthLabel(getPasswordStrength(password))}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider min-w-[60px] text-right">
-                    {getPasswordStrengthLabel(getPasswordStrength(password))}
-                  </span>
-                </div>
+                  {/* Inline requirement hints — only show unmet requirements */}
+                  {validatePassword(password).errors.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {validatePassword(password).errors.map((err) => (
+                        <li key={err} className="text-[11px] text-destructive flex items-center gap-1">
+                          <span className="inline-block w-1 h-1 rounded-full bg-destructive flex-shrink-0" />
+                          {err}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </div>
 
@@ -439,7 +496,7 @@ export function SignUpForm() {
                 <Label htmlFor="orgPhone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
-                  <Input id="orgPhone" placeholder="+91 000 000 0000" value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
+                  <Input id="orgPhone" type="tel" placeholder="Phone number" value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
                 </div>
               </div>
             </div>
@@ -452,23 +509,6 @@ export function SignUpForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="gst" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">GST Number</Label>
-                <div className="relative">
-                  <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
-                  <Input id="gst" placeholder="GSTIN" value={gst} onChange={(e) => setGst(e.target.value)} className="pl-10 h-11 uppercase bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="pan" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">PAN Number</Label>
-                <div className="relative">
-                  <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
-                  <Input id="pan" placeholder="ABCDE1234F" value={pan} onChange={(e) => setPan(e.target.value)} className="pl-10 h-11 uppercase bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
-                </div>
-              </div>
-            </div>
           </>
         )}
 
@@ -512,7 +552,7 @@ export function SignUpForm() {
           <Button
             type="submit"
             className="flex-1 h-11 font-medium transition-all"
-            disabled={isLoading}
+            disabled={isLoading || (step === 1 && !isStep1Valid)}
           >
             {isLoading
               ? "Processing..."

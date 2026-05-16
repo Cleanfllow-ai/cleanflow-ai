@@ -16,9 +16,36 @@ export interface FileUploadInitResponse {
   usePost?: boolean   // Flag to indicate which upload method to use
 }
 
+// Phase 7B (logical sharding): Files transition through OPTIMIZING while the
+// backend repacks them into shard-aligned form. OPTIMIZE_FAILED is the
+// terminal failure state. Both are treated defensively by the UI — if the
+// backend is older and never emits these, the UI degrades to its previous
+// behavior.
+export type FileStatus =
+  | 'QUEUED'
+  | 'DQ_RUNNING'
+  | 'DQ_FIXED'
+  | 'FAILED'
+  | 'COMPLETED'
+  | 'UPLOADING'
+  | 'NORMALIZING'
+  | 'DQ_FAILED'
+  | 'UPLOAD_FAILED'
+  | 'UPLOADED'
+  | 'VALIDATED'
+  | 'REJECTED'
+  | 'DQ_DISPATCHED'
+  | 'SHARDING'
+  | 'SHARDED'
+  | 'SHARD_FAILED'
+  | 'IMPORTING'
+  | 'IMPORT_FAILED'
+  | 'OPTIMIZING'
+  | 'OPTIMIZE_FAILED'
+
 export interface FileStatusResponse {
   upload_id: string
-  status: 'QUEUED' | 'DQ_RUNNING' | 'DQ_FIXED' | 'FAILED' | 'COMPLETED' | 'UPLOADING' | 'NORMALIZING' | 'DQ_FAILED' | 'UPLOAD_FAILED' | 'UPLOADED' | 'VALIDATED' | 'REJECTED' | 'DQ_DISPATCHED' | 'SHARDING' | 'SHARDED' | 'SHARD_FAILED'
+  status: FileStatus
   filename?: string
   original_filename?: string
   content_type?: string
@@ -78,6 +105,37 @@ export interface FileStatusResponse {
     auto_detect_warning?: 'no_erp_match' | 'ambiguous_match' | 'unsupported_entity' | string
     header_sample?: string[]
   }
+  // ── Connector-import progress (Chrome-style) — populated by storage
+  // connectors (Google Drive today) on the FileRegistry-V3 row while the
+  // status is IMPORTING. Once the import completes the row transitions to
+  // UPLOADED and these fields stop changing. Surfaced inline in the
+  // data-catalog table row so closing the import dialog doesn't hide
+  // progress (and so progress survives a page reload).
+  import_status?: 'downloading' | 'uploading' | 'completed' | 'failed'
+  bytes_downloaded?: number
+  bytes_total?: number
+  bytes_transferred?: number
+  download_started_at?: string
+  download_updated_at?: string
+  download_finished_at?: string
+  error_message?: string
+  // Phase 7B: populated by the optimizer Lambda when status transitions to
+  // OPTIMIZE_FAILED. Surfaced in the status-badge tooltip on the file list
+  // and detail view. Falls back to a generic message if absent.
+  error_reason?: string
+  // CC2 CSV edge-case hardening: populated by FileValidator when a file is
+  // rejected due to a structural problem (BOM, UTF-16, 0-byte, header-only,
+  // malformed UTF-8, unclosed quotes, etc.). Surfaced below the filename on
+  // REJECTED rows so users see a specific, actionable reason instead of a
+  // generic "Rejected" pill.
+  failure_reason?: string
+  // ── Augmentation lineage (B3/B4, 2026-05-16) ─────────────────────────────
+  // Set by StartDQProcessing when one or more augmentations ran before DQ.
+  // The FE uses ``augmented_columns`` to violet-tint columns in the
+  // quarantine grid and profiling preview so users see which columns were
+  // produced by an augmentation versus which ones came from the upload.
+  s3_augmented_key?: string | null
+  augmented_columns?: string[]
 }
 
 export interface FileListResponse {

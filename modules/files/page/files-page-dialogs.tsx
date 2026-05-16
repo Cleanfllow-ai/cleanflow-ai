@@ -96,6 +96,8 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
         actionsErpMode, setActionsErpMode, actionsErpTarget, setActionsErpTarget,
         // Delete
         showDeleteModal, setShowDeleteModal, fileToDelete, handleDeleteConfirm,
+        // Stop (cancel in-flight import / processing)
+        showStopModal, setShowStopModal, fileToStop, handleStopConfirm, stopping,
         // Bulk Delete
         showBulkDeleteModal, setShowBulkDeleteModal, handleBulkDeleteConfirm, selectedFiles,
         // Display columns
@@ -536,6 +538,37 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* Stop & Delete (cancel in-flight + remove from catalog) Confirmation */}
+            <AlertDialog open={showStopModal} onOpenChange={setShowStopModal}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Stop and delete?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will cancel the import for{" "}
+                            <strong>{fileToStop?.original_filename || fileToStop?.filename}</strong>{" "}
+                            and remove the file from your catalog. This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep import running</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleStopConfirm}
+                            disabled={Boolean(stopping)}
+                            className="bg-destructive text-destructive-foreground"
+                        >
+                            {stopping ? (
+                                <>
+                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                    Stopping…
+                                </>
+                            ) : (
+                                "Stop & Delete"
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Bulk Delete Confirmation */}
             <AlertDialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
                 <AlertDialogContent>
@@ -646,7 +679,17 @@ export function FilesPageDialogs({ state }: FilesPageDialogsProps) {
                         <DialogDescription>Detailed analysis of data types, quality issues, and suggested rules.</DialogDescription>
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto p-6 pt-2">
-                        <ColumnProfilingPanel data={profilingData} loading={loadingProfiling} />
+                        {/* B4 (2026-05-16): pass augmented_columns from the file's
+                            DDB row so the profiling table can violet-tint + ✨ mark
+                            augmented columns.  Falls back to [] when the file isn't
+                            in state.files yet (race) — non-fatal, no visual change. */}
+                        <ColumnProfilingPanel
+                            data={profilingData}
+                            loading={loadingProfiling}
+                            augmentedColumns={
+                                (state.files?.find?.((f: { upload_id?: string }) => f?.upload_id === profilingFileId) as { augmented_columns?: string[] } | undefined)?.augmented_columns ?? []
+                            }
+                        />
                     </div>
                 </DialogContent>
             </Dialog>

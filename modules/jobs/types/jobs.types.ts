@@ -78,6 +78,14 @@ export interface EntityResult {
     export_errors?: Array<{ row?: number; error: string }>
 }
 
+// Structured failure codes surfaced in the JobRuns dashboard.
+export type JobErrorCode =
+    | 'JOB_CRON_INVALID'
+    | 'JOB_PREVIOUS_STILL_RUNNING'
+    | 'JOB_DOWNSTREAM_UNAVAILABLE'
+    | 'JOB_RETRIES_EXHAUSTED'
+    | 'JOB_QUOTA_EXCEEDED'
+
 export interface JobRun {
     run_id: string
     job_id?: string
@@ -97,6 +105,10 @@ export interface JobRun {
         avg_dq_score?: number | null
     }
     correlation_id?: string
+    /** Structured failure code — present only on failed/skipped runs with a known cause. */
+    error_code?: JobErrorCode | string
+    /** Human-readable failure description for the dashboard toast/detail panel. */
+    error_message?: string
 }
 
 export interface CreateJobPayload {

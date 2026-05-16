@@ -175,11 +175,13 @@ export function useWarehouseImport({
                     loadMetadata()
                 }
             } else {
-                onNotification?.(result.error || "Connection failed", "error")
+                console.error("[Connectors:connectOAuth:warehouse]", result.error)
+                onNotification?.("We couldn't complete the connection. Please try again or check your provider's permissions.", "error")
             }
         } catch (error) {
+            console.error("[Connectors:connectOAuth:warehouse]", error)
             onNotification?.(
-                (error as Error).message || "Connection failed",
+                `Could not connect to ${providerDisplayName}. Please try again.`,
                 "error"
             )
         } finally {
@@ -201,8 +203,9 @@ export function useWarehouseImport({
             setSelectedFile(null)
             onNotification?.(`Disconnected from ${providerDisplayName}`, "success")
         } catch (error) {
+            console.error("[Connectors:disconnect:warehouse]", error)
             onNotification?.(
-                (error as Error).message || "Disconnect failed",
+                `Could not disconnect from ${providerDisplayName}. Please try again.`,
                 "error"
             )
         }
@@ -386,8 +389,9 @@ export function useWarehouseImport({
                 onImportComplete?.(result.upload_id)
             }
         } catch (error) {
+            console.error("[Connectors:runImport:warehouse]", error)
             onNotification?.(
-                (error as Error).message || "Import failed",
+                `Could not import from ${providerDisplayName}. Please try again.`,
                 "error"
             )
         } finally {
@@ -460,7 +464,8 @@ export function useWarehouseImport({
                 "success"
             )
         } catch (error) {
-            const msg = (error as Error).message || "Export failed"
+            console.error("[Connectors:runExport:warehouse]", error)
+            const msg = `Could not export to ${providerDisplayName}. Please try again.`
             setError(msg)
             onNotification?.(msg, "error")
         } finally {

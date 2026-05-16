@@ -316,12 +316,16 @@ export interface ColumnRuleApplyAllRequest {
   cursor?: string | null
   /** Etag returned by the previous chunk; omit on the first call */
   if_match_etag?: string
+  /** Active filter envelope — restricts apply-all to the filter's row scope. */
+  filters?: QuarantineFilters
 }
 
 /** Response from one apply-all chunk */
 export interface ColumnRuleApplyAllResponse {
   /** Rows fixed in this chunk */
   rows_affected: number
+  /** Rows that were locked and therefore skipped (Bug #14). */
+  skipped_locked?: number
   /** Pass as if_match_etag in the next call */
   new_etag: string
   rule_code: string
@@ -367,6 +371,7 @@ export interface ColumnValuesRequest {
   version?: string
   search?: string
   limit?: number
+  filters?: QuarantineFilters
 }
 
 export interface ColumnValuesResponse {
@@ -390,6 +395,15 @@ export interface QuarantineFindRequest {
   session_id?: string
   column?: string | null
   match_case?: boolean
+  /** Cursor-paginated find — opaque token of form "shard:N". */
+  cursor?: string | null
+  /** Max matches per call (default 5 000, max 5 000). */
+  page_size?: number
+  /** Max shards scanned per call (default 30, max 50). */
+  shards_per_call?: number
+  /** Filter envelope — restricts find scope to filtered rows only. */
+  filters?: QuarantineFilters
+  /** @deprecated Legacy; use page_size. Kept for old client compat. */
   limit?: number
 }
 
@@ -397,4 +411,43 @@ export interface QuarantineFindResponse {
   total_matches: number
   match_positions: FindMatch[]
   truncated: boolean
+  /** Null when stream exhausted; opaque token for chained calls otherwise. */
+  next_cursor?: string | null
+  /** Row ids whose matches sit on a locked row (informational). */
+  locked_row_ids?: string[]
+  /** Cumulative count for UX. Same as `total_matches` in cursor mode. */
+  total_matches_so_far?: number
+}
+
+// ========== Bulk Replace (Find-Replace v2) =================================
+
+/** Cursor-paginated bulk replace. Frontend chains calls until `next_cursor`
+ *  is null. Mirrors the existing `column-rule/apply-all` shape. */
+export interface ReplaceInQuarantineRequest {
+  session_id: string
+  if_match_etag: string
+  search: string
+  replace: string
+  column?: string | null
+  match_case?: boolean
+  filters?: QuarantineFilters
+  cursor?: string | null
+  page_size?: number
+  shards_per_call?: number
+  /** Default true — bulk callers skip locked rows rather than 409. */
+  skip_locked?: boolean
+}
+
+export interface ReplaceInQuarantineResponse {
+  rows_affected: number
+  cells_affected: number
+  skipped_locked: number
+  new_etag: string
+  next_cursor: string | null
+  audit_entries_emitted: number
+}
+
+/** Apply-all column rule — extended with optional filters scope. */
+export interface ColumnRuleApplyAllRequestWithFilters extends ColumnRuleApplyAllRequest {
+  filters?: QuarantineFilters
 }

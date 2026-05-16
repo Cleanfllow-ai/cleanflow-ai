@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { useQuarantineEditor, useQuarantineFilters, useQuarantineFind } from '@/modules/files/hooks'
+import { useQuarantineEditor, useQuarantineFilters, useQuarantineFind, useOverlayPersist } from '@/modules/files/hooks'
 import { useCollaboration } from '@/modules/files/hooks'
 import { QuarantineCollaborationPanel } from '@/modules/files/components/quarantine-editor/quarantine-collaboration-panel'
 import { QuarantineFilterBar } from '@/modules/files/components/quarantine-editor/quarantine-filter-bar'
@@ -20,10 +20,13 @@ import { QuarantineVersionLineage } from '@/modules/files/components/quarantine-
 import { QuarantineFindReplacePanel } from '@/modules/files/components/quarantine-editor/quarantine-find-replace-panel'
 import { QuarantineCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-compare-dialog'
 import { QuarantineVersionCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-version-compare-dialog'
+import { useEditHistory } from '@/modules/files/hooks/use-edit-history'
+import { QuarantineUndoToast } from '@/modules/files/components/quarantine-editor/quarantine-undo-toast'
 import { ArrowLeft, ClipboardCheck, Check, Clock, Loader2, Unlock, X } from 'lucide-react'
 import type { GridApi } from 'ag-grid-community'
 import type { QuarantineRow } from '@/modules/files/types'
 import { unlockRow } from '@/modules/files/api/file-quarantine-api'
+import { fileManagementAPI } from '@/modules/files'
 import { toast } from 'sonner'
 
 interface PageProps {
@@ -40,7 +43,8 @@ export default function QuarantineEditorPage({ params }: PageProps) {
   // Only honor safe, in-app relative paths to prevent open-redirect abuse.
   const returnTo = ALLOWED_RETURN_TO.has(rawReturnTo) ? rawReturnTo : '/files'
   const navigateBack = useCallback(() => router.push(returnTo), [router, returnTo])
-  const { idToken, accessToken, userRole } = useAuth()
+  const { idToken, accessToken, userRole, user } = useAuth()
+  const currentUserId = user?.sub
 
   const file = { upload_id: uploadId, filename: '', original_filename: '' }
 
@@ -51,6 +55,62 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     authToken: idToken,
     filters: filterState.filters,
   })
+
+  // B4 (2026-05-16): fetch augmented_columns for the violet-tint + ✨ header
+  // decoration in the quarantine grid.  One-shot fetch on mount — the list
+  // never changes for a given upload (set at start_dq_processing time).
+  const [augmentedColumns, setAugmentedColumns] = useState<string[]>([])
+  useEffect(() => {
+    if (!idToken || !uploadId) return
+    let cancelled = false
+    fileManagementAPI
+      .getFileStatus(uploadId, idToken)
+      .then((resp) => {
+        if (cancelled) return
+        const cols = (resp as { augmented_columns?: string[] }).augmented_columns
+        if (Array.isArray(cols) && cols.length > 0) setAugmentedColumns(cols)
+      })
+      .catch(() => {
+        /* non-fatal — grid still renders, just without violet tinting */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [uploadId, idToken])
+
+  // ── Optimistic overlay restore (sessionStorage) ─────────────────────
+  // Persist in-progress edits per {file_id, session_id} so an accidental
+  // browser refresh doesn't lose them. Hydrated below once the user
+  // confirms "Restore"; cleared on successful save (lastSavedAt change).
+  const overlay = useOverlayPersist({
+    fileId: uploadId,
+    sessionId: editor.sessionInfo?.session_id,
+    editsMap: editor.editsMap,
+  })
+  const [overlayBannerVisible, setOverlayBannerVisible] = useState(false)
+  useEffect(() => {
+    if (overlay.restoredCount > 0) setOverlayBannerVisible(true)
+  }, [overlay.restoredCount])
+  const lastSavedRef = useRef<Date | null>(null)
+  useEffect(() => {
+    if (editor.lastSavedAt && editor.lastSavedAt !== lastSavedRef.current) {
+      lastSavedRef.current = editor.lastSavedAt
+      overlay.clearPersisted()
+    }
+  // overlay is a new object each render; use the stable clearPersisted callback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor.lastSavedAt, overlay.clearPersisted])
+  const handleOverlayRestore = useCallback(() => {
+    if (overlay.restored?.edits_map) {
+      editor.hydrateEdits(overlay.restored.edits_map)
+    }
+    setOverlayBannerVisible(false)
+  }, [overlay.restored, editor])
+  const handleOverlayDiscard = useCallback(() => {
+    overlay.discardRestored()
+    setOverlayBannerVisible(false)
+    editor.refreshSession?.()
+  }, [overlay, editor])
 
   // Forward refs from collab back into find (#7). Collab is created
   // BELOW (it needs handleRemoteCellUpdate which closes over editor),
@@ -71,9 +131,26 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     uploadId,
     authToken: idToken,
     sessionId: editor.sessionInfo?.session_id,
+    sessionEtag: editor.sessionInfo?.session_etag,
     columns: editor.columns,
+    // Bug #4 — forward filter scope to Find / Replace All.
+    filters: filterState.filters,
     onCellEdit: editor.handleCellEdit,
     saveEdits: editor.saveEdits,
+    onAfterReplaceAll: useCallback(
+      (_newEtag: string, replaced: number, skipped: number) => {
+        if (replaced > 0 || skipped > 0) {
+          toast.success(
+            skipped > 0
+              ? `Replaced ${replaced.toLocaleString()} cells · ${skipped.toLocaleString()} skipped (locked)`
+              : `Replaced ${replaced.toLocaleString()} cells`,
+          )
+        }
+        // Refresh session to pull the latest etag and re-fetch grid rows.
+        editor.refreshSession?.()
+      },
+      [editor],
+    ),
     acquireBulkLocks: useCallback(
       async (cells: string[]) => {
         const fn = collabAcquireBulkRef.current
@@ -331,11 +408,56 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     collab.blurCell(column, rowId)
   }, [collab.blurCell])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCellEditWithBroadcast = useCallback((rowId: string, column: string, value: string) => {
-    console.log('[Collab] handleCellEditWithBroadcast called:', { rowId, column, value })
+  // ── Undo per-cell (20-edit ring buffer + Ctrl+Z) ────────────────────
+  const history = useEditHistory()
+  const [undoToast, setUndoToast] = useState<{ open: boolean; column: string | null }>({
+    open: false,
+    column: null,
+  })
+  // history.clear is a stable useCallback — use it directly in deps instead of
+  // the history object (which is a new reference every render and would cause
+  // an infinite setState loop via setVersion inside clear(); React error #185).
+  useEffect(() => { history.clear() }, [uploadId, history.clear]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCellEditWithBroadcast = useCallback((rowId: string, column: string, value: string, oldValue?: string) => {
+    // ── Undo bug fix (2026-05-15) ──────────────────────────────────────
+    // The previous implementation tried `editor.getCellValue(rowId, column, {})`
+    // to recover the pre-edit value, but passed an EMPTY row object — so the
+    // lookup fell through `editsMap → savedEditsMap → originalRow[column] ?? ''`
+    // and always returned ''. Undo then wrote '' back, blanking the cell.
+    // AG-Grid now forwards `event.oldValue` through `onCellEdit`, so we have
+    // the real pre-edit value to push onto the undo stack.
+    const previous =
+      oldValue !== undefined
+        ? oldValue
+        : editor.getCellValue(rowId, column, {} as Record<string, any>)
     editor.handleCellEdit(rowId, column, value)
     collab.broadcastCellUpdate(column, rowId, value)
-  }, [editor.handleCellEdit, collab.broadcastCellUpdate])  // eslint-disable-line react-hooks/exhaustive-deps
+    history.push({ file_id: uploadId, row_id: rowId, column, old_value: previous, new_value: value })
+    setUndoToast({ open: true, column })
+  }, [editor.handleCellEdit, editor.getCellValue, collab.broadcastCellUpdate, history, uploadId])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleUndo = useCallback(() => {
+    const entry = history.undo()
+    if (!entry) return
+    editor.handleCellEdit(entry.row_id, entry.column, entry.old_value)
+    collab.broadcastCellUpdate(entry.column, entry.row_id, entry.old_value)
+  }, [history, editor.handleCellEdit, collab.broadcastCellUpdate])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        if (history.size === 0) return
+        const active = document.activeElement as HTMLElement | null
+        const tag = active?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || active?.isContentEditable) return
+        e.preventDefault()
+        handleUndo()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handleUndo, history.size])
 
   const handleGridApiReady = useCallback((api: GridApi<QuarantineRow>) => {
     gridApiRef.current = api
@@ -403,6 +525,27 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         onClearAll={filterState.clearAllFilters}
       />
 
+      {overlayBannerVisible && overlay.restoredCount > 0 && (
+        <div
+          role="alert"
+          data-testid="overlay-restore-banner"
+          className="flex items-center justify-between gap-3 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900"
+        >
+          <span>
+            Restored {overlay.restoredCount} unsaved edit
+            {overlay.restoredCount === 1 ? '' : 's'} from previous session — Save or Discard
+          </span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={handleOverlayRestore}>
+              Restore
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleOverlayDiscard}>
+              Discard
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Grid */}
       <div className="relative min-h-0 flex-1 flex overflow-hidden">
         {/* Grid area */}
@@ -418,6 +561,8 @@ export default function QuarantineEditorPage({ params }: PageProps) {
               truncated={find.truncated}
               loading={find.loading}
               columns={editor.columns}
+              hasMoreMatches={find.hasMoreMatches}
+              lockedRowIds={find.lockedRowIds}
               onSearchTermChange={find.setSearchTerm}
               onReplaceTermChange={find.setReplaceTerm}
               onColumnChange={find.setColumn}
@@ -452,6 +597,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
                 onGridApiReady={handleGridApiReady}
                 onUnlockRowClick={handleUnlockRowClick}
                 canUnlock={isSuperAdmin}
+                augmentedColumns={augmentedColumns}
                 filterComponent={(column) => (
                   <QuarantineColumnFilter
                     column={column}
@@ -480,6 +626,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
             users={collab.users}
             activity={collab.activity}
             connected={collab.connected}
+            currentUserId={currentUserId}
             onClose={() => collab.setPanelOpen(false)}
           />
         )}
@@ -605,6 +752,14 @@ export default function QuarantineEditorPage({ params }: PageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Per-cell undo toast (8s auto-dismiss; Ctrl+Z is the keyboard equivalent) */}
+      <QuarantineUndoToast
+        column={undoToast.column}
+        open={undoToast.open}
+        onOpenChange={(open) => setUndoToast((s) => ({ ...s, open }))}
+        onUndo={handleUndo}
+      />
 
     </div>
   )

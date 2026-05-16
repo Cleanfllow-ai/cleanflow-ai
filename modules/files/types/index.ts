@@ -2,6 +2,7 @@
 
 export type {
     FileUploadInitResponse,
+    FileStatus,
     FileStatusResponse,
     FileListResponse,
     FileItem,
@@ -95,6 +96,8 @@ export type {
     FindMatch,
     QuarantineFindRequest,
     QuarantineFindResponse,
+    ReplaceInQuarantineRequest,
+    ReplaceInQuarantineResponse,
 } from './quarantine.types'
 
 export type {
