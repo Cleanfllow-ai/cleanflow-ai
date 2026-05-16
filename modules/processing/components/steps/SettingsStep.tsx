@@ -420,10 +420,15 @@ export function SettingsStep() {
     if (!authToken) return
     try {
       const response = await fileManagementAPI.getSettingsPreset(presetId, authToken)
-      setSelectedPreset(response)
-      hydrateFromConfig(response.config || {})
+      // Bug B fix (2026-05-16): merge DEFAULT_PRESET.config as the base so that
+      // impoverished BE presets (missing currency_values / uom_values / enum_sets /
+      // thresholds) still produce a fully-hydrated UI. The BE config wins on any key
+      // it provides; the default fills in only what the BE omitted.
+      const mergedConfig = { ...DEFAULT_PRESET.config, ...((response as any).config || {}) }
+      setSelectedPreset({ ...(response as any), config: mergedConfig })
+      hydrateFromConfig(mergedConfig)
       // See comment above — push preset config to overrides on every select.
-      setPresetOverrides((response as any).config || {})
+      setPresetOverrides(mergedConfig)
     } catch (err) {
       console.error("Failed to load preset:", err)
     }
