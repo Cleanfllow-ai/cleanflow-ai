@@ -7,13 +7,14 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ArrowLeft, ArrowRight, Loader2, Plus, Settings, Star, Shield, ToggleLeft, ToggleRight, Sliders, X, Upload } from "lucide-react"
+import { ArrowLeft, ArrowRight, Loader2, Plus, Settings, Star, Shield, ToggleLeft, ToggleRight, Sliders, X, Upload, MoreHorizontal } from "lucide-react"
 import { useProcessingWizard, type SettingsPreset } from "../WizardContext"
 import { fileManagementAPI } from "@/modules/files"
 import { cn } from "@/shared/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 const parseListValue = (value: string) =>
   value
@@ -540,9 +541,9 @@ export function SettingsStep() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <Label className="text-sm mb-2 block">Settings Preset</Label>
+          <div className="flex items-end gap-2">
+            <div className="flex-1 space-y-2">
+              <Label className="text-sm">Settings Preset</Label>
               <Select value={selectedPreset?.preset_id || "none"} onValueChange={handleSelectPreset}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a preset..." />
@@ -556,35 +557,43 @@ export function SettingsStep() {
                       <div className="flex items-center gap-2">
                         {preset.is_default && <Star className="w-3 h-3 text-amber-500" />}
                         {preset.preset_name}
+                        {preset.preset_id.startsWith("preset_rr_") && (
+                          <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-semibold bg-violet-100 text-violet-700 border border-violet-200 ml-1">RightRev</span>
+                        )}
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2 mt-6">
-              <Button variant="outline" size="sm" onClick={() => setShowNewPresetDialog(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                New Preset
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!selectedPreset || selectedPreset.preset_id === DEFAULT_PRESET.preset_id || isLoading}
-                onClick={handleUpdatePreset}
-              >
-                {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Save Preset
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={!selectedPreset || selectedPreset.preset_id === DEFAULT_PRESET.preset_id || isLoading}
-                onClick={handleDeletePreset}
-              >
-                Delete
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowNewPresetDialog(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Preset
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!selectedPreset || selectedPreset.preset_id === DEFAULT_PRESET.preset_id || isLoading}
+              onClick={handleUpdatePreset}
+            >
+              {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Save Preset
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={!selectedPreset || selectedPreset.preset_id === DEFAULT_PRESET.preset_id || isLoading}>
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={handleDeletePreset}
+                >
+                  Delete Preset
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {error && (
@@ -624,12 +633,12 @@ export function SettingsStep() {
             {editMode ? (
               <div className="space-y-5">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid grid-cols-5 w-full mb-4">
-                    <TabsTrigger value="policies">Policies</TabsTrigger>
-                    <TabsTrigger value="lookups">Lookups</TabsTrigger>
-                    <TabsTrigger value="thresholds">Thresholds</TabsTrigger>
-                    <TabsTrigger value="required">Required</TabsTrigger>
-                    <TabsTrigger value="reference">Reference</TabsTrigger>
+                  <TabsList className="flex w-full gap-1 overflow-x-auto mb-4">
+                    <TabsTrigger value="policies" className="whitespace-nowrap">Policies</TabsTrigger>
+                    <TabsTrigger value="lookups" className="whitespace-nowrap">Lookups</TabsTrigger>
+                    <TabsTrigger value="thresholds" className="whitespace-nowrap">Thresholds</TabsTrigger>
+                    <TabsTrigger value="required" className="whitespace-nowrap">Required</TabsTrigger>
+                    <TabsTrigger value="reference" className="whitespace-nowrap">Reference</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="policies" className="space-y-4">
@@ -939,7 +948,7 @@ export function SettingsStep() {
           Back
         </Button>
         <Button onClick={nextStep}>
-          <ArrowRight className="w-4 h-4" />
+          Next <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     </div>
