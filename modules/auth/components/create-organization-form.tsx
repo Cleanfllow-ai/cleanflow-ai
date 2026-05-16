@@ -21,6 +21,10 @@ export function CreateOrganizationForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
+    // Block the registration form until we've confirmed the user has no org.
+    // Otherwise the form flashes for users who already completed onboarding
+    // and are bounced here by a stale AuthGuard onboardingRequired flag.
+    const [isCheckingMembership, setIsCheckingMembership] = useState(true);
 
     // Flow detection
     const inviteId = searchParams.get("invite_id");
@@ -69,31 +73,63 @@ export function CreateOrganizationForm() {
 
     // If the user already belongs to an org and this is NOT an invite-acceptance
     // flow, skip the org-setup form entirely and route them straight to the
-    // dashboard. This closes the "asked twice" UX bug where users who completed
-    // signup-step-2 (org details) were bounced to this page because AuthGuard
-    // raced ahead of the auto-register, then re-prompted them with the same
-    // fields plus extra ones (GST/PAN, now removed).
+    // dashboard. Closes the "asked twice" UX bug where users who completed
+    // signup-step-2 were bounced to this page because AuthGuard raced ahead of
+    // the auto-register, then re-prompted them with the same fields.
+    //
+    // We BLOCK the registration form from rendering (isCheckingMembership=true)
+    // until this check resolves — otherwise the form flashes for a moment
+    // before the redirect fires, which is what users were reporting.
     useEffect(() => {
-        if (!isAuthenticated || isAuthLoading) return;
-        if (isInviteFlow) return; // invites legitimately use this page
+        if (isAuthLoading) {
+            return; // wait for auth to resolve
+        }
+        if (!isAuthenticated) {
+            // The unauthenticated-redirect useEffect above handles this case;
+            // we can stop "checking" so it can take the lead.
+            setIsCheckingMembership(false);
+            return;
+        }
+        if (isInviteFlow) {
+            // Invites legitimately use this page — show the join button.
+            setIsCheckingMembership(false);
+            return;
+        }
         let cancelled = false;
         (async () => {
             try {
                 const me = await orgAPI.getMe();
-                if (!cancelled && me?.membership?.org_id) {
+                if (cancelled) return;
+                if (me?.membership?.org_id) {
+                    // Update the auth-provider's cached onboardingRequired so
+                    // AuthGuard doesn't bounce us back here on the next render.
+                    try {
+                        await refreshPermissions();
+                    } catch {
+                        // best-effort — proceed to redirect regardless
+                    }
                     router.replace("/dashboard");
+                    return; // leave isCheckingMembership=true; we're navigating away
                 }
             } catch {
-                // No membership yet — fall through to the registration form.
+                // BE returned an error (likely "Organization membership required")
+                // — user has no org yet, fall through to the form.
+            }
+            if (!cancelled) {
+                setIsCheckingMembership(false);
             }
         })();
         return () => {
             cancelled = true;
         };
-    }, [isAuthenticated, isAuthLoading, isInviteFlow, router]);
+    }, [isAuthenticated, isAuthLoading, isInviteFlow, refreshPermissions, router]);
 
     useEffect(() => {
         const autoRegisterFromSignup = async () => {
+            // Wait for the membership check to complete first. If it resolved
+            // with an existing org, the page is in the process of redirecting
+            // away — don't fire a duplicate registerOrg.
+            if (isCheckingMembership) return;
             if (!isAuthenticated || isAuthLoading || isInviteFlow || autoRegisterAttempted.current) return;
             autoRegisterAttempted.current = true;
             const pendingOrgRaw = sessionStorage.getItem("pending_org_details");
@@ -167,7 +203,7 @@ export function CreateOrganizationForm() {
             }
         };
         autoRegisterFromSignup();
-    }, [isAuthenticated, isAuthLoading, isInviteFlow, refreshPermissions, router, toast, user?.email, user?.name]);
+    }, [isAuthenticated, isAuthLoading, isInviteFlow, isCheckingMembership, refreshPermissions, router, toast, user?.email, user?.name]);
 
     const handleAcceptInvite = async () => {
         if (!orgId || !inviteId || !inviteToken) return;
@@ -219,12 +255,14 @@ export function CreateOrganizationForm() {
         }
     };
 
-    if (isAuthLoading) {
+    if (isAuthLoading || isCheckingMembership) {
         return (
             <Card className="w-full max-w-lg mx-auto mt-12">
                 <CardContent className="py-12 flex flex-col items-center justify-center space-y-4">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <p className="text-muted-foreground">Checking authentication...</p>
+                    <p className="text-muted-foreground">
+                        {isAuthLoading ? "Checking authentication..." : "Loading your organization..."}
+                    </p>
                 </CardContent>
             </Card>
         );
