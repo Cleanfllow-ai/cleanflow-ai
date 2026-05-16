@@ -1154,22 +1154,40 @@ export function useOrgSettings() {
             await Promise.all([loadInvites(), loadMembers()]);
             const inviteLink: string = resp?.invite_link || "";
             const emailSent: boolean = !!resp?.email_sent;
+            const emailChannel: string | null = resp?.email_channel ?? null;
+            const emailError: string | null = resp?.email_error ?? null;
             if (inviteLink) {
-                // Surface the shareable link in the dialog (the rendering side
-                // checks lastInviteResult). The toast still confirms the action
-                // happened but is no longer the only feedback channel.
                 setLastInviteResult({
                     email,
                     role: inviteRole,
                     invite_link: inviteLink,
                     email_sent: emailSent,
                 });
-                toast({
-                    title: emailSent ? "Invitation sent" : "Invite created (share link below)",
-                    description: emailSent
-                        ? `An email is on the way to ${email}.`
-                        : "Email delivery isn't available right now — copy the link from the dialog and share it manually.",
-                });
+                // Branch toast copy on the email-delivery channel so admins
+                // see specific guidance for each failure mode.
+                let toastTitle = "Invitation sent";
+                let toastDesc = `An email is on the way to ${email}.`;
+                let toastVariant: "default" | "destructive" = "default";
+                if (emailSent && emailChannel === "cognito_builtin") {
+                    toastDesc = `Cognito sent the invitation email to ${email}. It comes from no-reply@verificationemail.com — ask them to check spam.`;
+                } else if (emailSent && emailChannel === "ses") {
+                    toastDesc = `An invitation email was sent to ${email}.`;
+                } else if (!emailSent && emailChannel === "quota_exceeded") {
+                    toastTitle = "Daily email limit reached";
+                    toastDesc = "Cognito's free email quota for today is exhausted (50/day). Copy the invite link from the dialog and share it directly with the invitee.";
+                    toastVariant = "destructive";
+                } else if (!emailSent && emailChannel === "cognito_unavailable") {
+                    toastTitle = "Email service unavailable";
+                    toastDesc = "We couldn't deliver the invitation email right now. Copy the link below and share it with the invitee.";
+                    toastVariant = "destructive";
+                } else if (!emailSent) {
+                    toastTitle = "Invite created — share link manually";
+                    toastDesc = emailError
+                        ? `Email delivery failed: ${emailError}. Copy the link below and share it manually.`
+                        : "Email delivery isn't available right now — copy the link from the dialog and share it manually.";
+                    toastVariant = "destructive";
+                }
+                toast({ title: toastTitle, description: toastDesc, variant: toastVariant });
             } else {
                 toast({ title: "Invitation sent", description: `An invitation has been sent to ${email} as ${inviteRole}.` });
                 setIsInviteDialogOpen(false);
