@@ -4,7 +4,9 @@
 // link manually even when SES isn't yet configured for the customer's domain.
 const INVITES_ENABLED = true;
 
-import { Building2, Cable, ClipboardCheck, Cog, Copy, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { useState } from "react";
+import { Building2, Cable, Check, ClipboardCheck, Cog, Copy, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { useToast } from "@/shared/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,6 +23,11 @@ import { ConnectorsHub } from "@/modules/connectors/components/connectors-hub";
 
 export function OrganizationSettings() {
   const hookData = useOrgSettings();
+  const { toast } = useToast();
+  // Local UI-only flag flipped on successful clipboard write so the Copy
+  // button shows a "Copied!" affordance for ~2s. Reset when the dialog
+  // closes or another invite is started.
+  const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
 
   return (
     <Tabs value={hookData.activeTab} onValueChange={hookData.setActiveTab} className="space-y-6">
@@ -33,6 +40,7 @@ export function OrganizationSettings() {
             // invite starts on the form view again.
             hookData.setLastInviteResult(null);
             hookData.setInviteEmail("");
+            setInviteLinkCopied(false);
           }
           hookData.setIsInviteDialogOpen(open);
         }}
@@ -74,18 +82,60 @@ export function OrganizationSettings() {
                   />
                   <Button
                     type="button"
-                    variant="outline"
+                    variant={inviteLinkCopied ? "default" : "outline"}
                     onClick={async () => {
+                      const link = hookData.lastInviteResult!.invite_link;
+                      let ok = false;
                       try {
-                        await navigator.clipboard.writeText(hookData.lastInviteResult!.invite_link);
+                        if (navigator?.clipboard?.writeText) {
+                          await navigator.clipboard.writeText(link);
+                          ok = true;
+                        }
                       } catch {
-                        // Older browsers without clipboard API — fall back to selecting the input.
+                        ok = false;
+                      }
+                      // Fallback: use the legacy execCommand path on pages
+                      // not served over HTTPS or where the Clipboard API is
+                      // blocked (e.g. inside iframes without permission).
+                      if (!ok) {
+                        try {
+                          const ta = document.createElement("textarea");
+                          ta.value = link;
+                          ta.style.position = "fixed";
+                          ta.style.left = "-9999px";
+                          document.body.appendChild(ta);
+                          ta.select();
+                          ok = document.execCommand("copy");
+                          document.body.removeChild(ta);
+                        } catch {
+                          ok = false;
+                        }
+                      }
+                      if (ok) {
+                        setInviteLinkCopied(true);
+                        toast({ title: "Link copied to clipboard", description: "Paste it into your messaging app to share." });
+                        window.setTimeout(() => setInviteLinkCopied(false), 2000);
+                      } else {
+                        toast({
+                          title: "Could not copy",
+                          description: "Select the link and copy it manually (Ctrl+C / ⌘C).",
+                          variant: "destructive",
+                        });
                       }
                     }}
-                    className="h-10 px-3 shrink-0"
+                    className="h-10 px-3 shrink-0 transition-colors"
                   >
-                    <Copy className="w-4 h-4 mr-1.5" />
-                    Copy
+                    {inviteLinkCopied ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1.5" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-1.5" />
+                        Copy
+                      </>
+                    )}
                   </Button>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -100,6 +150,7 @@ export function OrganizationSettings() {
                   onClick={() => {
                     hookData.setLastInviteResult(null);
                     hookData.setInviteEmail("");
+                    setInviteLinkCopied(false);
                   }}
                 >
                   Invite another
