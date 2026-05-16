@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/modules/auth";
 import {
@@ -260,8 +261,21 @@ export const getStatusBadgeVariant = (status: string) => {
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────
+// Tabs whose name comes from the Tabs value= attribute in
+// organization-settings.tsx. Used to validate the ?tab= URL param.
+const VALID_TABS = new Set([
+    "organization", "members", "permissions", "services", "connectors", "approvals",
+]);
+
 export function useOrgSettings() {
-    const [activeTab, setActiveTab] = useState("organization");
+    // Honor the ?tab= URL param so OAuth callbacks (and any other deep link)
+    // can land on the connectors tab instead of the default "organization".
+    const searchParams = useSearchParams();
+    const initialTab = (() => {
+        const t = searchParams?.get("tab")
+        return t && VALID_TABS.has(t) ? t : "organization"
+    })()
+    const [activeTab, setActiveTab] = useState(initialTab);
     const { toast } = useToast();
     const { logout, userRole: authUserRole, refreshPermissions } = useAuth();
     const currentUserRole = (authUserRole as AppRole) || "Data Steward";

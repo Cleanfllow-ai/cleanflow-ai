@@ -131,11 +131,23 @@ export default function ConnectorCallbackPage() {
 
     function autoClose(delay: number) {
       setTimeout(() => {
-        if (window.opener) {
-          window.close()
-        } else {
-          router.push("/admin")
-        }
+        // Always TRY to close — browsers permit window.close() on
+        // popups opened by window.open(), even when COOP has severed
+        // the window.opener reference. If close fails we surface a
+        // "you can close this tab" message rather than redirecting
+        // through AuthGuard (which would land on /auth/login since
+        // this popup window has no Cognito session of its own).
+        try { window.close() } catch { /* noop */ }
+        // If the window is still open ~500ms later, we're in a
+        // direct-navigation (non-popup) scenario — only THEN redirect.
+        setTimeout(() => {
+          if (!window.closed) {
+            // Show a permanent "you can close this tab" instead of
+            // redirecting. The parent already got the postMessage and
+            // refreshed its connector status.
+            setMessage("You can close this tab.")
+          }
+        }, 500)
       }, delay)
     }
 
@@ -172,23 +184,19 @@ export default function ConnectorCallbackPage() {
 
   const handleTryAgain = () => {
     // Notify opener so it can re-trigger the OAuth flow, then close.
-    if (window.opener) {
-      window.opener.postMessage(
-        { type: `${provider}-auth-retry`, code: errorCode ?? undefined },
-        window.location.origin,
-      )
-      window.close()
-    } else {
-      router.push("/admin")
-    }
+    try {
+      if (window.opener) {
+        window.opener.postMessage(
+          { type: `${provider}-auth-retry`, code: errorCode ?? undefined },
+          window.location.origin,
+        )
+      }
+    } catch { /* COOP severed opener — best-effort */ }
+    try { window.close() } catch { /* noop */ }
   }
 
   const handleCancel = () => {
-    if (window.opener) {
-      window.close()
-    } else {
-      router.push("/admin")
-    }
+    try { window.close() } catch { /* noop */ }
   }
 
   return (
