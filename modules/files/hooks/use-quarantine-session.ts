@@ -63,6 +63,13 @@ interface SessionState {
   etag: string
   loading: boolean
   compatibilityMode: boolean
+  /**
+   * QE-debug 2026-05-17: surface the most recent init failure so the page can
+   * render a diagnostic overlay (error message + retry button) instead of the
+   * silent "Failed to load quarantine data" dead-end. Cleared on a successful
+   * initialize() call.
+   */
+  error: { message: string; status?: number } | null
 }
 
 export function useQuarantineSession() {
@@ -74,6 +81,7 @@ export function useQuarantineSession() {
     etag: '',
     loading: false,
     compatibilityMode: false,
+    error: null,
   })
 
   const loadVersionsInBackground = useCallback(
@@ -140,6 +148,7 @@ export function useQuarantineSession() {
         etag: 'legacy',
         loading: false,
         compatibilityMode: true,
+        error: null,
       })
 
       if (latestVersion && stableVersion && latestVersion.upload_id !== stableVersion.upload_id) {
@@ -216,6 +225,7 @@ export function useQuarantineSession() {
         etag: sessionResp.session_etag || manifestResp.etag || '',
         loading: false,
         compatibilityMode: false,
+        error: null,
       })
 
       if (latestVersion && stableVersion && latestVersion.upload_id !== stableVersion.upload_id) {
@@ -237,7 +247,7 @@ export function useQuarantineSession() {
 
   const initialize = useCallback(
     async (uploadId: string, authToken: string) => {
-      setState((prev) => ({ ...prev, loading: true }))
+      setState((prev) => ({ ...prev, loading: true, error: null }))
 
       try {
         // Try modern mode first
@@ -254,14 +264,20 @@ export function useQuarantineSession() {
             })
             return legacyResult
           } catch (legacyError: any) {
-            setState((prev) => ({ ...prev, loading: false }))
+            const msg = String(legacyError?.message || 'Unknown error')
+            const status =
+              typeof legacyError?.status === 'number' ? legacyError.status : undefined
+            setState((prev) => ({ ...prev, loading: false, error: { message: msg, status } }))
             toast(toastFromQuarantineError(legacyError, { action: 'initialize quarantine editor' }))
             throw legacyError
           }
         }
 
-        // Other errors
-        setState((prev) => ({ ...prev, loading: false }))
+        // Other errors — record the message so the page can render an
+        // actionable error overlay instead of the silent dead-end.
+        const msg = String(error?.message || 'Unknown error')
+        const status = typeof error?.status === 'number' ? error.status : undefined
+        setState((prev) => ({ ...prev, loading: false, error: { message: msg, status } }))
         toast(toastFromQuarantineError(error, { action: 'initialize quarantine editor' }))
         throw error
       }
@@ -277,6 +293,7 @@ export function useQuarantineSession() {
       etag: '',
       loading: false,
       compatibilityMode: false,
+      error: null,
     })
   }, [])
 

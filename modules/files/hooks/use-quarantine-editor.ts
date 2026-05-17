@@ -233,9 +233,20 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
     }
   }, [file?.upload_id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // QE-debug 2026-05-17: bump this token to force the init effect to re-run
+  // (used by the manual retry button on the error overlay).
+  const [retryToken, setRetryToken] = useState(0)
+  const retry = useCallback(() => setRetryToken((n) => n + 1), [])
+
   // Initialize on open
   useEffect(() => {
     if (!open || !file || !authToken) return
+
+    let cancelled = false
+    // Auto-retry with exponential backoff for transient init failures
+    // (network errors, 5xx, manifest-still-building edge cases). Three
+    // attempts: immediate, +1s, +3s. Stops on success or component unmount.
+    const RETRY_DELAYS_MS = [0, 1000, 3000]
 
     const init = async () => {
       // Reset session/rows fully; only clear pending edits so the savedEditsMap
@@ -247,29 +258,49 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
       setShowLineage(false)
       setDataVersion(0)
 
-      try {
-        // Initialize session
-        const sessionResult = await session.initialize(file.upload_id, authToken)
-
-        // Initialize rows
-        if ('compatibilityMode' in sessionResult && sessionResult.compatibilityMode && 'rows' in sessionResult) {
-          // Compatibility mode: rows already loaded
-          rows.setRows(sessionResult.rows as any)
-        } else if ('session' in sessionResult && sessionResult.session) {
-          // Modern mode: let AG Grid request the first block on demand.
-          startTransition(() => {
-            setDataVersion((prev) => prev + 1)
-          })
+      for (let attempt = 0; attempt < RETRY_DELAYS_MS.length; attempt++) {
+        if (cancelled) return
+        if (RETRY_DELAYS_MS[attempt] > 0) {
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]))
+          if (cancelled) return
         }
-      } catch (error) {
-        // Error already toasted in sub-hooks
-        console.error('Failed to initialize quarantine editor:', error)
+        try {
+          const sessionResult = await session.initialize(file.upload_id, authToken)
+          if (cancelled) return
+
+          // Initialize rows
+          if (
+            'compatibilityMode' in sessionResult &&
+            sessionResult.compatibilityMode &&
+            'rows' in sessionResult
+          ) {
+            // Compatibility mode: rows already loaded
+            rows.setRows(sessionResult.rows as any)
+          } else if ('session' in sessionResult && sessionResult.session) {
+            // Modern mode: let AG Grid request the first block on demand.
+            startTransition(() => {
+              setDataVersion((prev) => prev + 1)
+            })
+          }
+          return // success — stop retrying
+        } catch (error) {
+          // Error already toasted in sub-hooks
+          console.error(
+            `[QuarantineEditor] init attempt ${attempt + 1}/${RETRY_DELAYS_MS.length} failed:`,
+            error,
+          )
+          // Last attempt: leave session.error populated so the overlay renders.
+          if (attempt === RETRY_DELAYS_MS.length - 1) return
+        }
       }
     }
 
     void init()
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, file?.upload_id, authToken])
+  }, [open, file?.upload_id, authToken, retryToken])
 
   useEffect(() => {
     if (!open || !authToken || !activeUploadId) {
@@ -639,6 +670,8 @@ export function useQuarantineEditor({ file, authToken, open = true, filters }: U
     versions: session.versions,
     compatibilityMode: session.compatibilityMode,
     loading: session.loading,
+    initError: session.error,
+    retryInit: retry,
 
     // Data state
     rows: rows.rows,

@@ -27,6 +27,7 @@ import type { GridApi } from 'ag-grid-community'
 import type { QuarantineRow } from '@/modules/files/types'
 import { unlockRow } from '@/modules/files/api/file-quarantine-api'
 import { fileManagementAPI } from '@/modules/files'
+import { AWS_CONFIG } from '@/shared/config/aws-config'
 import { toast } from 'sonner'
 
 interface PageProps {
@@ -194,11 +195,18 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     }
   }, [editor.applyRemoteEdit]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // QE-debug 2026-05-17: open the collaboration WebSocket as soon as we have
+  // credentials, NOT gated by manifest/sessionInfo. The WS protocol uses
+  // `uploadId` only (cell locks + presence broadcast); session_id is never
+  // sent over the wire. Previously, a transient manifest-fetch failure left
+  // `sessionInfo=null` → `enabled=false` → WS never connected, even though
+  // presence + locks would have worked fine. This was the root cause of
+  // QE-01/QE-06/QE-09 showing 0/10 WSConnections registered.
   const collab = useCollaboration({
     uploadId,
     accessToken,
     idToken,
-    enabled: Boolean(editor.sessionInfo),
+    enabled: Boolean(uploadId && accessToken),
     onRemoteCellUpdate: handleRemoteCellUpdate,
   })
 
@@ -610,8 +618,32 @@ export default function QuarantineEditorPage({ params }: PageProps) {
                 )}
               />
             ) : !editor.loading ? (
-              <div className="flex h-full flex-col items-center justify-center gap-4 px-8">
-                <span className="text-sm font-medium text-destructive">Failed to load quarantine data</span>
+              <div
+                role="alert"
+                data-testid="quarantine-load-error"
+                className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center"
+              >
+                <span className="text-sm font-medium text-destructive">
+                  Failed to load quarantine data
+                </span>
+                {editor.initError?.message && (
+                  <span className="max-w-xl text-xs text-muted-foreground break-words">
+                    {editor.initError.status ? `[${editor.initError.status}] ` : ''}
+                    {editor.initError.message}
+                  </span>
+                )}
+                <span className="text-[10px] font-mono text-muted-foreground/70">
+                  API: {AWS_CONFIG.API_BASE_URL || '(unset — Next.js env not baked; restart dev server)'}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => editor.retryInit()}
+                  className="gap-2"
+                >
+                  <Loader2 className="h-3 w-3" />
+                  Retry
+                </Button>
               </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3">
