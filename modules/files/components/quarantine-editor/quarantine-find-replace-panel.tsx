@@ -593,7 +593,7 @@ export function QuarantineFindReplacePanel({
               variant="outline"
               size="sm"
               className="h-7 text-xs flex-1"
-              disabled={totalMatches === 0 || !replaceTerm || replacing}
+              disabled={!searchTerm || !replaceTerm || replacing}
               onClick={handleReplaceAll}
             >
               {replacing ? (
