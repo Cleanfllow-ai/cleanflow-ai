@@ -102,7 +102,7 @@ export function InviteSetPasswordForm() {
           return;
         }
         if (code === "PasswordPolicyError") {
-          setError(err.error ?? err.message ?? "Password does not meet the security policy.");
+          setError(err.message ?? "Password does not meet the security policy.");
           return;
         }
       }
