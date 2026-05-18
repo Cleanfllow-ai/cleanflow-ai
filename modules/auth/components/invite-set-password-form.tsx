@@ -29,12 +29,12 @@ export function InviteSetPasswordForm() {
 
   const isLinkValid = Boolean(orgId && inviteId && token && email);
 
-  // Inline password strength validation (mirrors backend PasswordPolicyError)
+  // Inline password strength validation (mirrors backend PasswordPolicyError / Cognito policy)
   const passwordStrengthError = (() => {
     if (!password) return "";
-    if (password.length < 8) return "Password must be 8+ chars with letters and numbers.";
-    if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password))
-      return "Password must be 8+ chars with letters and numbers.";
+    if (password.length < 12) return "Password must be at least 12 characters and include upper, lower, and digit.";
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password))
+      return "Password must be at least 12 characters and include upper, lower, and digit.";
     return "";
   })();
 
@@ -102,7 +102,7 @@ export function InviteSetPasswordForm() {
           return;
         }
         if (code === "PasswordPolicyError") {
-          setError("Password must be 8+ chars with letters and numbers.");
+          setError(err.error ?? err.message ?? "Password does not meet the security policy.");
           return;
         }
       }

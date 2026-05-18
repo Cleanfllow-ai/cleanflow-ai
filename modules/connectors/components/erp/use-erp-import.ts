@@ -408,10 +408,28 @@ export function useERPImport({
       onNotification?.(`Successfully imported ${result.records_imported || 0} records!`, "success")
       if (result.upload_id) onImportComplete?.(result.upload_id)
     } catch (err) {
-      console.error("[Connectors:importFromProvider]", err)
-      setError(`Could not import from ${providerDisplayName}. Please try again.`)
+      let userMessage: string
+      if (err instanceof ApiError) {
+        const desc = mapErrorToToast(err)
+        const parts = [desc.title, desc.description].filter(
+          (s) => !!s && s !== "Error",
+        )
+        const joined = parts.join(" — ")
+        userMessage = desc.action
+          ? `${joined} (Click ${desc.action.label} on the connectors page)`
+          : joined || `Could not import from ${providerDisplayName}. Please try again.`
+      } else {
+        console.error("[Connectors:importFromProvider]", err)
+        const errorMsg = (err as Error).message || ""
+        if (errorMsg.toLowerCase().includes("connection")) {
+          userMessage = `Please sign in again to ${providerDisplayName}.`
+        } else {
+          userMessage = errorMsg || `Could not import from ${providerDisplayName}. Please try again.`
+        }
+      }
+      setError(userMessage)
       if (!notifyPermissionDenied(err)) {
-        onNotification?.(`Could not import from ${providerDisplayName}. Please try again.`, "error")
+        onNotification?.(userMessage, "error")
       }
     } finally {
       setIsImporting(false)
