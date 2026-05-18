@@ -42,6 +42,8 @@ export type FileStatus =
   | 'IMPORT_FAILED'
   | 'OPTIMIZING'
   | 'OPTIMIZE_FAILED'
+  | 'AUG_RUNNING'
+  | 'AUG_FAILED'
 
 export interface FileStatusResponse {
   upload_id: string
@@ -136,6 +138,11 @@ export interface FileStatusResponse {
   // produced by an augmentation versus which ones came from the upload.
   s3_augmented_key?: string | null
   augmented_columns?: string[]
+  // ── Augmentation failure reason (RC-1, 2026-05-18) ───────────────────────
+  // Populated by the augmentation pipeline when aug processing fails.
+  // Prefer this over ``failure_reason`` when both are present — it is more
+  // specific (captures the aug-stage error rather than a generic DQ failure).
+  aug_error?: string | null
 }
 
 export interface FileListResponse {

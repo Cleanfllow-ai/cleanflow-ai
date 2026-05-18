@@ -107,6 +107,18 @@ export function ProcessStep({
           } else if (["DQ_RUNNING", "VALIDATED"].includes(fileStatus)) {
             setProgress((prev) => Math.min(prev + 5, 92))
             setStatusMessage("Running data quality checks...")
+          } else if (fileStatus === "AUG_RUNNING") {
+            setProgress((prev) => Math.min(prev + 3, 88))
+            setStatusMessage("Running augmentations...")
+          } else if (fileStatus === "AUG_FAILED") {
+            setStatus("error")
+            const detail = (resp as any).aug_error
+              || (resp as any).aug_fail_reason
+              || (resp as any).error_message
+              || (resp as any).failure_reason
+              || ""
+            setProcessingError(detail ? `Augmentation failed: ${detail}` : "Augmentation step failed")
+            if (interval) clearInterval(interval)
           }
         } catch (err) {
           // 401/403 are terminal — stop polling so we don't spin forever on
@@ -231,10 +243,9 @@ export function ProcessStep({
       // Notify parent so it refreshes the file list — without this the
       // catalog row remains stuck on UPLOADED until the next manual refresh.
       if (onStarted) onStarted()
-      // Auto-close dialog 3 seconds after processing kicks off
-      setTimeout(() => {
-        if (onComplete) onComplete()
-      }, 3000)
+      // Do NOT close here — let the polling loop decide when to close based
+      // on terminal status (DQ_FIXED → auto-close after 3s; DQ_FAILED/FAILED
+      // → show error block and wait for explicit user Close).
     } catch (err: unknown) {
       // Backend rejects a second start while the prior run is still pending —
       // that's not a failure, the pipeline is already working. Notify parent
@@ -354,10 +365,15 @@ export function ProcessStep({
                 {processingError || "Processing failed or timed out. Please retry."}
               </p>
             </div>
-            <Button size="lg" variant="outline" onClick={handleRetry}>
-              <RotateCw className="w-4 h-4 mr-2" />
-              Retry
-            </Button>
+            <div className="flex items-center justify-center gap-3">
+              <Button size="lg" variant="outline" onClick={handleRetry}>
+                <RotateCw className="w-4 h-4 mr-2" />
+                Retry
+              </Button>
+              <Button size="lg" variant="ghost" onClick={() => { if (onComplete) onComplete() }}>
+                Close
+              </Button>
+            </div>
           </div>
         )}
       </div>

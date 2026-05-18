@@ -11,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -34,6 +35,22 @@ export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
           partialCompletion={file.partial_completion === true}
           failedShards={file.failed_shards}
         />
+
+        {/* RC-3: aug_error banner — prefer aug_error over failure_reason when
+            present because it is stage-specific. Renders nothing when absent
+            so DQ_FIXED uploads are unaffected. */}
+        {(file.aug_error || (file.status === "AUG_FAILED" && file.failure_reason)) && (
+          <Alert
+            data-testid="aug-error-banner"
+            className="border-red-300 bg-red-50 text-red-900 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200 [&>svg]:text-red-600 dark:[&>svg]:text-red-400"
+          >
+            <XCircle className="h-4 w-4" />
+            <AlertTitle className="font-semibold">Augmentation failed</AlertTitle>
+            <AlertDescription className="text-red-900/90 dark:text-red-200/90">
+              {file.aug_error || file.failure_reason}
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-muted/50 p-4 rounded-lg">
