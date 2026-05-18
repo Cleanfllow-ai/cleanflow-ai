@@ -74,6 +74,28 @@ export function FileDqReportTab({
 
         {!dqReportLoading && !dqReportError && (
           <>
+            {/* Bug 6 follow-up: overfire banner — shown when rules were flagged
+                but not quarantined because they hit >50% of rows */}
+            {(dqReport?.overfire_rules?.length ?? 0) > 0 && (
+              <div className="flex items-start gap-3 rounded-md border border-amber-400 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-600 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
+                <div>
+                  <span className="font-medium">
+                    {dqReport!.overfire_rules!.reduce((sum, r) => sum + r.count, 0).toLocaleString()} row
+                    {dqReport!.overfire_rules!.reduce((sum, r) => sum + r.count, 0) !== 1 ? "s" : ""} flagged for review without quarantining
+                  </span>
+                  {" — "}rule{dqReport!.overfire_rules!.length !== 1 ? "s" : ""} fired on a majority of rows (likely a policy mismatch, not a data error). Review the rule configuration.
+                  {" Rules: "}
+                  {dqReport!.overfire_rules!.map((r, i) => (
+                    <span key={r.rule_id}>
+                      {i > 0 && ", "}
+                      <strong>{r.rule_id}</strong>{" "}({r.short_label}, {Math.round(r.hit_rate * 100)}% hit rate, {r.count.toLocaleString()} rows)
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end">
               <Button
                 onClick={openMatrixDialog}

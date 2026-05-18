@@ -57,6 +57,18 @@ export interface DqReportResponse {
         target?: string | null
         message?: string
     }>
+    /**
+     * Bug 6 follow-up: rules that fired on >50% of non-null rows and were
+     * downgraded from "quarantined" to "flagged" (overfire guard).
+     * Absent or empty array on older reports — FE must handle both.
+     */
+    overfire_rules?: Array<{
+        rule_id: string
+        short_label: string
+        count: number
+        hit_rate: number
+        reason: string
+    }>
 }
 
 export interface HybridSummary {
