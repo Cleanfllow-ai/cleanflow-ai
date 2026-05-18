@@ -92,6 +92,10 @@ export interface TopIssue {
     violation: string
     count: number
     short_label?: string  // business-friendly chip label from BE registry
+    description?: string  // long-form (<= 140 chars) sentence used for the FE
+                          // hover/tooltip on the Top DQ Issues dashboard chip.
+                          // Source: rule_business_messages.RULE_DESCRIPTIONS
+                          // (built-ins R1..R39) or LLM-emitted for CUST_* rules.
 }
 
 export interface MonthlyDqStats {

@@ -43,6 +43,11 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
       id: idx + 1,
       name: issue.short_label || issue.violation.replace(/_/g, " "),
       code: issue.short_label && issue.short_label !== issue.violation ? issue.violation : null,
+      // Long-form sentence used as the native `title` (browser tooltip) so
+      // users can hover over a chip to see the full rule semantics without
+      // leaving the dashboard. Fall back to the short label when the BE
+      // didn't supply a description (legacy data / custom rules pre-2026-05-18).
+      description: issue.description || issue.short_label || issue.violation,
       count: issue.count,
       color: COLORS[idx % COLORS.length],
       barColor: BAR_COLORS[idx % BAR_COLORS.length],
@@ -118,7 +123,12 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
         ) : (
           <div className="space-y-2.5">
             {issuesWithPct.map((issue, index) => (
-              <div key={issue.id} className="flex items-center gap-2.5">
+              <div
+                key={issue.id}
+                className="flex items-center gap-2.5"
+                title={issue.description}
+                data-testid="top-issue-row"
+              >
                 <span className={cn(
                   "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0",
                   issue.color
@@ -128,7 +138,10 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <div className="min-w-0 flex flex-col">
-                      <span className="text-xs font-medium text-foreground truncate">
+                      <span
+                        className="text-xs font-medium text-foreground truncate"
+                        data-testid="top-issue-label"
+                      >
                         {issue.name}
                       </span>
                       {issue.code && (

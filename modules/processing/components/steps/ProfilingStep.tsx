@@ -87,13 +87,17 @@ export function ProfilingStep() {
         setLoading(false)
       } else {
         // Backend may still be computing (LLM calls for many columns).
-        // Poll every 2s until profiles arrive, up to 10 minutes.
+        // Poll every 2s until profiles arrive, up to ~2 minutes.
+        // RC-K (2026-05-18, W1 v12 C08): cap retries at 60 (2 min) so the
+        // wizard doesn't hang forever when the BE silently returns empty
+        // (e.g. malformed fixture columns).  Next is no longer gated on
+        // hasProfiles so the user can still proceed once loading clears.
         setLoading(true)
         let attempts = 0
         const poll = async () => {
           attempts++
-          if (attempts > 300) { // 300 × 2s = 10 min
-            setError("Profiling is taking too long. Click Refresh to retry.")
+          if (attempts > 60) {  // 60 × 2s = 2 min
+            setError("Profiling preview unavailable — you can proceed without it.")
             setLoading(false)
             return
           }
@@ -170,7 +174,15 @@ export function ProfilingStep() {
   }
 
   const hasProfiles = Object.keys(columnProfiles).length > 0
-  const canProceed = selectedColumns.length > 0 && hasProfiles && !loading
+  // RC-K (2026-05-18, W1 v12 C08): allow the user to proceed even if
+  // profiling is still in-flight or returned no data after the first call.
+  // Previously, fixtures with intentionally-malformed values (C08's
+  // invoice_id: INVOICE-..., INV-202613-...) caused the polling loop to
+  // never resolve, leaving Next disabled indefinitely.  The wizard's
+  // SettingsStep + RulesStep + processing path do NOT depend on
+  // columnProfiles, so gating Next on `hasProfiles` is overly strict.
+  // We still BLOCK on `selectedColumns.length > 0` (the genuine pre-cond).
+  const canProceed = selectedColumns.length > 0
 
   return (
     <div className="flex flex-col h-full p-6">

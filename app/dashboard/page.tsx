@@ -28,9 +28,18 @@ const toNumericCount = (value: unknown): number => {
   return 0
 }
 
+/**
+ * IssueAccumulator preserves the BE-supplied `short_label` and `description`
+ * alongside the rolling count. Without this, the FE would discard the
+ * business-friendly chip + tooltip text and the dashboard would fall back to
+ * raw rule codes (R36, R19, …) — see top-issues-chart.tsx line 44-45 which
+ * only renders short_label when present.
+ */
+type IssueAccumulator = { count: number; short_label?: string; description?: string }
+
 const normalizeTopIssues = (raw: unknown): TopIssue[] => {
   if (!Array.isArray(raw)) return []
-  const merged = new Map<string, number>()
+  const merged = new Map<string, IssueAccumulator>()
   for (const item of raw) {
     if (!item || typeof item !== "object") continue
     const issue = item as Record<string, unknown>
@@ -42,10 +51,24 @@ const normalizeTopIssues = (raw: unknown): TopIssue[] => {
       ""
     const count = toNumericCount(issue.count ?? issue.total ?? issue.occurrences ?? issue.value)
     if (!violation || count <= 0) continue
-    merged.set(violation, (merged.get(violation) || 0) + count)
+    const shortLabel = typeof issue.short_label === "string" ? issue.short_label : undefined
+    const description = typeof issue.description === "string" ? issue.description : undefined
+    const prev = merged.get(violation)
+    merged.set(violation, {
+      count: (prev?.count || 0) + count,
+      // First-wins: BE labels are deterministic per rule_id; we only keep
+      // the first non-empty value rather than risk overwriting with "".
+      short_label: prev?.short_label || shortLabel,
+      description: prev?.description || description,
+    })
   }
   return Array.from(merged.entries())
-    .map(([violation, count]) => ({ violation, count }))
+    .map(([violation, acc]) => ({
+      violation,
+      count: acc.count,
+      short_label: acc.short_label,
+      description: acc.description,
+    }))
     .sort((a, b) => b.count - a.count)
 }
 
@@ -57,10 +80,15 @@ const normalizeViolationCounts = (raw: unknown): TopIssue[] => {
     .sort((a, b) => b.count - a.count)
 }
 
-const mergeIssues = (bucket: Map<string, number>, issues: TopIssue[]) => {
+const mergeIssues = (bucket: Map<string, IssueAccumulator>, issues: TopIssue[]) => {
   for (const issue of issues) {
     if (!issue.violation || issue.count <= 0) continue
-    bucket.set(issue.violation, (bucket.get(issue.violation) || 0) + issue.count)
+    const prev = bucket.get(issue.violation)
+    bucket.set(issue.violation, {
+      count: (prev?.count || 0) + issue.count,
+      short_label: prev?.short_label || issue.short_label,
+      description: prev?.description || issue.description,
+    })
   }
 }
 
@@ -116,7 +144,7 @@ export default function DashboardPage() {
         setOverallError(null)
         return
       }
-      const merged = new Map<string, number>()
+      const merged = new Map<string, IssueAccumulator>()
       const months = Object.values(overall?.months || {})
       mergeIssues(merged, normalizeTopIssues((overall as any).top_issues))
       mergeIssues(merged, normalizeTopIssues((overall as any).top_violations))
@@ -128,7 +156,12 @@ export default function DashboardPage() {
       }
       setTopIssues(
         Array.from(merged.entries())
-          .map(([violation, count]) => ({ violation, count }))
+          .map(([violation, acc]) => ({
+            violation,
+            count: acc.count,
+            short_label: acc.short_label,
+            description: acc.description,
+          }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 5),
       )
