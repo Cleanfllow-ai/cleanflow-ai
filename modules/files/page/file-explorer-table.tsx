@@ -836,7 +836,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                {/* Export button */}
+                                                {/* Export — icon button (a11y target + compact viewports) */}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
@@ -856,6 +856,29 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                     </TooltipTrigger>
                                                     <TooltipContent>{isProcessed ? "Export" : "Available after processing"}</TooltipContent>
                                                 </Tooltip>
+                                                {/* Export — visible "Download" text button (Bug 1 fix: discoverability).
+                                                    Same handler as the icon button above. Hidden on narrow screens to avoid row overflow;
+                                                    icon button remains tappable on mobile. aria-hidden because the icon button already
+                                                    exposes the action to screen readers — this is purely visual reinforcement. */}
+                                                {isProcessed && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="hidden md:inline-flex h-8 gap-1.5 px-2.5 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                                                        disabled={downloading === file.upload_id}
+                                                        onClick={() => openActionsDialog(file)}
+                                                        data-testid="export-download-text-button"
+                                                        aria-hidden="true"
+                                                        tabIndex={-1}
+                                                    >
+                                                        {downloading === file.upload_id ? (
+                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        ) : (
+                                                            <Upload className="h-3.5 w-3.5" />
+                                                        )}
+                                                        Download
+                                                    </Button>
+                                                )}
                                                 {/* Delete (terminal states only) */}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
