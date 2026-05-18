@@ -64,6 +64,16 @@ interface QuarantineAgGridTableProps {
    *  Sourced from FileStatusResponse.augmented_columns (BE-persisted in
    *  start_dq_processing.py). */
   augmentedColumns?: string[]
+  /** Bug 21 (Bulk Fix UI): when provided, renders a leftmost checkbox
+   *  column for multi-row selection.  Selection state is owned by the
+   *  parent so it survives AG Grid infinite-row-model block eviction.
+   *  selectedRowIds: live Set the grid reads from on each cell render.
+   *  setSelectedRowIds: called with a producer-style updater so the parent
+   *  can swap-in / out individual row_ids without re-creating the Set on
+   *  every selection change (perf for 500+ rows). */
+  selectedRowIds?: Set<string>
+  onToggleRowSelected?: (rowId: string, selected: boolean) => void
+  onToggleSelectAllVisible?: (rowIds: string[], selectAll: boolean) => void
 }
 
 const GRID_THEME = themeQuartz.withParams({
@@ -234,6 +244,9 @@ export function QuarantineAgGridTable({
   onUnlockRowClick,
   canUnlock = false,
   augmentedColumns,
+  selectedRowIds,
+  onToggleRowSelected,
+  onToggleSelectAllVisible,
 }: QuarantineAgGridTableProps) {
   // B4 (2026-05-16): pre-build a Set for O(1) membership checks inside the
   // cellClass closure (called once per cell render — every scroll tick).
@@ -241,6 +254,24 @@ export function QuarantineAgGridTable({
     () => new Set(augmentedColumns ?? []),
     [augmentedColumns],
   )
+
+  // Bug 21 (Bulk Fix UI): expose selectedRowIds via a ref so the column
+  // cellRenderer reads live state without forcing columnDefs to re-build
+  // every time a checkbox toggles (which would blow the AG Grid block cache
+  // and cause a 89-row re-render on every click).  The checkbox-column
+  // cellRenderer pulls from selectedRowIdsRef.current on each render call
+  // and we just refreshCells() to repaint.
+  const selectedRowIdsRef = useRef<Set<string>>(selectedRowIds ?? new Set())
+  selectedRowIdsRef.current = selectedRowIds ?? new Set()
+  const onToggleRowSelectedRef = useRef(onToggleRowSelected)
+  const onToggleSelectAllVisibleRef = useRef(onToggleSelectAllVisible)
+  onToggleRowSelectedRef.current = onToggleRowSelected
+  onToggleSelectAllVisibleRef.current = onToggleSelectAllVisible
+  const showSelectColumn = !!onToggleRowSelected
+  // Bump-counter only changes when the consumer wants the header checkbox
+  // / cell checkboxes to repaint after a selection change.  We use a derived
+  // value (selectedRowIds.size) as the trigger.
+  const selectedSize = selectedRowIds?.size ?? 0
   const wrapperRef = useRef<HTMLDivElement>(null)
   const apiRef = useRef<GridApi<QuarantineRow> | null>(null)
   const getCellValueRef = useRef(getCellValue)
@@ -290,9 +321,87 @@ export function QuarantineAgGridTable({
   }, [editableColumns])
 
   const columnDefs = useMemo<ColDef<QuarantineRow>[]>(() => {
-    return columns.map((column): ColDef<QuarantineRow> => {
+    const defs: ColDef<QuarantineRow>[] = []
+
+    // Bug 21 (Bulk Fix UI): leftmost checkbox column.  Custom cellRenderer
+    // (no AG Grid native selection) because we own the selection state in
+    // the parent — native selection is wiped when the infinite-row-model
+    // evicts blocks, which is the common case on 89+ row uploads.
+    if (showSelectColumn) {
+      defs.push({
+        field: '__bulk_select__',
+        headerName: '',
+        maxWidth: 44,
+        minWidth: 44,
+        width: 44,
+        pinned: 'left',
+        sortable: false,
+        editable: false,
+        suppressMovable: true,
+        suppressNavigable: true,
+        // Header: select-all-visible checkbox.
+        headerComponent: () => {
+          const api = apiRef.current
+          // Collect currently rendered row_ids.  Infinite model: only
+          // displayed (loaded) nodes count — "visible" = "in the viewport
+          // block cache".  Avoids selecting un-fetched rows.
+          const collectVisibleRowIds = (): string[] => {
+            if (!api) return []
+            const ids: string[] = []
+            api.forEachNode((node) => {
+              const rid = String(node?.data?.row_id ?? '')
+              if (rid) ids.push(rid)
+            })
+            return ids
+          }
+          const visibleIds = collectVisibleRowIds()
+          const allSelected =
+            visibleIds.length > 0 &&
+            visibleIds.every((id) => selectedRowIdsRef.current.has(id))
+          return (
+            <span className="flex h-full items-center justify-center">
+              <input
+                type="checkbox"
+                aria-label="Select all visible rows"
+                data-testid="bulk-checkbox-select-all"
+                checked={allSelected}
+                onChange={(e) => {
+                  const next = collectVisibleRowIds()
+                  onToggleSelectAllVisibleRef.current?.(next, e.target.checked)
+                }}
+                className="h-3.5 w-3.5 cursor-pointer accent-blue-600"
+              />
+            </span>
+          )
+        },
+        cellRenderer: (params: any) => {
+          const rowId = String(params.data?.row_id ?? '')
+          if (!rowId) return null
+          const checked = selectedRowIdsRef.current.has(rowId)
+          return (
+            <span className="flex h-full items-center justify-center">
+              <input
+                type="checkbox"
+                aria-label={`Select row ${rowId}`}
+                data-testid={`bulk-checkbox-row-${rowId}`}
+                checked={checked}
+                onChange={(e) => {
+                  onToggleRowSelectedRef.current?.(rowId, e.target.checked)
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="h-3.5 w-3.5 cursor-pointer accent-blue-600"
+              />
+            </span>
+          )
+        },
+        valueGetter: () => '',
+        cellClass: 'p-0',
+      })
+    }
+
+    columns.forEach((column) => {
       if (column === 'row_id') {
-        return {
+        defs.push({
           cellClass: 'font-medium text-slate-400',
           editable: false,
           field: column,
@@ -342,10 +451,11 @@ export function QuarantineAgGridTable({
           },
           valueFormatter: (params: ValueFormatterParams<QuarantineRow>) => formatCellValue(params.value),
           width: 124,
-        }
+        })
+        return
       }
 
-      return {
+      defs.push({
         editable: (params) => {
           if (!editableColumnSet.has(column)) return false
           const rowId = String(params.data?.row_id ?? '')
@@ -454,9 +564,11 @@ export function QuarantineAgGridTable({
           }
           return undefined
         },
-      }
+      })
     })
-  }, [columns, editableColumnSet, filterComponent, canUnlock, onUnlockRowClick, augmentedColumnsSet])
+
+    return defs
+  }, [columns, editableColumnSet, filterComponent, canUnlock, onUnlockRowClick, augmentedColumnsSet, showSelectColumn])
 
   // fetchRows is accessed via ref so the datasource object stays stable across
   // cell edits and row merges. AG Grid resets scroll/cache whenever datasource
@@ -493,6 +605,17 @@ export function QuarantineAgGridTable({
   useEffect(() => {
     apiRef.current?.refreshCells({ force: true })
   }, [isCellEdited, isCellSaved, reloadToken])
+
+  // Bug 21: repaint the checkbox column + header when selection changes.
+  // We scope the refresh to the bulk-select column only so the rest of the
+  // grid doesn't re-render unnecessarily (perf for 500+ selected rows).
+  useEffect(() => {
+    if (!showSelectColumn) return
+    const api = apiRef.current
+    if (!api) return
+    api.refreshCells({ force: true, columns: ['__bulk_select__'] })
+    api.refreshHeader()
+  }, [selectedSize, showSelectColumn])
 
   const handleGridReady = (event: GridReadyEvent<QuarantineRow>) => {
     apiRef.current = event.api

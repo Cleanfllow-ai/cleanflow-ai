@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ClipboardCheck, Loader2, Play, Check, Save, Search, Shield, Users, Clock, X, GitCompare } from 'lucide-react'
+import { ClipboardCheck, Loader2, Play, Check, Save, Search, Shield, Users, Clock, X, GitCompare, CheckSquare, Wand2 } from 'lucide-react'
 import type { QuarantineSession } from '@/modules/files/types'
 import type { CollaborationUser } from '@/modules/files/types'
 import type { ApprovalStatus } from '@/modules/auth/api/org-api'
@@ -37,6 +37,14 @@ interface QuarantineEditorToolbarProps {
   collabUsers?: CollaborationUser[]
   collabPanelOpen?: boolean
   onToggleCollabPanel?: () => void
+  /** Bug 21 (Bulk Fix UI): count of currently-selected rows.  When > 0
+   *  the bulk-actions sub-toolbar is rendered.  Owned by the parent so
+   *  the page can drive a server-side batch edit + close the dialog. */
+  bulkSelectedCount?: number
+  onBulkApplyValue?: () => void
+  onBulkMarkFixed?: () => void
+  onBulkClearSelection?: () => void
+  bulkApplying?: boolean
 }
 
 export function QuarantineEditorToolbar({
@@ -60,6 +68,11 @@ export function QuarantineEditorToolbar({
   collabUsers,
   collabPanelOpen,
   onToggleCollabPanel,
+  bulkSelectedCount = 0,
+  onBulkApplyValue,
+  onBulkMarkFixed,
+  onBulkClearSelection,
+  bulkApplying = false,
 }: QuarantineEditorToolbarProps) {
   const [showSaved, setShowSaved] = useState(false)
   const isSuperAdmin = currentUserRole === 'Super Admin'
@@ -241,6 +254,64 @@ export function QuarantineEditorToolbar({
           )}
         </div>
       </div>
+
+      {/* Bug 21: Bulk Actions sub-toolbar — renders only when at least one
+          row is selected via the leftmost checkbox column.  Uses the same
+          button styling as Find & Replace / Compare so it visually matches
+          the existing toolbar.  Wired up by the page component. */}
+      {bulkSelectedCount > 0 && (
+        <div
+          data-testid="bulk-actions-toolbar"
+          className="mt-2 flex items-center gap-2 rounded border border-blue-200 bg-blue-50 px-3 py-1.5"
+        >
+          <CheckSquare className="h-3.5 w-3.5 text-blue-600" />
+          <span
+            data-testid="bulk-actions-selected-count"
+            className="text-xs font-medium text-blue-800"
+          >
+            {bulkSelectedCount.toLocaleString()} row{bulkSelectedCount === 1 ? '' : 's'} selected
+          </span>
+          <div className="ml-2 flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onBulkApplyValue}
+              disabled={bulkApplying || !onBulkApplyValue}
+              data-testid="bulk-apply-value-button"
+              className="h-7 text-xs font-medium px-3"
+            >
+              {bulkApplying ? (
+                <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+              ) : (
+                <Wand2 className="w-3 h-3 mr-1.5" />
+              )}
+              Apply value to all
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBulkMarkFixed}
+              disabled={bulkApplying || !onBulkMarkFixed}
+              data-testid="bulk-mark-fixed-button"
+              className="h-7 text-xs font-medium px-3"
+            >
+              <Check className="w-3 h-3 mr-1.5" />
+              Mark as fixed
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBulkClearSelection}
+              disabled={bulkApplying}
+              data-testid="bulk-clear-selection-button"
+              className="h-7 text-xs font-medium px-3"
+            >
+              <X className="w-3 h-3 mr-1.5" />
+              Clear selection
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Instructions */}
       <p className="mt-1.5 mb-0.5 text-[10.5px] text-muted-foreground flex items-center gap-1.5">

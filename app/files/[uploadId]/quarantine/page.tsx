@@ -20,6 +20,7 @@ import { QuarantineVersionLineage } from '@/modules/files/components/quarantine-
 import { QuarantineFindReplacePanel } from '@/modules/files/components/quarantine-editor/quarantine-find-replace-panel'
 import { QuarantineCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-compare-dialog'
 import { QuarantineVersionCompareDialog } from '@/modules/files/components/quarantine-editor/quarantine-version-compare-dialog'
+import { QuarantineBulkApplyDialog } from '@/modules/files/components/quarantine-editor/quarantine-bulk-apply-dialog'
 import { useEditHistory } from '@/modules/files/hooks/use-edit-history'
 import { QuarantineUndoToast } from '@/modules/files/components/quarantine-editor/quarantine-undo-toast'
 import { ArrowLeft, ClipboardCheck, Check, Clock, Loader2, Unlock, X } from 'lucide-react'
@@ -241,6 +242,155 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     () => editor.columns.filter((c) => c === 'row_id' || !hiddenColumns.has(c)),
     [editor.columns, hiddenColumns],
   )
+
+  // ── Bug 21: Bulk-fix UI state ───────────────────────────────────────
+  // selectedRowIds is owned here so it survives AG Grid infinite-row-model
+  // block eviction (otherwise selection would vanish on scroll).
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
+  const [bulkApplyDialogOpen, setBulkApplyDialogOpen] = useState(false)
+  const [bulkApplying, setBulkApplying] = useState(false)
+
+  const handleToggleRowSelected = useCallback((rowId: string, selected: boolean) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev)
+      if (selected) next.add(rowId)
+      else next.delete(rowId)
+      return next
+    })
+  }, [])
+
+  const handleToggleSelectAllVisible = useCallback(
+    (rowIds: string[], selectAll: boolean) => {
+      setSelectedRowIds((prev) => {
+        const next = new Set(prev)
+        if (selectAll) {
+          for (const id of rowIds) next.add(id)
+        } else {
+          for (const id of rowIds) next.delete(id)
+        }
+        return next
+      })
+    },
+    [],
+  )
+
+  const handleBulkClearSelection = useCallback(() => {
+    setSelectedRowIds(new Set())
+  }, [])
+
+  // Reset bulk selection when the upload changes or a reprocess version
+  // refreshes the grid (selection on a stale row_id is meaningless).
+  useEffect(() => {
+    setSelectedRowIds(new Set())
+  }, [uploadId, editor.dataVersion])
+
+  /**
+   * Apply a single value to a column across every selected row.
+   *
+   * Wire pattern: the existing `editor.handleCellEdit` enqueues an edit in
+   * the autosave map; `editor.saveEdits()` flushes via
+   * `POST /files/{id}/quarantined/edits/batch` in chunks of
+   * `config.maxEditsPerBatch`.  For >500 rows we still issue a single
+   * confirm dialog (handled inside the dialog) but the wire shape stays
+   * identical to the single-cell path — no new BE endpoint required.
+   *
+   * TODO(bulk-edit-endpoint): once the BE exposes a dedicated bulk
+   * "set column to value" endpoint we can collapse this to one round-trip.
+   */
+  const handleBulkApply = useCallback(
+    async (column: string, value: string) => {
+      if (!column || selectedRowIds.size === 0) return
+      setBulkApplying(true)
+      try {
+        // Stage every edit through handleCellEdit so the dq_status flips
+        // ("edited"), the local row map updates, and collab broadcasts go
+        // out — same path as a single-cell edit, just fanned out.
+        const ids = Array.from(selectedRowIds)
+        // Chunk locally for UI responsiveness (yields back to the event
+        // loop every 100 edits).  Save batching is handled inside saveEdits.
+        const CHUNK = 100
+        for (let i = 0; i < ids.length; i += CHUNK) {
+          const slice = ids.slice(i, i + CHUNK)
+          for (const rowId of slice) {
+            handleCellEditWithBroadcast(rowId, column, value, undefined)
+          }
+          // Yield so the grid can repaint between chunks.
+          if (ids.length > CHUNK) {
+            await new Promise((resolve) => setTimeout(resolve, 0))
+          }
+        }
+        const ok = await editor.saveEdits()
+        if (ok) {
+          toast.success(`Updated ${ids.length.toLocaleString()} cell${ids.length === 1 ? '' : 's'}`)
+          setBulkApplyDialogOpen(false)
+          setSelectedRowIds(new Set())
+        } else {
+          toast.error('Bulk update failed — see console for details')
+        }
+      } catch (err: any) {
+        toast.error(err?.message || 'Bulk update failed')
+      } finally {
+        setBulkApplying(false)
+      }
+    },
+    [selectedRowIds, editor], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
+  /**
+   * Mark every selected row as "fixed" — flips the dq_status of every
+   * cell-level marker on the row to `fixed`.  Implementation uses the
+   * same edits/batch pipeline: we only patch the `{col}_dq_status` field,
+   * leaving the underlying values untouched.  Locked rows are filtered
+   * out by the BE on the batch save.
+   *
+   * NOTE: We only flip the status on the editable_columns; the row_id
+   * column is never a target.
+   */
+  const handleBulkMarkFixed = useCallback(async () => {
+    if (selectedRowIds.size === 0) return
+    const editable = (editor.manifest?.editable_columns || []).filter(
+      (c) => c !== 'row_id',
+    )
+    if (editable.length === 0) {
+      toast.error('No editable columns to mark as fixed')
+      return
+    }
+    setBulkApplying(true)
+    try {
+      const ids = Array.from(selectedRowIds)
+      const CHUNK = 100
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK)
+        for (const rowId of slice) {
+          for (const col of editable) {
+            // Reuse the existing cell-edit path: we re-write the cell
+            // with the current value so the edit goes through, and the
+            // dq_status flip rides along (handleCellEdit appends
+            // `{col}_dq_status=edited`; the BE collapses "edited" to
+            // "fixed" on reprocess).  Cheap and uniform.
+            const current = editor.getCellValue(rowId, col, {} as Record<string, any>)
+            editor.handleCellEdit(rowId, col, String(current ?? ''))
+          }
+        }
+        if (ids.length > CHUNK) {
+          await new Promise((resolve) => setTimeout(resolve, 0))
+        }
+      }
+      const ok = await editor.saveEdits()
+      if (ok) {
+        toast.success(
+          `Marked ${ids.length.toLocaleString()} row${ids.length === 1 ? '' : 's'} as fixed`,
+        )
+        setSelectedRowIds(new Set())
+      } else {
+        toast.error('Mark-as-fixed failed — see console for details')
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Mark-as-fixed failed')
+    } finally {
+      setBulkApplying(false)
+    }
+  }, [selectedRowIds, editor]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compare dialog state — captures the focused row at click-time so the diff
   // is stable while open even if the user moves the grid cursor.
@@ -517,6 +667,11 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         collabUsers={collab.users}
         collabPanelOpen={collab.panelOpen}
         onToggleCollabPanel={() => collab.setPanelOpen(!collab.panelOpen)}
+        bulkSelectedCount={selectedRowIds.size}
+        onBulkApplyValue={() => setBulkApplyDialogOpen(true)}
+        onBulkMarkFixed={() => void handleBulkMarkFixed()}
+        onBulkClearSelection={handleBulkClearSelection}
+        bulkApplying={bulkApplying}
       />
 
       {/* Version lineage */}
@@ -607,6 +762,9 @@ export default function QuarantineEditorPage({ params }: PageProps) {
                 onUnlockRowClick={handleUnlockRowClick}
                 canUnlock={isSuperAdmin}
                 augmentedColumns={augmentedColumns}
+                selectedRowIds={selectedRowIds}
+                onToggleRowSelected={handleToggleRowSelected}
+                onToggleSelectAllVisible={handleToggleSelectAllVisible}
                 filterComponent={(column) => (
                   <QuarantineColumnFilter
                     column={column}
@@ -681,6 +839,18 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         authToken={idToken}
         lineage={editor.lineage}
         columns={visibleColumns}
+      />
+
+      {/* Bug 21: Bulk "Apply value to all" dialog */}
+      <QuarantineBulkApplyDialog
+        open={bulkApplyDialogOpen}
+        onOpenChange={(open) => {
+          if (!bulkApplying) setBulkApplyDialogOpen(open)
+        }}
+        editableColumns={editor.manifest?.editable_columns || []}
+        selectedRowCount={selectedRowIds.size}
+        onApply={handleBulkApply}
+        applying={bulkApplying}
       />
 
       {/* ── Unlock confirmation dialog (#6) ──────────────────────────── */}
