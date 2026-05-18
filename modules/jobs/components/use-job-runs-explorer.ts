@@ -134,6 +134,15 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
     const [fileViewerOpen, setFileViewerOpen] = useState(false)
     const [liveSummaries, setLiveSummaries] = useState<Record<string, RunLiveSummary>>({})
 
+    // Track current `loading` value via ref so the `loadRuns` callback can
+    // read it without subscribing to it. Including `loading` in the useCallback
+    // deps caused an infinite refetch loop: loadRuns→setLoading(false) in finally
+    // → callback identity changes → effect refires → loadRuns→setLoading(true)
+    // → spinner reappears → repeat. Symptom (Bug 20): "5 runs" header shows
+    // (state.runs was briefly populated) but the spinner never resolves
+    // because loading keeps flipping back to true on every cycle.
+    const loadingRef = useRef(false)
+    loadingRef.current = loading
     const loadRuns = useCallback(async (isManual = false) => {
         if (isManual) setIsRefreshing(true)
         else setLoading(true)
@@ -149,14 +158,14 @@ export function useJobRunsExplorer(jobId: string): JobRunsExplorerState {
             setRunsError(message)
             // Only toast on the initial load + manual refresh; auto-polls
             // would otherwise spam toasts every 3s when the API is down.
-            if (isManual || loading) {
+            if (isManual || loadingRef.current) {
                 toast({ title: "Failed to load runs", description: message, variant: "destructive" })
             }
         } finally {
             setLoading(false)
             setIsRefreshing(false)
         }
-    }, [jobId, toast, loading])
+    }, [jobId, toast])
 
     useEffect(() => {
         loadRuns()
