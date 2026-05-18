@@ -124,7 +124,7 @@ function _initUploadToast(
     }
   }
 
-  // FM-3: content-type mismatch
+  // FM-3: content-type mismatch (Excel/ODS declared as such)
   if (
     code === "ContentTypeMismatchError" ||
     code === "UPLOAD_CONTENT_TYPE_UNSUPPORTED"
@@ -133,6 +133,15 @@ function _initUploadToast(
     return {
       title: "Wrong file format",
       description: `Expected CSV. Got ${actual}. Save as CSV in Excel.`,
+    }
+  }
+
+  // FM-3b: unsupported content type (e.g. image/png renamed to .csv)
+  if (code === "UnsupportedContentTypeError") {
+    return {
+      title: "Invalid file format",
+      description:
+        "This file doesn't look like a valid CSV. Please upload a .csv file with proper data.",
     }
   }
 

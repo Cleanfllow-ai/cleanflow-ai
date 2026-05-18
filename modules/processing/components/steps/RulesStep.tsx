@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Play, ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Loader2, Code, ArrowRight, X } from "lucide-react"
 import { useProcessingWizard, type RuleWithState, type CrossFieldRuleWithState } from "../WizardContext"
 import { fileManagementAPI, type CustomRuleDefinition } from "@/modules/files"
+import { isApiError } from "@/modules/shared/api-error"
 import { AugmentationPipelineTab } from "./augmentation-pipeline-tab"
 import { cn } from "@/shared/lib/utils"
 import { getRuleLabel } from "@/shared/lib/dq-rules"
@@ -81,6 +82,7 @@ export function RulesStep() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [pendingSuggestion, setPendingSuggestion] = useState<CustomRuleDefinition | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isRefusal, setIsRefusal] = useState(false)
   const [rawResponse, setRawResponse] = useState<string | null>(null)
 
   // AI cross-column rule suggestion state
@@ -234,6 +236,7 @@ export function RulesStep() {
     if (!customRuleColumn || !customRulePrompt.trim() || !authToken) return
     setIsGenerating(true)
     setError(null)
+    setIsRefusal(false)
     setRawResponse(null)
     try {
       const response = await fileManagementAPI.suggestCustomRule(uploadId, authToken, {
@@ -251,7 +254,12 @@ export function RulesStep() {
       }
       setPendingSuggestion(response.suggestion)
     } catch (err: any) {
-      setError(err.message || "Failed to generate rule")
+      if (isApiError(err) && err.code === "LLMRefusedError") {
+        setIsRefusal(true)
+        setError(err.message || "This prompt cannot be turned into a data quality rule.")
+      } else {
+        setError(err.message || "Failed to generate rule")
+      }
     } finally {
       setIsGenerating(false)
     }
@@ -872,7 +880,11 @@ export function RulesStep() {
                             </div>
                           </div>
                         )}
-                        {error && <p className="text-sm text-destructive">{error}</p>}
+                        {error && (
+                          <p className={`text-sm ${isRefusal ? "text-amber-600 dark:text-amber-400" : "text-destructive"}`}>
+                            {isRefusal ? "⚠ " : ""}{error}
+                          </p>
+                        )}
                         {rawResponse && (
                           <div className="text-xs bg-muted/40 border rounded p-2 max-h-32 overflow-y-auto text-muted-foreground">
                             <div className="font-medium text-foreground mb-1">CleanAI raw response</div>

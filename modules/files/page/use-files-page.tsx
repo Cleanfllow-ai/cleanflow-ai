@@ -126,8 +126,29 @@ export function useFilesPage() {
     const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
-    const [detailsOpen, setDetailsOpen] = useState(false);
+    const [detailsOpen, setDetailsOpenState] = useState(false);
     const [selectedFile, setSelectedFile] = useState<FileStatusResponse | null>(null);
+
+    // URL-synced helpers so browser back/forward restores the dialog.
+    // Opening: push a history entry (?detail=<uploadId>) so Forward can replay it.
+    // Closing: replace (no new entry) so closing doesn't pollute the back stack.
+    const openDetailsWithUrl = useCallback((file: FileStatusResponse) => {
+        setSelectedFile(file);
+        setDetailsOpenState(true);
+        const next = new URLSearchParams(searchParams.toString());
+        next.set("detail", file.upload_id);
+        router.push(`${pathname}?${next.toString()}`, { scroll: false });
+    }, [searchParams, router, pathname]);
+
+    const setDetailsOpen = useCallback((open: boolean) => {
+        setDetailsOpenState(open);
+        if (!open) {
+            const next = new URLSearchParams(searchParams.toString());
+            next.delete("detail");
+            const qs = next.toString();
+            router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+        }
+    }, [searchParams, router, pathname]);
     const [showPushToErpModal, setShowPushToErpModal] = useState(false);
     const [pushToErpFile, setPushToErpFile] = useState<FileStatusResponse | null>(null);
 
@@ -351,8 +372,7 @@ export function useFilesPage() {
             const target = files.find((f) => f.upload_id === fileId);
             if (target) {
                 setActiveSection("explorer");
-                setSelectedFile(target);
-                setDetailsOpen(true);
+                openDetailsWithUrl(target);
             }
         }
 
@@ -365,7 +385,24 @@ export function useFilesPage() {
             const qs = kept.toString();
             router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
         }
-    }, [searchParams, files, router, pathname]);
+    }, [searchParams, files, router, pathname, openDetailsWithUrl]);
+
+    // Restore file-details dialog from URL ?detail=<uploadId> (browser back/forward).
+    // Runs whenever searchParams or files change. If ?detail is present and the file
+    // exists in the local store, open the dialog without pushing a new history entry
+    // (the URL already carries the state).
+    useEffect(() => {
+        const detailId = searchParams.get("detail");
+        if (!detailId || files.length === 0) return;
+        const target = files.find((f) => f.upload_id === detailId);
+        if (!target) return;
+        // Only open if the dialog isn't already showing this file (avoids re-render loop).
+        setSelectedFile((prev) => {
+            if (prev?.upload_id !== target.upload_id) return target;
+            return prev;
+        });
+        setDetailsOpenState(true);
+    }, [searchParams, files]);
 
     // Processing completion toast — detect status transitions
     useEffect(() => {
@@ -696,9 +733,8 @@ export function useFilesPage() {
                 console.warn("getFileStatus pre-check failed; opening with cached data", err);
             }
         }
-        setSelectedFile(file);
-        setDetailsOpen(true);
-    }, [idToken, dispatch, toast, loadFiles]);
+        openDetailsWithUrl(file);
+    }, [idToken, dispatch, toast, loadFiles, openDetailsWithUrl]);
 
     const handleOpenQuarantineEditor = (file: FileStatusResponse) => {
         if (!ensureFilesPermission()) return;
