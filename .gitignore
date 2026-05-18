@@ -44,6 +44,6 @@ cypress/screenshots/
 cypress/perf-log.json
 lhci-reports/
 # Local FE build/start logs (recreated per pnpm cycle)
-_pnpm_build_*.log
-_pnpm_start_*.log
+_pnpm_build*.log
+_pnpm_start*.log
 _build_*.log
