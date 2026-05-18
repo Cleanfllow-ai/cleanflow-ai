@@ -146,7 +146,11 @@ export function useFilesPage() {
             const next = new URLSearchParams(searchParams.toString());
             next.delete("detail");
             const qs = next.toString();
-            router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+            // Use push (not replace) so closing the dialog creates a history entry.
+            // This means: open → [/files, /files?detail=X], close → [/files, /files?detail=X, /files]
+            // Browser Back → /files?detail=X → useEffect restores dialog.
+            // Browser Forward → /files → useEffect closes dialog. (Bug 15 fix)
+            router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
         }
     }, [searchParams, router, pathname]);
     const [showPushToErpModal, setShowPushToErpModal] = useState(false);
