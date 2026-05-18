@@ -36,6 +36,9 @@ export function getRejectionHint(reason: string): string | null {
   if (lower.startsWith("empty file")) {
     return "Your file appears to be empty."
   }
+  if (lower.startsWith("this file doesn't look like a valid csv") || lower.includes("binary data")) {
+    return "This is not a CSV file. Please upload a plain-text .csv file."
+  }
   if (lower.startsWith("utf-16 encoding not supported")) {
     return "Save your CSV as UTF-8 (Excel: Save As → CSV UTF-8)."
   }
