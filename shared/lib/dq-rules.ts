@@ -40,9 +40,16 @@ export const DQ_RULE_NAMES: Record<string, string> = {
   R32: "Invalid IP Address",
   R33: "Invalid Email / Phone",
   R34: "Invalid Tax Registration",
+  R35: "Unexpected Special Characters",
+  R36: "Null-Like Placeholder",
+  R37: "Invalid Boolean Value",
+  R38: "Numeric Parsability Failure",
+  R39: "Mixed-Type Column Value",
 }
 
 export const getRuleLabel = (ruleId?: string | null): string => {
   if (!ruleId) return "Unknown Rule"
-  return DQ_RULE_NAMES[ruleId] || `Rule ${ruleId}`
+  if (DQ_RULE_NAMES[ruleId]) return DQ_RULE_NAMES[ruleId]
+  if (ruleId.startsWith("CUST_")) return "Custom Rule"
+  return "Custom Rule"
 }

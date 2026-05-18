@@ -46,6 +46,7 @@ export function ProcessStep({
     selectedPreset,
     presetOverrides,
     augmentations,
+    processingError,
     setProcessing,
     setProcessingError,
     prevStep,
@@ -85,8 +86,11 @@ export function ProcessStep({
             if (interval) clearInterval(interval)
           } else if (fileStatus === "DQ_FAILED" || fileStatus === "FAILED") {
             setStatus("error")
-            const detail = (resp as { error_message?: string; failure_reason?: string }).error_message
-              || (resp as { failure_reason?: string }).failure_reason
+            const detail = (resp as any).aug_error
+              || (resp as any).aug_fail_reason
+              || (resp as any).error_message
+              || (resp as any).failure_reason
+              || (resp as any).last_error
               || ""
             setProcessingError(detail ? `Processing failed: ${detail}` : "Processing failed")
             if (interval) clearInterval(interval)
@@ -347,7 +351,7 @@ export function ProcessStep({
             <div>
               <h2 className="text-xl font-semibold text-red-500">Processing Failed</h2>
               <p className="text-muted-foreground mt-2 max-w-md">
-                Processing failed or timed out. Please retry.
+                {processingError || "Processing failed or timed out. Please retry."}
               </p>
             </div>
             <Button size="lg" variant="outline" onClick={handleRetry}>

@@ -42,7 +42,6 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
     .map((issue, idx) => ({
       id: idx + 1,
       name: issue.short_label || issue.violation.replace(/_/g, " "),
-      code: issue.short_label && issue.short_label !== issue.violation ? issue.violation : null,
       // Long-form sentence used as the native `title` (browser tooltip) so
       // users can hover over a chip to see the full rule semantics without
       // leaving the dashboard. Fall back to the short label when the BE
@@ -144,9 +143,6 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
                       >
                         {issue.name}
                       </span>
-                      {issue.code && (
-                        <span className="text-[10px] text-muted-foreground/60 font-mono leading-tight">{issue.code}</span>
-                      )}
                     </div>
                     <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0 ml-2">
                       {issue.count.toLocaleString()}
