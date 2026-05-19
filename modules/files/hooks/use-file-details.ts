@@ -469,9 +469,14 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       const csvRow = (...fields: unknown[]): string => fields.map(csvField).join(",")
 
       const uploadId = report.upload_id || selectedUploadId
-      const totalRows = report.hybrid_summary?.total_rows ?? report.rows_in ?? ""
-      const cleanRows = report.hybrid_summary?.clean_rows ?? report.rows_clean ?? ""
-      const quarantinedRows = report.hybrid_summary?.quarantined_rows ?? report.rows_quarantined ?? ""
+      // Bug 5 follow-up (2026-05-19) — BE writes flat fields (total_rows /
+      // clean_rows / quarantined_rows) that match the DDB column names and
+      // pre-date both hybrid_summary and the legacy rows_in/rows_clean/
+      // rows_quarantined aliases. Read all 3 shapes so we populate the CSV
+      // summary regardless of which version of dq_report.json we have on S3.
+      const totalRows = report.hybrid_summary?.total_rows ?? report.rows_in ?? report.total_rows ?? ""
+      const cleanRows = report.hybrid_summary?.clean_rows ?? report.rows_clean ?? report.clean_rows ?? ""
+      const quarantinedRows = report.hybrid_summary?.quarantined_rows ?? report.rows_quarantined ?? report.quarantined_rows ?? ""
       const score = report.dq_score !== undefined && report.dq_score !== null
         ? `${Math.round(report.dq_score * 100) / 100}%`
         : ""

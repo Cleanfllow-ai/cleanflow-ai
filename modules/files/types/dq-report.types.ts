@@ -36,6 +36,15 @@ export interface DqReportResponse {
     rows_clean?: number
     rows_fixed?: number
     rows_quarantined?: number
+    /** Flat BE field names — StatusUpdater writes these directly. The
+     *  hybrid_summary block + legacy rows_in/rows_clean/rows_quarantined
+     *  aliases were added 2026-05-19 (Bug 5 follow-up). Older reports
+     *  produced before that fix have ONLY these flat fields, so the FE
+     *  must keep reading them as a last-resort fallback. */
+    total_rows?: number
+    clean_rows?: number
+    fixed_rows?: number
+    quarantined_rows?: number
     dq_score?: number
     artifact?: string
     mode?: string
