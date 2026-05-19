@@ -35,6 +35,7 @@ import {
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
     Table,
     TableBody,
@@ -207,6 +208,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                         <Button
                             variant="ghost"
                             size="sm"
+                            aria-label="Clear filters"
                             className="h-9 px-2 shrink-0 text-muted-foreground hover:text-foreground"
                             onClick={() => {
                                 setSearchQuery("");
@@ -265,6 +267,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                             <Button
                                 variant="ghost"
                                 size="icon"
+                                aria-label="Column picker"
                                 className="h-9 w-9 text-muted-foreground hover:text-foreground"
                                 onClick={() => setDisplayColumnModalOpen(true)}
                             >
@@ -343,12 +346,74 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
+                            {/* W5A-2 — Sarah: "/files takes ~3 seconds to render the
+                                table - feels broken." Skeleton rows give the user a
+                                solid pattern to look at within the first 200ms instead
+                                of an isolated centred spinner. 5 rows that mirror the
+                                actual column layout so the table doesn't visibly jump
+                                when real data arrives. */}
                             {loading && files.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={11} className="h-24 text-center">
-                                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground/50" />
-                                    </TableCell>
-                                </TableRow>
+                                <>
+                                    {Array.from({ length: 5 }).map((_, rowIdx) => (
+                                        <TableRow
+                                            key={`skeleton-row-${rowIdx}`}
+                                            data-testid="files-table-skeleton-row"
+                                            className="border-b border-border/40"
+                                        >
+                                            <TableCell className="text-center">
+                                                <Skeleton className="h-4 w-4 rounded-sm mx-auto" />
+                                            </TableCell>
+                                            {visibleColumns.has("file") && (
+                                                <TableCell className="text-left">
+                                                    <Skeleton className="h-4 w-[140px]" />
+                                                </TableCell>
+                                            )}
+                                            {visibleColumns.has("score") && (
+                                                <TableCell className="text-left">
+                                                    <Skeleton className="h-4 w-12" />
+                                                </TableCell>
+                                            )}
+                                            {visibleColumns.has("rows") && (
+                                                <TableCell className="text-left">
+                                                    <Skeleton className="h-4 w-16" />
+                                                </TableCell>
+                                            )}
+                                            {visibleColumns.has("category") && (
+                                                <TableCell className="text-left">
+                                                    <Skeleton className="h-4 w-20" />
+                                                </TableCell>
+                                            )}
+                                            {visibleColumns.has("status") && (
+                                                <TableCell className="text-left">
+                                                    <Skeleton className="h-5 w-20 rounded-full" />
+                                                </TableCell>
+                                            )}
+                                            {visibleColumns.has("uploaded") && (
+                                                <TableCell className="text-left">
+                                                    <Skeleton className="h-4 w-24" />
+                                                </TableCell>
+                                            )}
+                                            {visibleColumns.has("updated") && (
+                                                <TableCell className="text-left">
+                                                    <Skeleton className="h-4 w-24" />
+                                                </TableCell>
+                                            )}
+                                            {visibleColumns.has("processingTime") && (
+                                                <TableCell className="text-left">
+                                                    <Skeleton className="h-4 w-16" />
+                                                </TableCell>
+                                            )}
+                                            {visibleColumns.has("actions") && (
+                                                <TableCell className="text-left">
+                                                    <div className="flex items-center gap-2">
+                                                        <Skeleton className="h-7 w-7 rounded" />
+                                                        <Skeleton className="h-7 w-7 rounded" />
+                                                    </div>
+                                                </TableCell>
+                                            )}
+                                        </TableRow>
+                                    ))}
+                                </>
                             )}
                             {!loading && tableEmpty && (
                                 <TableRow>
@@ -541,6 +606,8 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                     <div className="flex items-center gap-1.5">
                                                         <Badge
                                                             variant="outline"
+                                                            data-testid="file-status-label"
+                                                            data-status-raw={effectiveStatus}
                                                             className={cn(
                                                                 "text-[10px] font-medium whitespace-nowrap px-2 py-0.5 gap-1.5",
                                                                 getStatusBadgeColor(effectiveStatus),

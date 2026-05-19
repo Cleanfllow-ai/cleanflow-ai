@@ -44,7 +44,10 @@ export function useFilesPage() {
     const router = useRouter();
     const pathname = usePathname();
 
-    const [loading, setLoading] = useState(false);
+    // W5A-2 — start true so the very first mount paints skeleton rows
+    // (instead of the empty-state card) before fetchFiles even dispatches.
+    // Once Redux flips out of "idle"/"loading" we mirror its value.
+    const [loading, setLoading] = useState(true);
     const [isManualRefresh, setIsManualRefresh] = useState(false);
 
     // Post-upload prompt state
@@ -58,7 +61,11 @@ export function useFilesPage() {
     useEffect(() => { filesRef.current = files; }, [files]);
 
     useEffect(() => {
-        setLoading(filesStatus === "loading");
+        // W5A-2 — keep loading=true while idle (pre-fetch) and loading. Only
+        // flip to false once the fetch has actually completed (succeeded or
+        // failed). This keeps the skeleton rows visible across the entire
+        // "perceived load" window Sarah complained about.
+        setLoading(filesStatus === "loading" || filesStatus === "idle");
     }, [filesStatus]);
 
     // ─── Files-list load error toast (States 4 + 5) ──────────────────
