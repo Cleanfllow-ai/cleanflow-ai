@@ -141,4 +141,38 @@ describe('AugmentationPage', () => {
             expect(screen.getByText(/No augmentation jobs yet/i)).toBeInTheDocument()
         )
     })
+
+    // Regression: page crash on string-typed cost_actual_usd (DDB Decimal
+    // round-trip). The original code used `cost.toFixed()` after a `!= null`
+    // guard that lets strings through, throwing TypeError and tripping the
+    // global React error boundary on the whole /augmentation page.
+    it('does not crash when cost_actual_usd arrives as a string (DDB Decimal regression)', async () => {
+        const malformed = [
+            // string-typed (the crasher)
+            { job_id: 'job-str', status: 'SUCCEEDED', template_id: 't',
+              cost_actual_usd: '0.5' as unknown as number, created_at: '2026-05-19T10:00:00Z' },
+            // NaN-as-string
+            { job_id: 'job-nan', status: 'FAILED', template_id: 't',
+              cost_actual_usd: 'NaN' as unknown as number, created_at: '2026-05-19T10:01:00Z' },
+            // null (already-handled, kept to lock the easy case)
+            { job_id: 'job-null', status: 'RUNNING', template_id: 't',
+              cost_actual_usd: null as unknown as number, created_at: '2026-05-19T10:02:00Z' },
+            // happy path
+            { job_id: 'job-num', status: 'SUCCEEDED', template_id: 't',
+              cost_actual_usd: 1.234567, created_at: '2026-05-19T10:03:00Z' },
+        ]
+        mockMakeRequest.mockResolvedValueOnce(malformed)
+        // The bug used to throw synchronously during render → no rows visible.
+        render(<AugmentationPage />)
+        // Each row must mount — proves no row crashed the render.
+        expect(await screen.findByTestId('aug-row-job-str')).toBeInTheDocument()
+        expect(screen.getByTestId('aug-row-job-nan')).toBeInTheDocument()
+        expect(screen.getByTestId('aug-row-job-null')).toBeInTheDocument()
+        expect(screen.getByTestId('aug-row-job-num')).toBeInTheDocument()
+        // Happy-path row renders properly formatted cost
+        expect(screen.getByTestId('aug-row-job-num').textContent).toContain('$1.2346')
+        // Malformed rows render the "—" sentinel, not a stray "$NaN" or crash
+        expect(screen.getByTestId('aug-row-job-nan').textContent).not.toContain('NaN')
+        expect(screen.getByTestId('aug-row-job-null').textContent).toContain('—')
+    })
 })
