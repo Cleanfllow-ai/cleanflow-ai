@@ -7,6 +7,7 @@ import { DashboardHeader, ActivityFeed, TopIssuesChart, DqCharts, ProcessingSumm
 import { DashboardKpiCards } from "@/modules/dashboard/components/dashboard-kpi-cards"
 
 import { ActionRequiredPanel } from "@/modules/dashboard/components/action-required-panel"
+import { DashboardZeroState } from "@/modules/dashboard/components/dashboard-zero-state"
 import { AuthGuard, useAuth } from "@/modules/auth"
 import { fileManagementAPI, type FileStatusResponse, type OverallDqReportResponse, type TopIssue } from "@/modules/files"
 
@@ -227,26 +228,38 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <DashboardKpiCards files={files} />
+            {/* W5A-3 — Hero CTA when both jobs count = 0 AND uploads count = 0.
+                The dashboard doesn't fetch jobs separately, so we treat
+                "no uploads + no top-issues + no filesError" as the fresh-state
+                signal. Personas Jagan + Marcus flagged the blank-dashboard
+                first-run experience.  If even one upload exists, we fall
+                through to the normal charts grid. */}
+            {files.length === 0 && !filesError ? (
+              <DashboardZeroState />
+            ) : (
+              <>
+                <DashboardKpiCards files={files} />
 
-            {/* ─── UX Improvement: Action Required panel ──────────────────────── */}
-            <ActionRequiredPanel files={files} />
+                {/* ─── UX Improvement: Action Required panel ──────────────────────── */}
+                <ActionRequiredPanel files={files} />
 
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-5">
-              <div className="xl:col-span-3 space-y-5">
-                <DqCharts files={files} key={`dq-charts-${refreshKey}`} />
-              </div>
+                <div className="grid grid-cols-1 xl:grid-cols-4 gap-5">
+                  <div className="xl:col-span-3 space-y-5">
+                    <DqCharts files={files} key={`dq-charts-${refreshKey}`} />
+                  </div>
 
-              <div className="xl:col-span-1 space-y-4">
-                <ActivityFeed files={files} />
-                <TopIssuesChart
-                  issues={topIssues}
-                  isLoading={isOverallLoading}
-                  errorMessage={overallError}
-                />
-                <ProcessingSummary files={files} />
-              </div>
-            </div>
+                  <div className="xl:col-span-1 space-y-4">
+                    <ActivityFeed files={files} />
+                    <TopIssuesChart
+                      issues={topIssues}
+                      isLoading={isOverallLoading}
+                      errorMessage={overallError}
+                    />
+                    <ProcessingSummary files={files} />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </MainLayout>
