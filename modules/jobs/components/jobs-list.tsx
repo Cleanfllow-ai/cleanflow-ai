@@ -388,7 +388,7 @@ export function JobsList() {
                     </div>
                     <div>
                         <h1
-                            className="text-xl font-semibold tracking-wider uppercase text-foreground"
+                            className="text-xl font-semibold tracking-tight text-foreground"
                             style={{ fontFamily: "'Outfit', var(--font-sans, system-ui, sans-serif)" }}
                         >
                             Scheduled Jobs
@@ -828,7 +828,7 @@ export function JobsList() {
                                             <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted/30">
+                                                        <Button variant="ghost" size="icon" aria-label="Job actions" className="h-7 w-7 hover:bg-muted/30">
                                                             <MoreHorizontal className="h-4 w-4 text-muted-foreground/60" />
                                                         </Button>
                                                     </DropdownMenuTrigger>

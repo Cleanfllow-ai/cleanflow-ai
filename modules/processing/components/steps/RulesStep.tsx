@@ -19,6 +19,7 @@ import { cn } from "@/shared/lib/utils"
 import { getRuleLabel, getRuleDescription } from "@/shared/lib/dq-rules"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { deriveRulesV2, CORE_TYPES, TYPE_ALIASES } from "@/shared/lib/type-catalog"
+import { canonicalTypeToLabel } from "@/shared/lib/status-labels"
 
 // Friendly label for cross-field / business-consistency rule IDs. These BE
 // rule_ids look like "discount_equals_pct_of_total", "row_group_equals",
@@ -699,7 +700,14 @@ export function RulesStep() {
                 {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 <span className="font-medium">{col}</span>
                 <div className="flex items-center gap-1 ml-2">
-                  <Badge variant="outline" className="text-[10px] font-mono">{columnCoreTypes[col] || columnProfiles[col]?.type_guess || "?"}</Badge>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] font-medium"
+                    title={columnCoreTypes[col] || columnProfiles[col]?.type_guess || "?"}
+                    data-core-type-raw={columnCoreTypes[col] || columnProfiles[col]?.type_guess || ""}
+                  >
+                    {canonicalTypeToLabel(columnCoreTypes[col] || columnProfiles[col]?.type_guess || "?")}
+                  </Badge>
                   {columnKeyTypes[col] && columnKeyTypes[col] !== "none" && (
                     <Badge variant="secondary" className="text-[10px] font-mono">{columnKeyTypes[col]}</Badge>
                   )}
@@ -735,7 +743,9 @@ export function RulesStep() {
                         </SelectTrigger>
                         <SelectContent>
                           {Object.keys(CORE_TYPES as Record<string, unknown>).map((t) => (
-                            <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                            <SelectItem key={t} value={t} className="text-xs">
+                              {canonicalTypeToLabel(t)}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -758,7 +768,9 @@ export function RulesStep() {
                         <SelectContent>
                           <SelectItem value="__none__" className="text-xs">(none)</SelectItem>
                           {Object.keys(TYPE_ALIASES as Record<string, unknown>).map((t) => (
-                            <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                            <SelectItem key={t} value={t} className="text-xs" title={t}>
+                              {canonicalTypeToLabel(t)}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -915,7 +927,7 @@ export function RulesStep() {
                                   </details>
                                 )}
                               </div>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeCustomRule(rule.rule_id!)}>
+                              <Button variant="ghost" size="icon" aria-label="Remove custom rule" className="h-6 w-6" onClick={() => removeCustomRule(rule.rule_id!)}>
                                 <Trash2 className="w-3 h-3" />
                               </Button>
                             </div>

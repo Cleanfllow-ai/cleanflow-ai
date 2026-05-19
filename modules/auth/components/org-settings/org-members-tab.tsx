@@ -282,6 +282,7 @@ export function OrgMembersTab({
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                aria-label="Member actions"
                                 className="h-8 w-8"
                                 disabled={isSelf || !canManageMembersPermission}
                                 title={

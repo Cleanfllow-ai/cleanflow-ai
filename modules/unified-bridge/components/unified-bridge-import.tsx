@@ -139,9 +139,9 @@ export default function UnifiedBridgeImport({
             <Server className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="text-sm font-medium">Unified Bridge</h3>
+            <h3 className="text-sm font-medium">Connections</h3>
             <p className="text-xs text-muted-foreground">
-              Ingest data from multiple sources
+              Pull data from FTP, SFTP, TCP, HTTP, or your ERP
             </p>
           </div>
         </div>

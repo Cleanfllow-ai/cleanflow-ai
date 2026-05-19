@@ -99,9 +99,9 @@ export function PromptTemplateManager() {
                         <Select value={card} onValueChange={(v) => setCard(v as PromptCardinality)}>
                             <SelectTrigger id="tpl-card"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ONE_TO_MANY">ONE_TO_MANY</SelectItem>
-                                <SelectItem value="MANY_TO_ONE">MANY_TO_ONE</SelectItem>
-                                <SelectItem value="MANY_TO_MANY">MANY_TO_MANY</SelectItem>
+                                <SelectItem value="ONE_TO_MANY">Explode rows</SelectItem>
+                                <SelectItem value="MANY_TO_ONE">Group-by aggregation</SelectItem>
+                                <SelectItem value="MANY_TO_MANY">Pivot table</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

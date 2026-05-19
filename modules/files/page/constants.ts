@@ -2,8 +2,8 @@ export const STATUS_OPTIONS = [
   { label: "All", value: "all", type: "status" },
   { label: "Needs Attention", value: "attention", type: "attention" },
   { label: "Uploaded", value: "UPLOADED", type: "status" },
-  { label: "Processed", value: "DQ_FIXED", type: "status" },
-  { label: "Processing", value: "DQ_RUNNING", type: "status" },
+  { label: "Cleaned", value: "DQ_FIXED", type: "status" },
+  { label: "Cleaning", value: "DQ_RUNNING", type: "status" },
   { label: "Queued", value: "QUEUED", type: "status" },
   { label: "Failed", value: "FAILED", type: "status" },
   { label: "separator", value: "separator", type: "separator" },
@@ -14,13 +14,13 @@ export const STATUS_OPTIONS = [
 
 export const SOURCE_OPTIONS = [
   { label: "Custom", value: "local" },
-  { label: "Unified Bridge", value: "unified-bridge" },
+  { label: "Connections", value: "unified-bridge" },
 ] as const
 
 export const DESTINATION_OPTIONS = [
   { label: "None", value: "null" },
   { label: "Custom", value: "local" },
-  { label: "Unified Bridge", value: "unified-bridge" },
+  { label: "Connections", value: "unified-bridge" },
 ] as const
 
 export const ERP_OPTIONS = [

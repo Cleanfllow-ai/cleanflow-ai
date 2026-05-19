@@ -777,7 +777,17 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                     variant="ghost"
                                                                     size="icon"
                                                                     className="h-10 w-10 text-primary hover:text-primary hover:bg-primary/10"
-                                                                    onClick={() => handleStartProcessing(file)}
+                                                                    // R3-3 (2026-05-19): defensive stopPropagation so the
+                                                                    // Run DQ click never bubbles to the row's onClick
+                                                                    // (which opens the file-details dialog). The wrapping
+                                                                    // TableCell already calls stopPropagation, but a
+                                                                    // belt-and-braces stop here protects against future
+                                                                    // refactors that re-parent this button outside the
+                                                                    // cell.
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        handleStartProcessing(file)
+                                                                    }}
                                                                     data-testid="run-dq-button"
                                                                     aria-label="Run DQ"
                                                                 >

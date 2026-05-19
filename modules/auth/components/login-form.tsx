@@ -80,6 +80,7 @@ export function LoginForm() {
             />
             <button
               type="button"
+              aria-label={f.showPassword ? "Hide password" : "Show password"}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
               onClick={() => f.setShowPassword(!f.showPassword)}
             >
@@ -262,7 +263,13 @@ export function LoginForm() {
                     <Label className="text-xs text-muted-foreground">Can&apos;t scan? Enter this code manually:</Label>
                     <div className="flex items-center gap-2">
                       <code className="flex-1 p-2.5 bg-muted rounded text-xs font-mono break-all">{f.secretCode}</code>
-                      <Button variant="outline" size="icon" onClick={f.handleCopySecret} className="shrink-0 h-9 w-9">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        aria-label={f.copiedSecret ? "Secret copied" : "Copy MFA secret"}
+                        onClick={f.handleCopySecret}
+                        className="shrink-0 h-9 w-9"
+                      >
                         {f.copiedSecret ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
                       </Button>
                     </div>

@@ -12,6 +12,7 @@ import { useProcessingWizard } from "../WizardContext"
 import { useAugPresets } from "@/modules/files/hooks/use-aug-presets"
 import type { AugmentationConfig } from "./augmentations-panel"
 import { inferCardinality, CARDINALITY_LABEL } from "../../lib/infer-cardinality"
+import { CARDINALITY_SHORT_LABEL, cardinalityToLabel } from "@/shared/lib/status-labels"
 import { cn } from "@/shared/lib/utils"
 
 const MAX_AUGMENTATIONS = 5
@@ -199,8 +200,16 @@ function AugRowEditor({ config, index, selectedColumns, presets, onChange, onRem
             ))}
           </SelectContent>
         </Select>
-        <Badge variant="outline" className="text-[10px] font-mono shrink-0">{CARDINALITY_LABEL[cardinality]}</Badge>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => onRemove(index)} type="button">
+        <Badge
+          variant="outline"
+          data-testid="aug-cardinality-badge"
+          data-cardinality-raw={cardinality}
+          title={cardinalityToLabel(cardinality)}
+          className="text-[10px] font-medium shrink-0"
+        >
+          {CARDINALITY_SHORT_LABEL[cardinality] ?? CARDINALITY_LABEL[cardinality]}
+        </Badge>
+        <Button variant="ghost" size="icon" aria-label="Remove augmentation" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => onRemove(index)} type="button">
           <X className="w-3.5 h-3.5" />
         </Button>
       </div>

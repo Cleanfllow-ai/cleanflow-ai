@@ -398,6 +398,7 @@ export function SignUpForm() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
@@ -456,6 +457,7 @@ export function SignUpForm() {
                 />
                 <button
                   type="button"
+                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >

@@ -239,7 +239,7 @@ export function JobCreationStepper() {
                     </div>
                     <div>
                         <h1
-                            className="text-xl font-semibold tracking-wider uppercase text-foreground"
+                            className="text-xl font-semibold tracking-tight text-foreground"
                             style={{ fontFamily: "'Outfit', var(--font-sans, system-ui, sans-serif)" }}
                         >
                             Create Job
