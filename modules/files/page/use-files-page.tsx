@@ -244,7 +244,7 @@ export function useFilesPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const selectionFileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
-    const { idToken, hasPermission, permissionsLoaded } = useAuth();
+    const { idToken, hasPermission, permissionsLoaded, permissionsError, refreshPermissions } = useAuth();
     const canUseFilesActions = hasPermission("files");
 
     // ─── Permission helpers ───────────────────────────────────────────
@@ -256,14 +256,48 @@ export function useFilesPage() {
         });
     }, [toast]);
 
+    // P0-1 fix (2026-05-19): /org/me may not have resolved (or may have failed
+    // silently — see auth-provider catch block) when a user clicks an action.
+    // `hasPermission()` returns false in BOTH cases (empty permissions map),
+    // which previously caused a destructive "Permission denied" toast even for
+    // Super Admins (the "headline workflow broken on click #1" finding). We
+    // now distinguish three cases:
+    //   - !permissionsLoaded            → friendly "Loading..." info toast + nudge refresh
+    //   - permissionsError              → friendly "Re-checking..." info toast + force refresh
+    //   - loaded && !canPerformAction   → legitimate deny toast (destructive, unchanged)
+    // This guard wraps ALL action buttons in /files: Import, Upload,
+    // Push-to-ERP, Delete, Stop, Wizard, etc — 17+ call sites.
     const ensureFilesPermission = useCallback(() => {
+        if (!permissionsLoaded) {
+            toast({
+                title: "Loading your permissions",
+                description: "Please try again in a moment.",
+            });
+            try { void refreshPermissions(); } catch { /* no-op */ }
+            return false;
+        }
+        if (permissionsError) {
+            toast({
+                title: "Re-checking your permissions",
+                description: "We could not verify your permissions a moment ago. Retrying — please try again in a moment.",
+            });
+            try { void refreshPermissions(); } catch { /* no-op */ }
+            return false;
+        }
         if (hasPermission("files")) return true;
         showFilesPermissionDenied();
         return false;
-    }, [hasPermission, showFilesPermissionDenied]);
+    }, [permissionsLoaded, permissionsError, hasPermission, showFilesPermissionDenied, refreshPermissions, toast]);
 
     const renderRestrictedFilesPanel = useCallback(
         (content: React.ReactNode) => {
+            // P0-1 race fix (2026-05-19): show content optimistically during the
+            // permissions-loading window (or after a /org/me failure) so a
+            // Super Admin doesn't see a locked overlay flash. The overlay-click
+            // handler routes through ensureFilesPermission, which correctly
+            // shows the friendly loading/retry toast in those cases and only
+            // surfaces the destructive deny toast for genuinely-denied users.
+            if (!permissionsLoaded || permissionsError) return content;
             if (canUseFilesActions) return content;
             return (
                 <div className="relative">
@@ -279,13 +313,18 @@ export function useFilesPage() {
                 </div>
             );
         },
-        [canUseFilesActions, showFilesPermissionDenied],
+        [permissionsLoaded, permissionsError, canUseFilesActions, showFilesPermissionDenied],
     );
 
     // ─── Data loading ─────────────────────────────────────────────────
     const loadFiles = useCallback(async (userInitiated = false) => {
         if (!idToken) return;
-        if (permissionsLoaded && !hasPermission("files")) {
+        // P0-1 (2026-05-19): when permissionsError is set, the permissions map
+        // is empty due to /org/me failure — NOT a real deny. Fall through to
+        // fetchFiles (BE is the source of truth) so the user's data still loads
+        // when /org/me transiently flaked. ensureFilesPermission still gates
+        // mutating actions and will route to the friendly retry toast.
+        if (permissionsLoaded && !permissionsError && !hasPermission("files")) {
             dispatch(resetFiles());
             if (userInitiated) {
                 ensureFilesPermission();
@@ -293,7 +332,7 @@ export function useFilesPage() {
             return;
         }
         await dispatch(fetchFiles(idToken));
-    }, [idToken, permissionsLoaded, hasPermission, dispatch, ensureFilesPermission]);
+    }, [idToken, permissionsLoaded, permissionsError, hasPermission, dispatch, ensureFilesPermission]);
 
     useEffect(() => {
         loadFiles(false);

@@ -45,6 +45,16 @@ interface AuthContextType {
   getValidToken: () => Promise<string>;
   permissions: Record<string, boolean>;
   permissionsLoaded: boolean;
+  /** True when the last /org/me request errored (network blip, 5xx, abort,
+   *  timeout, etc). The catch block in refreshPermissions sets
+   *  permissionsLoaded=true so that AuthGuard releases the spinner, but the
+   *  permissions map remains empty — which would previously cause
+   *  hasPermission("...") to return false and surface a destructive
+   *  "Permission denied" toast on the user's first click. UI gates that
+   *  bind to permissions (Import/Upload/Delete/Stop buttons in /files)
+   *  must check this flag and show a friendly "Loading your permissions"
+   *  toast + trigger a retry instead of a destructive deny. */
+  permissionsError: boolean;
   userRole: string | null;
   hasPermission: (key: string) => boolean;
   refreshPermissions: () => Promise<void>;
@@ -61,6 +71,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [userRole, setUserRole] = useState<string | null>(null);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  // P0-1 fix (2026-05-19): track /org/me failure separately. Previously the
+  // catch block flipped permissionsLoaded=true with an empty permissions map,
+  // which caused hasPermission("files") to return false on the user's first
+  // click and surface a destructive "Permission denied" toast even for Super
+  // Admins. UI callers now key off permissionsError to show a friendly
+  // loading toast + auto-retry instead.
+  const [permissionsError, setPermissionsError] = useState(false);
   const [onboardingRequired, setOnboardingRequired] = useState(false);
 
   // ── Wire API-error toast handlers + 401 token-refresh bridge ──────
@@ -106,6 +123,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (me?.onboarding_required || !me?.membership?.org_id) {
         setOnboardingRequired(true);
         setPermissionsLoaded(true);
+        setPermissionsError(false);
         return;
       }
       // Normal path: membership present
@@ -119,9 +137,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         window.localStorage.setItem("cleanflowai.currentRole", me.membership.role);
       }
       setPermissionsLoaded(true);
+      setPermissionsError(false);
     } catch {
+      // P0-1 (2026-05-19): /org/me failed (network blip, 5xx, abort, timeout).
+      // We still flip permissionsLoaded=true so AuthGuard releases the spinner
+      // — keeping the page interactive — but mark permissionsError so action
+      // gates (ensureFilesPermission etc) can distinguish "load failed and
+      // retry needed" from "loaded with denial" and avoid firing a destructive
+      // toast on the user's first click while the underlying retry is in flight.
       setPermissionsLoaded(true);
-      // User may not have an org yet — silently ignore
+      setPermissionsError(true);
+      // User may not have an org yet — silently ignore otherwise
     }
   }, [auth.isAuthenticated, auth.idToken]);
 
@@ -139,6 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setPermissions({});
     setUserRole(null);
     setPermissionsLoaded(false);
+    setPermissionsError(false);
     setOnboardingRequired(false);
   }, [auth.isAuthenticated]);
 
@@ -223,6 +250,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Permissions
         permissions,
         permissionsLoaded,
+        permissionsError,
         userRole,
         hasPermission,
         refreshPermissions,

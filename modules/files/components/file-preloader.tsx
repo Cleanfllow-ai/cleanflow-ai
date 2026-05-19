@@ -14,7 +14,7 @@ const shouldSkipPreload = (pathname: string | null) => {
 }
 
 export function FilePreloader() {
-  const { isAuthenticated, idToken, permissionsLoaded, hasPermission } = useAuth()
+  const { isAuthenticated, idToken, permissionsLoaded, permissionsError, hasPermission } = useAuth()
   const pathname = usePathname()
   const dispatch = useAppDispatch()
   const files = useAppSelector(selectFiles)
@@ -25,9 +25,12 @@ export function FilePreloader() {
     if (shouldSkipPreload(pathname)) return
     if (!isAuthenticated || !idToken || status !== "idle") return
     // Avoid preloading before org context is ready (prevents membership-required noise).
-    if (!permissionsLoaded || !hasPermission("files")) return
+    // P0-1 (2026-05-19): permissionsError → permissions={} but BE may still
+    // authorise. Fall through to BE so user data still loads when /org/me flaked.
+    if (!permissionsLoaded) return
+    if (!permissionsError && !hasPermission("files")) return
     dispatch(fetchFiles(idToken))
-  }, [pathname, isAuthenticated, idToken, status, dispatch, permissionsLoaded, hasPermission])
+  }, [pathname, isAuthenticated, idToken, status, dispatch, permissionsLoaded, permissionsError, hasPermission])
 
   // 2. Background Enrichment for Processing Times
   useEffect(() => {
