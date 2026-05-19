@@ -73,7 +73,7 @@ export function PartialCompletionBanner({
               type="button"
               variant="outline"
               size="sm"
-              className="mt-2 h-7 border-amber-300 bg-amber-100/70 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-1000/20"
+              className="mt-2 h-7 border-amber-300 bg-amber-100/70 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-500/20"
               onClick={() => setDetailsOpen(true)}
             >
               View details

@@ -263,7 +263,7 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-start justify-between border-b border-white/20 pb-4">
+            <div className="flex items-start justify-between border-b border-border pb-4">
                 <div>
                     <div className="mb-2 flex items-center gap-3">
                         <LineChartIcon className="h-5 w-5 text-[#69C04B]" />
@@ -327,16 +327,16 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
                                         <stop offset="100%" stopColor={CHART_COLORS.red} stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff" strokeOpacity={0.1} />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" strokeOpacity={1} />
                                 <XAxis
                                     dataKey="period"
-                                    tick={{ fontSize: 12, fill: "#ffffff" }}
+                                    tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
                                     tickLine={false}
                                     axisLine={false}
                                     dy={10}
                                 />
                                 <YAxis
-                                    tick={{ fontSize: 11, fill: "#ffffff" }}
+                                    tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
                                     tickLine={false}
                                     axisLine={false}
                                     width={72}

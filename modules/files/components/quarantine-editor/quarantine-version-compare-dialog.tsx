@@ -88,11 +88,11 @@ function normalizeCell(value: unknown): string {
 function statusBadgeClass(status: DiffStatus): string {
   switch (status) {
     case 'added':
-      return 'border-emerald-500/40 bg-emerald-1000/10 text-emerald-800'
+      return 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-400'
     case 'removed':
-      return 'border-red-500/40 bg-red-1000/10 text-red-800'
+      return 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-400'
     case 'changed':
-      return 'border-amber-500/40 bg-amber-1000/10 text-amber-800'
+      return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-500'
     default:
       return 'border-border bg-muted text-muted-foreground'
   }
@@ -402,7 +402,7 @@ export function QuarantineVersionCompareDialog({
             the diff is a partial view of the data. Make it loud so users
             don't mistake the partial diff for a complete reconciliation. */}
         {!loading && !error && cappedSides.length > 0 && (
-          <div className="px-5 py-2 border-b bg-amber-1000/10 text-amber-800 dark:text-amber-400 text-xs flex items-center gap-2">
+          <div className="px-5 py-2 border-b bg-amber-50 text-amber-800 dark:text-amber-400 text-xs flex items-center gap-2">
             <span aria-hidden>⚠</span>
             <span>
               Partial diff —{' '}

@@ -344,7 +344,7 @@ export function ProcessStep({
 
         {status === "success" && (
           <div className="text-center space-y-6">
-            <div className="w-20 h-20 rounded-full bg-green-1000/10 flex items-center justify-center mx-auto">
+            <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-500/10 flex items-center justify-center mx-auto">
               <CheckCircle className="w-12 h-12 text-green-500" />
             </div>
             <div>
@@ -356,7 +356,7 @@ export function ProcessStep({
 
         {status === "error" && (
           <div className="text-center space-y-6">
-            <div className="w-20 h-20 rounded-full bg-red-1000/10 flex items-center justify-center mx-auto">
+            <div className="w-20 h-20 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center mx-auto">
               <XCircle className="w-12 h-12 text-red-500" />
             </div>
             <div>

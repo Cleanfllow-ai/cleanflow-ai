@@ -662,7 +662,7 @@ export function QuarantineAgGridTable({
   }, [])
 
   return (
-    <div ref={wrapperRef} className="quarantine-ag-grid h-full w-full bg-white">
+    <div ref={wrapperRef} className="quarantine-ag-grid h-full w-full bg-white dark:bg-[#111318]">
       <AgGridReact<QuarantineRow>
         animateRows={false}
         blockLoadDebounceMillis={75}

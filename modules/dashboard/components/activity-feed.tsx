@@ -78,7 +78,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
     switch (status) {
       case "DQ_FIXED":
       case "EXPORTED":
-        return "bg-emerald-1000/10"
+        return "bg-emerald-50"
       case "DQ_FAILED":
       case "UPLOAD_FAILED":
         return "bg-rose-500/10"
@@ -86,7 +86,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
       case "NORMALIZING":
       case "QUEUED":
       case "UPLOADING":
-        return "bg-amber-1000/10"
+        return "bg-amber-50"
       default:
         return "bg-muted"
     }

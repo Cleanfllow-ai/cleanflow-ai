@@ -51,24 +51,24 @@ export function FilesPageHeader({ files }: FilesPageHeaderProps) {
                     </div>
 
                     {stats.processed > 0 && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-1000/10 border border-emerald-500/20">
-                            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                            <span className="font-mono text-[12px] font-semibold tabular-nums text-emerald-400">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-100 border border-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/20">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-700 dark:text-emerald-400" />
+                            <span className="font-mono text-[12px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                                 {stats.processed}
                             </span>
-                            <span className="text-[10px] uppercase tracking-wider text-emerald-400/60">
+                            <span className="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400/60">
                                 processed
                             </span>
                         </div>
                     )}
 
                     {stats.failed > 0 && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-destructive/10 border border-destructive/20">
-                            <AlertTriangle className="h-3 w-3 text-destructive" />
-                            <span className="font-mono text-[12px] font-semibold tabular-nums text-destructive">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-100 border border-red-300 dark:bg-destructive/10 dark:border-destructive/20">
+                            <AlertTriangle className="h-3 w-3 text-red-700 dark:text-destructive" />
+                            <span className="font-mono text-[12px] font-semibold tabular-nums text-red-700 dark:text-destructive">
                                 {stats.failed}
                             </span>
-                            <span className="text-[10px] uppercase tracking-wider text-destructive/60">
+                            <span className="text-[10px] uppercase tracking-wider text-red-600 dark:text-destructive/60">
                                 failed
                             </span>
                         </div>

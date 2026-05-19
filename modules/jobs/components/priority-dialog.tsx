@@ -113,7 +113,7 @@ export function PriorityDialog({
                                                 <span className={cn(
                                                     "inline-flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-semibold",
                                                     idx === 0
-                                                        ? "bg-emerald-1000 text-white"
+                                                        ? "bg-emerald-600 text-white"
                                                         : "bg-muted text-muted-foreground",
                                                 )}>
                                                     {idx + 1}

@@ -84,7 +84,7 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
                 </CardTitle>
                 {/* <Badge
                   variant="default"
-                  className="text-[10px] font-medium bg-green-1000/20 text-green-400 hover:bg-green-1000/30"
+                  className="text-[10px] font-medium bg-green-100 text-green-400 hover:bg-green-100"
                 >
                   {stat.change}
                 </Badge> */}
@@ -113,9 +113,9 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
                 <div>
                   <span className="font-medium text-foreground">{issue.issue}</span>
                   <Badge variant="secondary" className={
-                    issue.severity === 'Fatal' ? "bg-red-1000/20 text-red-300 ml-2" :
-                    issue.severity === 'High' ? "bg-orange-1000/20 text-orange-300 ml-2" :
-                    "bg-yellow-1000/20 text-yellow-300 ml-2"
+                    issue.severity === 'Fatal' ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 ml-2" :
+                    issue.severity === 'High' ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 ml-2" :
+                    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 ml-2"
                   }>
                     {issue.severity}
                   </Badge>

@@ -362,7 +362,7 @@ export function QuarantineCustomRuleDialog({
               The real textarea floats on top with bg-transparent so highlights
               are visible behind the typed text.
             */}
-            <div className="relative rounded-lg border border-violet-300 bg-violet-100/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white">
+            <div className="relative rounded-lg border border-violet-300 bg-violet-100/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white dark:bg-violet-500/10 dark:border-violet-500/40 dark:focus-within:bg-[#1a1a2e]">
               {/* Mirror — highlight backgrounds only, all text is invisible */}
               <div
                 aria-hidden="true"
@@ -434,7 +434,7 @@ export function QuarantineCustomRuleDialog({
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                          idx === mentionIndex ? 'bg-violet-1000' : 'bg-muted-foreground/30'
+                          idx === mentionIndex ? 'bg-violet-500' : 'bg-muted-foreground/30'
                         }`} />
                         {col === 'all' ? <span className="text-violet-600 font-semibold">all <span className="font-normal text-muted-foreground">— all columns</span></span> : col}
                       </button>

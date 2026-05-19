@@ -504,7 +504,7 @@ function JobDQStepInner({
     return (
         <div className="flex flex-col h-full">
             {fieldsError && (
-                <div className="mx-6 mt-3 p-3 rounded-lg border border-amber-500/25 bg-amber-1000/5 text-sm text-amber-800">
+                <div className="mx-6 mt-3 p-3 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
                     {fieldsError}
                 </div>
             )}

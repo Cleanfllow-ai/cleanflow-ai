@@ -262,9 +262,8 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
                         >
                             <XAxis
                                 dataKey="month"
-                                tick={{ fontSize: 9, fill: "#ffffff" }}
-                                stroke="#ffffff"
-                                strokeOpacity={0.2}
+                                tick={{ fontSize: 9, fill: "var(--color-muted-foreground)" }}
+                                stroke="transparent"
                                 tickFormatter={(val) => {
                                     // For day/week view, return as is (already formatted)
                                     if (timePeriod === 'day' || timePeriod === 'week') {

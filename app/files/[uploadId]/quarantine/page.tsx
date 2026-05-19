@@ -678,9 +678,9 @@ export default function QuarantineEditorPage({ params }: PageProps) {
   ].join(':')
 
   return (
-    <div className="flex h-screen flex-col bg-white">
+    <div className="flex h-screen flex-col bg-background text-foreground">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b px-4 py-2">
+      <div className="flex items-center gap-3 border-b border-border px-4 py-2 bg-background">
         <Button variant="ghost" size="icon" onClick={navigateBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>

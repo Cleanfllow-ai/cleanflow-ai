@@ -71,9 +71,9 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
                 stats.avgScore === null
                     ? "bg-[#164234]/5 dark:bg-muted/40"
                     : stats.avgScore >= 90
-                    ? "bg-emerald-1000/8 dark:bg-emerald-500/8"
+                    ? "bg-emerald-50 dark:bg-emerald-500/8"
                     : stats.avgScore >= 70
-                    ? "bg-amber-1000/8 dark:bg-amber-500/8"
+                    ? "bg-amber-50 dark:bg-amber-500/8"
                     : "bg-destructive/8",
             valueColor:
                 stats.avgScore === null
@@ -88,9 +88,9 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
                 stats.avgScore === null
                     ? "bg-[#164234]/20 dark:bg-muted-foreground/30"
                     : stats.avgScore >= 90
-                    ? "bg-emerald-1000"
+                    ? "bg-emerald-100"
                     : stats.avgScore >= 70
-                    ? "bg-amber-1000"
+                    ? "bg-amber-100"
                     : "bg-destructive",
         },
         {
@@ -99,10 +99,10 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             sub: stats.failed > 0 ? `${stats.failed} failed` : "all sources",
             icon: CheckCircle2,
             iconColor: "text-emerald-500 dark:text-emerald-400",
-            bgColor: "bg-emerald-1000/8 dark:bg-emerald-500/8",
+            bgColor: "bg-emerald-50 dark:bg-emerald-500/8",
             valueColor: "",
             alertColor: stats.failed > 0 ? "text-destructive" : "text-muted-foreground",
-            accentColor: "bg-emerald-1000",
+            accentColor: "bg-emerald-100",
         },
         {
             label: "Quarantined Rows",
@@ -110,13 +110,13 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             sub: stats.totalQuarantined > 0 ? "require remediation" : "all rows clean",
             icon: AlertTriangle,
             iconColor: stats.totalQuarantined > 0 ? "text-amber-500 dark:text-amber-400" : "text-muted-foreground",
-            bgColor: stats.totalQuarantined > 0 ? "bg-amber-1000/8 dark:bg-amber-500/8" : "bg-[#164234]/5 dark:bg-muted/40",
+            bgColor: stats.totalQuarantined > 0 ? "bg-amber-50 dark:bg-amber-500/8" : "bg-[#164234]/5 dark:bg-muted/40",
             valueColor:
                 stats.totalQuarantined > 0
                     ? "text-amber-600 dark:text-amber-400"
                     : "",
             alertColor: "text-muted-foreground",
-            accentColor: stats.totalQuarantined > 0 ? "bg-amber-1000" : "bg-[#164234]/20 dark:bg-muted-foreground/30",
+            accentColor: stats.totalQuarantined > 0 ? "bg-amber-100" : "bg-[#164234]/20 dark:bg-muted-foreground/30",
         },
     ]
 

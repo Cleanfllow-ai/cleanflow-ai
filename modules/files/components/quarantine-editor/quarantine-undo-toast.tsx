@@ -37,7 +37,7 @@ export function QuarantineUndoToast({
         onOpenChange={onOpenChange}
         duration={AUTO_DISMISS_MS}
         data-testid="quarantine-undo-toast"
-        className="pointer-events-auto flex items-center justify-between gap-3 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 shadow-lg"
+        className="pointer-events-auto flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-2 text-sm text-foreground shadow-lg"
       >
         <Title className="font-medium">
           Edited {column ? <span className="font-mono">{column}</span> : 'cell'}

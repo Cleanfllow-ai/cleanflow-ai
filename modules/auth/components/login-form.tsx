@@ -214,7 +214,7 @@ export function LoginForm() {
                 <AlertDescription className="text-destructive">{f.mfaError}</AlertDescription>
               </Alert>
             )}
-            <Button onClick={f.handleVerifyMfa} className="w-full h-11" disabled={f.mfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
+            <Button onClick={f.handleVerifyMfa} className="w-full h-11 bg-[#4a9a32] hover:bg-[#3f8829] text-white" disabled={f.mfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
               {f.isVerifyingMfa ? (
                 <span className="flex items-center gap-2"><LoadingSpinner size="sm" />Verifying...</span>
               ) : f.isVerifying ? (

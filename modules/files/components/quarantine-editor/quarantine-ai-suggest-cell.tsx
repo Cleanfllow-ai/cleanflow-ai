@@ -37,9 +37,9 @@ export interface AiSuggestCellRendererProps {
 // ─── Confidence badge styles ──────────────────────────────────────────────────
 
 const CONFIDENCE_STYLES: Record<string, string> = {
-  high: 'bg-emerald-1000/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/25',
-  medium: 'bg-amber-1000/15 text-amber-800 dark:text-amber-400 border border-amber-500/25',
-  low: 'bg-red-1000/15 text-red-600 dark:text-red-400 border border-red-500/25',
+  high: 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/25',
+  medium: 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/25',
+  low: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25',
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -249,7 +249,7 @@ export function AiSuggestCellRenderer({
           <button
             type="button"
             onClick={handleTriggerClick}
-            className="shrink-0 h-5 w-5 rounded flex items-center justify-center text-violet-500 hover:bg-violet-1000/15 transition-colors outline-none focus-visible:ring-1 focus-visible:ring-violet-500"
+            className="shrink-0 h-5 w-5 rounded flex items-center justify-center text-violet-500 hover:bg-violet-100 transition-colors outline-none focus-visible:ring-1 focus-visible:ring-violet-500"
             title="AI fix suggestion"
           >
             {loading ? (

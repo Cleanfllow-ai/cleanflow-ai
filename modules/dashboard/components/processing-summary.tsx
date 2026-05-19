@@ -29,8 +29,8 @@ export function ProcessingSummary({ files }: DqChartsProps) {
     const totalRowsOut = Math.max(totalRowsIn - totalRowsQuarantined, 0);
     const metrics = [
         { label: "Input Rows", value: totalRowsIn, color: "text-foreground", bg: "bg-white/5" },
-        { label: "Valid Output", value: totalRowsOut, color: "text-emerald-500 dark:text-emerald-500", bg: "bg-emerald-1000/5 dark:bg-emerald-500/5" },
-        { label: "Issues Fixed", value: totalRowsFixed, color: "text-amber-500 dark:text-amber-500", bg: "bg-amber-1000/5 dark:bg-amber-500/5" },
+        { label: "Valid Output", value: totalRowsOut, color: "text-emerald-500 dark:text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-500/5" },
+        { label: "Issues Fixed", value: totalRowsFixed, color: "text-amber-500 dark:text-amber-500", bg: "bg-amber-50 dark:bg-amber-500/5" },
         { label: "Quarantined", value: totalRowsQuarantined, color: "text-rose-500 dark:text-rose-500", bg: "bg-rose-500/5 dark:bg-rose-500/5" },
     ];
     return (

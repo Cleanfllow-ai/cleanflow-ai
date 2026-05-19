@@ -279,9 +279,9 @@ export function FilePreviewTab({
 
                       const cellClass =
                         status === "quarantined"
-                          ? "bg-red-1000/10 text-red-900 dark:text-red-300 shadow-[inset_2px_0_0_#ef4444]"
+                          ? "bg-red-50 text-red-900 dark:bg-red-500/10 dark:text-red-300 shadow-[inset_2px_0_0_#ef4444]"
                           : status === "fixed"
-                          ? "bg-amber-1000/10 text-amber-900 dark:text-amber-300 shadow-[inset_2px_0_0_#f97316]"
+                          ? "bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-300 shadow-[inset_2px_0_0_#f97316]"
                           : ""
 
                       const cellContent = (
@@ -453,8 +453,8 @@ function LegendDot({
     variant === "clean"
       ? "bg-transparent border border-border"
       : variant === "fixed"
-      ? "bg-amber-1000"
-      : "bg-red-1000"
+      ? "bg-amber-500"
+      : "bg-red-500"
   return (
     <div className="flex items-center gap-1.5">
       <span className={cn("inline-block w-2.5 h-2.5 rounded-full", dotClass)} />

@@ -1707,7 +1707,7 @@ function EntityBlock(props: EntityBlockProps) {
                                         <span
                                             className={cn(
                                                 'h-2 w-2 rounded-full mr-2 flex-shrink-0',
-                                                mapped ? 'bg-emerald-1000' : 'bg-muted-foreground/30',
+                                                mapped ? 'bg-emerald-500' : 'bg-muted-foreground/30',
                                             )}
                                         />
                                     )}
@@ -1721,7 +1721,7 @@ function EntityBlock(props: EntityBlockProps) {
                                         <span
                                             className={cn(
                                                 'h-2 w-2 rounded-full ml-auto flex-shrink-0',
-                                                mapped ? 'bg-emerald-1000' : isSelected ? 'bg-primary' : 'bg-muted-foreground/30',
+                                                mapped ? 'bg-emerald-500' : isSelected ? 'bg-primary' : 'bg-muted-foreground/30',
                                             )}
                                         />
                                     )}

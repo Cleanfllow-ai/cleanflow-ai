@@ -75,10 +75,10 @@ function CardinalityBanner({
     return (
         <div className={cn(
             "flex items-center gap-2 px-4 py-2 rounded-lg border text-xs",
-            cardinality === "1:1" && "bg-emerald-1000/10 border-emerald-500/30 text-emerald-400",
-            cardinality === "1:N" && "bg-blue-1000/10 border-blue-500/30 text-blue-400",
-            cardinality === "N:1" && "bg-purple-1000/10 border-purple-500/30 text-purple-400",
-            cardinality === "M:N" && "bg-amber-1000/10 border-amber-500/30 text-amber-400",
+            cardinality === "1:1" && "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400",
+            cardinality === "1:N" && "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400",
+            cardinality === "N:1" && "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-500/10 dark:border-purple-500/30 dark:text-purple-400",
+            cardinality === "M:N" && "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400",
         )}>
             <Badge variant="outline" className="font-mono text-[10px] bg-white/60">
                 {cardinality}
@@ -137,7 +137,7 @@ function EndpointEntry({
         .filter(p => p.connected)
 
     return (
-        <div className="rounded-lg border border-white/20 bg-card p-3 space-y-2.5">
+        <div className="rounded-lg border border-border bg-card p-3 space-y-2.5">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -472,7 +472,7 @@ function WarehouseEntityPicker({
             {/* Admin-config indicator (primary only). Read-only chips for the
                 pre-configured warehouse + database; "Change" link goes to admin. */}
             {isPrimaryWithPreset && configMissing && (
-                <Alert className="border-amber-500/30 bg-amber-1000/10 py-2">
+                <Alert className="border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 py-2">
                     <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
                     <AlertDescription className="text-xs text-amber-400">
                         Warehouse / database not configured.{" "}
@@ -879,7 +879,7 @@ export function EndpointsStep({ pipeline, onNext, additionalContent, extraCanPro
 
                 {/* No pairs — surface a hint */}
                 {pipeline.pipelineSteps.length === 0 && (
-                    <Alert className="border-amber-500/30 bg-amber-1000/10">
+                    <Alert className="border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10">
                         <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
                         <AlertDescription className="text-xs text-amber-400">
                             Pick at least one source provider + entity AND one destination provider + entity to continue.
@@ -892,7 +892,7 @@ export function EndpointsStep({ pipeline, onNext, additionalContent, extraCanPro
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-white/15 flex justify-end">
+            <div className="px-6 py-4 border-t border-border flex justify-end">
                 <Button onClick={onNext} disabled={!canProceed || !extraCanProceed}>Next →</Button>
             </div>
         </div>

@@ -45,8 +45,8 @@ export function DqScoreChart({ completedFiles }: DqScoreChartProps) {
         <div className="flex flex-col gap-3">
           <ChartContainer config={chartConfig} className="h-[180px] w-full">
             <BarChart data={scoreDistData} layout="vertical" margin={{ left: 0, right: 10 }}>
-              <XAxis type="number" stroke="#ffffff" fontSize={10} />
-              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: "#ffffff" }} stroke="#ffffff" />
+              <XAxis type="number" stroke="transparent" fontSize={10} tick={{ fill: "var(--color-muted-foreground)" }} />
+              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} stroke="transparent" />
               <ChartTooltip
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
@@ -72,8 +72,8 @@ export function DqScoreChart({ completedFiles }: DqScoreChartProps) {
               <p className="text-lg font-bold text-[#69C04B] font-mono tabular-nums">{excellent}</p>
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-medium">Excellent</p>
             </div>
-            <div className="p-2.5 rounded-lg bg-amber-1000/10 border border-amber-500/20 text-center flex-1">
-              <p className="text-lg font-bold text-amber-400 font-mono tabular-nums">{good}</p>
+            <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20 text-center flex-1">
+              <p className="text-lg font-bold text-amber-600 dark:text-amber-400 font-mono tabular-nums">{good}</p>
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-medium">Good</p>
             </div>
             <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-center flex-1">

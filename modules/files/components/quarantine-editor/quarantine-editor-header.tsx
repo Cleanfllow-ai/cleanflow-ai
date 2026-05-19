@@ -23,7 +23,7 @@ export function QuarantineEditorHeader({
 }: QuarantineEditorHeaderProps) {
   if (!manifest) {
     return (
-      <div className="px-5 py-3 bg-card">
+      <div className="px-5 py-3 bg-background">
         <div className="text-sm font-semibold text-foreground">
           Quarantine Editor
         </div>
@@ -34,7 +34,7 @@ export function QuarantineEditorHeader({
   const editableColumns = manifest.editable_columns.filter((c) => c !== 'row_id').length
 
   return (
-    <div className="px-5 py-0 bg-card">
+    <div className="px-5 py-0 bg-background">
       <div className="flex items-center gap-0 py-0">
         {/* Title */}
         <div className="flex items-center gap-2 pr-5 py-2.5 border-r border-border">
@@ -65,8 +65,8 @@ export function QuarantineEditorHeader({
           {pendingCount > 0 ? (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 border border-amber-300 dark:bg-amber-500/10 dark:border-amber-500/20">
               <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-1000 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-1000" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
               </span>
               <span className="text-[11px] font-medium text-amber-800 dark:text-amber-400 tabular-nums font-mono">
                 {pendingCount} unsaved
@@ -74,7 +74,7 @@ export function QuarantineEditorHeader({
             </div>
           ) : (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-100 border border-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/20">
-              <span className="inline-flex rounded-full h-1.5 w-1.5 bg-emerald-1000" />
+              <span className="inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
               <span className="text-[11px] font-medium text-emerald-800 dark:text-emerald-400">
                 Saved
               </span>
