@@ -156,8 +156,7 @@ export default function UnifiedBridgeImport({
       {/* Source Tabs */}
       <Tabs value={activeSource} onValueChange={(v) => setActiveSource(v as IngestionSource)} className="flex-1 flex flex-col pt-4">
         <TabsList
-          className="grid w-full grid-cols-4 mb-4"
-          style={{ backgroundColor: '#f3f4f6', border: 'none' }}
+          className="grid w-full grid-cols-4 mb-4 bg-neutral-100 dark:bg-muted border-none"
         >
           {(["ftp", "tcp", "http", "other"] as IngestionSource[]).map((source) => {
             const Icon = sourceIcons[source]
@@ -165,8 +164,7 @@ export default function UnifiedBridgeImport({
               <TabsTrigger
                 key={source}
                 value={source}
-                className="flex items-center gap-2 text-xs sm:text-sm text-neutral-500 border-0 data-[state=active]:bg-white data-[state=active]:text-neutral-900 data-[state=active]:shadow-sm"
-                style={{ backgroundColor: 'transparent', borderColor: 'transparent' }}
+                className="flex items-center gap-2 text-xs sm:text-sm text-neutral-500 dark:text-muted-foreground border-0 data-[state=active]:bg-white dark:data-[state=active]:bg-card data-[state=active]:text-neutral-900 dark:data-[state=active]:text-foreground data-[state=active]:shadow-sm"
                 disabled={isIngesting}
               >
                 <Icon className="h-4 w-4" />
