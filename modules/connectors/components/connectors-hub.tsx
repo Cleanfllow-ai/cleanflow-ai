@@ -18,7 +18,7 @@ import {
   Layers,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -315,8 +315,30 @@ export function ConnectorsHub() {
       </div>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+        // W4-3 polish (Marcus): the previous error state was a flat red
+        // alert with no actionable recovery — users had to F5 the page to
+        // retry. We now surface an explicit Retry button that re-runs
+        // loadProviders() so the connectors list can recover from a
+        // transient API blip without the user leaving the page.
+        <Alert variant="destructive" data-testid="connectors-error-alert">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Couldn't load connectors</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{error}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setLoading(true)
+                loadProviders()
+              }}
+              data-testid="connectors-retry-button"
+              className="sm:ml-4 shrink-0"
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
 
