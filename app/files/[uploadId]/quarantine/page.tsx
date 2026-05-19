@@ -297,6 +297,42 @@ export default function QuarantineEditorPage({ params }: PageProps) {
    * TODO(bulk-edit-endpoint): once the BE exposes a dedicated bulk
    * "set column to value" endpoint we can collapse this to one round-trip.
    */
+  /**
+   * W5B-2: client-side preview sampler.  Returns up to `sampleSize` rows
+   * from the bulk selection with their current (overlay-aware) value for
+   * the chosen column.  The dialog tacks on the user-typed `newValue` so
+   * the user sees a clean (old → new) diff before firing the mutation.
+   *
+   * Reads cell values via `gridApiRef.current.getRowNode(rowId).data`
+   * (already cached in the grid for visible rows) and falls through to
+   * `editor.getCellValue` for the overlay (pending + saved edits).
+   * For rows that have been evicted from the grid block cache (very large
+   * selections off-screen), the row data is unavailable and we fall back
+   * to an '(unknown)' marker — the actual mutation still runs over the
+   * full set; the preview is intentionally a sample, not a guarantee.
+   */
+  const buildBulkApplyPreview = useCallback(
+    (column: string, sampleSize: number) => {
+      if (!column || selectedRowIds.size === 0) return []
+      const ids = Array.from(selectedRowIds).slice(0, sampleSize)
+      const api = gridApiRef.current
+      return ids.map((rowId) => {
+        const node = api?.getRowNode(rowId)
+        const rowData = (node?.data as Record<string, any> | undefined) || {}
+        const oldValue = editor.getCellValue(rowId, column, rowData)
+        return {
+          rowId,
+          column,
+          oldValue:
+            oldValue === null || oldValue === undefined ? '' : String(oldValue),
+          // newValue is filled in by the dialog (user-typed value).
+          newValue: '',
+        }
+      })
+    },
+    [selectedRowIds, editor], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
   const handleBulkApply = useCallback(
     async (column: string, value: string) => {
       if (!column || selectedRowIds.size === 0) return
@@ -861,6 +897,7 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         selectedRowCount={selectedRowIds.size}
         onApply={handleBulkApply}
         applying={bulkApplying}
+        getPreviewRows={buildBulkApplyPreview}
       />
 
       {/* ── Unlock confirmation dialog (#6) ──────────────────────────── */}
