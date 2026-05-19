@@ -45,7 +45,6 @@ import {
 } from "@/modules/connectors/hooks/use-connector-metadata-cache"
 import { warehouseConnectorsAPI } from "@/modules/connectors/api/warehouse-connectors-api"
 import type { WarehouseMetadataItem } from "@/modules/connectors/api/warehouse-connectors-api"
-import { isFetchAbortError } from "@/modules/shared/api-error"
 import { ConnectorLogo } from "./connector-logo"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -139,10 +138,19 @@ export function ConnectorsHub() {
         }
       }
     } catch (err) {
-      // R2 P0-1 (2026-05-19): silence navigation-cancel aborts. The next mount
-      // (or tab return) will re-fire loadProviders cleanly; surfacing a red
-      // error banner here for an unmount-cancelled fetch is misleading.
-      if (isFetchAbortError(err)) return
+      // R2 P0-1 (2026-05-19): silence true navigation-cancel aborts only —
+      // the AbortController.abort() path emits a DOMException with name
+      // 'AbortError'. The broader isFetchAbortError() heuristic also matched
+      // legitimate 'TypeError: Failed to fetch' network failures, which
+      // suppressed the error state + Retry button (Probe 8 regression).
+      // Real network failures and CORS errors must surface the error card
+      // so the user can recover via Retry.
+      const isAbort =
+        (typeof DOMException !== "undefined" &&
+          err instanceof DOMException &&
+          err.name === "AbortError") ||
+        (err instanceof Error && err.name === "AbortError")
+      if (isAbort) return
       console.error("[Connectors:loadProviders]", err)
       setError("Could not load connectors. Please try again.")
       setLoading(false)
