@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useToast } from '@/shared/hooks/use-toast'
 import { toastFromQuarantineError } from '@/lib/error-toast-jsx'
 import { queryQuarantinedRows } from '@/modules/files/api'
-import type { QuarantineRow, QuarantineEditorConfig } from '@/modules/files/types'
+import type { QuarantineRow, QuarantineEditorConfig, QuarantineFilters } from '@/modules/files/types'
 
 interface RowsState {
   rows: QuarantineRow[]
@@ -26,7 +26,8 @@ export function useQuarantineRows(config: QuarantineEditorConfig) {
       authToken: string,
       sessionId?: string,
       baseUploadId?: string,
-      nextCursor?: string | null
+      nextCursor?: string | null,
+      filters?: QuarantineFilters
     ) => {
       if (state.loading) return
       if (!state.hasMore && nextCursor === undefined) return
@@ -39,6 +40,7 @@ export function useQuarantineRows(config: QuarantineEditorConfig) {
           session_id: sessionId,
           cursor: nextCursor !== undefined ? nextCursor || undefined : state.cursor || undefined,
           limit: config.pageSize,
+          filters,
         })
 
         setState((prev) => {

@@ -1,3 +1,5 @@
+import { statusToLabel } from "@/shared/lib/status-labels"
+
 export const getDqQuality = (
   score: number | null | undefined
 ): "excellent" | "good" | "bad" | null => {
@@ -60,37 +62,14 @@ export const isActiveStatus = (status: string): boolean => {
 /**
  * Returns a human-readable label for file status.
  * Simplifies technical status names for business users.
+ *
+ * Wave 2 (2026-05-19): delegates to the central statusToLabel() helper in
+ * shared/lib/status-labels.ts so every status pill across the app uses the
+ * same humanized vocabulary (VALIDATED → Ready, DQ_FIXED → Cleaned ✓, etc.).
+ * Keep this thin wrapper exported because dozens of files import it.
  */
 export const getStatusLabel = (status: string): string => {
-  switch (status) {
-    case "DQ_FIXED": return "Complete"
-    case "COMPLETED": return "Complete"
-    case "DQ_COMPLETE": return "Complete"
-    case "DQ_RUNNING": return "Processing"
-    case "NORMALIZING": return "Processing"
-    case "DQ_DISPATCHED": return "Queued"
-    case "QUEUED": return "Queued"
-    case "UPLOADED": return "Uploaded"
-    case "UPLOADING": return "Uploading"
-    case "IMPORTING": return "Importing"
-    case "IMPORT_FAILED": return "Import Failed"
-    case "DQ_FAILED": return "Failed"
-    case "FAILED": return "Failed"
-    case "UPLOAD_FAILED": return "Upload Failed"
-    case "REJECTED": return "Rejected"
-    case "REPROCESSING": return "Reprocessing"
-    case "REPROCESS_FAILED": return "Reprocess Failed"
-    case "SHARDING": return "Initiating..."
-    case "SHARDED": return "Ready"
-    case "SHARD_FAILED": return "Shard Failed"
-    // Phase 7B: optimizer pipeline states. The dedicated OptimizingBadge
-    // component renders these with a custom pill + tooltip — this label is
-    // only used as a fallback when getStatusLabel() is called outside the
-    // table cell renderer.
-    case "OPTIMIZING": return "Optimizing…"
-    case "OPTIMIZE_FAILED": return "Optimize failed"
-    default: return status
-  }
+  return statusToLabel(status)
 }
 
 export const getStatusBadgeColor = (status: string) => {

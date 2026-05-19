@@ -189,7 +189,7 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
           setPreviewError("This file was deleted.")
           break
         default:
-          setPreviewError(err.message || "Failed to load preview")
+          setPreviewError("Could not load preview. Please try again.")
       }
     } finally {
       clearTimeout(timeoutId)
@@ -220,7 +220,8 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       setIssuesNextOffset(hasMore ? Math.min(sampleSize, ISSUES_PAGE_SIZE) : null)
       setAvailableViolations(report?.violation_counts || {})
     } catch (err: any) {
-      setDqReportError(err.message || "Failed to load DQ report")
+      console.error("Failed to load DQ report:", err)
+      setDqReportError("Could not load the quality report. Please try again.")
     } finally {
       setDqReportLoading(false)
     }
@@ -441,7 +442,8 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
         setAvailableViolations(resp.available_violations)
       }
     } catch (err: any) {
-      setDqReportError(err.message || "Failed to load issues")
+      console.error("Failed to load issues:", err)
+      setDqReportError("Could not load issues. Please try again.")
     } finally {
       setIssuesLoading(false)
     }
@@ -456,11 +458,53 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
       if (!token) throw new Error("Not authenticated")
       const report = await fileManagementAPI.downloadDqReport(selectedUploadId, token)
 
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" })
+      /** Wrap a single CSV field: double-quote if it contains comma, quote, or newline. */
+      const csvField = (value: unknown): string => {
+        const s = value === null || value === undefined ? "" : String(value)
+        if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+          return `"${s.replace(/"/g, '""')}"`
+        }
+        return s
+      }
+      const csvRow = (...fields: unknown[]): string => fields.map(csvField).join(",")
+
+      const uploadId = report.upload_id || selectedUploadId
+      const totalRows = report.hybrid_summary?.total_rows ?? report.rows_in ?? ""
+      const cleanRows = report.hybrid_summary?.clean_rows ?? report.rows_clean ?? ""
+      const quarantinedRows = report.hybrid_summary?.quarantined_rows ?? report.rows_quarantined ?? ""
+      const score = report.dq_score !== undefined && report.dq_score !== null
+        ? `${Math.round(report.dq_score * 100) / 100}%`
+        : ""
+
+      const lines: string[] = [
+        csvRow("Upload ID", uploadId),
+        csvRow("Total Rows", totalRows),
+        csvRow("Clean Rows", cleanRows),
+        csvRow("Quarantined Rows", quarantinedRows),
+        csvRow("Quality Score", score),
+        "",
+        csvRow("Rule ID", "Issue", "Description", "Hits"),
+      ]
+
+      const topViolations = report.top_violations
+      if (topViolations && topViolations.length > 0) {
+        for (const v of topViolations) {
+          lines.push(csvRow(v.violation, v.short_label || v.violation, v.description || "", v.count))
+        }
+      } else if (report.violation_counts && Object.keys(report.violation_counts).length > 0) {
+        for (const [ruleId, count] of Object.entries(report.violation_counts)) {
+          lines.push(csvRow(ruleId, ruleId, "", count))
+        }
+      }
+
+      const csv = lines.join("\n")
+      const rawFilename = currentFile.original_filename || currentFile.filename || selectedUploadId
+      const baseName = rawFilename.replace(/\.[^.]+$/, "")
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
-      link.download = `dq_report_${currentFile.original_filename || currentFile.filename || selectedUploadId}.json`
+      link.download = `dq_report_${baseName}.csv`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -471,9 +515,10 @@ export function useFileDetails(file: FileStatusResponse | null, open: boolean, d
         description: "DQ report downloaded successfully",
       })
     } catch (err: any) {
+      console.error("Failed to download DQ report:", err)
       toast({
         title: "Download failed",
-        description: err.message || "Failed to download DQ report",
+        description: "Could not download the quality report. Please try again.",
         variant: "destructive",
       })
     } finally {

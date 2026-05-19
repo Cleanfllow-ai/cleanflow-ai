@@ -19,8 +19,8 @@ export interface AuthState {
     mfaRequired: boolean
     mfaSession: string | null
     mfaUsername: string | null
-    // Idle timeout warning state (case 5)
-    idleWarnSecondsRemaining: number | null
+    // Idle timeout warning state (case 5) — optional so partial setAuthState calls compile
+    idleWarnSecondsRemaining?: number | null
 }
 
 export interface MfaSetupData {

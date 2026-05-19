@@ -6,6 +6,9 @@ import { Download, Plus, RefreshCw, ShieldCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -31,6 +34,26 @@ function sanitizeErrorMessage(raw: string): string {
     return raw
 }
 
+/**
+ * Format a USD cost value defensively.
+ *
+ * The BE can deliver `cost_actual_usd` as number, string (DDB Decimal
+ * serialization), null, or undefined depending on the worker code path that
+ * wrote the row. A single malformed value used to crash the whole
+ * /augmentation page because `value.toFixed()` throws on non-number inputs
+ * and the marquee table sits inside a React error boundary.
+ *
+ * Rules:
+ *  - null / undefined / NaN / non-coercible → "—"
+ *  - everything else → `$<value>` with `digits` decimal places
+ */
+function formatCurrency(value: unknown, digits = 4): string {
+    if (value == null) return "—"
+    const n = typeof value === "number" ? value : Number(value)
+    if (!Number.isFinite(n)) return "—"
+    return `$${n.toFixed(digits)}`
+}
+
 const TONE: Record<AugmentationJobStatus, string> = {
     PENDING: "bg-amber-1000/10 text-amber-500 border-amber-500/30",
     RUNNING: "bg-blue-1000/10 text-blue-500 border-blue-500/30",
@@ -51,6 +74,7 @@ export function AugmentationPage() {
     const [error, setError] = useState<string | null>(null)
     const [newOpen, setNewOpen] = useState(false)
     const [selected, setSelected] = useState<AugmentationJob | null>(null)
+    const [statusFilter, setStatusFilter] = useState<string>("all")
 
     const refresh = useCallback(async () => {
         if (!idToken) return
@@ -90,6 +114,20 @@ export function AugmentationPage() {
                 </TabsList>
                 <TabsContent value="jobs" className="mt-4">
                     {error && <p className="text-sm text-red-500 mb-2" role="alert">{error}</p>}
+                    <div className="mb-3">
+                        <Select value={statusFilter} onValueChange={setStatusFilter} data-testid="aug-status-filter-select">
+                            <SelectTrigger className="w-[160px] h-8 text-sm" data-testid="aug-status-filter-trigger">
+                                <SelectValue placeholder="All statuses" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All statuses</SelectItem>
+                                <SelectItem value="RUNNING">Running</SelectItem>
+                                <SelectItem value="SUCCEEDED">Completed</SelectItem>
+                                <SelectItem value="FAILED">Failed</SelectItem>
+                                <SelectItem value="PENDING">Pending</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -104,7 +142,9 @@ export function AugmentationPage() {
                                 <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">
                                     No augmentation jobs yet.</TableCell></TableRow>
                             )}
-                            {jobs.map((j) => (
+                            {jobs
+                            .filter((j) => statusFilter === "all" || j.status === statusFilter)
+                            .map((j) => (
                                 <TableRow key={j.job_id} data-testid={`aug-row-${j.job_id}`}
                                     onClick={() => setSelected(j)} className="cursor-pointer">
                                     <TableCell className="font-mono text-xs">
@@ -115,7 +155,7 @@ export function AugmentationPage() {
                                     <TableCell className="text-xs">{j.template_id || "—"}</TableCell>
                                     <TableCell className="text-right">{j.output_rows_count ?? "—"}</TableCell>
                                     <TableCell className="text-right">
-                                        {j.cost_actual_usd != null ? `$${j.cost_actual_usd.toFixed(4)}` : "—"}
+                                        {formatCurrency(j.cost_actual_usd, 4)}
                                     </TableCell>
                                     <TableCell className="text-xs text-muted-foreground">
                                         {j.created_at?.slice(0, 19).replace("T", " ")}
@@ -157,8 +197,8 @@ export function AugmentationPage() {
                             <div><span className="text-muted-foreground">Template: </span>{selected.template_id || "—"}</div>
                             <div><span className="text-muted-foreground">Rows: </span>{selected.output_rows_count ?? "—"}</div>
                             <div><span className="text-muted-foreground">Cost: </span>
-                                {selected.cost_actual_usd != null ? `$${selected.cost_actual_usd}` : "—"}</div>
-                            {selected.error_message && <p className="text-red-500">{selected.error_message}</p>}
+                                {formatCurrency(selected.cost_actual_usd, 4)}</div>
+                            {selected.error_message && <p className="text-red-500">{sanitizeErrorMessage(selected.error_message)}</p>}
                             <Link href={`/augmentation/jobs/${selected.job_id}`}
                                 className="text-blue-500 underline text-xs">Open full detail →</Link>
                         </div>

@@ -13,22 +13,15 @@
  *   - `run_mode = "custom"`
  *   - `entity_order = pipeline.entityPriority`
  * which the backend's `_run_custom` honours (per FEATURE_PLAN §2.1).
- *
- * Field-level priority is intentionally deferred — see the "Field
- * priority" tab placeholder; it doesn't have an obvious runtime mapping
- * today (the backend processes columns in DataFrame order). When a real
- * use case shows up we'll wire it.
  */
 
 import { useState, useEffect, useMemo } from "react"
-import { ArrowUp, ArrowDown, ListOrdered, Layers, X, Info } from "lucide-react"
+import { ArrowUp, ArrowDown, ListOrdered, X, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/shared/lib/utils"
 
 interface PriorityDialogProps {
@@ -47,7 +40,6 @@ export function PriorityDialog({
 }: PriorityDialogProps) {
     // Local working copy so reorders aren't committed until "Save".
     const [draft, setDraft] = useState<string[]>(value)
-    const [tab, setTab] = useState<"entity" | "field">("entity")
 
     useEffect(() => {
         if (open) setDraft(value.length > 0 ? value : availableEntities)
@@ -94,18 +86,8 @@ export function PriorityDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <Tabs value={tab} onValueChange={(v) => setTab(v as "entity" | "field")} className="w-full">
-                    <TabsList className="grid grid-cols-2 w-full">
-                        <TabsTrigger value="entity" className="text-xs gap-1.5">
-                            <Layers className="h-3.5 w-3.5" /> Entity Priority
-                        </TabsTrigger>
-                        <TabsTrigger value="field" className="text-xs gap-1.5" disabled>
-                            Field Priority <Badge variant="outline" className="text-[9px] ml-1">soon</Badge>
-                        </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="entity" className="mt-3 space-y-3">
-                        {availableEntities.length === 0 ? (
+                <div className="mt-3 space-y-3">
+                    {availableEntities.length === 0 ? (
                             <Alert>
                                 <Info className="h-3.5 w-3.5" />
                                 <AlertDescription className="text-xs">
@@ -172,20 +154,7 @@ export function PriorityDialog({
                                 )}
                             </>
                         )}
-                    </TabsContent>
-
-                    <TabsContent value="field" className="mt-3">
-                        <Alert>
-                            <Info className="h-3.5 w-3.5" />
-                            <AlertDescription className="text-xs">
-                                Field-level priority will let you specify column write-order within
-                                each entity (e.g. <code>cust.custname</code> before
-                                <code className="mx-1">vendor.vendorname</code>). Not yet wired to
-                                the runtime — coming after the entity priority work ships.
-                            </AlertDescription>
-                        </Alert>
-                    </TabsContent>
-                </Tabs>
+                </div>
 
                 <DialogFooter className="gap-2">
                     {value.length > 0 && (

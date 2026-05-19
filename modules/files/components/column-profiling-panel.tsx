@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   Table,
   TableBody,
@@ -11,32 +12,49 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  BarChart, 
-  Activity, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  BarChart,
+  Activity,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
   Database,
   BrainCircuit,
   Search
 } from "lucide-react"
 import type { ProfilingResponse } from "@/modules/files/api/file-management-api"
 import { getRuleMeta } from "@/shared/lib/rule-metadata"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 
 const RULE_SEVERITY_STYLES: Record<string, string> = {
-  critical: "bg-red-1000/10 text-red-800 border-red-500/20",
-  warning: "bg-amber-1000/10 text-amber-800 border-amber-500/20",
-  info: "bg-blue-1000/10 text-blue-800 border-blue-500/20",
+  critical: "bg-red-500/10 text-red-700 border-red-500/20",
+  warning: "bg-amber-500/10 text-amber-700 border-amber-500/20",
+  info: "bg-blue-500/10 text-blue-700 border-blue-500/20",
 }
 
 interface ColumnProfilingPanelProps {
   data: ProfilingResponse | null
   loading: boolean
   embedded?: boolean
+  /** B4 (2026-05-16): list of column names produced by augmentation rules
+   *  before DQ ran. When supplied, those columns get a violet tint + a
+   *  "✨" marker in the profiling table so users can tell augmented
+   *  columns apart from upload columns at a glance. Sourced from
+   *  FileStatusResponse.augmented_columns. */
+  augmentedColumns?: string[]
 }
 
-export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilingPanelProps) {
+export function ColumnProfilingPanel({ data, loading, embedded, augmentedColumns }: ColumnProfilingPanelProps) {
+  const augmentedColumnsSet = new Set(augmentedColumns ?? [])
+  const [typeFilter, setTypeFilter] = useState<string>("all")
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-12 space-y-4">
@@ -190,8 +208,35 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
     </>
   )
 
+  const typeOptions = Array.from(
+    new Set(Object.values(profiles).map((p) => p.type_guess).filter(Boolean))
+  ).sort()
+
+  const filteredColumns = columns.filter(
+    ([, p]) => typeFilter === "all" || p.type_guess === typeFilter
+  )
+
   const detailsTable = (
-    <div className="w-full rounded-md border overflow-x-auto">
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Select value={typeFilter} onValueChange={setTypeFilter} data-testid="type-filter-select">
+          <SelectTrigger className="w-[180px] h-8 text-sm" data-testid="type-filter-trigger">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {typeOptions.map((t) => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {typeFilter !== "all" && (
+          <span className="text-xs text-muted-foreground">
+            {filteredColumns.length} of {columns.length} columns
+          </span>
+        )}
+      </div>
+      <div className="w-full rounded-md border overflow-x-auto">
       <div className="min-w-[960px] max-h-[60vh] overflow-y-auto">
         <Table>
           <TableHeader>
@@ -209,13 +254,28 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
             </TableRow>
           </TableHeader>
           <TableBody>
-            {columns.map(([name, profile]) => {
+            {filteredColumns.map(([name, profile]) => {
               const autoCount = profile.rules.filter(r => r.decision === 'auto').length
               const humanCount = profile.rules.filter(r => r.decision === 'human').length
+              const isAugmented = augmentedColumnsSet.has(name)
               return (
-              <TableRow key={name}>
-                <TableCell className="font-medium align-top">
-                  {name}
+              <TableRow
+                key={name}
+                className={isAugmented ? "bg-violet-50/40" : undefined}
+              >
+                <TableCell className={`font-medium align-top ${isAugmented ? "border-l-2 border-violet-300" : ""}`}>
+                  <div className="flex items-center gap-1">
+                    {isAugmented && (
+                      <span
+                        className="text-violet-500"
+                        title="Augmented column (created by an augmentation rule before DQ)"
+                        aria-hidden="true"
+                      >
+                        ✨
+                      </span>
+                    )}
+                    <span>{name}</span>
+                  </div>
                   <div className="flex gap-1 mt-1">
                     <Badge variant="outline" className="text-[10px] px-1 h-5">
                       {profile.rules.length} rules
@@ -244,7 +304,26 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
                             return (
                               <>
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                  <span className="font-semibold text-primary">{displayName}</span>
+                                  <TooltipProvider delayDuration={150}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span
+                                          className="font-semibold text-primary cursor-help"
+                                          data-rule-id={rule.rule_id}
+                                          data-testid="column-profile-rule-name"
+                                        >
+                                          {displayName}
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side="top"
+                                        className="max-w-xs"
+                                        data-testid="column-profile-rule-tooltip"
+                                      >
+                                        {meta.description}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                   <Badge
                                     variant="outline"
                                     className={`text-[10px] h-4 px-1 uppercase ${
@@ -253,17 +332,16 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
                                   >
                                     {meta.severity}
                                   </Badge>
-                                  <Badge 
+                                  <Badge
                                     variant={rule.decision === 'auto' ? "default" : "secondary"}
                                     className={`text-[10px] h-4 px-1 ${
-                                      rule.decision === 'auto' 
-                                        ? 'bg-green-1000/10 text-green-800 hover:bg-green-1000/20' 
-                                        : 'bg-orange-1000/10 text-orange-800 hover:bg-orange-1000/20'
+                                      rule.decision === 'auto'
+                                        ? 'bg-green-500/10 text-green-700 hover:bg-green-500/20'
+                                        : 'bg-orange-500/10 text-orange-700 hover:bg-orange-500/20'
                                     }`}
                                   >
                                     {rule.decision}
                                   </Badge>
-                                  <span className="text-[10px] text-muted-foreground">Rule ID: {rule.rule_id}</span>
                                 </div>
                                 <p className="text-muted-foreground leading-tight">
                                   {meta.description}
@@ -307,6 +385,7 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
             )})}
           </TableBody>
         </Table>
+      </div>
       </div>
     </div>
   )

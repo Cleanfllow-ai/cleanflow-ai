@@ -67,7 +67,7 @@ export function ImportDialog({
             Import Data
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground ml-[42px]">
-            Upload a file or ingest from any source via the Unified Bridge.
+            Upload a file directly, or pull data from a connected source (FTP / SFTP / TCP / HTTP / ERP).
           </DialogDescription>
         </DialogHeader>
 
@@ -80,7 +80,7 @@ export function ImportDialog({
             </TabsTrigger>
             <TabsTrigger value="bridge" className="gap-1.5">
               <Server className="h-3.5 w-3.5" />
-              Unified Bridge
+              Connections
             </TabsTrigger>
           </TabsList>
 

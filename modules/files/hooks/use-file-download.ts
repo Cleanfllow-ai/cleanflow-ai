@@ -37,6 +37,48 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
     [idToken]
   )
 
+  // Helper: trigger a browser file download from a presigned URL or blob.
+  // When the BE returns JSON {presigned_url, filename} for large files, this
+  // handles both paths uniformly.
+  const _triggerDownload = async (
+    response: Response,
+    fallbackFilename: string
+  ): Promise<string> => {
+    const contentType = response.headers.get("Content-Type") || ""
+    if (contentType.includes("application/json")) {
+      // BE returned a presigned-URL redirect (large-file streaming path)
+      const json = await response.json()
+      const presignedUrl: string = json.presigned_url || json.url || ""
+      const filename: string = json.filename || fallbackFilename
+      if (presignedUrl) {
+        const a = document.createElement("a")
+        a.href = presignedUrl
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
+      return filename
+    }
+    // Normal binary blob path
+    const contentDisposition = response.headers.get("Content-Disposition")
+    let filename = fallbackFilename
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+      if (filenameMatch) filename = filenameMatch[1]
+    }
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+    return filename
+  }
+
   const downloadCleanData = useCallback(
     async (uploadId: string) => {
       if (!idToken) throw new Error("Not authenticated")
@@ -48,34 +90,25 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to download clean data: ${response.status}`)
+          const errJson = await response.json().catch(() => ({}))
+          const detail = (errJson as { error?: string; message?: string }).error
+            || (errJson as { error?: string; message?: string }).message
+            || response.statusText
+          throw new Error(`Failed to download clean data: ${response.status} — ${detail}`)
         }
 
-        const contentDisposition = response.headers.get("Content-Disposition")
-        let filename = "clean_data.parquet"
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="(.+)"/)
-          if (filenameMatch) filename = filenameMatch[1]
-        }
-
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = filename
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
+        const filename = await _triggerDownload(response, "clean_data.csv")
 
         toast({
           title: "Download Started",
           description: `Downloading clean data: ${filename}`,
         })
       } catch (error) {
+        console.error("Download clean data error:", error)
+        const msg = error instanceof Error ? error.message : "Could not download clean data."
         toast({
           title: "Download Failed",
-          description: error instanceof Error ? error.message : "Failed to download clean data",
+          description: msg,
           variant: "destructive",
         })
         throw error
@@ -99,38 +132,28 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
             toast({
               title: "No Quarantine Data",
               description: "No quarantined data available for this file",
-              variant: "destructive",
             })
             return
           }
-          throw new Error(`Failed to download quarantine data: ${response.status}`)
+          const errJson = await response.json().catch(() => ({}))
+          const detail = (errJson as { error?: string; message?: string }).error
+            || (errJson as { error?: string; message?: string }).message
+            || response.statusText
+          throw new Error(`Failed to download quarantine data: ${response.status} — ${detail}`)
         }
 
-        const contentDisposition = response.headers.get("Content-Disposition")
-        let filename = "quarantine_data.parquet"
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="(.+)"/)
-          if (filenameMatch) filename = filenameMatch[1]
-        }
-
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = filename
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
+        const filename = await _triggerDownload(response, "quarantine_data.csv")
 
         toast({
           title: "Download Started",
           description: `Downloading quarantine data: ${filename}`,
         })
       } catch (error) {
+        console.error("Download quarantine data error:", error)
+        const msg = error instanceof Error ? error.message : "Could not download quarantine data."
         toast({
           title: "Download Failed",
-          description: error instanceof Error ? error.message : "Failed to download quarantine data",
+          description: msg,
           variant: "destructive",
         })
         throw error
@@ -154,7 +177,6 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
             toast({
               title: "No Report Available",
               description: "No DQ report available for this file",
-              variant: "destructive",
             })
             return
           }
@@ -183,9 +205,10 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
           description: `Downloading DQ report: ${filename}`,
         })
       } catch (error) {
+        console.error("Download DQ report error:", error)
         toast({
           title: "Download Failed",
-          description: error instanceof Error ? error.message : "Failed to download DQ report",
+          description: "Could not download the DQ report. Please try again.",
           variant: "destructive",
         })
         throw error
@@ -212,38 +235,28 @@ export function useFileDownload({ idToken, toast }: UseFileDownloadParams) {
             toast({
               title: "No Data Available",
               description: `No ${dataType} data available for this file`,
-              variant: "destructive",
             })
             return
           }
-          throw new Error(`Failed to download ${dataType} data as ${format}: ${response.status}`)
+          const errJson = await response.json().catch(() => ({}))
+          const detail = (errJson as { error?: string; message?: string }).error
+            || (errJson as { error?: string; message?: string }).message
+            || response.statusText
+          throw new Error(`Failed to download ${dataType} data as ${format}: ${response.status} — ${detail}`)
         }
 
-        const contentDisposition = response.headers.get("Content-Disposition")
-        let filename = `${dataType}_data.${format}`
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="(.+)"/)
-          if (filenameMatch) filename = filenameMatch[1]
-        }
-
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = filename
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
+        const filename = await _triggerDownload(response, `${dataType}_data.${format}`)
 
         toast({
           title: "Download Started",
           description: `Downloading ${dataType} data as ${format.toUpperCase()}: ${filename}`,
         })
       } catch (error) {
+        console.error("Download multi-format error:", error)
+        const msg = error instanceof Error ? error.message : `Could not download ${dataType} data as ${format.toUpperCase()}.`
         toast({
           title: "Download Failed",
-          description: error instanceof Error ? error.message : `Failed to download ${dataType} data as ${format}`,
+          description: msg,
           variant: "destructive",
         })
         throw error

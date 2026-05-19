@@ -1,9 +1,11 @@
-﻿"use client"
+"use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TopIssue } from "@/modules/files"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { AlertTriangle, Inbox } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
-import { AlertTriangle } from "lucide-react"
+import { TopIssue } from "@/modules/files"
+import { getRuleLabel, getRuleDescription } from "@/shared/lib/dq-rules"
 
 const COLORS = [
   "bg-rose-400/70",
@@ -26,20 +28,47 @@ const BAR_COLORS = [
 type Props = {
   issues?: TopIssue[]
   isLoading?: boolean
+  /**
+   * When non-null, the DQ report fetch failed for a non-benign reason. The
+   * widget renders an error state instead of the ambiguous "no data" empty
+   * state so users can tell "no issues yet" apart from "fetch failed".
+   */
+  errorMessage?: string | null
 }
 
-export function TopIssuesChart({ issues, isLoading }: Props) {
+export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
   const normalized = (issues || [])
     .filter((i) => typeof i.count === "number" && i.count > 0)
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
-    .map((issue, idx) => ({
-      id: idx + 1,
-      name: issue.violation.replace(/_/g, " "),
-      count: issue.count,
-      color: COLORS[idx % COLORS.length],
-      barColor: BAR_COLORS[idx % BAR_COLORS.length],
-    }))
+    .map((issue, idx) => {
+      // Hide raw rule codes (R1..R39, CUST_*) from the user-facing label.
+      // Prefer the BE-supplied short_label; fall back to getRuleLabel() for
+      // built-ins or "Custom Rule" for CUST_*. The raw violation code is
+      // NEVER rendered visibly — only available in the tooltip / DOM data
+      // attribute for technical inspection.
+      const friendly =
+        issue.short_label?.trim() ||
+        getRuleLabel(issue.violation) ||
+        "Data Quality Rule"
+      // Long-form description used in the shadcn Tooltip on hover. Backend
+      // populates this from rule_business_messages.RULE_DESCRIPTIONS for
+      // built-in rules and from the LLM payload for CUST_* rules. Falls
+      // back to the local catalog (getRuleDescription) so the tooltip is
+      // never empty even for legacy data.
+      const longDesc =
+        (issue.description && issue.description.trim()) ||
+        getRuleDescription(issue.violation) ||
+        friendly
+      return {
+        id: idx + 1,
+        name: friendly,
+        description: longDesc,
+        count: issue.count,
+        color: COLORS[idx % COLORS.length],
+        barColor: BAR_COLORS[idx % BAR_COLORS.length],
+      }
+    })
 
   const totalIssues = normalized.reduce((sum, issue) => sum + issue.count, 0)
   const issuesWithPct = normalized.map((issue) => ({
@@ -48,11 +77,11 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
   }))
 
   return (
-    <Card className="border-border bg-card/80 backdrop-blur-sm">
+    <Card className="border-border bg-card">
       <CardHeader className="pb-2 pt-3 px-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-3.5 w-3.5 text-[#69C04B]" />
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
             <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               Top DQ Issues
             </span>
@@ -89,39 +118,71 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
               </div>
             ))}
           </div>
+        ) : errorMessage ? (
+          <div
+            data-testid="top-issues-error"
+            role="alert"
+            className="text-center text-sm text-rose-600 dark:text-rose-400 py-6"
+          >
+            We couldn’t load DQ issues right now. Please refresh.
+          </div>
         ) : issuesWithPct.length === 0 ? (
-          <div className="text-center text-sm text-muted-foreground py-6">
-            No data available for this card yet.
+          <div
+            data-testid="top-issues-empty"
+            className="flex flex-col items-center gap-2 py-6 text-center"
+          >
+            <Inbox className="h-7 w-7 text-muted-foreground/50" aria-hidden />
+            <p className="text-sm font-medium text-muted-foreground">No DQ issues yet</p>
+            <p className="text-xs text-muted-foreground/70">
+              Run data quality on a file to see top issues here.
+            </p>
           </div>
         ) : (
-          <div className="space-y-2.5">
-            {issuesWithPct.map((issue, index) => (
-              <div key={issue.id} className="flex items-center gap-2.5">
-                <span className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-foreground shrink-0",
-                  issue.color
-                )}>
-                  {index + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {issue.name}
-                    </span>
-                    <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0 ml-2">
-                      {issue.count.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+          <TooltipProvider delayDuration={150}>
+            <div className="space-y-2.5">
+              {issuesWithPct.map((issue, index) => (
+                <Tooltip key={issue.id}>
+                  <TooltipTrigger asChild>
                     <div
-                      className={cn("h-full rounded-full transition-all", issue.barColor)}
-                      style={{ width: `${issue.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                      className="flex items-center gap-2.5 cursor-help"
+                      data-testid="top-issue-row"
+                    >
+                      <span className={cn(
+                        "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0",
+                        issue.color
+                      )}>
+                        {index + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="min-w-0 flex flex-col">
+                            <span
+                              className="text-xs font-medium text-foreground truncate"
+                              data-testid="top-issue-label"
+                            >
+                              {issue.name}
+                            </span>
+                          </div>
+                          <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0 ml-2">
+                            {issue.count.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full transition-all", issue.barColor)}
+                            style={{ width: `${issue.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs" data-testid="top-issue-tooltip">
+                    {issue.description}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </TooltipProvider>
         )}
       </CardContent>
     </Card>

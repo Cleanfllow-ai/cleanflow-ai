@@ -44,7 +44,10 @@ export function useFilesPage() {
     const router = useRouter();
     const pathname = usePathname();
 
-    const [loading, setLoading] = useState(false);
+    // W5A-2 — start true so the very first mount paints skeleton rows
+    // (instead of the empty-state card) before fetchFiles even dispatches.
+    // Once Redux flips out of "idle"/"loading" we mirror its value.
+    const [loading, setLoading] = useState(true);
     const [isManualRefresh, setIsManualRefresh] = useState(false);
 
     // Post-upload prompt state
@@ -58,7 +61,11 @@ export function useFilesPage() {
     useEffect(() => { filesRef.current = files; }, [files]);
 
     useEffect(() => {
-        setLoading(filesStatus === "loading");
+        // W5A-2 — keep loading=true while idle (pre-fetch) and loading. Only
+        // flip to false once the fetch has actually completed (succeeded or
+        // failed). This keeps the skeleton rows visible across the entire
+        // "perceived load" window Sarah complained about.
+        setLoading(filesStatus === "loading" || filesStatus === "idle");
     }, [filesStatus]);
 
     // ─── Files-list load error toast (States 4 + 5) ──────────────────
@@ -126,8 +133,33 @@ export function useFilesPage() {
     const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
-    const [detailsOpen, setDetailsOpen] = useState(false);
+    const [detailsOpen, setDetailsOpenState] = useState(false);
     const [selectedFile, setSelectedFile] = useState<FileStatusResponse | null>(null);
+
+    // URL-synced helpers so browser back/forward restores the dialog.
+    // Opening: push a history entry (?detail=<uploadId>) so Forward can replay it.
+    // Closing: replace (no new entry) so closing doesn't pollute the back stack.
+    const openDetailsWithUrl = useCallback((file: FileStatusResponse) => {
+        setSelectedFile(file);
+        setDetailsOpenState(true);
+        const next = new URLSearchParams(searchParams.toString());
+        next.set("detail", file.upload_id);
+        router.push(`${pathname}?${next.toString()}`, { scroll: false });
+    }, [searchParams, router, pathname]);
+
+    const setDetailsOpen = useCallback((open: boolean) => {
+        setDetailsOpenState(open);
+        if (!open) {
+            const next = new URLSearchParams(searchParams.toString());
+            next.delete("detail");
+            const qs = next.toString();
+            // Use push (not replace) so closing the dialog creates a history entry.
+            // This means: open → [/files, /files?detail=X], close → [/files, /files?detail=X, /files]
+            // Browser Back → /files?detail=X → useEffect restores dialog.
+            // Browser Forward → /files → useEffect closes dialog. (Bug 15 fix)
+            router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+        }
+    }, [searchParams, router, pathname]);
     const [showPushToErpModal, setShowPushToErpModal] = useState(false);
     const [pushToErpFile, setPushToErpFile] = useState<FileStatusResponse | null>(null);
 
@@ -219,7 +251,7 @@ export function useFilesPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const selectionFileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
-    const { idToken, hasPermission, permissionsLoaded } = useAuth();
+    const { idToken, hasPermission, permissionsLoaded, permissionsError, refreshPermissions } = useAuth();
     const canUseFilesActions = hasPermission("files");
 
     // ─── Permission helpers ───────────────────────────────────────────
@@ -231,14 +263,48 @@ export function useFilesPage() {
         });
     }, [toast]);
 
+    // P0-1 fix (2026-05-19): /org/me may not have resolved (or may have failed
+    // silently — see auth-provider catch block) when a user clicks an action.
+    // `hasPermission()` returns false in BOTH cases (empty permissions map),
+    // which previously caused a destructive "Permission denied" toast even for
+    // Super Admins (the "headline workflow broken on click #1" finding). We
+    // now distinguish three cases:
+    //   - !permissionsLoaded            → friendly "Loading..." info toast + nudge refresh
+    //   - permissionsError              → friendly "Re-checking..." info toast + force refresh
+    //   - loaded && !canPerformAction   → legitimate deny toast (destructive, unchanged)
+    // This guard wraps ALL action buttons in /files: Import, Upload,
+    // Push-to-ERP, Delete, Stop, Wizard, etc — 17+ call sites.
     const ensureFilesPermission = useCallback(() => {
+        if (!permissionsLoaded) {
+            toast({
+                title: "Loading your permissions",
+                description: "Please try again in a moment.",
+            });
+            try { void refreshPermissions(); } catch { /* no-op */ }
+            return false;
+        }
+        if (permissionsError) {
+            toast({
+                title: "Re-checking your permissions",
+                description: "We could not verify your permissions a moment ago. Retrying — please try again in a moment.",
+            });
+            try { void refreshPermissions(); } catch { /* no-op */ }
+            return false;
+        }
         if (hasPermission("files")) return true;
         showFilesPermissionDenied();
         return false;
-    }, [hasPermission, showFilesPermissionDenied]);
+    }, [permissionsLoaded, permissionsError, hasPermission, showFilesPermissionDenied, refreshPermissions, toast]);
 
     const renderRestrictedFilesPanel = useCallback(
         (content: React.ReactNode) => {
+            // P0-1 race fix (2026-05-19): show content optimistically during the
+            // permissions-loading window (or after a /org/me failure) so a
+            // Super Admin doesn't see a locked overlay flash. The overlay-click
+            // handler routes through ensureFilesPermission, which correctly
+            // shows the friendly loading/retry toast in those cases and only
+            // surfaces the destructive deny toast for genuinely-denied users.
+            if (!permissionsLoaded || permissionsError) return content;
             if (canUseFilesActions) return content;
             return (
                 <div className="relative">
@@ -254,13 +320,18 @@ export function useFilesPage() {
                 </div>
             );
         },
-        [canUseFilesActions, showFilesPermissionDenied],
+        [permissionsLoaded, permissionsError, canUseFilesActions, showFilesPermissionDenied],
     );
 
     // ─── Data loading ─────────────────────────────────────────────────
     const loadFiles = useCallback(async (userInitiated = false) => {
         if (!idToken) return;
-        if (permissionsLoaded && !hasPermission("files")) {
+        // P0-1 (2026-05-19): when permissionsError is set, the permissions map
+        // is empty due to /org/me failure — NOT a real deny. Fall through to
+        // fetchFiles (BE is the source of truth) so the user's data still loads
+        // when /org/me transiently flaked. ensureFilesPermission still gates
+        // mutating actions and will route to the friendly retry toast.
+        if (permissionsLoaded && !permissionsError && !hasPermission("files")) {
             dispatch(resetFiles());
             if (userInitiated) {
                 ensureFilesPermission();
@@ -268,7 +339,7 @@ export function useFilesPage() {
             return;
         }
         await dispatch(fetchFiles(idToken));
-    }, [idToken, permissionsLoaded, hasPermission, dispatch, ensureFilesPermission]);
+    }, [idToken, permissionsLoaded, permissionsError, hasPermission, dispatch, ensureFilesPermission]);
 
     useEffect(() => {
         loadFiles(false);
@@ -351,8 +422,7 @@ export function useFilesPage() {
             const target = files.find((f) => f.upload_id === fileId);
             if (target) {
                 setActiveSection("explorer");
-                setSelectedFile(target);
-                setDetailsOpen(true);
+                openDetailsWithUrl(target);
             }
         }
 
@@ -365,7 +435,24 @@ export function useFilesPage() {
             const qs = kept.toString();
             router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
         }
-    }, [searchParams, files, router, pathname]);
+    }, [searchParams, files, router, pathname, openDetailsWithUrl]);
+
+    // Restore file-details dialog from URL ?detail=<uploadId> (browser back/forward).
+    // Runs whenever searchParams or files change. If ?detail is present and the file
+    // exists in the local store, open the dialog without pushing a new history entry
+    // (the URL already carries the state).
+    useEffect(() => {
+        const detailId = searchParams.get("detail");
+        if (!detailId || files.length === 0) return;
+        const target = files.find((f) => f.upload_id === detailId);
+        if (!target) return;
+        // Only open if the dialog isn't already showing this file (avoids re-render loop).
+        setSelectedFile((prev) => {
+            if (prev?.upload_id !== target.upload_id) return target;
+            return prev;
+        });
+        setDetailsOpenState(true);
+    }, [searchParams, files]);
 
     // Processing completion toast — detect status transitions
     useEffect(() => {
@@ -696,9 +783,12 @@ export function useFilesPage() {
                 console.warn("getFileStatus pre-check failed; opening with cached data", err);
             }
         }
-        setSelectedFile(file);
-        setDetailsOpen(true);
-    }, [idToken, dispatch, toast, loadFiles]);
+        // W5B-3: navigate to the dedicated /files/{uploadId} page route.
+        // The legacy `openDetailsWithUrl(file)` modal path remains alive
+        // (FilesPageDialogs still renders <FileDetailsDialog>) but the row
+        // click no longer triggers it. Deep-linkable, refresh-stable URLs.
+        router.push(`/files/${file.upload_id}`);
+    }, [idToken, dispatch, toast, loadFiles, router]);
 
     const handleOpenQuarantineEditor = (file: FileStatusResponse) => {
         if (!ensureFilesPermission()) return;
@@ -1167,13 +1257,28 @@ export function useFilesPage() {
                 const parsed = parseSelectionRows(rows);
                 if (parsed) { applySelection(parsed.mode, parsed.columns); return; }
             } else if (ext === "xlsx" || ext === "xls") {
-                const XLSX = await import("xlsx");
-                const data = await file.arrayBuffer();
-                const workbook = XLSX.read(data, { type: "array" });
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
-                const parsed = parseSelectionRows(rows);
+                // 5 MB cap — selection files are tiny; reject anything larger to avoid
+                // parsing a user-uploaded data file with the CVE-free exceljs parser.
+                if (file.size > 5 * 1024 * 1024) {
+                    setSelectionFileError("Selection file must be under 5 MB.");
+                    return;
+                }
+                const ExcelJS = await import("exceljs");
+                const buffer = await file.arrayBuffer();
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(buffer);
+                const worksheet = workbook.worksheets[0];
+                if (!worksheet) {
+                    setSelectionFileError("Could not understand selection file. Use columns with 'name' and 'include'.");
+                    return;
+                }
+                const rows: any[][] = [];
+                worksheet.eachRow((row) => {
+                    rows.push(row.values as any[]);
+                });
+                // exceljs rows are 1-indexed (row.values[0] is undefined); strip it
+                const normalizedRows = rows.map((r) => (Array.isArray(r) && r[0] === undefined ? r.slice(1) : r));
+                const parsed = parseSelectionRows(normalizedRows);
                 if (parsed) { applySelection(parsed.mode, parsed.columns); return; }
             }
             setSelectionFileError("Could not understand selection file. Use columns with 'name' and 'include'.");
@@ -1368,15 +1473,9 @@ export function useFilesPage() {
             // Cancel succeeded but delete didn't — surface a partial-success
             // toast and let the user retry the trash icon manually. The row
             // is now in a terminal state so the trash icon will be visible.
-            const reason =
-                error instanceof ApiError && error.message
-                    ? error.message
-                    : error instanceof Error && error.message
-                      ? error.message
-                      : "unknown error";
             toast({
                 title: "Import stopped",
-                description: `Cancelled — but delete failed (${reason}). You can retry from the trash icon.`,
+                description: "Cancelled, but the file could not be deleted. You can retry from the trash icon.",
                 variant: "destructive",
             });
         } finally {
@@ -1471,6 +1570,15 @@ export function useFilesPage() {
 
     const openActionsDialog = (file: FileStatusResponse) => {
         if (!ensureFilesPermission()) return;
+        // FIX (Bug: Export column selector empty): set loading state + clear stale
+        // columns SYNCHRONOUSLY so the dialog opens in "Loading columns..." state
+        // instead of briefly rendering "0 of 0 selected, No columns match" while
+        // the async /versions → /columns round-trip is in flight. Previously the
+        // dialog opened with isLoadingColumns=false (default) and columns=[]
+        // (default), producing the empty-selector flash that greys out Download.
+        setColumnExportFile(file);
+        setColumnExportColumns([]);
+        setColumnExportLoading(true);
         setActionsDialogFile(file);
         setActionsDialogOpen(true);
         void (async () => {
@@ -1501,9 +1609,34 @@ export function useFilesPage() {
         if (!ensureFilesPermission()) return;
         setColumnExportFile(file);
         setColumnExportLoading(true);
+        // FIX: try /columns first; if it returns [], fall back to preview headers
+        // (some uploads have a parquet result that read_parquet_columns trims).
+        // If BOTH return empty, surface a warning toast so the user is not stuck
+        // on a silently-empty dialog (Download stays disabled in that case).
         try {
             const resp = await fileManagementAPI.getFileColumns(file.upload_id, idToken);
-            setColumnExportColumns(resp.columns || []);
+            const cols = resp.columns || [];
+            if (cols.length > 0) {
+                setColumnExportColumns(cols);
+            } else {
+                // /columns returned empty → fall back to preview headers
+                try {
+                    const preview = await fileManagementAPI.getFilePreview(file.upload_id, idToken);
+                    const previewCols = preview.headers || [];
+                    setColumnExportColumns(previewCols);
+                    if (previewCols.length === 0) {
+                        toast({
+                            title: "No columns detected",
+                            description: "We could not detect any columns for this file. Try re-uploading or contact support.",
+                            variant: "destructive",
+                        });
+                    }
+                } catch (previewError) {
+                    console.error("Failed to get columns from preview:", previewError);
+                    setColumnExportColumns([]);
+                    toast({ title: "No columns detected", description: "Could not load column list. Export may not work correctly.", variant: "destructive" });
+                }
+            }
         } catch (error) {
             console.error("Failed to fetch columns for export:", error);
             try {

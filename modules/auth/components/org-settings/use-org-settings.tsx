@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/modules/auth";
 import {
@@ -260,8 +261,21 @@ export const getStatusBadgeVariant = (status: string) => {
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────
+// Tabs whose name comes from the Tabs value= attribute in
+// organization-settings.tsx. Used to validate the ?tab= URL param.
+const VALID_TABS = new Set([
+    "organization", "members", "permissions", "services", "connectors", "approvals",
+]);
+
 export function useOrgSettings() {
-    const [activeTab, setActiveTab] = useState("organization");
+    // Honor the ?tab= URL param so OAuth callbacks (and any other deep link)
+    // can land on the connectors tab instead of the default "organization".
+    const searchParams = useSearchParams();
+    const initialTab = (() => {
+        const t = searchParams?.get("tab")
+        return t && VALID_TABS.has(t) ? t : "organization"
+    })()
+    const [activeTab, setActiveTab] = useState(initialTab);
     const { toast } = useToast();
     const { logout, userRole: authUserRole, refreshPermissions } = useAuth();
     const currentUserRole = (authUserRole as AppRole) || "Data Steward";
@@ -319,6 +333,22 @@ export function useOrgSettings() {
     const [inviteRole, setInviteRole] = useState<AppRole>("Data Steward");
     const [isSendingInvite, setIsSendingInvite] = useState(false);
     const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
+
+    // After a successful invite POST, we surface the shareable link inside the
+    // same dialog so admins can copy/paste it even if SES email delivery
+    // failed (or isn't configured yet). lastInviteResult is cleared when the
+    // dialog closes or another invite is started.
+    const [lastInviteResult, setLastInviteResult] = useState<{
+        email: string;
+        role: AppRole;
+        invite_link: string;
+        email_sent: boolean;
+    } | null>(null);
+
+    // AlertDialog state for destructive RBAC flows (replaces native confirm())
+    const [pendingRevokeInvite, setPendingRevokeInvite] = useState<{ inviteId: string; email: string } | null>(null);
+    const [pendingRemoveMember, setPendingRemoveMember] = useState<{ memberId: string; name: string; email: string } | null>(null);
+
     const logoInputRef = useRef<HTMLInputElement | null>(null);
     const presetFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -543,9 +573,11 @@ export function useOrgSettings() {
                 }
             } catch (err: any) {
                 console.error("File upload error:", err);
+                // Only surface the message for known user-friendly validation errors thrown above.
+                const isValidationMsg = typeof err?.message === "string" && err.message.startsWith("Please upload");
                 toast({
                     title: "Invalid file",
-                    description: err.message || "Could not parse the uploaded file.",
+                    description: isValidationMsg ? err.message : "Could not parse the uploaded file.",
                     variant: "destructive",
                 });
             }
@@ -785,13 +817,18 @@ export function useOrgSettings() {
     }, [currentUserRole, canManageMembersPermission]);
 
     // ─── Handlers ───────────────────────────────────────────────────
-    const handleRevokeInvite = async (inviteId: string, email: string) => {
+    const handleRevokeInvite = (inviteId: string, email: string) => {
         if (!canManageMembersPermission) {
             toast({ title: "Not allowed", description: "You do not have permission to manage invitations.", variant: "destructive" });
             return;
         }
-        if (!confirm(`Revoke invitation for ${email}?`)) return;
+        setPendingRevokeInvite({ inviteId, email });
+    };
 
+    const confirmRevokeInvite = async () => {
+        if (!pendingRevokeInvite) return;
+        const { inviteId, email } = pendingRevokeInvite;
+        setPendingRevokeInvite(null);
         setRevokingInviteId(inviteId);
         try {
             await orgAPI.revokeInvite(inviteId);
@@ -820,7 +857,7 @@ export function useOrgSettings() {
             }
             toast({
                 title: "Failed to revoke",
-                description: err?.message || "Could not revoke the invite.",
+                description: "Could not revoke the invite. Please try again.",
                 variant: "destructive",
             });
         } finally {
@@ -880,14 +917,14 @@ export function useOrgSettings() {
             if (isApiError(err) && err.code === "OrgValidationError") {
                 toast({
                     title: "Invalid organization details",
-                    description: err.message,
+                    description: "Please check the details and try again.",
                     variant: "destructive",
                 });
                 return;
             }
             toast({
                 title: "Failed to save",
-                description: err?.message || "Could not register the organization.",
+                description: "Could not save organization details. Please try again.",
                 variant: "destructive",
             });
         } finally {
@@ -943,7 +980,7 @@ export function useOrgSettings() {
             }
             toast({
                 title: "Failed to save permissions",
-                description: err?.message || "Could not update role permissions.",
+                description: "Could not update role permissions. Please try again.",
                 variant: "destructive",
             });
         } finally {
@@ -1003,13 +1040,13 @@ export function useOrgSettings() {
             }
             toast({
                 title: "Failed to update role",
-                description: err?.message || "Could not update the member role.",
+                description: "Could not update the member role. Please try again.",
                 variant: "destructive",
             });
         }
     };
 
-    const removeMember = async (memberId: string) => {
+    const removeMember = (memberId: string) => {
         if (!canManageMembersPermission) {
             toast({ title: "Not allowed", description: "You do not have permission to remove members.", variant: "destructive" });
             return;
@@ -1022,13 +1059,16 @@ export function useOrgSettings() {
             return;
         }
 
-        if (!confirm(`Are you sure you want to remove ${targetMember.name} (${targetMember.email}) from the organization? This action cannot be undone.`)) {
-            return;
-        }
+        setPendingRemoveMember({ memberId, name: targetMember.name, email: targetMember.email });
+    };
 
+    const confirmRemoveMember = async () => {
+        if (!pendingRemoveMember) return;
+        const { memberId, name } = pendingRemoveMember;
+        setPendingRemoveMember(null);
         try {
             await orgAPI.removeMember(memberId);
-            toast({ title: "Member removed", description: `${targetMember.name} has been removed from the organization.` });
+            toast({ title: "Member removed", description: `${name} has been removed from the organization.` });
             // Full reload — a remove can clear pending invites whose email
             // matches the now-departed member's, and it can shift the
             // last-admin guard state (e.g. demoting becomes impossible).
@@ -1057,7 +1097,7 @@ export function useOrgSettings() {
                 });
                 return;
             }
-            toast({ title: "Remove failed", description: err?.message || "Could not remove the member.", variant: "destructive" });
+            toast({ title: "Remove failed", description: "Could not remove the member. Please try again.", variant: "destructive" });
         }
     };
 
@@ -1120,14 +1160,52 @@ export function useOrgSettings() {
         setIsSendingInvite(true);
         try {
             const inviteFrontendBaseUrl = getInviteFrontendBaseUrl();
-            await orgAPI.createInvite(email, inviteRole, inviteFrontendBaseUrl);
+            const resp: any = await orgAPI.createInvite(email, inviteRole, inviteFrontendBaseUrl);
             // Refresh members AND invites — the BE auto-claims an invite if
             // the email already maps to an existing user, so a "create
             // invite" can materialize a member row instead of a pending
             // invite row. Reloading both keeps the member tab honest.
             await Promise.all([loadInvites(), loadMembers()]);
-            toast({ title: "Invitation Sent", description: `An invitation has been sent to ${email} as ${inviteRole}.` });
-            setIsInviteDialogOpen(false);
+            const inviteLink: string = resp?.invite_link || "";
+            const emailSent: boolean = !!resp?.email_sent;
+            const emailChannel: string | null = resp?.email_channel ?? null;
+            const emailError: string | null = resp?.email_error ?? null;
+            if (inviteLink) {
+                setLastInviteResult({
+                    email,
+                    role: inviteRole,
+                    invite_link: inviteLink,
+                    email_sent: emailSent,
+                });
+                // Branch toast copy on the email-delivery channel so admins
+                // see specific guidance for each failure mode.
+                let toastTitle = "Invitation sent";
+                let toastDesc = `An email is on the way to ${email}.`;
+                let toastVariant: "default" | "destructive" = "default";
+                if (emailSent && emailChannel === "cognito_builtin") {
+                    toastDesc = `Cognito sent the invitation email to ${email}. It comes from no-reply@verificationemail.com — ask them to check spam.`;
+                } else if (emailSent && emailChannel === "ses") {
+                    toastDesc = `An invitation email was sent to ${email}.`;
+                } else if (!emailSent && emailChannel === "quota_exceeded") {
+                    toastTitle = "Daily email limit reached";
+                    toastDesc = "Cognito's free email quota for today is exhausted (50/day). Copy the invite link from the dialog and share it directly with the invitee.";
+                    toastVariant = "destructive";
+                } else if (!emailSent && emailChannel === "cognito_unavailable") {
+                    toastTitle = "Email service unavailable";
+                    toastDesc = "We couldn't deliver the invitation email right now. Copy the link below and share it with the invitee.";
+                    toastVariant = "destructive";
+                } else if (!emailSent) {
+                    toastTitle = "Invite created — share link manually";
+                    toastDesc = emailError
+                        ? `Email delivery failed: ${emailError}. Copy the link below and share it manually.`
+                        : "Email delivery isn't available right now — copy the link from the dialog and share it manually.";
+                    toastVariant = "destructive";
+                }
+                toast({ title: toastTitle, description: toastDesc, variant: toastVariant });
+            } else {
+                toast({ title: "Invitation sent", description: `An invitation has been sent to ${email} as ${inviteRole}.` });
+                setIsInviteDialogOpen(false);
+            }
         } catch (err: any) {
             console.error("Failed to send invite", err);
             if (isApiError(err) && (err.code === "InviteEmailTakenError" || (err.action === "signin" && err.code?.startsWith("Invite")))) {
@@ -1152,7 +1230,7 @@ export function useOrgSettings() {
             } else {
                 toast({
                     title: "Failed to invite",
-                    description: err?.message || "Could not create invite.",
+                    description: "Could not send the invitation. Please try again.",
                     variant: "destructive",
                 });
             }
@@ -1183,7 +1261,8 @@ export function useOrgSettings() {
                 setLogoDataUrl(response?.logo_url || result);
                 toast({ title: "Logo updated", description: "Your organization logo was saved." });
             } catch (err: any) {
-                toast({ title: "Logo upload failed", description: err?.message || "Could not upload the logo." });
+                console.error("Logo upload error:", err);
+                toast({ title: "Logo upload failed", description: "Could not upload the logo. Please try again." });
             } finally {
                 if (logoInputRef.current) {
                     logoInputRef.current.value = "";
@@ -1217,7 +1296,8 @@ export function useOrgSettings() {
             await refreshPermissions();
             toast({ title: "Refreshed", description: "Admin data has been refreshed." });
         } catch (err: any) {
-            toast({ title: "Refresh failed", description: err?.message || "Could not refresh admin data.", variant: "destructive" });
+            console.error("Refresh admin data error:", err);
+            toast({ title: "Refresh failed", description: "Could not refresh. Please try again.", variant: "destructive" });
         } finally {
             setIsRefreshingOrg(false);
         }
@@ -1277,7 +1357,8 @@ export function useOrgSettings() {
             await loadApprovals();
             await loadPendingCount();
         } catch (err: any) {
-            toast({ title: "Failed", description: err?.message || "Could not approve request.", variant: "destructive" });
+            console.error("Approve request error:", err);
+            toast({ title: "Approval failed", description: "Could not approve the request. Please try again.", variant: "destructive" });
         }
     };
 
@@ -1288,7 +1369,8 @@ export function useOrgSettings() {
             await loadApprovals();
             await loadPendingCount();
         } catch (err: any) {
-            toast({ title: "Failed", description: err?.message || "Could not reject request.", variant: "destructive" });
+            console.error("Reject request error:", err);
+            toast({ title: "Rejection failed", description: "Could not reject the request. Please try again.", variant: "destructive" });
         }
     };
 
@@ -1326,10 +1408,18 @@ export function useOrgSettings() {
         inviteHelpText,
         handleInviteMember,
         handleRevokeInvite,
+        confirmRevokeInvite,
+        pendingRevokeInvite,
+        setPendingRevokeInvite,
         revokingInviteId,
         updateMemberRole,
         removeMember,
+        confirmRemoveMember,
+        pendingRemoveMember,
+        setPendingRemoveMember,
         // Invite dialog
+        lastInviteResult,
+        setLastInviteResult,
         isInviteDialogOpen,
         setIsInviteDialogOpen,
         inviteEmail,

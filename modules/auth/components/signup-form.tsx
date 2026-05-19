@@ -1,18 +1,34 @@
 "use client";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Briefcase, Building2, Eye, EyeOff, Lock, Mail, MapPin, Phone, User } from "lucide-react";
+import { Building2, Briefcase, Eye, EyeOff, Lock, Mail, User, Phone, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
+import { validatePassword, PASSWORD_POLICY } from "@/shared/config/password-policy";
 
 import { Button } from "@/components/ui/button";
+import { EmailVerification } from "./email-verification";
+import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { orgAPI } from "@/modules/auth/api/org-api";
-import { useAuth } from "@/modules/auth/providers/auth-provider";
-import { useToast } from "@/shared/hooks/use-toast";
-import Image from "next/image";
 import Link from "next/link";
-import { EmailVerification } from "./email-verification";
+import { useAuth } from "@/modules/auth/providers/auth-provider";
+import { orgAPI } from "@/modules/auth/api/org-api";
+import { useToast } from "@/shared/hooks/use-toast";
+
+// ─── Error sanitizer ──────────────────────────────────────────────────────────
+// Scrubs raw Cognito / APIG internal strings that must never reach the DOM.
+
+function sanitizeAuthError(raw: string): string {
+    if (/Invalid key=value pair.*Authorization header/i.test(raw)) {
+        return "Unable to reach the authentication service. Please refresh and try again."
+    }
+    if (/Authorization header.*SHA-256.*Base64/i.test(raw) || /hashed with SHA-256/i.test(raw)) {
+        return "Authentication error. Please sign out and sign in again."
+    }
+    const cognitoPrefix = /^(PreAuthentication|PostAuthentication|UserMigration) failed with error (.+)\.$/.exec(raw)
+    if (cognitoPrefix) return cognitoPrefix[2]
+    return raw
+}
 
 export function SignUpForm() {
   const [step, setStep] = useState(1);
@@ -51,13 +67,23 @@ export function SignUpForm() {
       setError("Passwords do not match.");
       return false;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    const { isValid, errors } = validatePassword(password);
+    if (!isValid) {
+      setError(`Password requirements not met: ${errors.join(", ")}.`);
       return false;
     }
     setError("");
     return true;
   };
+
+  // Derived step-1 validity — drives the Continue button disabled state
+  const isStep1Valid =
+    !!fullName &&
+    !!email &&
+    !!password &&
+    !!confirmPassword &&
+    password === confirmPassword &&
+    validatePassword(password).isValid;
 
   const nextStep = () => {
     if (validateStep1()) {
@@ -114,7 +140,7 @@ export function SignUpForm() {
         setShowVerification(true);
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(sanitizeAuthError(err.message));
     } finally {
       setIsLoading(false);
     }
@@ -165,8 +191,6 @@ export function SignUpForm() {
                 phone: pendingOrg.phone,
                 address: pendingOrg.address,
                 industry: pendingOrg.industry,
-                gst: pendingOrg.gst,
-                pan: pendingOrg.pan,
                 contact_person: pendingOrg.contact_person,
                 subscriptionPlan: "standard",
               });
@@ -239,28 +263,20 @@ export function SignUpForm() {
     setSuccess("");
   };
 
-  const getPasswordStrength = (password: string) => {
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[a-z]/.test(password)) strength++;
-    if (/[0-9]/.test(password)) strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
-    return strength;
-  };
+  // Strength helpers — built on validatePassword so meter matches Cognito policy exactly.
+  // strengthLevel 4 = all 4 active requirements met = isValid = Strong (green).
+  const getPasswordStrength = (pw: string) => validatePassword(pw).strengthLevel;
 
   const getPasswordStrengthLabel = (strength: number) => {
     switch (strength) {
       case 0:
       case 1:
-        return "Very Weak";
-      case 2:
         return "Weak";
-      case 3:
+      case 2:
         return "Fair";
-      case 4:
+      case 3:
         return "Good";
-      case 5:
+      case 4:
         return "Strong";
       default:
         return "";
@@ -277,9 +293,7 @@ export function SignUpForm() {
       case 3:
         return "bg-yellow-500";
       case 4:
-        return "bg-blue-500";
-      case 5:
-        return "bg-emerald-500";
+        return "bg-emerald-500"; // Only when isValid=true
       default:
         return "bg-muted";
     }
@@ -303,11 +317,11 @@ export function SignUpForm() {
       <div className="mb-6">
         {/* Mobile-only logo */}
         <div className="flex justify-center mb-6 lg:hidden">
-          <div className="relative w-14 h-14">
-            <Image src="/images/rightrev-logo.png" alt="RightRev" width={56} height={56} className="object-contain" />
+          <div className="relative w-10 h-10">
+            <Image src="/images/rightrev-logo.png" alt="RightRev" width={40} height={40} className="object-contain" />
           </div>
         </div>
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {step === 1 ? "Create account" : "Organization details"}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -319,14 +333,14 @@ export function SignUpForm() {
       <div className="mb-6">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 flex-1">
-            <div className={`h-1 flex-1 rounded-full transition-colors duration-300 ${step >= 1 ? "bg-primary" : "bg-border"}`} />
-            <div className={`h-1 flex-1 rounded-full transition-colors duration-300 ${step >= 2 ? "bg-primary" : "bg-border"}`} />
+            <div className={`h-1 flex-1 rounded-full transition-colors duration-300 ${step >= 1 ? "bg-primary" : "bg-muted"}`} />
+            <div className={`h-1 flex-1 rounded-full transition-colors duration-300 ${step >= 2 ? "bg-primary" : "bg-muted"}`} />
           </div>
           <span className="text-xs text-muted-foreground font-medium tabular-nums">Step {step} of 2</span>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {step === 1 ? (
           <>
             {/* Full Name */}
@@ -335,14 +349,14 @@ export function SignUpForm() {
                 Full Name
               </Label>
               <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
                 <Input
                   id="fullName"
                   placeholder="Enter your full name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors"
+                  className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors"
                 />
               </div>
             </div>
@@ -353,7 +367,7 @@ export function SignUpForm() {
                 Email
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
                 <Input
                   id="email"
                   type="email"
@@ -361,7 +375,7 @@ export function SignUpForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors"
+                  className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors"
                 />
               </div>
             </div>
@@ -372,40 +386,56 @@ export function SignUpForm() {
                 Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Min. 8 characters"
+                  placeholder={`Min. ${PASSWORD_POLICY.minLength} characters`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pl-10 pr-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors"
+                  className="pl-10 pr-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors"
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {password && (
-                <div className="flex items-center gap-2 pt-1">
-                  <div className="flex-1 flex gap-1">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div
-                        key={i}
-                        className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                          i <= getPasswordStrength(password) ? getPasswordStrengthColor(getPasswordStrength(password)) : "bg-white/10"
-                        }`}
-                      />
-                    ))}
+                <>
+                  <div className="flex items-center gap-2 pt-1">
+                    <div className="flex-1 flex gap-1">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                            i <= getPasswordStrength(password)
+                              ? getPasswordStrengthColor(getPasswordStrength(password))
+                              : "bg-muted"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider min-w-[50px] text-right">
+                      {getPasswordStrengthLabel(getPasswordStrength(password))}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider min-w-[60px] text-right">
-                    {getPasswordStrengthLabel(getPasswordStrength(password))}
-                  </span>
-                </div>
+                  {/* Inline requirement hints — only show unmet requirements */}
+                  {validatePassword(password).errors.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {validatePassword(password).errors.map((err) => (
+                        <li key={err} className="text-[11px] text-destructive flex items-center gap-1">
+                          <span className="inline-block w-1 h-1 rounded-full bg-destructive flex-shrink-0" />
+                          {err}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </div>
 
@@ -415,7 +445,7 @@ export function SignUpForm() {
                 Confirm Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
@@ -423,11 +453,12 @@ export function SignUpForm() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  className="pl-10 pr-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors"
+                  className="pl-10 pr-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors"
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -442,32 +473,32 @@ export function SignUpForm() {
               <div className="space-y-1.5">
                 <Label htmlFor="orgName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Organization Name</Label>
                 <div className="relative">
-                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input id="orgName" placeholder="e.g. Acme Corp" value={orgName} onChange={(e) => setOrgName(e.target.value)} required className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors" />
+                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                  <Input id="orgName" placeholder="e.g. Acme Corp" value={orgName} onChange={(e) => setOrgName(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="industry" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Industry</Label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input id="industry" placeholder="e.g. Finance, Healthcare" value={industry} onChange={(e) => setIndustry(e.target.value)} required className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors" />
+                  <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                  <Input id="industry" placeholder="e.g. Finance, Healthcare" value={industry} onChange={(e) => setIndustry(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="orgEmail" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input id="orgEmail" type="email" placeholder="contact@acme.com" value={orgEmail} onChange={(e) => setOrgEmail(e.target.value)} className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                  <Input id="orgEmail" type="email" placeholder="contact@acme.com" value={orgEmail} onChange={(e) => setOrgEmail(e.target.value)} className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="orgPhone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
                 <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input id="orgPhone" placeholder="+91 000 000 0000" value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} required className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors" />
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                  <Input id="orgPhone" type="tel" placeholder="Phone number" value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
                 </div>
               </div>
             </div>
@@ -475,8 +506,8 @@ export function SignUpForm() {
             <div className="space-y-1.5">
               <Label htmlFor="orgAddress" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Address</Label>
               <div className="relative">
-                <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input id="orgAddress" placeholder="Full organization address" value={orgAddress} onChange={(e) => setOrgAddress(e.target.value)} required className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors" />
+                <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
+                <Input id="orgAddress" placeholder="Full organization address" value={orgAddress} onChange={(e) => setOrgAddress(e.target.value)} required className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors" />
               </div>
             </div>
 
@@ -486,14 +517,14 @@ export function SignUpForm() {
         {/* Terms - only on last step */}
         {step === 2 && (
           <div className="flex items-start space-x-2.5 pt-1">
-            <input id="terms" type="checkbox" required className="h-3.5 w-3.5 mt-0.5 rounded border-green-500 text-[#69C04B] focus:ring-[#7fea95]" />
-            <Label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer leading-5">
+            <input id="terms" type="checkbox" required className="h-3.5 w-3.5 mt-0.5 rounded border-border text-primary focus:ring-ring" />
+            <Label htmlFor="terms" className="text-xs text-muted-foreground leading-5 cursor-pointer">
               I agree to the{" "}
-              <Link href="/terms" className="text-primary hover:text-[#164234] dark:hover:text-white transition-colors">
+              <Link href="/terms" className="text-primary hover:text-primary/80 transition-colors">
                 Terms of Service
               </Link>{" "}
               and{" "}
-              <Link href="/privacy" className="text-primary hover:text-[#164234] dark:hover:text-white transition-colors">
+              <Link href="/privacy" className="text-primary hover:text-primary/80 transition-colors">
                 Privacy Policy
               </Link>
             </Label>
@@ -502,13 +533,13 @@ export function SignUpForm() {
 
         {/* Alerts */}
         {error && (
-          <Alert variant="destructive" className="bg-red-500/10 border-red-500/20">
-            <AlertDescription className="text-red-400 text-sm">{error}</AlertDescription>
+          <Alert variant="destructive" className="bg-destructive/5 border-destructive/20">
+            <AlertDescription className="text-destructive text-sm">{error}</AlertDescription>
           </Alert>
         )}
 
         {success && (
-          <Alert className="bg-green-500/10 border-green-500/20">
+          <Alert className="bg-green-500/5 border-green-500/20">
             <AlertDescription className="text-green-600 dark:text-green-400 text-sm">{success}</AlertDescription>
           </Alert>
         )}
@@ -516,14 +547,14 @@ export function SignUpForm() {
         {/* Actions */}
         <div className="flex gap-3 pt-1">
           {step === 2 && (
-            <Button type="button" variant="outline" onClick={prevStep} className="h-11 px-5 border-border text-muted-foreground hover:bg-secondary" disabled={isLoading}>
+            <Button type="button" variant="outline" onClick={prevStep} className="h-11 px-5" disabled={isLoading}>
               Back
             </Button>
           )}
           <Button
             type="submit"
-            className="flex-1 h-11 font-semibold transition-all bg-primary hover:bg-[#5db040] text-white"
-            disabled={isLoading}
+            className="flex-1 h-11 font-medium transition-all"
+            disabled={isLoading || (step === 1 && !isStep1Valid)}
           >
             {isLoading
               ? "Processing..."
@@ -537,7 +568,7 @@ export function SignUpForm() {
       {/* Sign in link */}
       <p className="text-center text-sm text-muted-foreground mt-8">
         Already have an account?{" "}
-        <Link href={`/auth/login${window.location.search}`} className="text-primary hover:text-[#164234] dark:hover:text-white font-medium transition-colors">
+        <Link href={`/auth/login${window.location.search}`} className="text-primary hover:text-primary/80 font-medium transition-colors">
           Sign in
         </Link>
       </p>

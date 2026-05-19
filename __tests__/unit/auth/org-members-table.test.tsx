@@ -69,8 +69,14 @@ function defaultProps(overrides: Partial<Parameters<typeof OrgMembersTab>[0]> = 
     inviteHelpText: "",
     handleInviteMember: jest.fn(),
     handleRevokeInvite: jest.fn(),
+    confirmRevokeInvite: jest.fn(),
+    pendingRevokeInvite: null,
+    setPendingRevokeInvite: jest.fn(),
     updateMemberRole: jest.fn(),
     removeMember: jest.fn(),
+    confirmRemoveMember: jest.fn(),
+    pendingRemoveMember: null,
+    setPendingRemoveMember: jest.fn(),
     ...overrides,
   };
 }

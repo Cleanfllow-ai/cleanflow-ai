@@ -16,8 +16,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# env files (keep .env.sample tracked as a template)
 .env*
+!.env.sample
 
 # vercel
 .vercel
@@ -42,3 +43,7 @@ cypress/videos/
 cypress/screenshots/
 cypress/perf-log.json
 lhci-reports/
+# Local FE build/start logs (recreated per pnpm cycle)
+_pnpm_build*.log
+_pnpm_start*.log
+_build_*.log

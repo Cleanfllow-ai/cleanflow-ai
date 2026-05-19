@@ -16,6 +16,7 @@ import {
     deletePromptTemplateVersion, listPromptTemplates, registerPromptTemplate,
 } from "@/modules/augmentation/api/augmentation-api"
 import type { PromptCardinality, PromptTemplate, RegisterTemplateBody } from "@/modules/augmentation/types"
+import { toastFromError } from "@/lib/error-toast-jsx"
 
 export function PromptTemplateManager() {
     const { idToken } = useAuth()
@@ -34,7 +35,7 @@ export function PromptTemplateManager() {
         if (!idToken) return
         setLoading(true)
         try { setTemplates(await listPromptTemplates(idToken, { active: true })); setError(null) }
-        catch (err) { setError((err as Error).message) }
+        catch (err) { setError("Failed to load templates. Please refresh.") }
         finally { setLoading(false) }
     }
 
@@ -58,12 +59,12 @@ export function PromptTemplateManager() {
             await load()
             toast({ title: "Template registered", description: `${body.template_id} is now active.` })
         } catch (err) {
-            const message = (err as Error).message
-            setError(message)
+            setError("Failed to register template. Please try again.")
             // The inline error region is below the form, easy to miss on a
             // long page — also fire a toast so mutation failures cannot be
             // silently dismissed.
-            toast({ title: "Failed to register template", description: message, variant: "destructive" })
+            console.error("[PromptTemplateManager] register failed:", err)
+            toast(toastFromError(err))
         }
         finally { setBusy(false) }
     }
@@ -77,9 +78,9 @@ export function PromptTemplateManager() {
             toast({ title: "Template deactivated", description: `${t.template_id} v${t.version} is no longer active.` })
         }
         catch (err) {
-            const message = (err as Error).message
-            setError(message)
-            toast({ title: "Failed to deactivate template", description: message, variant: "destructive" })
+            setError("Failed to deactivate template. Please try again.")
+            console.error("[PromptTemplateManager] deactivate failed:", err)
+            toast(toastFromError(err))
         }
         finally { setBusy(false) }
     }
@@ -98,9 +99,9 @@ export function PromptTemplateManager() {
                         <Select value={card} onValueChange={(v) => setCard(v as PromptCardinality)}>
                             <SelectTrigger id="tpl-card"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ONE_TO_MANY">ONE_TO_MANY</SelectItem>
-                                <SelectItem value="MANY_TO_ONE">MANY_TO_ONE</SelectItem>
-                                <SelectItem value="MANY_TO_MANY">MANY_TO_MANY</SelectItem>
+                                <SelectItem value="ONE_TO_MANY">Explode rows</SelectItem>
+                                <SelectItem value="MANY_TO_ONE">Group-by aggregation</SelectItem>
+                                <SelectItem value="MANY_TO_MANY">Pivot table</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

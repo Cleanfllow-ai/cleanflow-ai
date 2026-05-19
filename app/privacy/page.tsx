@@ -125,10 +125,10 @@ export default function PrivacyNoticePage() {
 
         <h2>6. Data transfers</h2>
         <p>
-          Your data is processed in AWS region <code>ap-south-1</code>{" "}
-          (Mumbai). Some sub-processors are based in the US (Groq,
-          Intuit, GitHub) or globally; cross-border transfers to those
-          rely on Standard Contractual Clauses or equivalent.
+          Your data is processed in AWS region <code>us-east-2</code>{" "}
+          (Ohio, United States). Some sub-processors are based in the US
+          (Groq, Intuit, GitHub) or globally; cross-border transfers to
+          those rely on Standard Contractual Clauses or equivalent.
         </p>
 
         <h2>7. Security</h2>

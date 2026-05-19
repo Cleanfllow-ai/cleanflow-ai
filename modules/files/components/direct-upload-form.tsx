@@ -85,6 +85,14 @@ export default function DirectUploadForm({
       })
       setFile(null)
     } catch (err: any) {
+      // User-initiated cancel is not an error — swallow silently so no
+      // error toast fires. The UI already reflects the cancelled state
+      // via the upload manager's status field.
+      const isCancelled =
+        err?.name === 'AbortError' ||
+        (typeof err?.message === 'string' &&
+          err.message.toLowerCase().includes('cancelled'))
+      if (isCancelled) return
       onError(err?.message || 'Upload failed')
     }
   }
@@ -139,7 +147,7 @@ export default function DirectUploadForm({
             </div>
           </div>
           {!isUploading && (
-            <Button variant="ghost" size="icon" onClick={handleRemove} className="h-8 w-8 shrink-0">
+            <Button variant="ghost" size="icon" aria-label="Remove file" onClick={handleRemove} className="h-8 w-8 shrink-0">
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -184,7 +192,7 @@ export default function DirectUploadForm({
           className="w-full gap-2"
         >
           <Upload className="h-4 w-4" />
-          Upload to Pipeline
+          Upload
         </Button>
       )}
 

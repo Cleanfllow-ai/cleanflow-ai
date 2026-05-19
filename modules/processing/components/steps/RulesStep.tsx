@@ -10,12 +10,40 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Play, ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Loader2, Code, ArrowRight } from "lucide-react"
+import { ArrowLeft, Play, ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Loader2, Code, ArrowRight, X } from "lucide-react"
 import { useProcessingWizard, type RuleWithState, type CrossFieldRuleWithState } from "../WizardContext"
 import { fileManagementAPI, type CustomRuleDefinition } from "@/modules/files"
+import { isApiError } from "@/modules/shared/api-error"
+import { AugmentationPipelineTab } from "./augmentation-pipeline-tab"
 import { cn } from "@/shared/lib/utils"
-import { getRuleLabel } from "@/shared/lib/dq-rules"
+import { getRuleLabel, getRuleDescription } from "@/shared/lib/dq-rules"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { deriveRulesV2, CORE_TYPES, TYPE_ALIASES } from "@/shared/lib/type-catalog"
+import { canonicalTypeToLabel } from "@/shared/lib/status-labels"
+
+// Friendly label for cross-field / business-consistency rule IDs. These BE
+// rule_ids look like "discount_equals_pct_of_total", "row_group_equals",
+// "non_negative" — internal names rather than user-facing language. The
+// wizard now shows a humanized title and the raw id only in a tooltip
+// (for audit / debugging).
+function humanizeCrossRuleId(ruleId: string): string {
+    if (!ruleId) return "Business consistency rule"
+    // Strip leading prefix like "CROSS:" or "INTRA:"
+    let body = ruleId
+    const colon = body.indexOf(":")
+    if (colon !== -1 && (body.startsWith("CROSS:") || body.startsWith("INTRA:"))) {
+        body = body.slice(colon + 1)
+    }
+    const pipe = body.indexOf("|")
+    if (pipe !== -1) body = body.slice(0, pipe)
+    const words = body
+        .replace(/_/g, " ")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .toLowerCase()
+        .trim()
+    if (!words) return "Business consistency rule"
+    return words.charAt(0).toUpperCase() + words.slice(1)
+}
 
 // ── @ mention helpers ──────────────────────────────────────────────────────────
 
@@ -70,6 +98,8 @@ export function RulesStep() {
     setGlobalRules,
     columnRules,
     setColumnRules,
+    augmentations,
+    setAugmentations,
   } = useProcessingWizard()
 
   const [expandedColumns, setExpandedColumns] = useState<string[]>([])
@@ -78,6 +108,7 @@ export function RulesStep() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [pendingSuggestion, setPendingSuggestion] = useState<CustomRuleDefinition | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isRefusal, setIsRefusal] = useState(false)
   const [rawResponse, setRawResponse] = useState<string | null>(null)
 
   // AI cross-column rule suggestion state
@@ -88,11 +119,10 @@ export function RulesStep() {
   const [crossRuleError, setCrossRuleError] = useState<string | null>(null)
 
   // AI cross-row rule suggestion state
-  const [showCrossRowForm, setShowCrossRowForm] = useState(false)
-  const [crossRowPrompt, setCrossRowPrompt] = useState("")
-  const [isGeneratingCrossRow, setIsGeneratingCrossRow] = useState(false)
-  const [pendingCrossRowRules, setPendingCrossRowRules] = useState<CrossFieldRuleWithState[] | null>(null)
-  const [crossRowError, setCrossRowError] = useState<string | null>(null)
+  // Cross-row state (showCrossRowForm, crossRowPrompt, etc.) was removed when
+  // the Group Consistency Rules card was merged into the Business Consistency
+  // Rules section — a single AI generator now handles both cross-column AND
+  // cross-row patterns (BE rule_scope: "all").
 
   // @ mention state for cross-rule textarea
   const crossTextareaRef = useRef<HTMLTextAreaElement>(null)
@@ -232,6 +262,7 @@ export function RulesStep() {
     if (!customRuleColumn || !customRulePrompt.trim() || !authToken) return
     setIsGenerating(true)
     setError(null)
+    setIsRefusal(false)
     setRawResponse(null)
     try {
       const response = await fileManagementAPI.suggestCustomRule(uploadId, authToken, {
@@ -249,7 +280,12 @@ export function RulesStep() {
       }
       setPendingSuggestion(response.suggestion)
     } catch (err: any) {
-      setError(err.message || "Failed to generate rule")
+      if (isApiError(err) && err.code === "LLMRefusedError") {
+        setIsRefusal(true)
+        setError(err.message || "This prompt cannot be turned into a data quality rule.")
+      } else {
+        setError(err.message || "Failed to generate rule")
+      }
     } finally {
       setIsGenerating(false)
     }
@@ -278,6 +314,12 @@ export function RulesStep() {
         columns: /@all\b/i.test(crossRulePrompt)
           ? []
           : Array.from(new Set((crossRulePrompt.match(/@(\S+)/g) ?? []).map((m) => m.slice(1)).filter((c) => selectedColumns.includes(c)))),
+        // "all" lets the BE LLM emit either cross-column (pct_of, mutual_exclusion,
+        // non_negative, ...) OR cross-row (row_group_equals, row_parent_equals)
+        // rule types from a single user prompt. Group Consistency Rules used to
+        // be a separate UI card with its own scope="cross_row" generator —
+        // merged in 2026-05-16 because the BE supports both from one call.
+        rule_scope: "all",
       })
       const rules: CrossFieldRuleWithState[] = (response?.rules ?? []).map((r) => ({
         rule_id: r.rule_id,
@@ -314,56 +356,9 @@ export function RulesStep() {
     setShowCrossRuleForm(false)
   }
 
-  // Cross-row rule handlers
-  const handleGenerateCrossRowRule = async () => {
-    if (!crossRowPrompt.trim() || !authToken) return
-    setIsGeneratingCrossRow(true)
-    setCrossRowError(null)
-    setPendingCrossRowRules(null)
-    try {
-      const response = await fileManagementAPI.suggestCrossColumnRule(uploadId, authToken, {
-        prompt: crossRowPrompt.trim(),
-        columns: /@all\b/i.test(crossRowPrompt)
-          ? []
-          : Array.from(new Set((crossRowPrompt.match(/@(\S+)/g) ?? []).map((m) => m.slice(1)).filter((c) => selectedColumns.includes(c)))),
-        rule_scope: "cross_row",
-      })
-      const rules: CrossFieldRuleWithState[] = (response?.rules ?? []).map((r) => ({
-        rule_id: r.rule_id,
-        cols: r.cols,
-        relationship: r.relationship,
-        condition: r.condition,
-        predicate: r.predicate,
-        tolerance: r.tolerance,
-        confidence: r.confidence,
-        reasoning: r.reasoning,
-        enabled: true,
-      }))
-      if (rules.length === 0) {
-        setCrossRowError("CleanAI could not find a matching group consistency rule. Try a more specific description.")
-      } else {
-        setPendingCrossRowRules(rules)
-      }
-    } catch (err: unknown) {
-      setCrossRowError(err instanceof Error ? err.message : "Failed to generate group consistency rule")
-    } finally {
-      setIsGeneratingCrossRow(false)
-    }
-  }
-
-  const handleApproveCrossRowRules = () => {
-    if (!pendingCrossRowRules) return
-    const existing = new Set(crossFieldRules.map((r) => `${r.rule_id}:${r.cols.join(",")}`))
-    const toAdd = pendingCrossRowRules.filter((r) => !existing.has(`${r.rule_id}:${r.cols.join(",")}`))
-    setCrossFieldRules([...crossFieldRules, ...toAdd])
-    setPendingCrossRowRules(null)
-    setCrossRowPrompt("")
-    setShowCrossRowForm(false)
-  }
-
-  // Cross-row rules extracted from crossFieldRules
-  const crossRowRules = crossFieldRules.filter((r) => r.rule_id === "row_group_equals" || r.rule_id === "row_parent_equals")
-  const crossColOnlyRules = crossFieldRules.filter((r) => r.rule_id !== "row_group_equals" && r.rule_id !== "row_parent_equals")
+  // crossRowRules / crossFieldRules split removed — the unified Business
+  // Consistency Rules section displays all rules (cross-column AND cross-row)
+  // in one list. Rule type is still tracked via rule_id on each item.
 
   const canProceed = true // rules optional
 
@@ -382,29 +377,28 @@ export function RulesStep() {
           <h2 className="text-xl font-semibold">Rule Configuration</h2>
           <p className="text-sm text-muted-foreground mt-1">Configure which rules to apply during processing.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline" className="text-xs">
-            AI: {totalAutoRules}
+            AI-suggested: {totalAutoRules}
           </Badge>
           <Badge variant="outline" className="text-xs">
-            Custom: {totalCustomRules}
+            Custom rules: {totalCustomRules}
           </Badge>
           <Badge variant="outline" className="text-xs">
-            Cross: {totalSelectedCrossRules}/{totalCrossRules}
+            Cross-field: {totalSelectedCrossRules}/{totalCrossRules}
           </Badge>
           <Badge variant="default" className="text-xs">
-            Selected: {totalSelectedRules + totalCustomRules + totalSelectedCrossRules}
+            Active: {totalSelectedRules + totalCustomRules + totalSelectedCrossRules}
           </Badge>
         </div>
       </div>
 
-      {/* Main content area split into tabs so Business Consistency Rules
-          gets equal billing alongside per-column DQ rules instead of being
-          buried at the bottom of one long scroll list. */}
-      <Tabs defaultValue="dq" className="flex-1 min-h-0 mt-6 gap-3">
+      {/* Main content area split into tabs */}
+      <Tabs defaultValue="dq" className="flex-1 min-h-0 mt-4 gap-3">
       <TabsList className="h-9 w-fit">
         <TabsTrigger value="dq" className="px-3">DQ Rules</TabsTrigger>
         <TabsTrigger value="bcr" className="px-3">Business Consistency Rules</TabsTrigger>
+        <TabsTrigger value="aug" className="px-3">Data Augmentation {augmentations.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 text-[10px]">{augmentations.length}</Badge>}</TabsTrigger>
       </TabsList>
       <TabsContent value="bcr" className="border border-muted rounded-lg overflow-hidden min-h-0 mt-0 data-[state=inactive]:hidden">
         <div className="h-full overflow-y-auto p-4">
@@ -413,8 +407,8 @@ export function RulesStep() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-medium text-sm">Business Consistency Rules</h3>
                 <div className="flex items-center gap-2">
-                  {crossColOnlyRules.length > 0 && (
-                    <Badge variant="outline" className="text-xs">{crossColOnlyRules.filter(r => r.enabled).length}/{crossColOnlyRules.length} enabled</Badge>
+                  {crossFieldRules.length > 0 && (
+                    <Badge variant="outline" className="text-xs">{crossFieldRules.filter(r => r.enabled).length}/{crossFieldRules.length} enabled</Badge>
                   )}
                   <Button
                     variant="outline"
@@ -429,7 +423,7 @@ export function RulesStep() {
               </div>
 
               {/* Existing rules — table layout */}
-              {crossColOnlyRules.length > 0 && (
+              {crossFieldRules.length > 0 && (
                 <div className="mb-3 rounded-md border border-muted/60 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -443,7 +437,7 @@ export function RulesStep() {
                         </tr>
                       </thead>
                       <tbody>
-                        {crossColOnlyRules.map((rule, idx) => (
+                        {crossFieldRules.map((rule, idx) => (
                           <tr
                             key={rule.rule_id + rule.cols.join(".")}
                             className={cn(
@@ -467,7 +461,25 @@ export function RulesStep() {
                             </td>
                             <td className="px-3 py-2 align-top">
                               <div className="flex flex-col gap-1">
-                                <span className="font-mono text-xs font-medium">{rule.rule_id}</span>
+                                <TooltipProvider delayDuration={150}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span
+                                        className="text-xs font-medium cursor-help"
+                                        data-rule-id={rule.rule_id}
+                                        data-testid="wizard-bcr-label"
+                                      >
+                                        {humanizeCrossRuleId(rule.rule_id)}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs" data-testid="wizard-bcr-tooltip">
+                                      {rule.reasoning ||
+                                        rule.condition ||
+                                        rule.predicate ||
+                                        getRuleDescription(rule.rule_id)}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                                 {rule.relationship && (
                                   <Badge variant="secondary" className="text-[10px] w-fit">{rule.relationship}</Badge>
                                 )}
@@ -501,17 +513,27 @@ export function RulesStep() {
                 </div>
               )}
 
-              {crossColOnlyRules.length === 0 && !showCrossRuleForm && (
-                <p className="text-xs text-muted-foreground">No business consistency rules detected. Click &quot;Add AI Rule&quot; to describe one.</p>
+              {crossFieldRules.length === 0 && !showCrossRuleForm && (
+                <p className="text-xs text-muted-foreground">No business consistency rules yet. Click &quot;Add AI Rule&quot; to describe one — column relationships (e.g. discount equals % of total) or group/row consistency (e.g. legal entity must match across rows sharing an order ID).</p>
               )}
 
               {/* AI cross-rule suggestion form */}
               {showCrossRuleForm && (
                 <div className="border border-dashed border-muted rounded-md p-3 space-y-3 mt-1">
-                  <p className="text-xs text-muted-foreground font-medium">Describe the business consistency rule in plain language:</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground font-medium">Describe the business consistency rule in plain language:</p>
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground ml-2"
+                      onClick={() => { setShowCrossRuleForm(false); setPendingCrossRules(null); setCrossRuleError(null); setCrossRulePrompt(""); closeMention() }}
+                      aria-label="Close"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
 
                   {/* Textarea with @ mention highlight overlay */}
-                  <div className="relative rounded-lg border border-violet-300 bg-violet-100/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white">
+                  <div className="relative rounded-lg border border-violet-200 bg-violet-50/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white">
                     {/* Mirror div — highlight backgrounds only */}
                     <div
                       aria-hidden="true"
@@ -537,7 +559,7 @@ export function RulesStep() {
                       onChange={handleCrossPromptChange}
                       onKeyDown={handleCrossPromptKeyDown}
                       onBlur={() => setTimeout(closeMention, 150)}
-                      placeholder={`e.g. CREATED_TS must be before UPDATED_TS — type @ to insert a column`}
+                      placeholder={`Describe a column relationship OR a group/row consistency rule. e.g. "@discount_amount equals @discount_pct of @total" or "@Legal_Entity must match across all rows sharing the same @Order_Financial_ID". Type @ to insert a column.`}
                       rows={2}
                       className="relative w-full bg-transparent focus:outline-none resize-none placeholder:text-muted-foreground/50"
                       style={{ ...CROSS_TEXTAREA_STYLE, caretColor: "currentColor" }}
@@ -561,11 +583,11 @@ export function RulesStep() {
                               onMouseDown={(e) => { e.preventDefault(); insertColumn(col) }}
                               className={`w-full text-left px-3 py-1.5 text-xs font-mono flex items-center gap-2 transition-colors ${
                                 idx === mentionIndex
-                                  ? "bg-violet-100 text-violet-800"
+                                  ? "bg-violet-50 text-violet-700"
                                   : "hover:bg-muted/60"
                               }`}
                             >
-                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${idx === mentionIndex ? "bg-violet-1000" : "bg-muted-foreground/30"}`} />
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${idx === mentionIndex ? "bg-violet-500" : "bg-muted-foreground/30"}`} />
                               {col === "all" ? <span className="text-violet-600 font-semibold not-italic">all <span className="font-normal text-muted-foreground">— all columns</span></span> : col}
                             </button>
                           ))}
@@ -584,7 +606,25 @@ export function RulesStep() {
                       {pendingCrossRules.map((rule, i) => (
                         <div key={i} className="p-2 rounded border border-primary/30 bg-primary/5">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{rule.rule_id}</span>
+                            <TooltipProvider delayDuration={150}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span
+                                    className="text-sm font-medium cursor-help"
+                                    data-rule-id={rule.rule_id}
+                                    data-testid="wizard-pending-bcr-label"
+                                  >
+                                    {humanizeCrossRuleId(rule.rule_id)}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs" data-testid="wizard-pending-bcr-tooltip">
+                                  {rule.reasoning ||
+                                    rule.condition ||
+                                    rule.predicate ||
+                                    getRuleDescription(rule.rule_id)}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             {rule.relationship && <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">{rule.condition || rule.predicate}</p>
@@ -632,138 +672,11 @@ export function RulesStep() {
               )}
             </div>
 
-            {/* Cross-row Rules section */}
-            <div className="border border-muted rounded-md p-3">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-sm">Group Consistency Rules</h3>
-                <div className="flex items-center gap-2">
-                  {crossRowRules.length > 0 && (
-                    <Badge variant="outline" className="text-xs">{crossRowRules.filter(r => r.enabled).length}/{crossRowRules.length} enabled</Badge>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs gap-1"
-                    onClick={() => { setShowCrossRowForm(true); setPendingCrossRowRules(null); setCrossRowError(null) }}
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Add AI Rule
-                  </Button>
-                </div>
-              </div>
-
-              {/* Existing cross-row rules */}
-              {crossRowRules.length > 0 && (
-                <div className="space-y-2 mb-3">
-                  {crossRowRules.map((rule) => (
-                    <div
-                      key={rule.rule_id + rule.cols.join(".")}
-                      className="p-2 rounded border border-muted/60 bg-muted/20"
-                    >
-                      <div className="flex items-start gap-2">
-                        <Checkbox
-                          checked={rule.enabled}
-                          onCheckedChange={() =>
-                            setCrossFieldRules(
-                              crossFieldRules.map((item) =>
-                                item.rule_id === rule.rule_id && item.cols.join(".") === rule.cols.join(".")
-                                  ? { ...item, enabled: !item.enabled }
-                                  : item
-                              )
-                            )
-                          }
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{rule.rule_id}</span>
-                            {rule.relationship && <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {rule.condition || rule.predicate || "No condition provided"}
-                          </p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {rule.cols.map((c) => (
-                              <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0"
-                          onClick={() => setCrossFieldRules(crossFieldRules.filter((r) => !(r.rule_id === rule.rule_id && r.cols.join(".") === rule.cols.join("."))))}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {crossRowRules.length === 0 && !showCrossRowForm && (
-                <p className="text-xs text-muted-foreground">No group consistency rules detected. Click &quot;Add AI Rule&quot; to describe one (e.g. &quot;@Legal_Entity must match for all rows sharing the same @Order_Financial_ID&quot;).</p>
-              )}
-
-              {/* AI cross-row rule suggestion form */}
-              {showCrossRowForm && (
-                <div className="border border-dashed border-muted rounded-md p-3 space-y-3 mt-1">
-                  <p className="text-xs text-muted-foreground font-medium">Describe the group consistency rule in plain language:</p>
-                  <textarea
-                    className="w-full min-h-[60px] rounded-lg border border-violet-300 bg-violet-100/40 px-3 py-2 text-sm focus:ring-2 focus:ring-violet-400 focus:border-violet-400 focus:bg-white outline-none resize-none"
-                    placeholder="e.g. Legal Entity must be the same for all rows sharing the same Order Financial ID"
-                    value={crossRowPrompt}
-                    onChange={(e) => setCrossRowPrompt(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault()
-                        handleGenerateCrossRowRule()
-                      }
-                    }}
-                  />
-
-                  {/* Pending cross-row suggestions */}
-                  {pendingCrossRowRules && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-green-800">CleanAI suggested {pendingCrossRowRules.length} group consistency rule(s):</p>
-                      {pendingCrossRowRules.map((r, i) => (
-                        <div key={i} className="p-2 rounded border border-green-300 bg-green-100/50">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{r.rule_id}</span>
-                            {r.relationship && <Badge variant="secondary" className="text-[10px]">{r.relationship}</Badge>}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">{r.condition || r.predicate}</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {r.cols.map((c) => <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>)}
-                          </div>
-                          {r.reasoning && <p className="text-[10px] text-muted-foreground mt-1 italic">{r.reasoning}</p>}
-                        </div>
-                      ))}
-                      <Button size="sm" onClick={handleApproveCrossRowRules}>Accept Rules</Button>
-                    </div>
-                  )}
-
-                  {crossRowError && <p className="text-xs text-red-500">{crossRowError}</p>}
-
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={handleGenerateCrossRowRule}
-                      disabled={isGeneratingCrossRow || !crossRowPrompt.trim()}
-                    >
-                      {isGeneratingCrossRow ? "Generating..." : "Generate"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => { setShowCrossRowForm(false); setPendingCrossRowRules(null); setCrossRowError(null); setCrossRowPrompt("") }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Group Consistency Rules card was removed 2026-05-16 — its
+                cross-row rules now live in the single Business Consistency
+                Rules section above. The AI generator there uses rule_scope
+                "all" so a single prompt can produce either column-relationship
+                rules OR group/row-equality rules. */}
           </div>
         </div>
       </TabsContent>
@@ -786,8 +699,18 @@ export function RulesStep() {
               <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 rounded-md border border-muted hover:bg-muted/30">
                 {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 <span className="font-medium">{col}</span>
-                <div className="text-xs text-muted-foreground ml-2">
-                  {columnKeyTypes[col] && columnKeyTypes[col] !== "none" ? columnKeyTypes[col] : "type"} | {columnCoreTypes[col] || columnProfiles[col]?.type_guess}
+                <div className="flex items-center gap-1 ml-2">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] font-medium"
+                    title={columnCoreTypes[col] || columnProfiles[col]?.type_guess || "?"}
+                    data-core-type-raw={columnCoreTypes[col] || columnProfiles[col]?.type_guess || ""}
+                  >
+                    {canonicalTypeToLabel(columnCoreTypes[col] || columnProfiles[col]?.type_guess || "?")}
+                  </Badge>
+                  {columnKeyTypes[col] && columnKeyTypes[col] !== "none" && (
+                    <Badge variant="secondary" className="text-[10px] font-mono">{columnKeyTypes[col]}</Badge>
+                  )}
                 </div>
                 <div className="ml-auto flex items-center gap-1">
                   <Badge variant="outline" className="text-xs">AI:{autoCount}</Badge>
@@ -796,6 +719,106 @@ export function RulesStep() {
                     </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-2 ml-6 space-y-3">
+                    {/* B1 — Manual type override. Allows user to correct the
+                        LLM-inferred core_type / type_alias / key_type /
+                        nullable per column. Calls handleTypeChange() which
+                        re-derives rules from the type catalog. */}
+                    <div className="flex flex-wrap items-center gap-2 rounded border border-dashed border-muted px-3 py-2">
+                      <span className="text-xs text-muted-foreground shrink-0 mr-1">Override type:</span>
+                      {/* core_type */}
+                      <Select
+                        value={columnCoreTypes[col] || columnProfiles[col]?.type_guess || "string"}
+                        onValueChange={(v) =>
+                          handleTypeChange(
+                            col,
+                            v,
+                            columnTypeAliases[col] ?? null,
+                            (columnKeyTypes[col] as "none" | "primary_key" | "unique") || "none",
+                            columnNullable[col] !== undefined ? columnNullable[col] : true,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-7 w-32 text-xs">
+                          <SelectValue placeholder="Core type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.keys(CORE_TYPES as Record<string, unknown>).map((t) => (
+                            <SelectItem key={t} value={t} className="text-xs">
+                              {canonicalTypeToLabel(t)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {/* type_alias */}
+                      <Select
+                        value={columnTypeAliases[col] || "__none__"}
+                        onValueChange={(v) =>
+                          handleTypeChange(
+                            col,
+                            columnCoreTypes[col] || columnProfiles[col]?.type_guess || "string",
+                            v === "__none__" ? null : v,
+                            (columnKeyTypes[col] as "none" | "primary_key" | "unique") || "none",
+                            columnNullable[col] !== undefined ? columnNullable[col] : true,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-7 w-36 text-xs">
+                          <SelectValue placeholder="Alias (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__" className="text-xs">(none)</SelectItem>
+                          {Object.keys(TYPE_ALIASES as Record<string, unknown>).map((t) => (
+                            <SelectItem key={t} value={t} className="text-xs" title={t}>
+                              {canonicalTypeToLabel(t)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {/* key_type */}
+                      <Select
+                        value={columnKeyTypes[col] || "none"}
+                        onValueChange={(v) =>
+                          handleTypeChange(
+                            col,
+                            columnCoreTypes[col] || columnProfiles[col]?.type_guess || "string",
+                            columnTypeAliases[col] ?? null,
+                            v as "none" | "primary_key" | "unique",
+                            columnNullable[col] !== undefined ? columnNullable[col] : true,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-7 w-28 text-xs">
+                          <SelectValue placeholder="Key type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="text-xs">no key</SelectItem>
+                          <SelectItem value="primary_key" className="text-xs">primary key</SelectItem>
+                          <SelectItem value="unique" className="text-xs">unique</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {/* nullable */}
+                      <Select
+                        value={(columnNullable[col] !== undefined ? columnNullable[col] : true) ? "true" : "false"}
+                        onValueChange={(v) =>
+                          handleTypeChange(
+                            col,
+                            columnCoreTypes[col] || columnProfiles[col]?.type_guess || "string",
+                            columnTypeAliases[col] ?? null,
+                            (columnKeyTypes[col] as "none" | "primary_key" | "unique") || "none",
+                            v === "true",
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-7 w-24 text-xs">
+                          <SelectValue placeholder="Nullable" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true" className="text-xs">nullable</SelectItem>
+                          <SelectItem value="false" className="text-xs">required</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* #12 — Currency code per column. Only shown for
                         decimal / numeric columns where ISO 4217 precision
                         applies. The selected code flows through
@@ -904,7 +927,7 @@ export function RulesStep() {
                                   </details>
                                 )}
                               </div>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeCustomRule(rule.rule_id!)}>
+                              <Button variant="ghost" size="icon" aria-label="Remove custom rule" className="h-6 w-6" onClick={() => removeCustomRule(rule.rule_id!)}>
                                 <Trash2 className="w-3 h-3" />
                               </Button>
                             </div>
@@ -930,7 +953,11 @@ export function RulesStep() {
                             </div>
                           </div>
                         )}
-                        {error && <p className="text-sm text-destructive">{error}</p>}
+                        {error && (
+                          <p className={`text-sm ${isRefusal ? "text-amber-600 dark:text-amber-400" : "text-destructive"}`}>
+                            {isRefusal ? "⚠ " : ""}{error}
+                          </p>
+                        )}
                         {rawResponse && (
                           <div className="text-xs bg-muted/40 border rounded p-2 max-h-32 overflow-y-auto text-muted-foreground">
                             <div className="font-medium text-foreground mb-1">CleanAI raw response</div>
@@ -960,6 +987,11 @@ export function RulesStep() {
           </div>
         </div>
       </TabsContent>
+      <TabsContent value="aug" className="border border-muted rounded-lg overflow-hidden min-h-0 mt-0 data-[state=inactive]:hidden">
+        <div className="h-full overflow-y-auto">
+          <AugmentationPipelineTab selectedColumns={selectedColumns} />
+        </div>
+      </TabsContent>
       </Tabs>
 
       {/* Footer with navigation buttons - fixed at bottom */}
@@ -969,7 +1001,7 @@ export function RulesStep() {
           Back
         </Button>
         <Button onClick={nextStep} disabled={!canProceed}>
-          <ArrowRight className="w-4 h-4" />
+          Next <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     </div>

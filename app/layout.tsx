@@ -1,6 +1,6 @@
 import "./globals.css"
 
-import { Barlow, Barlow_Condensed, IBM_Plex_Mono } from "next/font/google"
+import { Inter, IBM_Plex_Mono } from "next/font/google"
 import { AuthProvider } from "@/modules/auth"
 import { CookieBanner } from "@/modules/privacy/components/cookie-banner"
 import { FilePreloader } from "@/modules/files/components/file-preloader"
@@ -10,31 +10,23 @@ import { ReduxProvider } from "@/shared/providers/redux-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 
-const barlow = Barlow({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  style: ["normal", "italic"],
   display: "swap",
-  variable: "--font-barlow",
-})
-
-const barlowCondensed = Barlow_Condensed({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-  variable: "--font-barlow-condensed",
+  variable: "--font-inter",
 })
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600"],
   display: "swap",
-  variable: "--font-mono",
+  variable: "--font-ibm-plex-mono",
 })
 
 export const metadata: Metadata = {
   title: "RightRev - Data Quality Platform",
   description: "Enterprise data quality, transformation, and ERP integration platform",
+  generator: 'v0.app',
 }
 
 export default function RootLayout({
@@ -43,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${barlow.variable} ${barlowCondensed.variable} ${ibmPlexMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${ibmPlexMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased bg-background text-foreground min-h-screen">
         <ReduxProvider>
           <AuthProvider>

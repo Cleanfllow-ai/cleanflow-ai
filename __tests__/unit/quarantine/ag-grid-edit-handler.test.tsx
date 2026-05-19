@@ -52,8 +52,11 @@ describe("QuarantineAgGridTable", () => {
       colDef: { field: "email" },
       data: { row_id: "42" },
       newValue: "new@example.com",
+      oldValue: "old@example.com",
     })
-    expect(onCellEdit).toHaveBeenCalledWith("42", "email", "new@example.com")
+    // 4th argument carries AG-Grid's pre-edit oldValue → consumed by the
+    // per-cell undo history (fix: 2026-05-15, undo blank regression).
+    expect(onCellEdit).toHaveBeenCalledWith("42", "email", "new@example.com", "old@example.com")
   })
 
   it("skips onCellEdit when field is row_id", () => {

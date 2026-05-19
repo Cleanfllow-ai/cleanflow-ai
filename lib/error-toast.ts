@@ -239,13 +239,11 @@ export function mapErrorToToast(err: unknown): ErrorToastDescriptor {
             }
         }
 
-        // Generic typed API error
+        // Generic typed API error — never surface raw code/message to the user;
+        // keep technical detail in the console (callers must call console.error before toast).
         return {
-            title: err.message,
-            description:
-                err.code && err.code !== err.message
-                    ? `Error code: ${err.code}`
-                    : "Please try again.",
+            title: "Something went wrong.",
+            description: "Please try again.",
             variant: "destructive",
         }
     }
@@ -386,7 +384,7 @@ export function mapQuarantineErrorToToast(
                     label: "Contact Support",
                     onClick: () => {
                         if (typeof window !== "undefined") {
-                            window.open("mailto:support@cleanflow.ai?subject=Permission%20issue", "_blank")
+                            window.open("mailto:support@infiniqon.com?subject=Permission%20issue", "_blank")
                         }
                     },
                 },

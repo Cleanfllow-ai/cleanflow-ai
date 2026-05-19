@@ -18,7 +18,7 @@ import {
   Layers,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -138,7 +138,8 @@ export function ConnectorsHub() {
         }
       }
     } catch (err) {
-      setError((err as Error).message || "Failed to load connectors")
+      console.error("[Connectors:loadProviders]", err)
+      setError("Could not load connectors. Please try again.")
       setLoading(false)
     }
   }, [])
@@ -184,20 +185,22 @@ export function ConnectorsHub() {
         // "Auth window closed" is the friendly path — show a non-destructive
         // toast. Other strings are genuine failures.
         const closed = /closed/i.test(msg)
+        console.error("[Connectors:handleConnect]", result.error)
         toast({
           title: closed
             ? "Connection cancelled"
             : `Could not connect ${provider?.display_name ?? providerId}`,
           description: closed
             ? "You closed the authorization window before it finished."
-            : msg,
+            : "We couldn't complete the connection. Please try again or check your provider's permissions.",
           variant: closed ? "default" : "destructive",
         })
       }
     } catch (err) {
+      console.error("Connect error:", err)
       toast({
         title: `Could not connect ${provider?.display_name ?? providerId}`,
-        description: (err as Error)?.message || "Please try again.",
+        description: "Please try again.",
         variant: "destructive",
       })
     } finally { setConnectingProvider(null) }
@@ -222,9 +225,10 @@ export function ConnectorsHub() {
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: { connected: false } } : p))
       toast({ title: "Disconnected", description: `${displayName} has been disconnected.` })
     } catch (err) {
+      console.error("Disconnect error:", err)
       toast({
         title: "Disconnect failed",
-        description: (err as Error)?.message || `Could not disconnect ${displayName}. Please try again.`,
+        description: `Could not disconnect ${displayName}. Please try again.`,
         variant: "destructive",
       })
     } finally { setDisconnectingProvider(null) }
@@ -237,9 +241,10 @@ export function ConnectorsHub() {
       const status = await connectorsAPI.getConnectionStatus(providerId)
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: status } : p))
     } catch (err) {
+      console.error("Save config error:", err)
       toast({
         title: "Could not save configuration",
-        description: (err as Error)?.message || "Please try again.",
+        description: "Please try again.",
         variant: "destructive",
       })
     } finally { setSavingConfig(null) }
@@ -254,9 +259,10 @@ export function ConnectorsHub() {
       setProviders((prev) => prev.map((p) => p.provider_id === providerId ? { ...p, connectionStatus: status } : p))
       if (key === "database" && value) prefetchDatabaseDeep(providerId, value).catch(() => {})
     } catch (err) {
+      console.error("Save warehouse default error:", err)
       toast({
         title: `Could not save ${key}`,
-        description: (err as Error)?.message || "Please try again.",
+        description: "Please try again.",
         variant: "destructive",
       })
     } finally { setSavingConfig(null) }
@@ -309,8 +315,30 @@ export function ConnectorsHub() {
       </div>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+        // W4-3 polish (Marcus): the previous error state was a flat red
+        // alert with no actionable recovery — users had to F5 the page to
+        // retry. We now surface an explicit Retry button that re-runs
+        // loadProviders() so the connectors list can recover from a
+        // transient API blip without the user leaving the page.
+        <Alert variant="destructive" data-testid="connectors-error-alert">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Couldn't load connectors</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{error}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setLoading(true)
+                loadProviders()
+              }}
+              data-testid="connectors-retry-button"
+              className="sm:ml-4 shrink-0"
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
 

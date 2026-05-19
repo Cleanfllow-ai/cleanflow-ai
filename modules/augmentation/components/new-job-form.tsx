@@ -32,7 +32,7 @@ export function NewJobForm({ onSuccess, onCancel }: Props) {
         setLoadingTpl(true)
         listPromptTemplates(idToken, { active: true })
             .then(setTemplates)
-            .catch((err) => setFormError(`Failed to load templates: ${err.message}`))
+            .catch((err) => { console.error("Failed to load templates:", err); setFormError("Could not load templates. Please refresh and try again.") })
             .finally(() => setLoadingTpl(false))
     }, [idToken])
 

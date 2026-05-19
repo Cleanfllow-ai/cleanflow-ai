@@ -16,6 +16,8 @@ import {
   startIdleTimer,
   subscribeToLogoutBroadcast,
 } from './auth-session'
+// P0-6: import cache-clear so logout never leaks one user's dashboard to the next
+import { _clearDashboardSummaryCache } from '@/modules/dashboard/hooks/use-dashboard-summary'
 
 // Re-export types for backwards compatibility
 export type { User, AuthState, MfaSetupData } from '@/modules/auth/types/auth.types'
@@ -33,11 +35,60 @@ const UNAUTHENTICATED_STATE: AuthState = {
   idleWarnSecondsRemaining: null,
 }
 
+/**
+ * Synchronously hydrate auth state from localStorage during useState's lazy
+ * initializer (runs once at mount, BEFORE the first render). This eliminates
+ * the auth-hydration race where consumers (useCollaboration, useWebSocket,
+ * AuthGuard) evaluated their `enabled`/redirect gates on first render against
+ * a null token, even though localStorage already had a valid session.
+ *
+ * Previously: useState(unauth) → first render with null tokens →
+ *   useEffect(loadStoredTokens) → second render with tokens →
+ *   useCollaboration's enabled gate fires once with enabled=false and the
+ *   WebSocket never opens for fast-clicking users.
+ *
+ * Now: useState(() => readInitialAuthState()) → first render already has
+ *   tokens → enabled gate evaluates true on the very first effect.
+ *
+ * SSR-safe: returns the loading state when window is undefined; the client-
+ * side hydration will then run the same lazy initializer and produce the
+ * authenticated state without an SSR mismatch (auth state is gated to
+ * "use client" components only and never rendered on the server).
+ */
+function readInitialAuthState(): AuthState {
+  if (typeof window === 'undefined') {
+    return { ...UNAUTHENTICATED_STATE, isLoading: true }
+  }
+  const stored = loadStoredTokens()
+  if (!stored) {
+    return { ...UNAUTHENTICATED_STATE, isLoading: false }
+  }
+  try {
+    const payload = parseJWT(stored.idToken)
+    if (payload && payload.exp > Date.now() / 1000) {
+      return {
+        user: buildUserFromPayload(payload),
+        isLoading: false,
+        isAuthenticated: true,
+        idToken: stored.idToken,
+        accessToken: stored.accessToken,
+        refreshToken: stored.refreshToken || null,
+        mfaRequired: false,
+        mfaSession: null,
+        mfaUsername: null,
+        idleWarnSecondsRemaining: null,
+      }
+    }
+    // Token expired — defer to the mount useEffect which will attempt
+    // silent refresh (it has access to the async refreshSession closure).
+    return { ...UNAUTHENTICATED_STATE, isLoading: true }
+  } catch {
+    return { ...UNAUTHENTICATED_STATE, isLoading: false }
+  }
+}
+
 export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>({
-    ...UNAUTHENTICATED_STATE,
-    isLoading: true,
-  })
+  const [authState, setAuthState] = useState<AuthState>(readInitialAuthState)
 
   const idleTimerRef = useRef<ReturnType<typeof startIdleTimer> | null>(null)
 
@@ -47,6 +98,8 @@ export function useAuth() {
     broadcastLogout()
     idleTimerRef.current?.destroy()
     idleTimerRef.current = null
+    // P0-6: clear dashboard cache on every logout path
+    _clearDashboardSummaryCache()
     setAuthState(UNAUTHENTICATED_STATE)
     if (typeof window !== "undefined") {
       window.location.href = "/auth/login?reason=session_expired"
@@ -70,29 +123,24 @@ export function useAuth() {
   }, [])
 
   useEffect(() => {
-    // Check for existing session on mount
+    // Initial state was already hydrated synchronously via the useState lazy
+    // initializer (readInitialAuthState). This effect handles only the cases
+    // the lazy initializer cannot:
+    //   - arm the idle timer (needs the armIdleTimer closure)
+    //   - silently refresh an expired token via refreshSession
+    //   - clean up stale storage for a malformed token
     const storedTokens = loadStoredTokens()
     if (storedTokens) {
       try {
-        const { idToken, accessToken, refreshToken } = storedTokens
+        const { idToken, refreshToken } = storedTokens
         const payload = parseJWT(idToken)
 
         if (payload && payload.exp > Date.now() / 1000) {
-          setAuthState({
-            user: buildUserFromPayload(payload),
-            isLoading: false,
-            isAuthenticated: true,
-            idToken,
-            accessToken,
-            refreshToken: refreshToken || null,
-            mfaRequired: false,
-            mfaSession: null,
-            mfaUsername: null,
-            idleWarnSecondsRemaining: null,
-          })
+          // Synchronously hydrated already — just arm the idle timer.
           armIdleTimer()
         } else if (refreshToken) {
-          // Attempt silent refresh on mount if tokens are expired but refresh token exists
+          // Token is expired; attempt silent refresh. refreshSession will set
+          // isLoading: false on success or failure.
           refreshSession(refreshToken)
         } else {
           clearStoredTokens()
@@ -102,15 +150,17 @@ export function useAuth() {
         clearStoredTokens()
         setAuthState(prev => ({ ...prev, isLoading: false }))
       }
-    } else {
-      setAuthState(prev => ({ ...prev, isLoading: false }))
     }
+    // No-stored-tokens path was already handled in readInitialAuthState
+    // (set isLoading: false). Nothing to do here.
 
     // Case 6: subscribe to cross-tab logout
     const unsubscribe = subscribeToLogoutBroadcast(() => {
       clearStoredTokens()
       idleTimerRef.current?.destroy()
       idleTimerRef.current = null
+      // P0-6: clear dashboard cache on cross-tab logout too
+      _clearDashboardSummaryCache()
       setAuthState(UNAUTHENTICATED_STATE)
       if (typeof window !== "undefined") {
         window.location.href = "/auth/login"
@@ -621,6 +671,9 @@ export function useAuth() {
     // Case 5: tear down idle timer
     idleTimerRef.current?.destroy()
     idleTimerRef.current = null
+    // P0-6: wipe the module-level dashboard cache so the next user session
+    // cannot see a previous user's summary data on first mount.
+    _clearDashboardSummaryCache()
     setAuthState(UNAUTHENTICATED_STATE)
   }
 

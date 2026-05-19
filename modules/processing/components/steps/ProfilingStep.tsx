@@ -74,26 +74,30 @@ export function ProfilingStep() {
     }
   }, [selectedColumns, authToken])
 
-  const fetchProfiling = async () => {
+  const fetchProfiling = async (forceRefresh: boolean = false) => {
     if (!authToken) return
     setLoading(true)
     setError(null)
     if (pollRef.current) clearTimeout(pollRef.current)
     try {
-      const response = await fileManagementAPI.getColumnProfilingPreview(uploadId, authToken, selectedColumns, 200)
+      const response = await fileManagementAPI.getColumnProfilingPreview(uploadId, authToken, selectedColumns, 200, forceRefresh)
       const profiles = (response as any)?.profiles || (response as any)?.column_profiles || {}
       if (profiles && Object.keys(profiles).length > 0) {
         setColumnProfiles(profiles)
         setLoading(false)
       } else {
         // Backend may still be computing (LLM calls for many columns).
-        // Poll every 2s until profiles arrive, up to 10 minutes.
+        // Poll every 2s until profiles arrive, up to ~2 minutes.
+        // RC-K (2026-05-18, W1 v12 C08): cap retries at 60 (2 min) so the
+        // wizard doesn't hang forever when the BE silently returns empty
+        // (e.g. malformed fixture columns).  Next is no longer gated on
+        // hasProfiles so the user can still proceed once loading clears.
         setLoading(true)
         let attempts = 0
         const poll = async () => {
           attempts++
-          if (attempts > 300) { // 300 × 2s = 10 min
-            setError("Profiling is taking too long. Click Refresh to retry.")
+          if (attempts > 60) {  // 60 × 2s = 2 min
+            setError("Profiling preview unavailable — you can proceed without it.")
             setLoading(false)
             return
           }
@@ -170,7 +174,15 @@ export function ProfilingStep() {
   }
 
   const hasProfiles = Object.keys(columnProfiles).length > 0
-  const canProceed = selectedColumns.length > 0 && hasProfiles && !loading
+  // RC-K (2026-05-18, W1 v12 C08): allow the user to proceed even if
+  // profiling is still in-flight or returned no data after the first call.
+  // Previously, fixtures with intentionally-malformed values (C08's
+  // invoice_id: INVOICE-..., INV-202613-...) caused the polling loop to
+  // never resolve, leaving Next disabled indefinitely.  The wizard's
+  // SettingsStep + RulesStep + processing path do NOT depend on
+  // columnProfiles, so gating Next on `hasProfiles` is overly strict.
+  // We still BLOCK on `selectedColumns.length > 0` (the genuine pre-cond).
+  const canProceed = selectedColumns.length > 0
 
   return (
     <div className="flex flex-col h-full p-6">
@@ -182,16 +194,16 @@ export function ProfilingStep() {
             Review data types and quality metrics for selected columns
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchProfiling} disabled={loading || !authToken} className="shrink-0">
+        <Button variant="outline" size="sm" onClick={() => fetchProfiling(true)} disabled={loading || !authToken} className="shrink-0">
           <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
-          Refresh
+          {loading ? "Profiling…" : "Refresh"}
         </Button>
       </div>
 
       {/* Main content area with three separate scrollable boxes */}
       <div className="flex gap-4 flex-1 min-h-0 mt-6">
         {/* Left sidebar - Column list */}
-        <div className="w-56 shrink-0 border border-muted rounded-lg flex flex-col overflow-hidden">
+        <div className="w-64 lg:w-72 shrink-0 border border-muted rounded-lg flex flex-col overflow-hidden">
           <div className="px-3 py-3 border-b border-muted/40 bg-muted/20">
             <h3 className="font-medium text-sm leading-none">Columns</h3>
             <p className="text-[11px] text-muted-foreground mt-1.5">Click to toggle selection</p>
@@ -219,7 +231,7 @@ export function ProfilingStep() {
                     {isSelected
                       ? <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       : <X className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-                    <span className="truncate flex-1" title={col}>{col}</span>
+                    <span className="break-words flex-1 min-w-0" title={col}>{col}</span>
                     {!hasProfile && isSelected && <Loader2 className="w-3 h-3 animate-spin shrink-0 text-muted-foreground" />}
                   </div>
                 )
@@ -235,13 +247,14 @@ export function ProfilingStep() {
         <div className="flex-1 min-w-0 border border-muted rounded-lg overflow-hidden @container">
           <div className="h-full overflow-y-auto p-4">
             {loading && !hasProfiles ? (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex flex-col items-center justify-center h-full gap-2">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">Profiling…</span>
               </div>
             ) : error ? (
               <div className="text-center text-destructive p-8">
                 <p>{error}</p>
-                <Button variant="outline" size="sm" className="mt-4" onClick={fetchProfiling}>
+                <Button variant="outline" size="sm" className="mt-4" onClick={() => fetchProfiling()}>
                   Retry
                 </Button>
               </div>
@@ -561,7 +574,7 @@ export function ProfilingStep() {
           Back
         </Button>
         <Button onClick={nextStep} disabled={!canProceed}>
-          <ArrowRight className="w-4 h-4" />
+          Next <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     </div>

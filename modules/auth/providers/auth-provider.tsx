@@ -45,9 +45,22 @@ interface AuthContextType {
   getValidToken: () => Promise<string>;
   permissions: Record<string, boolean>;
   permissionsLoaded: boolean;
+  /** True when the last /org/me request errored (network blip, 5xx, abort,
+   *  timeout, etc). The catch block in refreshPermissions sets
+   *  permissionsLoaded=true so that AuthGuard releases the spinner, but the
+   *  permissions map remains empty — which would previously cause
+   *  hasPermission("...") to return false and surface a destructive
+   *  "Permission denied" toast on the user's first click. UI gates that
+   *  bind to permissions (Import/Upload/Delete/Stop buttons in /files)
+   *  must check this flag and show a friendly "Loading your permissions"
+   *  toast + trigger a retry instead of a destructive deny. */
+  permissionsError: boolean;
   userRole: string | null;
   hasPermission: (key: string) => boolean;
   refreshPermissions: () => Promise<void>;
+  /** True when /org/me returns onboarding_required=true or no membership exists.
+   *  AuthGuard uses this to redirect to /create-organization. */
+  onboardingRequired: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,6 +71,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [userRole, setUserRole] = useState<string | null>(null);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  // P0-1 fix (2026-05-19): track /org/me failure separately. Previously the
+  // catch block flipped permissionsLoaded=true with an empty permissions map,
+  // which caused hasPermission("files") to return false on the user's first
+  // click and surface a destructive "Permission denied" toast even for Super
+  // Admins. UI callers now key off permissionsError to show a friendly
+  // loading toast + auto-retry instead.
+  const [permissionsError, setPermissionsError] = useState(false);
+  const [onboardingRequired, setOnboardingRequired] = useState(false);
 
   // ── Wire API-error toast handlers + 401 token-refresh bridge ──────
   // These run once at boot; non-React code (api/base.ts, file-upload-api.ts,
@@ -98,6 +119,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!auth.isAuthenticated || !auth.idToken) return;
     try {
       const me = await orgAPI.getMe(auth.idToken);
+      // BE trap-state signal: HTTP 200 but no membership exists
+      if (me?.onboarding_required || !me?.membership?.org_id) {
+        setOnboardingRequired(true);
+        setPermissionsLoaded(true);
+        setPermissionsError(false);
+        return;
+      }
+      // Normal path: membership present
+      setOnboardingRequired(false);
       if (me?.role_permissions) {
         setPermissions(me.role_permissions);
       }
@@ -107,9 +137,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         window.localStorage.setItem("cleanflowai.currentRole", me.membership.role);
       }
       setPermissionsLoaded(true);
+      setPermissionsError(false);
     } catch {
+      // P0-1 (2026-05-19): /org/me failed (network blip, 5xx, abort, timeout).
+      // We still flip permissionsLoaded=true so AuthGuard releases the spinner
+      // — keeping the page interactive — but mark permissionsError so action
+      // gates (ensureFilesPermission etc) can distinguish "load failed and
+      // retry needed" from "loaded with denial" and avoid firing a destructive
+      // toast on the user's first click while the underlying retry is in flight.
       setPermissionsLoaded(true);
-      // User may not have an org yet — silently ignore
+      setPermissionsError(true);
+      // User may not have an org yet — silently ignore otherwise
     }
   }, [auth.isAuthenticated, auth.idToken]);
 
@@ -127,6 +165,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setPermissions({});
     setUserRole(null);
     setPermissionsLoaded(false);
+    setPermissionsError(false);
+    setOnboardingRequired(false);
   }, [auth.isAuthenticated]);
 
   // Keep permissions fresh even without navigation.
@@ -188,7 +228,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         mfaSession: auth.mfaSession,
         mfaUsername: auth.mfaUsername,
         // Idle timeout warning (case 5)
-        idleWarnSecondsRemaining: auth.idleWarnSecondsRemaining,
+        idleWarnSecondsRemaining: auth.idleWarnSecondsRemaining ?? null,
         // Auth functions
         signup: auth.signup,
         confirmSignup: auth.confirmSignup,
@@ -210,9 +250,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Permissions
         permissions,
         permissionsLoaded,
+        permissionsError,
         userRole,
         hasPermission,
         refreshPermissions,
+        onboardingRequired,
       }}
     >
       {children}

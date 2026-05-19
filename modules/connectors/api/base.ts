@@ -296,9 +296,10 @@ export class ConnectorAPIBase {
           }
         }, 500)
       } catch (error) {
+        console.error("[Connectors:openOAuthPopup]", error)
         resolve({
           success: false,
-          error: (error as Error).message || "Connection failed",
+          error: "Could not open the authorization window. Please try again.",
         })
       }
     })

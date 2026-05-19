@@ -30,9 +30,9 @@ export function augErrorToast(
 ): void {
     switch (code) {
         case "AUG_LLM_RATE_LIMITED":
-            toast.warning("AI service busy. Retry in 30s.", {
+            toast.warning("AI service busy. Please wait a moment and retry.", {
                 id: `aug-${code}`,
-                description: "Groq rate limit reached.",
+                description: "The AI service is handling too many requests right now.",
                 action: opts.onRetry
                     ? { label: "Retry", onClick: opts.onRetry }
                     : undefined,
@@ -43,7 +43,7 @@ export function augErrorToast(
         case "AUG_EXPR_INVALID":
             toast.error("Generated expression invalid. Try rephrasing your prompt.", {
                 id: `aug-${code}`,
-                description: opts.errorMessage,
+                description: "Adjust your prompt and try again.",
                 action: opts.onEditPrompt
                     ? { label: "Edit Prompt", onClick: opts.onEditPrompt }
                     : undefined,
@@ -55,7 +55,6 @@ export function augErrorToast(
             // Use warning (not error) — the expression ran; data just matched nothing.
             toast.warning("No matching rows found. Check your filter or source data.", {
                 id: `aug-${code}`,
-                description: opts.errorMessage,
                 // No action button — user needs to adjust their data or prompt.
                 duration: 10_000,
             })
@@ -63,25 +62,19 @@ export function augErrorToast(
         }
 
         case "AUG_SCHEMA_MISMATCH":
-            toast.error(
-                opts.errorMessage
-                    ? `Source missing columns: ${opts.errorMessage}`
-                    : "Source missing required columns. Upload a CSV with required columns.",
-                {
-                    id: `aug-${code}`,
-                    description: "Update your source file and retry.",
-                    duration: 12_000,
-                },
-            )
+            toast.error("Source file is missing required columns.", {
+                id: `aug-${code}`,
+                description: "Update your source file to include the expected columns and retry.",
+                duration: 12_000,
+            })
             break
 
         case "AUG_EVAL_FAILED":
             toast.error("Expression failed at runtime. Try a simpler prompt or smaller file.", {
                 id: `aug-${code}`,
-                description: opts.errorMessage,
                 action: {
                     label: "Contact Support",
-                    onClick: () => window.open("mailto:support@cleanflowai.com?subject=AUG_EVAL_FAILED", "_blank"),
+                    onClick: () => window.open("mailto:support@infiniqon.com?subject=AUG_EVAL_FAILED", "_blank"),
                 },
                 duration: 15_000,
             })
@@ -94,19 +87,17 @@ export function augErrorToast(
         case "AUG_MATERIALIZE_FAILED":
             toast.error("Output generation failed — try a smaller batch or contact support.", {
                 id: `aug-${code}`,
-                description: opts.errorMessage,
                 action: {
                     label: "Contact Support",
-                    onClick: () => window.open("mailto:support@cleanflowai.com?subject=AUG_MATERIALIZE_FAILED", "_blank"),
+                    onClick: () => window.open("mailto:support@infiniqon.com?subject=AUG_MATERIALIZE_FAILED", "_blank"),
                 },
                 duration: 15_000,
             })
             break
 
         default:
-            toast.error("Augmentation job failed.", {
+            toast.error("Augmentation job failed. Please try again.", {
                 id: `aug-${code}`,
-                description: opts.errorMessage || "An unknown error occurred.",
                 duration: 10_000,
             })
             break

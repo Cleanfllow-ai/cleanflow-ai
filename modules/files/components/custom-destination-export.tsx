@@ -234,8 +234,8 @@ export default function CustomDestinationExport({
       } else {
         console.error('Error processing file:', error)
         toast({
-          title: 'Processing Error',
-          description: (error as Error).message || 'Failed to process file',
+          title: 'Processing failed',
+          description: 'Could not process the file. Please try again.',
           variant: 'destructive',
         })
       }
@@ -294,8 +294,8 @@ export default function CustomDestinationExport({
       } else {
         console.error('Download error:', error)
         toast({
-          title: 'Download Error',
-          description: (error as Error).message || 'Failed to download file',
+          title: 'Download failed',
+          description: 'Could not download the file. Please try again.',
           variant: 'destructive',
         })
       }

@@ -13,7 +13,32 @@ import {
 } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+    TooltipProvider,
+} from "@/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
+import { getRuleLabel, getRuleDescription } from "@/shared/lib/dq-rules";
+
+// Heuristic: looks like a raw DQ rule code (R1..R99 / CUST_xxx / CROSS:/INTRA:)
+// rather than a human label. Used to decide whether to humanize on the fly.
+function looksLikeRuleCode(text: string): boolean {
+    if (!text) return false;
+    if (/^R\d{1,3}$/.test(text)) return true;
+    if (text.startsWith("CUST_")) return true;
+    if (text.startsWith("CROSS:")) return true;
+    if (text.startsWith("INTRA:")) return true;
+    return false;
+}
+
+function humanizeViolation(violation: string): string {
+    if (looksLikeRuleCode(violation)) {
+        return getRuleLabel(violation);
+    }
+    return violation.replace(/_/g, " ");
+}
 
 export interface RowWiseIssuesProps {
     issues: { row: number; column: string; violation: string; value: any }[];
@@ -100,14 +125,32 @@ export function RowWiseIssues({
                 </div>
             )}
 
-            {/* Issue Type Summary */}
-            <div className="flex flex-wrap gap-2">
-                {Object.entries(issuesByType).map(([type, count]) => (
-                    <Badge key={type} variant="outline" className={cn("text-xs", getViolationColor(type))}>
-                        {type.replace(/_/g, ' ')}: {count}
-                    </Badge>
-                ))}
-            </div>
+            {/* Issue Type Summary — codes hidden, label + hover tooltip */}
+            <TooltipProvider delayDuration={150}>
+                <div className="flex flex-wrap gap-2">
+                    {Object.entries(issuesByType).map(([type, count]) => {
+                        const label = humanizeViolation(type)
+                        const desc = getRuleDescription(type) || label
+                        return (
+                            <Tooltip key={type}>
+                                <TooltipTrigger asChild>
+                                    <Badge
+                                        variant="outline"
+                                        data-rule-id={type}
+                                        data-testid="row-issue-type-badge"
+                                        className={cn("text-xs cursor-help", getViolationColor(type))}
+                                    >
+                                        {label}: {count}
+                                    </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs" data-testid="row-issue-type-tooltip">
+                                    {desc}
+                                </TooltipContent>
+                            </Tooltip>
+                        )
+                    })}
+                </div>
+            </TooltipProvider>
 
             {/* Row-wise expandable list */}
             <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
@@ -164,9 +207,31 @@ export function RowWiseIssues({
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2">
                                                     <code className="text-sm font-semibold bg-muted px-2 py-0.5 rounded">{issue.column}</code>
-                                                    <Badge variant="outline" className={cn("text-xs", getViolationColor(issue.violation))}>
-                                                        {issue.violation.replace(/_/g, ' ')}
-                                                    </Badge>
+                                                    <TooltipProvider delayDuration={150}>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    data-rule-id={issue.violation}
+                                                                    data-testid="row-issue-detail-badge"
+                                                                    className={cn(
+                                                                        "text-xs cursor-help",
+                                                                        getViolationColor(issue.violation),
+                                                                    )}
+                                                                >
+                                                                    {humanizeViolation(issue.violation)}
+                                                                </Badge>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent
+                                                                side="top"
+                                                                className="max-w-xs"
+                                                                data-testid="row-issue-detail-tooltip"
+                                                            >
+                                                                {getRuleDescription(issue.violation) ||
+                                                                    humanizeViolation(issue.violation)}
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">
                                                     Value: <code className="bg-muted px-1 rounded">{issue.value === null ? 'null' : issue.value === '' ? '(empty)' : String(issue.value)}</code>

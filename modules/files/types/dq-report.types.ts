@@ -57,6 +57,18 @@ export interface DqReportResponse {
         target?: string | null
         message?: string
     }>
+    /**
+     * Bug 6 follow-up: rules that fired on >50% of non-null rows and were
+     * downgraded from "quarantined" to "flagged" (overfire guard).
+     * Absent or empty array on older reports — FE must handle both.
+     */
+    overfire_rules?: Array<{
+        rule_id: string
+        short_label: string
+        count: number
+        hit_rate: number
+        reason: string
+    }>
 }
 
 export interface HybridSummary {
@@ -91,6 +103,11 @@ export interface IssuesResponse {
 export interface TopIssue {
     violation: string
     count: number
+    short_label?: string  // business-friendly chip label from BE registry
+    description?: string  // long-form (<= 140 chars) sentence used for the FE
+                          // hover/tooltip on the Top DQ Issues dashboard chip.
+                          // Source: rule_business_messages.RULE_DESCRIPTIONS
+                          // (built-ins R1..R39) or LLM-emitted for CUST_* rules.
 }
 
 export interface MonthlyDqStats {

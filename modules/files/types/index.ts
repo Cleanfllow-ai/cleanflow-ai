@@ -96,6 +96,8 @@ export type {
     FindMatch,
     QuarantineFindRequest,
     QuarantineFindResponse,
+    ReplaceInQuarantineRequest,
+    ReplaceInQuarantineResponse,
 } from './quarantine.types'
 
 export type {

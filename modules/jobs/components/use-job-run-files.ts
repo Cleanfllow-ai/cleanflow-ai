@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "@/modules/auth"
 import { useToast } from "@/shared/hooks/use-toast"
+import { toastFromError } from "@/lib/error-toast-jsx"
 import { buildPrefixedDataFilename } from "@/modules/files/utils/download-filenames"
 import { triggerBlobDownload, triggerPresignedDownload } from "@/modules/files/utils/trigger-download"
 import { fileManagementAPI } from "@/modules/files/api/file-management-api"
@@ -409,11 +410,8 @@ export function useJobRunFiles(run: JobRun | null, open: boolean): JobRunFilesSt
             ))
             toast({ title: "Reprocess complete", description: "File refreshed with the new version" })
         } catch (err: any) {
-            toast({
-                title: "Reprocess status check failed",
-                description: err?.message || "Could not confirm reprocess completion. Refresh to retry.",
-                variant: "destructive",
-            })
+            console.error("[useJobRunFiles] reprocess status check failed:", err)
+            toast(toastFromError(err))
         } finally {
             setExporting(false)
         }

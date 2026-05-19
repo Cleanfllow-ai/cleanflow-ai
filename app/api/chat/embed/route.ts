@@ -5,7 +5,7 @@ import path from 'path'
 import { generateFallbackEmbedding, chunkText } from '../_lib/embeddings'
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
-const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || 'cleanflowai-docs'
+const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || 'rightrev-docs'
 
 // Lazy-initialize Pinecone to prevent build errors when env var is not set
 let pinecone: Pinecone | null = null

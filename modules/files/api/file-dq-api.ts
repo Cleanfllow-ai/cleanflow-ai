@@ -128,6 +128,11 @@ export async function downloadOverallDqReport(authToken: string): Promise<Overal
     // Case 1: JSON envelope
     try {
         const payload = JSON.parse(text)
+        // BE returns {has_data: false} when no DQ has completed yet — treat as
+        // "no data" rather than surfacing a populated report.
+        if (payload && typeof payload === "object" && payload.has_data === false) {
+            return null as unknown as OverallDqReportResponse
+        }
         const base64Body = payload.body || payload.data || ''
         if (base64Body) {
             const decoded = tryDecodeBase64(base64Body)

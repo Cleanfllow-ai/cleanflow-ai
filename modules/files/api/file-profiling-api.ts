@@ -24,7 +24,8 @@ export async function getColumnProfilingPreview(
     fileId: string,
     authToken: string,
     columns?: string[],
-    sampleSize: number = 500
+    sampleSize: number = 500,
+    forceRefresh: boolean = false,
 ): Promise<ProfilingResponse & { status?: string }> {
     const params = new URLSearchParams()
     if (columns && columns.length > 0) {
@@ -32,6 +33,9 @@ export async function getColumnProfilingPreview(
     }
     if (sampleSize) {
         params.set('sample', String(sampleSize))
+    }
+    if (forceRefresh) {
+        params.set('force_refresh', '1')
     }
     const qs = params.toString() ? `?${params.toString()}` : ''
     return makeRequest(`${ENDPOINTS.FILES_PROFILING_PREVIEW(fileId)}${qs}`, authToken, { method: 'GET' })
@@ -52,6 +56,7 @@ export async function getColumnProfilingPreviewWithPolling(
         timeoutMs?: number
         onProgress?: (elapsed: number) => void
         signal?: AbortSignal
+        forceRefresh?: boolean
     }
 ): Promise<ProfilingResponse> {
     const intervalMs = opts?.intervalMs ?? 3000
@@ -59,7 +64,7 @@ export async function getColumnProfilingPreviewWithPolling(
     const start = Date.now()
 
     // First call — triggers async profiling if not cached
-    const first = await getColumnProfilingPreview(fileId, authToken, columns, sampleSize)
+    const first = await getColumnProfilingPreview(fileId, authToken, columns, sampleSize, opts?.forceRefresh ?? false)
     if (!first.status || first.status !== 'in_progress') {
         return first as ProfilingResponse
     }

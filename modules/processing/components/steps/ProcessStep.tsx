@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Loader2, CheckCircle, XCircle, Play, RotateCw } from "lucide-react"
 import { useProcessingWizard } from "../WizardContext"
@@ -44,6 +45,8 @@ export function ProcessStep({
     crossFieldRules,
     selectedPreset,
     presetOverrides,
+    augmentations,
+    processingError,
     setProcessing,
     setProcessingError,
     prevStep,
@@ -83,8 +86,11 @@ export function ProcessStep({
             if (interval) clearInterval(interval)
           } else if (fileStatus === "DQ_FAILED" || fileStatus === "FAILED") {
             setStatus("error")
-            const detail = (resp as { error_message?: string; failure_reason?: string }).error_message
-              || (resp as { failure_reason?: string }).failure_reason
+            const detail = (resp as any).aug_error
+              || (resp as any).aug_fail_reason
+              || (resp as any).error_message
+              || (resp as any).failure_reason
+              || (resp as any).last_error
               || ""
             setProcessingError(detail ? `Processing failed: ${detail}` : "Processing failed")
             if (interval) clearInterval(interval)
@@ -101,6 +107,18 @@ export function ProcessStep({
           } else if (["DQ_RUNNING", "VALIDATED"].includes(fileStatus)) {
             setProgress((prev) => Math.min(prev + 5, 92))
             setStatusMessage("Running data quality checks...")
+          } else if (fileStatus === "AUG_RUNNING") {
+            setProgress((prev) => Math.min(prev + 3, 88))
+            setStatusMessage("Running augmentations...")
+          } else if (fileStatus === "AUG_FAILED") {
+            setStatus("error")
+            const detail = (resp as any).aug_error
+              || (resp as any).aug_fail_reason
+              || (resp as any).error_message
+              || (resp as any).failure_reason
+              || ""
+            setProcessingError(detail ? `Augmentation failed: ${detail}` : "Augmentation step failed")
+            if (interval) clearInterval(interval)
           }
         } catch (err) {
           // 401/403 are terminal — stop polling so we don't spin forever on
@@ -181,6 +199,33 @@ export function ProcessStep({
       // Extract reference_data from preset overrides to pass as top-level field
       const referenceData = presetOverrides?.reference_data || (selectedPreset as any)?.config?.reference_data || undefined
 
+      // Only include augmentations that have a non-empty prompt and at least one source column
+      // B2 (2026-05-16): count and toast on filtered-out rows so the user doesn't
+      // silently lose work.  We do NOT block submit — the rest of the pipeline
+      // still proceeds; the toast just makes the drop visible.
+      const augmentationsWithPrompt = (augmentations ?? []).filter(
+        (a) => a.prompt_text.trim().length > 0,
+      )
+      const augmentationsPayload = augmentationsWithPrompt
+        .filter((a) => a.source_columns.length > 0)
+        .map((a) => ({
+          mode: a.mode,
+          prompt_text: a.prompt_text,
+          preset_id: a.preset_id,
+          source_columns: a.source_columns,
+          destination_columns: a.destination_columns,
+        }))
+      const droppedAugCount =
+        augmentationsWithPrompt.length - augmentationsPayload.length
+      if (droppedAugCount > 0) {
+        toast.error(
+          droppedAugCount === 1
+            ? "1 augmentation skipped because no source columns were selected. Aug rows must have at least one source column to run."
+            : `${droppedAugCount} augmentations skipped because no source columns were selected. Aug rows must have at least one source column to run.`,
+          { duration: 6000 },
+        )
+      }
+
       await fileManagementAPI.startProcessing(uploadId, authToken, {
         selected_columns: selectedColumns,
         required_columns: requiredColumns,
@@ -192,15 +237,15 @@ export function ProcessStep({
         column_type_overrides: columnTypeOverrides,
         cross_field_rules: compactCrossRules,
         reference_data: referenceData,
+        ...(augmentationsPayload.length > 0 ? { augmentations: augmentationsPayload } : {}),
       })
       setStatusMessage("Processing started, monitoring progress...")
       // Notify parent so it refreshes the file list — without this the
       // catalog row remains stuck on UPLOADED until the next manual refresh.
       if (onStarted) onStarted()
-      // Auto-close dialog 3 seconds after processing kicks off
-      setTimeout(() => {
-        if (onComplete) onComplete()
-      }, 3000)
+      // Do NOT close here — let the polling loop decide when to close based
+      // on terminal status (DQ_FIXED → auto-close after 3s; DQ_FAILED/FAILED
+      // → show error block and wait for explicit user Close).
     } catch (err: unknown) {
       // Backend rejects a second start while the prior run is still pending —
       // that's not a failure, the pipeline is already working. Notify parent
@@ -268,14 +313,18 @@ export function ProcessStep({
                 <span className="font-medium">{requiredColumns.length}</span>
                 <span>Custom Rules:</span>
                 <span className="font-medium">{customRules.length}</span>
+                <span>Business rules:</span>
+                <span className="font-medium">{crossFieldRules.filter(r => r.enabled).length}</span>
+                <span>Augmentations:</span>
+                <span className="font-medium">{augmentations.filter(a => a.prompt_text.trim().length > 0).length}</span>
               </div>
             </div>
             <div className="flex items-center justify-center gap-3">
               <Button variant="outline" size="lg" onClick={prevStep}>
                 Back
               </Button>
-              <Button size="lg" onClick={handleStart} className="bg-green-600 hover:bg-green-700" disabled={!authToken}>
-                <Play className="w-5 h-5 mr-2" />
+              <Button variant="default" size="lg" onClick={handleStart} className="font-semibold gap-2" disabled={!authToken}>
+                <Play className="w-5 h-5" />
                 Start Processing
               </Button>
             </div>
@@ -313,13 +362,18 @@ export function ProcessStep({
             <div>
               <h2 className="text-xl font-semibold text-red-500">Processing Failed</h2>
               <p className="text-muted-foreground mt-2 max-w-md">
-                Processing failed or timed out. Please retry.
+                {processingError || "Processing failed or timed out. Please retry."}
               </p>
             </div>
-            <Button size="lg" variant="outline" onClick={handleRetry}>
-              <RotateCw className="w-4 h-4 mr-2" />
-              Retry
-            </Button>
+            <div className="flex items-center justify-center gap-3">
+              <Button size="lg" variant="outline" onClick={handleRetry}>
+                <RotateCw className="w-4 h-4 mr-2" />
+                Retry
+              </Button>
+              <Button size="lg" variant="ghost" onClick={() => { if (onComplete) onComplete() }}>
+                Close
+              </Button>
+            </div>
           </div>
         )}
       </div>

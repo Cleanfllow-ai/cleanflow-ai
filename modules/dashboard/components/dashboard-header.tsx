@@ -80,9 +80,10 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
         description: "Dashboard data exported successfully",
       })
     } catch (error: any) {
+      console.error("Dashboard export error:", error)
       toast({
         title: "Export failed",
-        description: error.message || "Failed to export dashboard data",
+        description: "Could not export dashboard data. Please try again.",
         variant: "destructive",
       })
     } finally {

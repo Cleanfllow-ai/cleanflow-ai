@@ -661,7 +661,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
             }
             return mappings
         } catch (err: any) {
-            toast({ title: "Auto-map failed", description: err?.message || "Failed to generate mapping", variant: "destructive" })
+            console.error("[useJobDialog] auto-map failed:", err)
+            toast(toastFromError(err))
             return []
         } finally {
             setMappingLoading(false)
@@ -771,7 +772,8 @@ export function useJobDialog({ open, job, onSuccess }: UseJobDialogProps) {
                 setCachedSourceFields(srcFields)
                 setCachedDestFields(dstFields)
             } catch (err: any) {
-                toast({ title: "Failed to load fields", description: err?.message, variant: "destructive" })
+                console.error("[useJobDialog] field load failed:", err)
+                toast(toastFromError(err))
                 return
             }
         }

@@ -15,6 +15,19 @@ import {
 import type { AugmentationJob } from "@/modules/augmentation/types"
 import { isTerminalJobStatus } from "@/modules/augmentation/types"
 
+/**
+ * Defensive USD formatter — `cost_actual_usd` can arrive as number, string
+ * (DDB Decimal), null, or undefined depending on which worker wrote the row.
+ * A single malformed value used to crash the whole augmentation detail page
+ * because `value.toFixed()` throws on non-number inputs.
+ */
+function formatCurrency(value: unknown, digits = 4): string {
+    if (value == null) return "—"
+    const n = typeof value === "number" ? value : Number(value)
+    if (!Number.isFinite(n)) return "—"
+    return `$${n.toFixed(digits)}`
+}
+
 function JobDetail({ jobId }: { jobId: string }) {
     const { idToken } = useAuth()
     const { toast } = useToast()
@@ -90,7 +103,7 @@ function JobDetail({ jobId }: { jobId: string }) {
                     <p><span className="text-muted-foreground">Output: </span>{job.output_dataset_key ?? "—"}</p>
                     <p><span className="text-muted-foreground">Rows: </span>{job.output_rows_count ?? "—"}</p>
                     <p><span className="text-muted-foreground">Cost: </span>
-                        {job.cost_actual_usd != null ? `$${job.cost_actual_usd}` : "—"}</p>
+                        {formatCurrency(job.cost_actual_usd, 4)}</p>
                     <p><span className="text-muted-foreground">Created: </span>{job.created_at}</p>
                     {job.error_message && <p className="text-red-500">{job.error_message}</p>}
                     {job.status === "SUCCEEDED" && (

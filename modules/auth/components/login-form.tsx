@@ -1,22 +1,22 @@
 "use client"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { LoadingDots, LoadingSpinner } from "@/components/ui/loading"
 import { AnimatePresence, motion } from "framer-motion"
-import { Check, CheckCircle, Copy, Eye, EyeOff, Lock, Mail, Shield, Smartphone } from "lucide-react"
+import { CheckCircle, Eye, EyeOff, Lock, Mail, Shield, Smartphone, Copy, Check } from "lucide-react"
+import { LoadingDots, LoadingSpinner } from "@/components/ui/loading"
 
 import { Button } from "@/components/ui/button"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
+import Image from "next/image"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import Image from "next/image"
 import Link from "next/link"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 import { useLoginForm } from "./use-login-form"
 
@@ -33,11 +33,11 @@ export function LoginForm() {
       <div className="mb-8">
         {/* Mobile-only logo */}
         <div className="flex justify-center mb-6 lg:hidden">
-          <div className="relative w-14 h-14">
-            <Image src="/images/rightrev-logo.png" alt="RightRev" width={56} height={56} className="object-contain" />
+          <div className="relative w-10 h-10">
+            <Image src="/images/rightrev-logo.png" alt="RightRev" width={40} height={40} className="object-contain" />
           </div>
         </div>
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground">Sign in</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sign in</h1>
         <p className="text-sm text-muted-foreground mt-1">Enter your credentials to continue</p>
       </div>
 
@@ -46,7 +46,7 @@ export function LoginForm() {
         <div className="space-y-1.5">
           <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</Label>
           <div className="relative">
-            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
             <Input
               id="email"
               type="email"
@@ -54,7 +54,7 @@ export function LoginForm() {
               value={f.email}
               onChange={(e) => f.setEmail(e.target.value)}
               required
-              className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors"
+              className="pl-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors"
             />
           </div>
         </div>
@@ -63,12 +63,12 @@ export function LoginForm() {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label htmlFor="password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</Label>
-            <Link href="/auth/forgot-password" className="text-xs text-primary hover:text-[#164234] dark:hover:text-white transition-colors">
+            <Link href="/auth/forgot-password" className="text-xs text-primary hover:text-primary/80 transition-colors">
               Forgot password?
             </Link>
           </div>
           <div className="relative">
-            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 h-4 w-4" />
             <Input
               id="password"
               type={f.showPassword ? "text" : "password"}
@@ -76,11 +76,12 @@ export function LoginForm() {
               value={f.password}
               onChange={(e) => f.setPassword(e.target.value)}
               required
-              className="pl-10 pr-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors"
+              className="pl-10 pr-10 h-11 bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50 transition-colors"
             />
             <button
               type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={f.showPassword ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
               onClick={() => f.setShowPassword(!f.showPassword)}
             >
               {f.showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -90,7 +91,7 @@ export function LoginForm() {
 
         {/* Remember me */}
         <div className="flex items-center space-x-2">
-          <input id="remember" type="checkbox" className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary" />
+          <input id="remember" type="checkbox" className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-ring" />
           <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">Remember me</Label>
         </div>
 
@@ -105,8 +106,8 @@ export function LoginForm() {
           )}
           {f.success && (
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
-              <Alert className="bg-primary/5 border-primary/20">
-                <AlertDescription className="text-primary flex items-center gap-2 text-sm">
+              <Alert className="bg-green-500/5 border-green-500/20">
+                <AlertDescription className="text-green-600 dark:text-green-400 flex items-center gap-2 text-sm">
                   {f.isVerifying ? (
                     <><LoadingSpinner size="sm" /><span>Verifying credentials...</span><LoadingDots /></>
                   ) : (
@@ -121,7 +122,7 @@ export function LoginForm() {
         {/* Submit */}
         <Button
           type="submit"
-          className="w-full h-11 font-semibold transition-all bg-primary hover:bg-[#5db040] text-white"
+          className="w-full h-11 font-medium transition-all"
           disabled={f.isLoading || f.isVerifying}
         >
           {f.isLoading ? (
@@ -137,23 +138,23 @@ export function LoginForm() {
       {/* Sign up link */}
       <p className="text-center text-sm text-muted-foreground mt-8">
         Don&apos;t have an account?{" "}
-        <Link href={`/auth/signup${f.searchParamsString ? `?${f.searchParamsString}` : ''}`} className="text-primary hover:text-[#164234] dark:hover:text-white font-medium transition-colors">
+        <Link href={`/auth/signup${f.searchParamsString ? `?${f.searchParamsString}` : ''}`} className="text-primary hover:text-primary/80 font-medium transition-colors">
           Create account
         </Link>
       </p>
 
-      {/* New Password Modal */}
+      {/* New Password Modal (for invited users) */}
       <Dialog open={f.showNewPasswordModal} onOpenChange={f.handleCloseNewPasswordModal}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader className="relative">
-            <button onClick={f.handleCloseNewPasswordModal} className="absolute right-0 top-0 opacity-70 transition-opacity hover:opacity-100 focus:outline-none">
+            <button onClick={f.handleCloseNewPasswordModal} className="absolute right-0 top-0 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
               <Check className="h-4 w-4 sr-only" />
             </button>
             <div className="flex items-center justify-center mb-4">
               <div className="rounded-full bg-primary/10 p-3"><Lock className="w-6 h-6 text-primary" /></div>
             </div>
-            <DialogTitle className="text-center text-xl text-foreground">Set Your Password</DialogTitle>
-            <DialogDescription className="text-center text-muted-foreground">
+            <DialogTitle className="text-center text-xl">Set Your Password</DialogTitle>
+            <DialogDescription className="text-center">
               Welcome! Since this is your first time logging in, please set a permanent password.
             </DialogDescription>
           </DialogHeader>
@@ -161,36 +162,36 @@ export function LoginForm() {
           <div className="space-y-4 mt-4">
             <div className="space-y-1.5">
               <Label htmlFor="new-password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">New Password</Label>
-              <Input id="new-password" type="password" placeholder="Enter new password" value={f.newPassword} onChange={(e) => f.setNewPassword(e.target.value)} autoFocus disabled={f.isSettingPassword} className="h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground focus:border-primary" />
+              <Input id="new-password" type="password" placeholder="Enter new password" value={f.newPassword} onChange={(e) => f.setNewPassword(e.target.value)} autoFocus disabled={f.isSettingPassword} className="h-11" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="confirm-new-password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Confirm Password</Label>
-              <Input id="confirm-new-password" type="password" placeholder="Confirm new password" value={f.confirmNewPassword} onChange={(e) => f.setConfirmNewPassword(e.target.value)} disabled={f.isSettingPassword} className="h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground focus:border-primary" />
+              <Input id="confirm-new-password" type="password" placeholder="Confirm new password" value={f.confirmNewPassword} onChange={(e) => f.setConfirmNewPassword(e.target.value)} disabled={f.isSettingPassword} className="h-11" />
             </div>
             {f.error && (
               <Alert variant="destructive"><AlertDescription>{f.error}</AlertDescription></Alert>
             )}
-            <Button onClick={f.handleSetNewPassword} className="w-full h-11 bg-primary hover:bg-[#5db040] text-white font-semibold" disabled={f.isSettingPassword || !f.newPassword || !f.confirmNewPassword}>
+            <Button onClick={f.handleSetNewPassword} className="w-full h-11" disabled={f.isSettingPassword || !f.newPassword || !f.confirmNewPassword}>
               {f.isSettingPassword ? (
                 <span className="flex items-center gap-2"><LoadingSpinner size="sm" />Setting password...</span>
               ) : (
                 "Set Password & Continue"
               )}
             </Button>
-            <Button variant="ghost" onClick={f.handleCloseNewPasswordModal} className="w-full text-muted-foreground hover:text-foreground" disabled={f.isSettingPassword}>Cancel</Button>
+            <Button variant="ghost" onClick={f.handleCloseNewPasswordModal} className="w-full text-muted-foreground" disabled={f.isSettingPassword}>Cancel</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* MFA Modal */}
       <Dialog open={f.showMfaModal} onOpenChange={f.handleCloseMfaModal}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-center mb-4">
               <div className="rounded-full bg-primary/10 p-3"><Shield className="w-6 h-6 text-primary" /></div>
             </div>
-            <DialogTitle className="text-center text-xl text-foreground">Two-Factor Authentication</DialogTitle>
-            <DialogDescription className="text-center leading-relaxed text-muted-foreground">
+            <DialogTitle className="text-center text-xl">Two-Factor Authentication</DialogTitle>
+            <DialogDescription className="text-center leading-relaxed">
               Enter the 6-digit code from your authenticator app
               <br />
               <span className="font-medium text-foreground break-all">{f.maskEmail(f.email)}</span>
@@ -204,7 +205,7 @@ export function LoginForm() {
                 id="mfa-code" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6} placeholder="000000"
                 value={f.mfaCode}
                 onChange={(e) => { f.setMfaCode(e.target.value.replace(/\D/g, '')) }}
-                className="h-12 text-center text-2xl tracking-widest font-mono text-foreground bg-background dark:bg-white/5 border-border"
+                className="h-12 text-center text-2xl tracking-widest font-mono"
                 disabled={f.isVerifyingMfa || f.isVerifying} autoFocus
               />
             </div>
@@ -213,7 +214,7 @@ export function LoginForm() {
                 <AlertDescription className="text-destructive">{f.mfaError}</AlertDescription>
               </Alert>
             )}
-            <Button onClick={f.handleVerifyMfa} className="w-full h-11 bg-primary hover:bg-[#5db040] text-white font-semibold" disabled={f.mfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
+            <Button onClick={f.handleVerifyMfa} className="w-full h-11" disabled={f.mfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
               {f.isVerifyingMfa ? (
                 <span className="flex items-center gap-2"><LoadingSpinner size="sm" />Verifying...</span>
               ) : f.isVerifying ? (
@@ -231,25 +232,25 @@ export function LoginForm() {
 
       {/* MFA Setup Modal */}
       <Dialog open={f.showMfaSetupModal} onOpenChange={f.handleCloseMfaSetupModal}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-center mb-4">
               <div className="rounded-full bg-primary/10 p-3"><Smartphone className="w-6 h-6 text-primary" /></div>
             </div>
-            <DialogTitle className="text-center text-xl text-foreground">Set Up Two-Factor Authentication</DialogTitle>
-            <DialogDescription className="text-center text-muted-foreground">Scan the QR code with your authenticator app to enable 2FA</DialogDescription>
+            <DialogTitle className="text-center text-xl">Set Up Two-Factor Authentication</DialogTitle>
+            <DialogDescription className="text-center">Scan the QR code with your authenticator app to enable 2FA</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
             {f.mfaSetupStep === 'qr' && (
               <>
-                <div className="flex justify-center p-4 bg-secondary rounded-lg border border-border">
+                <div className="flex justify-center p-4 bg-white rounded-lg border">
                   {f.qrCodeDataUrl ? (
                     <img src={f.qrCodeDataUrl} alt="MFA QR Code" className="w-48 h-48" />
                   ) : (
                     <div className="w-48 h-48 flex items-center justify-center bg-muted rounded">
                       <div className="text-center text-sm text-muted-foreground">
-                        <Smartphone className="w-10 h-10 mx-auto mb-2" />
+                        <Smartphone className="w-10 h-10 mx-auto mb-2 text-muted-foreground/50" />
                         <p>Scan QR code in your</p>
                         <p>authenticator app</p>
                       </div>
@@ -261,15 +262,21 @@ export function LoginForm() {
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Can&apos;t scan? Enter this code manually:</Label>
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 p-2.5 bg-muted rounded text-xs font-mono text-foreground break-all">{f.secretCode}</code>
-                      <Button variant="outline" size="icon" onClick={f.handleCopySecret} className="shrink-0 h-9 w-9 border-border">
-                        {f.copiedSecret ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                      <code className="flex-1 p-2.5 bg-muted rounded text-xs font-mono break-all">{f.secretCode}</code>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        aria-label={f.copiedSecret ? "Secret copied" : "Copy MFA secret"}
+                        onClick={f.handleCopySecret}
+                        className="shrink-0 h-9 w-9"
+                      >
+                        {f.copiedSecret ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
                       </Button>
                     </div>
                   </div>
                 )}
 
-                <Button onClick={() => f.setMfaSetupStep('verify')} className="w-full h-11 bg-primary hover:bg-[#5db040] text-white font-semibold">I&apos;ve scanned the QR code</Button>
+                <Button onClick={() => f.setMfaSetupStep('verify')} className="w-full h-11">I&apos;ve scanned the QR code</Button>
               </>
             )}
 
@@ -281,7 +288,7 @@ export function LoginForm() {
                     id="setup-mfa-code" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6} placeholder="000000"
                     value={f.setupMfaCode}
                     onChange={(e) => { f.setSetupMfaCode(e.target.value.replace(/\D/g, '')) }}
-                    className="h-12 text-center text-2xl tracking-widest font-mono text-foreground bg-background dark:bg-white/5 border-border"
+                    className="h-12 text-center text-2xl tracking-widest font-mono"
                     disabled={f.isVerifyingMfa || f.isVerifying} autoFocus
                   />
                 </div>
@@ -293,8 +300,8 @@ export function LoginForm() {
                 )}
 
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => f.setMfaSetupStep('qr')} className="flex-1 h-11 border-border text-muted-foreground hover:text-foreground" disabled={f.isVerifyingMfa || f.isVerifying}>Back</Button>
-                  <Button onClick={f.handleVerifySetupMfa} className="flex-1 h-11 bg-primary hover:bg-[#5db040] text-white font-semibold" disabled={f.setupMfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
+                  <Button variant="outline" onClick={() => f.setMfaSetupStep('qr')} className="flex-1 h-11" disabled={f.isVerifyingMfa || f.isVerifying}>Back</Button>
+                  <Button onClick={f.handleVerifySetupMfa} className="flex-1 h-11" disabled={f.setupMfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
                     {f.isVerifyingMfa ? (
                       <span className="flex items-center gap-2"><LoadingSpinner size="sm" />Verifying...</span>
                     ) : f.isVerifying ? (

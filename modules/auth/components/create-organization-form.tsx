@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Briefcase, Mail, Phone, MapPin, FileText, CheckCircle2, UserPlus } from "lucide-react";
+import { Building2, Briefcase, Mail, Phone, MapPin, CheckCircle2, UserPlus } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function CreateOrganizationForm() {
@@ -21,6 +21,10 @@ export function CreateOrganizationForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
+    // Block the registration form until we've confirmed the user has no org.
+    // Otherwise the form flashes for users who already completed onboarding
+    // and are bounced here by a stale AuthGuard onboardingRequired flag.
+    const [isCheckingMembership, setIsCheckingMembership] = useState(true);
 
     // Flow detection
     const inviteId = searchParams.get("invite_id");
@@ -35,8 +39,6 @@ export function CreateOrganizationForm() {
     const [orgPhone, setOrgPhone] = useState("");
     const [orgAddress, setOrgAddress] = useState("");
     const [industry, setIndustry] = useState("");
-    const [gst, setGst] = useState("");
-    const [pan, setPan] = useState("");
     const autoRegisterAttempted = useRef(false);
 
     useEffect(() => {
@@ -69,8 +71,65 @@ export function CreateOrganizationForm() {
         checkMembership();
     }, [isAuthenticated, isAuthLoading, orgId]);
 
+    // If the user already belongs to an org and this is NOT an invite-acceptance
+    // flow, skip the org-setup form entirely and route them straight to the
+    // dashboard. Closes the "asked twice" UX bug where users who completed
+    // signup-step-2 were bounced to this page because AuthGuard raced ahead of
+    // the auto-register, then re-prompted them with the same fields.
+    //
+    // We BLOCK the registration form from rendering (isCheckingMembership=true)
+    // until this check resolves — otherwise the form flashes for a moment
+    // before the redirect fires, which is what users were reporting.
+    useEffect(() => {
+        if (isAuthLoading) {
+            return; // wait for auth to resolve
+        }
+        if (!isAuthenticated) {
+            // The unauthenticated-redirect useEffect above handles this case;
+            // we can stop "checking" so it can take the lead.
+            setIsCheckingMembership(false);
+            return;
+        }
+        if (isInviteFlow) {
+            // Invites legitimately use this page — show the join button.
+            setIsCheckingMembership(false);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const me = await orgAPI.getMe();
+                if (cancelled) return;
+                if (me?.membership?.org_id) {
+                    // Update the auth-provider's cached onboardingRequired so
+                    // AuthGuard doesn't bounce us back here on the next render.
+                    try {
+                        await refreshPermissions();
+                    } catch {
+                        // best-effort — proceed to redirect regardless
+                    }
+                    router.replace("/dashboard");
+                    return; // leave isCheckingMembership=true; we're navigating away
+                }
+            } catch {
+                // BE returned an error (likely "Organization membership required")
+                // — user has no org yet, fall through to the form.
+            }
+            if (!cancelled) {
+                setIsCheckingMembership(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [isAuthenticated, isAuthLoading, isInviteFlow, refreshPermissions, router]);
+
     useEffect(() => {
         const autoRegisterFromSignup = async () => {
+            // Wait for the membership check to complete first. If it resolved
+            // with an existing org, the page is in the process of redirecting
+            // away — don't fire a duplicate registerOrg.
+            if (isCheckingMembership) return;
             if (!isAuthenticated || isAuthLoading || isInviteFlow || autoRegisterAttempted.current) return;
             autoRegisterAttempted.current = true;
             const pendingOrgRaw = sessionStorage.getItem("pending_org_details");
@@ -86,8 +145,6 @@ export function CreateOrganizationForm() {
                     phone: pendingOrg.phone,
                     address: pendingOrg.address,
                     industry: pendingOrg.industry,
-                    gst: pendingOrg.gst,
-                    pan: pendingOrg.pan,
                     contact_person: pendingOrg.contact_person || user?.name,
                     subscriptionPlan: "standard",
                 });
@@ -112,8 +169,6 @@ export function CreateOrganizationForm() {
                         setOrgPhone(pendingOrg.phone || "");
                         setOrgAddress(pendingOrg.address || "");
                         setIndustry(pendingOrg.industry || "");
-                        setGst(pendingOrg.gst || "");
-                        setPan(pendingOrg.pan || "");
                         return;
                     }
                 }
@@ -138,8 +193,6 @@ export function CreateOrganizationForm() {
                     setOrgPhone(pendingOrg.phone || "");
                     setOrgAddress(pendingOrg.address || "");
                     setIndustry(pendingOrg.industry || "");
-                    setGst(pendingOrg.gst || "");
-                    setPan(pendingOrg.pan || "");
                 } catch {
                     // Malformed JSON in sessionStorage — clear it so the user
                     // can fill the form from scratch.
@@ -150,7 +203,7 @@ export function CreateOrganizationForm() {
             }
         };
         autoRegisterFromSignup();
-    }, [isAuthenticated, isAuthLoading, isInviteFlow, refreshPermissions, router, toast, user?.email, user?.name]);
+    }, [isAuthenticated, isAuthLoading, isInviteFlow, isCheckingMembership, refreshPermissions, router, toast, user?.email, user?.name]);
 
     const handleAcceptInvite = async () => {
         if (!orgId || !inviteId || !inviteToken) return;
@@ -185,8 +238,6 @@ export function CreateOrganizationForm() {
                 phone: orgPhone,
                 address: orgAddress,
                 industry,
-                gst,
-                pan,
                 contact_person: user?.name,
                 subscriptionPlan: "standard",
             });
@@ -204,12 +255,14 @@ export function CreateOrganizationForm() {
         }
     };
 
-    if (isAuthLoading) {
+    if (isAuthLoading || isCheckingMembership) {
         return (
             <Card className="w-full max-w-lg mx-auto mt-12">
                 <CardContent className="py-12 flex flex-col items-center justify-center space-y-4">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <p className="text-muted-foreground">Checking authentication...</p>
+                    <p className="text-muted-foreground">
+                        {isAuthLoading ? "Checking authentication..." : "Loading your organization..."}
+                    </p>
                 </CardContent>
             </Card>
         );
@@ -349,7 +402,8 @@ export function CreateOrganizationForm() {
                                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     id="orgPhone"
-                                    placeholder="+91..."
+                                    type="tel"
+                                    placeholder="Phone number"
                                     value={orgPhone}
                                     onChange={(e) => setOrgPhone(e.target.value)}
                                     required
@@ -371,36 +425,6 @@ export function CreateOrganizationForm() {
                                 required
                                 className="pl-10 h-11"
                             />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="gst">GSTIN</Label>
-                            <div className="relative">
-                                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="gst"
-                                    placeholder="GST Number"
-                                    value={gst}
-                                    onChange={(e) => setGst(e.target.value)}
-                                    className="pl-10 h-11 uppercase"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="pan">PAN</Label>
-                            <div className="relative">
-                                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="pan"
-                                    placeholder="PAN Number"
-                                    value={pan}
-                                    onChange={(e) => setPan(e.target.value)}
-                                    className="pl-10 h-11 uppercase"
-                                />
-                            </div>
                         </div>
                     </div>
 

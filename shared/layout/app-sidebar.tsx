@@ -1,28 +1,35 @@
 "use client"
-import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sparkles, Sun, X } from "lucide-react"
+import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, Compass, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sparkles, Sun, X } from "lucide-react"
 import { memo, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/shared/lib/utils"
+// W4-2 polish: friendlier "Demo User 01" rendering for battle-test demo
+// accounts in the sidebar avatar (real Cognito display names unchanged).
+import { formatUserDisplayName, isDemoUserEmail } from "@/shared/lib/user-display"
 import { useAuth } from "@/modules/auth"
 import { usePathname, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useAppSelector } from "@/shared/store/store"
 import { selectFiles } from "@/modules/files/store/filesSlice"
+import { WelcomeTour } from "@/modules/onboarding"
+import { useWelcomeTour } from "@/modules/onboarding/hooks/use-welcome-tour"
 const ChatDrawer = dynamic(
 	() => import("@/modules/chat/components/chat-drawer").then((mod) => ({ default: mod.ChatDrawer })),
 	{ ssr: false }
 )
+// TODO: re-enable after augmentation audit completes (track: a575f372010d13bca)
+const AUGMENTATION_ENABLED = false
 const mainNav = [
-	{ name: "Dashboard", href: "/dashboard", icon: BarChart3 },
-	{ name: "Data Catalog", href: "/files", icon: FileText },
-	{ name: "Augmentation", href: "/augmentation", icon: Sparkles },
-	{ name: "Jobs", href: "/jobs", icon: CalendarClock },
+	{ name: "Dashboard", href: "/dashboard", icon: BarChart3, tourId: "nav-dashboard" },
+	{ name: "Data Catalog", href: "/files", icon: FileText, tourId: "nav-data-catalog" },
+	...(AUGMENTATION_ENABLED ? [{ name: "Augmentation", href: "/augmentation", icon: Sparkles, tourId: "nav-augmentation" }] : []),
+	{ name: "Jobs", href: "/jobs", icon: CalendarClock, tourId: "nav-jobs" },
 ]
 const settingsNav = [
-	{ name: "Admin", href: "/admin", icon: Settings },
+	{ name: "Admin", href: "/admin", icon: Settings, tourId: "nav-admin" },
 ]
 function AppSidebarComponent() {
 	const [collapsed, setCollapsed] = useState(false)
@@ -33,6 +40,14 @@ function AppSidebarComponent() {
 	const router = useRouter()
 	const { logout, isAuthenticated, user } = useAuth()
 	const { theme, setTheme } = useTheme()
+	const {
+		isOpen: tourOpen,
+		currentStep: tourStep,
+		setCurrentStep: setTourStep,
+		openTour,
+		completeTour,
+		closeTour,
+	} = useWelcomeTour(pathname === "/dashboard")
 	// ─── UX Improvement: Live attention badges ──────────────────────────
 	const files = useAppSelector(selectFiles)
 	const attentionCount = useMemo(() => {
@@ -63,22 +78,28 @@ function AppSidebarComponent() {
 		logout()
 		window.location.href = '/auth/login'
 	}
+	// W4-2: friendly display + subline derived once per render.
+	const friendlyDisplayName = formatUserDisplayName(user?.email, user?.name)
+	const isDemoUser = isDemoUserEmail(user?.email)
+	const sidebarSubline = isDemoUser ? 'Demo account' : (user?.email || '')
+	const avatarInitial = (friendlyDisplayName || 'U').charAt(0)
 	const renderNavItem = (item: typeof mainNav[0], badge?: React.ReactNode) => {
 		const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href))
 		return (
 			<Link key={item.name} href={item.href}>
 				<div
+					data-tour={item.tourId}
 					className={cn(
 						"group flex items-center gap-2.5 px-3 py-[7px] rounded-lg transition-colors",
 						isActive
 							? "bg-primary/8 text-primary font-semibold"
-							: "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+							: "text-muted-foreground hover:text-foreground hover:bg-muted/60",
 						collapsed && "justify-center px-2",
 					)}
 				>
 					<item.icon className={cn(
 						"w-[18px] h-[18px] flex-shrink-0",
-						isActive ? "text-primary" : "text-sidebar-foreground/60 group-hover:text-sidebar-foreground/90"
+						isActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground/70"
 					)} />
 					{!collapsed && (
 						<>
@@ -137,7 +158,7 @@ function AppSidebarComponent() {
 					</Button>
 				)}
 				{/* Logo */}
-				<div className="flex items-center gap-2.5 px-3 py-3 border-b border-sidebar-border">
+				<div data-tour="logo" className="flex items-center gap-2.5 px-3 py-3 border-b border-sidebar-border">
 					<div className="relative w-7 h-7 flex-shrink-0">
 						<Image
 							src="/images/rightrev-logo.png"
@@ -149,10 +170,10 @@ function AppSidebarComponent() {
 					</div>
 					{!collapsed && (
 						<div className="flex-1 min-w-0">
-							<div className="text-sm font-semibold text-sidebar-foreground tracking-tight leading-none">
+							<div className="text-sm font-semibold text-foreground tracking-tight leading-none">
 								RightRev
 							</div>
-							<div className="text-[10px] text-sidebar-foreground/60 leading-none mt-0.5">
+							<div className="text-[10px] text-muted-foreground leading-none mt-0.5">
 								Data Quality Platform
 							</div>
 						</div>
@@ -161,7 +182,7 @@ function AppSidebarComponent() {
 				{/* Main Navigation */}
 				<nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
 					{!collapsed && (
-						<p className="px-3 pt-1 pb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-sidebar-foreground/50">
+						<p className="px-3 pt-1 pb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
 							Main
 						</p>
 					)}
@@ -175,11 +196,10 @@ function AppSidebarComponent() {
 							</span>
 						) : undefined
 					)}
-					{renderNavItem(mainNav[2])}
-					{renderNavItem(mainNav[3])}
+					{mainNav.slice(2).map((item) => renderNavItem(item))}
 					{/* Settings section */}
 					{!collapsed && (
-						<p className="px-3 pt-3 pb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-sidebar-foreground/50">
+						<p className="px-3 pt-3 pb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
 							Settings
 						</p>
 					)}
@@ -193,14 +213,20 @@ function AppSidebarComponent() {
 							{isAuthenticated && (
 								<div className="flex items-center gap-2 px-3 py-1.5 mb-1">
 									<div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-semibold text-primary uppercase">
-										{(user?.name || user?.email || "U").charAt(0)}
+										{avatarInitial}
 									</div>
 									<div className="flex-1 min-w-0">
-										<div className="text-[12px] font-medium truncate leading-tight text-sidebar-foreground">
-											{user?.name || 'User'}
+										<div
+											className="text-[12px] font-medium truncate leading-tight text-foreground"
+											data-testid="sidebar-user-name"
+										>
+											{friendlyDisplayName}
 										</div>
-										<div className="text-[10px] text-sidebar-foreground/60 truncate leading-tight">
-											{user?.email}
+										<div
+											className="text-[10px] text-muted-foreground truncate leading-tight"
+											data-testid="sidebar-user-subline"
+										>
+											{sidebarSubline}
 										</div>
 									</div>
 								</div>
@@ -208,15 +234,24 @@ function AppSidebarComponent() {
 							<button
 								onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
 								aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-								className="flex items-center gap-2.5 px-3 py-[6px] text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg w-full transition-colors"
+								className="flex items-center gap-2.5 px-3 py-[6px] text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg w-full transition-colors"
 							>
 								{theme === 'dark' ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
 								<span className="text-[12px]">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
 							</button>
 							<button
+								onClick={openTour}
+								aria-label="Take the product tour"
+								className="flex items-center gap-2.5 px-3 py-[6px] text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg w-full transition-colors"
+							>
+								<Compass className="w-4 h-4" aria-hidden="true" />
+								<span className="text-[12px]">Take the tour</span>
+							</button>
+							<button
+								data-tour="help-support"
 								onClick={() => setChatOpen(true)}
 								aria-label="Open help and support"
-								className="flex items-center gap-2.5 px-3 py-[6px] text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg w-full transition-colors"
+								className="flex items-center gap-2.5 px-3 py-[6px] text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg w-full transition-colors"
 							>
 								<HelpCircle className="w-4 h-4" aria-hidden="true" />
 								<span className="text-[12px]">Help & Support</span>
@@ -225,7 +260,7 @@ function AppSidebarComponent() {
 								<button
 									onClick={handleLogout}
 									aria-label="Log out"
-									className="flex items-center gap-2.5 px-3 py-[6px] text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/5 rounded-lg w-full transition-colors"
+									className="flex items-center gap-2.5 px-3 py-[6px] text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-lg w-full transition-colors"
 								>
 									<LogOut className="w-4 h-4" aria-hidden="true" />
 									<span className="text-[12px]">Logout</span>
@@ -237,14 +272,15 @@ function AppSidebarComponent() {
 							{isAuthenticated && (
 								<div
 									className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-semibold text-primary uppercase cursor-default"
-									title={user?.name || user?.email || "User"}
+									title={friendlyDisplayName}
+									data-testid="sidebar-user-avatar-collapsed"
 								>
-									{(user?.name || user?.email || "U").charAt(0)}
+									{avatarInitial}
 								</div>
 							)}
 							<button
 								onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-								className="p-1.5 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors"
+								className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
 								title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
 							>
 								{theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -252,7 +288,7 @@ function AppSidebarComponent() {
 							{isAuthenticated && (
 								<button
 									onClick={handleLogout}
-									className="p-1.5 text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/5 rounded-lg transition-colors"
+									className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-lg transition-colors"
 									title="Logout"
 								>
 									<LogOut className="w-4 h-4" />
@@ -266,7 +302,7 @@ function AppSidebarComponent() {
 							onClick={() => setCollapsed(!collapsed)}
 							aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 							aria-expanded={!collapsed}
-							className="flex items-center justify-center w-full py-1.5 mt-0.5 text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
+							className="flex items-center justify-center w-full py-1.5 mt-0.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
 						>
 							{collapsed ? <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />}
 						</button>
@@ -274,6 +310,13 @@ function AppSidebarComponent() {
 				</div>
 			</aside>
 			<ChatDrawer isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+			<WelcomeTour
+				isOpen={tourOpen}
+				currentStep={tourStep}
+				setCurrentStep={setTourStep}
+				onComplete={completeTour}
+				onSkip={closeTour}
+			/>
 		</div>
 	)
 }

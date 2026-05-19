@@ -1,28 +1,58 @@
 # RightRev — Data Quality Platform
 
-AI-powered ERP data transformation and quality management platform, branded under RightRev.
+RightRev ingests CSV files, automatically detects and fixes data quality issues, quarantines unresolvable rows for human review, and exports clean data to your ERP or data warehouse.
+
+Live: [rightrev.vercel.app](https://rightrev.vercel.app)
 
 ## Tech Stack
 
-- **Framework:** Next.js 15 (App Router)
-- **Package Manager:** pnpm
-- **Auth:** AWS Cognito
-- **Storage:** AWS S3
-- **AI:** Groq, Pinecone, HuggingFace
-- **UI:** Tailwind CSS v4, Radix UI, Lucide Icons
+- **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS
+- **Auth**: AWS Cognito (us-east-2)
+- **Storage**: Amazon S3
+- **Database**: DynamoDB
+- **AI Chatbot**: Groq (llama-3.3-70b) + Pinecone RAG (llama-text-embed-v2)
+- **Deployment**: Vercel
 
 ## Getting Started
 
 ```bash
+# Install dependencies
 pnpm install
+
+# Copy env template and fill in values
+cp .env.sample .env.local
+
+# Start dev server
 pnpm dev
 ```
 
-Add your environment variables in a `.env.local` file at the project root before running.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Branding
+## Environment Variables
 
-This branch (`feature/rebrand-ui`) applies the RightRev brand style guide:
-- **Colors:** Forest Green (#164234), Lime (#69C04B), Mint (#F1FFEE)
-- **Fonts:** Barlow, Barlow Condensed, IBM Plex Mono
-- **Logo:** RightRev two-circle mark
+See [.env.sample](.env.sample) for all required keys. All `NEXT_PUBLIC_*` variables are baked in at build time — a Vercel redeploy is required after any changes.
+
+## Key Features
+
+- CSV upload with automatic data quality scoring (DQ score 0–100)
+- 33 universal DQ rules + custom and cross-field rules
+- Quarantine editor with real-time collaborative editing (up to 10 users)
+- Augmentation — AI-powered column enrichment via natural language prompts
+- ERP connectors: QuickBooks Online, Zoho Books
+- Warehouse connector: Snowflake (import/export up to 100 GB)
+- Storage connector: Google Drive
+- RAG-powered in-app assistant (Pinecone + Groq)
+
+## Project Structure
+
+```
+app/          # Next.js App Router pages and API routes
+modules/      # Feature modules (auth, files, dashboard, jobs, chat, connectors)
+shared/       # Shared config, hooks, and layout components
+docs/         # Knowledge base and documentation
+scripts/      # One-time utility scripts (e.g. Pinecone indexing)
+```
+
+## Branch
+
+Active development branch: `frontend-rightrev`

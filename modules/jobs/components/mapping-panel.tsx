@@ -54,6 +54,7 @@ import { mappingTemplatesAPI, type MappingTemplate } from "@/modules/settings/ap
 import type { PipelineStep, MappingData } from "./use-pipeline-builder"
 import type { ProviderCategory } from "./use-job-dialog"
 import { CATEGORY_LABELS, getProviderDisplayName } from "./job-dialog-constants"
+import { toastFromError } from "@/lib/error-toast-jsx"
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -327,7 +328,8 @@ export function MappingPanel({
             setSaveDesc("")
             toast({ title: "Template saved", description: created.name })
         } catch (err: any) {
-            toast({ title: "Save failed", description: err?.message || "Unknown error", variant: "destructive" })
+            console.error("[MappingPanel] save template failed:", err)
+            toast(toastFromError(err))
         } finally {
             setSaving(false)
         }

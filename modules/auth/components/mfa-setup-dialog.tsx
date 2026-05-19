@@ -193,6 +193,7 @@ export function MfaSetupDialog({ open, onOpenChange, onSuccess }: MfaSetupDialog
                                         <Button
                                             variant="outline"
                                             size="icon"
+                                            aria-label={copied ? "Secret copied" : "Copy MFA secret"}
                                             onClick={handleCopySecret}
                                             className="shrink-0"
                                         >

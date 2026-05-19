@@ -30,11 +30,14 @@ const FALLBACK_REASON = "Validation failed"
  */
 export function getRejectionHint(reason: string): string | null {
   const lower = reason.toLowerCase()
+  if (lower.startsWith("empty file — this file has no data rows") || lower.startsWith("file has headers but no data rows")) {
+    return "Add at least one data row below your column headers and re-upload."
+  }
   if (lower.startsWith("empty file")) {
     return "Your file appears to be empty."
   }
-  if (lower.startsWith("file has headers but no data rows")) {
-    return "Add at least one data row below your headers."
+  if (lower.startsWith("this file doesn't look like a valid csv") || lower.includes("binary data")) {
+    return "This is not a CSV file. Please upload a plain-text .csv file."
   }
   if (lower.startsWith("utf-16 encoding not supported")) {
     return "Save your CSV as UTF-8 (Excel: Save As → CSV UTF-8)."

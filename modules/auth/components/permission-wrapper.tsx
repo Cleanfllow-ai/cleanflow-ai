@@ -40,7 +40,7 @@ export function PermissionWrapper({
     className,
     showLock = true,
 }: PermissionWrapperProps) {
-    const { user, hasPermission: checkPermission, userRole: authUserRole, isLoading: isAuthLoading, permissionsLoaded } = useAuth();
+    const { user, hasPermission: checkPermission, userRole: authUserRole, isLoading: isAuthLoading, permissionsLoaded, permissionsError } = useAuth();
     const isPermissionsLoading = !permissionsLoaded;
 
     const normalizedUserRole = React.useMemo(() => {
@@ -91,6 +91,16 @@ export function PermissionWrapper({
                 )}
             </div>
         );
+    }
+
+    // P0-1 (2026-05-19): when /org/me failed silently the permissions map is
+    // empty even though permissionsLoaded=true. Without this guard a Super
+    // Admin sees locked overlays everywhere after a transient network blip.
+    // Render children optimistically — BE is the source of truth, and the
+    // downstream click handlers route to the friendly retry toast in
+    // use-files-page's ensureFilesPermission.
+    if (permissionsError) {
+        return <>{children}</>;
     }
 
     if (hasPermission) {

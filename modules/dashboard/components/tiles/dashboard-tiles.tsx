@@ -1,6 +1,9 @@
 ﻿/** AA4 Phase 1 tiles — RecentFiles, DqTrend, RecentAugmentations. */
 "use client"
 
+// TODO: re-enable after augmentation audit completes (track: a575f372010d13bca)
+const AUGMENTATION_ENABLED = false
+
 import Link from "next/link"
 import { FileText, LineChart as LineChartIcon, Sparkles, Upload } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts"

@@ -19,10 +19,25 @@ interface UseFilePollingParams {
   setFiles: Dispatch<SetStateAction<FileItem[]>>
 }
 
+// P0-4: terminal statuses that stop polling and clear the seq counter
+const TERMINAL_STATUSES = new Set([
+  "DQ_FIXED",
+  "DQ_FAILED",
+  "FAILED",
+  "REJECTED",
+  "OPTIMIZE_FAILED",
+  "IMPORT_FAILED",
+  "SHARD_FAILED",
+  "UPLOAD_FAILED",
+])
+
 export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParams) {
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set())
   const processingFilesRef = useRef(processingFiles)
   const timeoutIdsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  // P0-4: monotonic sequence counter per upload so out-of-order poll responses
+  // cannot regress a terminal status back to an in-progress one.
+  const pollSeqRef = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
     processingFilesRef.current = processingFiles
@@ -42,6 +57,10 @@ export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParam
         throw new Error("Not authenticated")
       }
 
+      // P0-4: stamp the sequence BEFORE the fetch so we can detect races
+      const mySeq = (pollSeqRef.current.get(uploadId) ?? 0) + 1
+      pollSeqRef.current.set(uploadId, mySeq)
+
       const response = await fetch(`${FILES_API_CONFIG.apiUrl}files/${uploadId}/status`, {
         method: "GET",
         headers: {
@@ -57,20 +76,22 @@ export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParam
       const status = await response.json()
 
       setFiles((prev) =>
-        prev.map((file) =>
-          file.upload_id === uploadId
-            ? {
-                ...file,
-                status: mapStatus(status.status),
-                dq_score: status.dq_score,
-                rows_in: status.rows_in,
-                rows_out: status.rows_out,
-                rows_quarantined: status.rows_quarantined,
-                dq_issues: status.dq_issues,
-                last_error: status.last_error,
-              }
-            : file
-        )
+        prev.map((file) => {
+          if (file.upload_id !== uploadId) return file
+          // P0-4: only apply update if our seq is still the latest; drop stale responses
+          const latest = pollSeqRef.current.get(uploadId) ?? mySeq
+          if (mySeq < latest) return file
+          return {
+            ...file,
+            status: mapStatus(status.status),
+            dq_score: status.dq_score,
+            rows_in: status.rows_in,
+            rows_out: status.rows_out,
+            rows_quarantined: status.rows_quarantined,
+            dq_issues: status.dq_issues,
+            last_error: status.last_error,
+          }
+        })
       )
 
       return status
@@ -91,8 +112,10 @@ export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParam
         try {
           const status = await checkProcessingStatus(uploadId)
 
-          if (status.status === "DQ_FIXED" || status.status === "DQ_FAILED" || status.status === "FAILED") {
+          if (TERMINAL_STATUSES.has(status.status)) {
             timeoutIdsRef.current.delete(uploadId)
+            // P0-4: clear the seq tracker for this file once terminal
+            pollSeqRef.current.delete(uploadId)
             setProcessingFiles((prev) => {
               const next = new Set(prev)
               next.delete(uploadId)
@@ -160,9 +183,10 @@ export function useFilePolling({ idToken, toast, setFiles }: UseFilePollingParam
 
         return result
       } catch (error) {
+        console.error("DQ processing start error:", error)
         toast({
           title: "DQ Processing Failed",
-          description: error instanceof Error ? error.message : "Failed to start DQ processing",
+          description: "Could not start data quality processing. Please try again.",
           variant: "destructive",
         })
         throw error

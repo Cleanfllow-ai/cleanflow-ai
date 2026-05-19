@@ -539,6 +539,13 @@ export async function startProcessing(
             revenue_policies?: string[]
             ssp_policies?: string[]
         }
+        augmentations?: {
+            mode: string
+            prompt_text: string
+            preset_id?: string
+            source_columns: string[]
+            destination_columns: { name: string; is_new: boolean }[]
+        }[]
     }
 ): Promise<any> {
     console.log('Starting processing:', uploadId, options?.custom_rules?.length ? '(with custom rules)' : '')
@@ -591,6 +598,10 @@ export async function startProcessing(
 
     if (options?.reference_data) {
         payload.reference_data = options.reference_data
+    }
+
+    if (options?.augmentations && options.augmentations.length > 0) {
+        payload.augmentations = options.augmentations
     }
 
     return makeRequest(ENDPOINTS.FILES_PROCESS(uploadId), authToken, {

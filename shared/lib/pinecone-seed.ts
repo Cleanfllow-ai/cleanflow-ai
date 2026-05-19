@@ -2,7 +2,7 @@ import { readFile } from 'fs/promises'
 import path from 'path'
 
 const PINECONE_API_KEY = process.env.PINECONE_API_KEY
-const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || 'cleanflowai-docs'
+const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || 'rightrev-docs'
 
 // Fallback embedding function
 function generateFallbackEmbedding(text: string): number[] {

@@ -20,6 +20,9 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
+import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog"
@@ -44,17 +47,17 @@ function describeJobError(err: unknown, fallback: string): { title: string; desc
             return { title: "Session expired", description: "Please sign in again to continue." }
         }
         if (err.status === 403) {
-            return { title: "Permission denied", description: err.message || "Your role doesn't allow this action." }
+            return { title: "Permission denied", description: "Your role doesn't allow this action." }
         }
         if (err.status === 409) {
-            return { title: "Conflict", description: err.message || "The job state changed — refresh and retry." }
+            return { title: "Conflict", description: "The job state changed — refresh and retry." }
         }
         if (err.status >= 500) {
-            return { title: "Server error", description: err.message || "The backend is temporarily unavailable. Try again." }
+            return { title: "Server error", description: "The service is temporarily unavailable. Please try again." }
         }
-        return { title: fallback, description: err.message }
+        return { title: fallback, description: "Please try again." }
     }
-    return { title: fallback, description: (err as Error)?.message || "Something went wrong" }
+    return { title: fallback, description: "Something went wrong. Please try again." }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -72,7 +75,7 @@ const statusBadge = (status: string) => {
     switch (status) {
         case "ACTIVE":
             return (
-                <Badge className="bg-emerald-1000/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-1000/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <span className="relative flex h-1.5 w-1.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
@@ -82,21 +85,21 @@ const statusBadge = (status: string) => {
             )
         case "PAUSED":
             return (
-                <Badge className="bg-amber-1000/10 text-amber-400 border border-amber-500/25 hover:bg-amber-1000/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/25 hover:bg-amber-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <Pause className="h-3 w-3" />
                     Paused
                 </Badge>
             )
         case "FAILED":
             return (
-                <Badge className="bg-red-1000/10 text-red-400 border border-red-500/25 hover:bg-red-1000/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-red-500/10 text-red-400 border border-red-500/25 hover:bg-red-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <XCircle className="h-3 w-3" />
                     Failed
                 </Badge>
             )
         case "AUTO_PAUSED":
             return (
-                <Badge className="bg-orange-1000/10 text-orange-400 border border-orange-500/25 hover:bg-orange-1000/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-orange-500/10 text-orange-400 border border-orange-500/25 hover:bg-orange-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <Pause className="h-3 w-3" />
                     Auto-Paused
                 </Badge>
@@ -135,6 +138,7 @@ export function JobsList() {
     const [jobs, setJobs] = useState<Job[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const [statusFilter, setStatusFilter] = useState<string>("all")
 
     // Dialog state
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -163,6 +167,16 @@ export function JobsList() {
 
     // `silent` skips the loading-state toggle so auto-polls don't re-mount
     // the skeleton (which causes a visible UI jerk every 10s).
+    //
+    // W4-1 polish (Sarah / Marcus / Lisa): the previous error toast was a
+    // destructive-red "Failed to load jobs" on every failure path, which
+    // misread as an alarm for first-run users on a healthy empty workspace.
+    // Empty + 200 already short-circuits to the "No jobs yet" empty-state
+    // card without a toast (see render path); we now also distinguish:
+    //   * 401 (auth)          → destructive toast, sign-in CTA copy.
+    //   * 5xx / network blip  → soft default-variant toast ("Couldn't reach
+    //                           the jobs service") so a transient outage
+    //                           doesn't gaslight the user on first open.
     const loadJobs = useCallback(async (silent = false) => {
         if (!silent) setLoading(true)
         try {
@@ -171,7 +185,24 @@ export function JobsList() {
         } catch (err) {
             console.error("Failed to load jobs:", err)
             if (!silent) {
-                toast({ title: "Error", description: "Failed to load jobs", variant: "destructive" })
+                const status = isApiError(err) ? err.status : 0
+                if (status === 401) {
+                    toast({
+                        title: "Session expired",
+                        description: "Please sign in again to view jobs.",
+                        variant: "destructive",
+                    })
+                } else if (status >= 500 || status === 0) {
+                    toast({
+                        title: "Couldn't reach the jobs service",
+                        description: "We'll try again — or use Refresh in the header.",
+                    })
+                } else {
+                    toast({
+                        title: "Couldn't load jobs",
+                        description: "Please try again in a moment.",
+                    })
+                }
             }
         } finally {
             if (!silent) setLoading(false)
@@ -200,13 +231,22 @@ export function JobsList() {
 
     const filteredJobs = jobs
         .filter(job => {
-            if (!searchQuery) return true
-            const q = searchQuery.toLowerCase()
-            return (
-                job.name.toLowerCase().includes(q) ||
-                (getProviderDisplayName(job.source_provider || "")).toLowerCase().includes(q) ||
-                (getProviderDisplayName(job.destination_provider || "")).toLowerCase().includes(q)
-            )
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase()
+                const matchesSearch =
+                    job.name.toLowerCase().includes(q) ||
+                    (getProviderDisplayName(job.source_provider || "")).toLowerCase().includes(q) ||
+                    (getProviderDisplayName(job.destination_provider || "")).toLowerCase().includes(q)
+                if (!matchesSearch) return false
+            }
+            if (statusFilter !== "all") {
+                // ACTIVE/PAUSED/FAILED map directly; "FAILED" also catches AUTO_PAUSED
+                if (statusFilter === "FAILED") {
+                    return job.status === "FAILED" || job.status === "AUTO_PAUSED"
+                }
+                return job.status === statusFilter
+            }
+            return true
         })
         .sort((a, b) => {
             const tA = a.created_at ? new Date(a.created_at).getTime() : 0
@@ -328,9 +368,10 @@ export function JobsList() {
             clearSelection()
             await loadJobs()
         } catch (err) {
+            console.error(`Batch ${action} error:`, err)
             toast({
                 title: `Batch ${action} failed`,
-                description: err instanceof Error ? err.message : "Unknown error",
+                description: "Could not complete the action. Please try again.",
                 variant: "destructive",
             })
         } finally {
@@ -374,7 +415,7 @@ export function JobsList() {
                     </div>
                     <div>
                         <h1
-                            className="text-xl font-semibold tracking-wider uppercase text-foreground"
+                            className="text-xl font-semibold tracking-tight text-foreground"
                             style={{ fontFamily: "'Outfit', var(--font-sans, system-ui, sans-serif)" }}
                         >
                             Scheduled Jobs
@@ -439,12 +480,16 @@ export function JobsList() {
                             </span>
                         </div>
                         {/* Active */}
-                        <div className="flex items-center gap-2 px-5 py-2.5 border-r border-border/30">
-                            <span className="w-2 h-2 rounded-full bg-emerald-1000 inline-block" />
-                            <span
-                                className="text-[10px] text-muted-foreground uppercase tracking-widest"
-                                
-                            >
+                        <button
+                            data-testid="stats-active"
+                            className={cn(
+                                "flex items-center gap-2 px-5 py-2.5 border-r border-border/30 cursor-pointer hover:bg-muted/20 transition-colors",
+                                statusFilter === "ACTIVE" && "bg-emerald-500/5"
+                            )}
+                            onClick={() => setStatusFilter(statusFilter === "ACTIVE" ? "all" : "ACTIVE")}
+                        >
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
                                 Active
                             </span>
                             <span
@@ -453,14 +498,18 @@ export function JobsList() {
                             >
                                 {active}
                             </span>
-                        </div>
+                        </button>
                         {/* Paused */}
-                        <div className="flex items-center gap-2 px-5 py-2.5 border-r border-border/30">
+                        <button
+                            data-testid="stats-paused"
+                            className={cn(
+                                "flex items-center gap-2 px-5 py-2.5 border-r border-border/30 cursor-pointer hover:bg-muted/20 transition-colors",
+                                statusFilter === "PAUSED" && "bg-amber-500/5"
+                            )}
+                            onClick={() => setStatusFilter(statusFilter === "PAUSED" ? "all" : "PAUSED")}
+                        >
                             <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-                            <span
-                                className="text-[10px] text-muted-foreground uppercase tracking-widest"
-                                
-                            >
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
                                 Paused
                             </span>
                             <span
@@ -469,15 +518,19 @@ export function JobsList() {
                             >
                                 {paused}
                             </span>
-                        </div>
+                        </button>
                         {/* Failed */}
                         {failed > 0 && (
-                            <div className="flex items-center gap-2 px-5 py-2.5">
-                                <span className="w-2 h-2 rounded-full bg-red-1000 inline-block" />
-                                <span
-                                    className="text-[10px] text-muted-foreground uppercase tracking-widest"
-                                    
-                                >
+                            <button
+                                data-testid="stats-failed"
+                                className={cn(
+                                    "flex items-center gap-2 px-5 py-2.5 cursor-pointer hover:bg-muted/20 transition-colors",
+                                    statusFilter === "FAILED" && "bg-red-500/5"
+                                )}
+                                onClick={() => setStatusFilter(statusFilter === "FAILED" ? "all" : "FAILED")}
+                            >
+                                <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
                                     Failed
                                 </span>
                                 <span
@@ -486,22 +539,35 @@ export function JobsList() {
                                 >
                                     {failed}
                                 </span>
-                            </div>
+                            </button>
                         )}
                     </div>
                 )
             })()}
 
-            {/* Search */}
+            {/* Search + Status Filter */}
             <div className="px-6 py-3 border-b border-border/40 bg-background">
-                <div className="relative max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
-                    <Input
-                        placeholder="Search jobs..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 h-9 bg-muted/20 border-border/50 text-sm placeholder:text-muted-foreground/40 focus:border-primary/40 focus:bg-muted/30 transition-colors"
-                    />
+                <div className="flex items-center gap-2">
+                    <div className="relative max-w-sm flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
+                        <Input
+                            placeholder="Search jobs..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9 h-9 bg-muted/20 border-border/50 text-sm placeholder:text-muted-foreground/40 focus:border-primary/40 focus:bg-muted/30 transition-colors"
+                        />
+                    </div>
+                    <Select value={statusFilter} onValueChange={setStatusFilter} data-testid="status-filter-select">
+                        <SelectTrigger className="w-[140px] h-9 bg-muted/20 border-border/50 text-sm" data-testid="status-filter-trigger">
+                            <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="ACTIVE">Active</SelectItem>
+                            <SelectItem value="PAUSED">Paused</SelectItem>
+                            <SelectItem value="FAILED">Failed</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
@@ -513,10 +579,10 @@ export function JobsList() {
                 if (failedJobs.length === 0 || loading) return null
 
                 return (
-                    <div className="mx-6 mt-3 flex items-center gap-3 p-3 rounded-lg border border-red-500/25 bg-red-1000/5"
+                    <div className="mx-6 mt-3 flex items-center gap-3 p-3 rounded-lg border border-red-500/25 bg-red-500/5"
                         style={{ boxShadow: "0 0 15px -3px rgba(239, 68, 68, 0.1), 0 0 6px -4px rgba(239, 68, 68, 0.15)" }}
                     >
-                        <div className="flex items-center justify-center w-7 h-7 rounded-md bg-red-1000/10 border border-red-500/20 shrink-0">
+                        <div className="flex items-center justify-center w-7 h-7 rounded-md bg-red-500/10 border border-red-500/20 shrink-0">
                             <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
                         </div>
                         <p className="text-sm text-foreground/80 flex-1">
@@ -561,10 +627,10 @@ export function JobsList() {
                         >
                             {searchQuery ? "No matching jobs" : "No jobs yet"}
                         </h3>
-                        <p className="text-sm text-muted-foreground mb-5 text-center max-w-sm">
+                        <p className="text-sm text-muted-foreground mb-5 text-center max-w-sm" data-testid="jobs-empty-state-copy">
                             {searchQuery
                                 ? "Try a different search term"
-                                : "Create your first automated ERP sync job to get started"
+                                : "No jobs yet. Create your first automated ERP sync job to get started."
                             }
                         </p>
                         {!searchQuery && (
@@ -575,7 +641,7 @@ export function JobsList() {
                         )}
                     </div>
                 ) : (
-                    <div className="rounded-xl border border-white/20 overflow-hidden bg-card">
+                    <div className="rounded-xl border border-border/50 overflow-hidden bg-card/50">
                         {/* Sticky batch action bar — visible when ≥1 job selected */}
                         {selectedJobIds.size >= 1 && (
                             <div
@@ -654,7 +720,7 @@ export function JobsList() {
                         )}
                         <Table>
                             <TableHeader>
-                                <TableRow className="bg-white/[0.06] hover:bg-white/[0.06] border-b border-white/15">
+                                <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/50">
                                     <TableHead className="w-10 pl-4">
                                         <Checkbox
                                             checked={
@@ -667,37 +733,37 @@ export function JobsList() {
                                     </TableHead>
                                     <TableHead className="w-8" />
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
 
                                     >
                                         Job Name
                                     </TableHead>
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
                                         
                                     >
                                         Pipeline
                                     </TableHead>
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
                                         
                                     >
                                         Frequency
                                     </TableHead>
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
                                         
                                     >
                                         Status
                                     </TableHead>
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70"
                                         
                                     >
                                         Last Run
                                     </TableHead>
                                     <TableHead
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground text-right"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 text-right"
                                         
                                     >
                                         Actions
@@ -710,7 +776,7 @@ export function JobsList() {
                                         <TableRow
                                             key={job.job_id}
                                             className={cn(
-                                                "cursor-pointer transition-colors border-b border-white/10 hover:bg-white/[0.04]",
+                                                "cursor-pointer transition-colors border-b border-border/30 hover:bg-muted/15",
                                                 expandedJobId === job.job_id && "bg-primary/[0.03] border-l-2 border-l-primary/40",
                                                 selectedJobIds.has(job.job_id) && "bg-primary/[0.04]"
                                             )}
@@ -789,7 +855,7 @@ export function JobsList() {
                                             <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted/30">
+                                                        <Button variant="ghost" size="icon" aria-label="Job actions" className="h-7 w-7 hover:bg-muted/30">
                                                             <MoreHorizontal className="h-4 w-4 text-muted-foreground/60" />
                                                         </Button>
                                                     </DropdownMenuTrigger>

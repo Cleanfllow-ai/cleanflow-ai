@@ -59,7 +59,7 @@ export function ProcessingWizard({ onClose, onComplete, onStarted }: ProcessingW
                                 </div>
                                 <span
                                     className={cn(
-                                        "text-sm hidden sm:inline",
+                                        "text-xs leading-tight max-w-[6rem] text-center",
                                         isActive && "text-foreground font-medium",
                                         !isActive && "text-muted-foreground"
                                     )}

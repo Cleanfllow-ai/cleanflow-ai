@@ -266,6 +266,16 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
     }
   }
 
+  // Close on Escape key for keyboard accessibility
+  useEffect(() => {
+    if (!isOpen) return
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [isOpen, onClose])
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -282,6 +292,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
           {/* Drawer */}
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="RightRev Assistant"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -305,7 +318,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                   size="icon"
                   onClick={clearHistory}
                   className="h-8 w-8"
-                  title="Clear history"
+                  aria-label="Clear chat history"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -314,6 +327,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                   size="icon"
                   onClick={onClose}
                   className="h-8 w-8"
+                  aria-label="Close assistant"
                 >
                   <X className="w-4 h-4" />
                 </Button>

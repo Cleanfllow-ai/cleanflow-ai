@@ -3,6 +3,8 @@ import { AlertTriangle, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { getRuleLabel, getRuleDescription } from "@/shared/lib/dq-rules"
 import type { FileIssue } from "@/modules/files/types"
 
 import { RowWiseIssues } from "../row-wise-issues"
@@ -46,39 +48,58 @@ export function DqIssuesPanel({
 
         <div className="flex flex-wrap gap-2 items-center">
           {Object.keys(availableViolations).length > 0 && (
-            <div className="flex flex-wrap gap-2 items-center">
-              {Object.entries(availableViolations).map(([code, count]) => (
-                <label key={code} className="flex items-center gap-1 text-xs">
-                  <Checkbox
-                    checked={selectedViolations.has(code)}
-                    onCheckedChange={(checked) => {
-                      const next = new Set(selectedViolations)
-                      if (checked) {
-                        next.add(code)
-                      } else {
-                        next.delete(code)
-                      }
-                      setSelectedViolations(next)
-                    }}
-                  />
-                  <span className="truncate max-w-[140px]" title={code}>
-                    {code}
-                  </span>
-                  <Badge variant="outline" className="text-[10px]">
-                    {count}
-                  </Badge>
-                </label>
-              ))}
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={() => fetchIssues(true)}
-                disabled={issuesLoading}
-              >
-                {issuesLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Apply filters"}
-              </Button>
-            </div>
+            <TooltipProvider delayDuration={150}>
+              <div className="flex flex-wrap gap-2 items-center">
+                {Object.entries(availableViolations).map(([code, count]) => {
+                  // Hide raw rule code; show the human label + hover tooltip
+                  // describes the rule. The code itself is in data-rule-id.
+                  const label = getRuleLabel(code)
+                  const desc = getRuleDescription(code) || label
+                  return (
+                    <Tooltip key={code}>
+                      <TooltipTrigger asChild>
+                        <label
+                          data-rule-id={code}
+                          data-testid="issue-filter-checkbox"
+                          className="flex items-center gap-1 text-xs cursor-help"
+                        >
+                          <Checkbox
+                            checked={selectedViolations.has(code)}
+                            onCheckedChange={(checked) => {
+                              const next = new Set(selectedViolations)
+                              if (checked) {
+                                next.add(code)
+                              } else {
+                                next.delete(code)
+                              }
+                              setSelectedViolations(next)
+                            }}
+                          />
+                          <span className="truncate max-w-[180px]">
+                            {label}
+                          </span>
+                          <Badge variant="outline" className="text-[10px]">
+                            {count}
+                          </Badge>
+                        </label>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs" data-testid="issue-filter-tooltip">
+                        {desc}
+                      </TooltipContent>
+                    </Tooltip>
+                  )
+                })}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => fetchIssues(true)}
+                  disabled={issuesLoading}
+                >
+                  {issuesLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Apply filters"}
+                </Button>
+              </div>
+            </TooltipProvider>
           )}
           {issuesNextOffset !== null && (
             <Button
