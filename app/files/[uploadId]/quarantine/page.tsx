@@ -601,6 +601,16 @@ export default function QuarantineEditorPage({ params }: PageProps) {
     if (!entry) return
     editor.handleCellEdit(entry.row_id, entry.column, entry.old_value)
     collab.broadcastCellUpdate(entry.column, entry.row_id, entry.old_value)
+    // W5B-1: Surface a sonner toast so the user has a clear audit-trail
+    // confirmation of the undo (the action toast above auto-dismisses on
+    // click).  Keep the message short: column + restored value.
+    const restored =
+      entry.old_value === null || entry.old_value === undefined || entry.old_value === ''
+        ? '(empty)'
+        : String(entry.old_value)
+    toast.success(`Undid: ${entry.column} restored to "${restored}"`, {
+      duration: 3500,
+    })
   }, [history, editor.handleCellEdit, collab.broadcastCellUpdate])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
