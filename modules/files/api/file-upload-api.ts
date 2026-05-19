@@ -1,5 +1,5 @@
 import { AWS_CONFIG } from '@/shared/config/aws-config'
-import { ApiError, parseApiError } from '@/modules/shared/api-error'
+import { ApiError, isFetchAbortError, parseApiError } from '@/modules/shared/api-error'
 import { getValidTokenAsync } from '@/modules/shared/auth-token-bridge'
 
 /**
@@ -115,6 +115,13 @@ export async function makeRequest(
 
         return await response.json()
     } catch (error) {
+        // R2 P0-1 (2026-05-19): silence fetch aborts caused by navigation —
+        // these aren't real failures and the noisy console.error was tripping
+        // persona observers (see modules/shared/api-error.ts::isFetchAbortError
+        // docstring for evidence).
+        if (isFetchAbortError(error)) {
+            throw error
+        }
         // Only log if not already logged above
         const url_lower = url.toLowerCase()
         const isSettingsError = url_lower.includes('/settings/presets')

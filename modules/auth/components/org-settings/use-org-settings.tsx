@@ -12,7 +12,7 @@ import {
     type OrgMembership,
     type OrgRole,
 } from "@/modules/auth/api/org-api";
-import { isApiError } from "@/modules/shared/api-error";
+import { isApiError, isFetchAbortError } from "@/modules/shared/api-error";
 import {
     fileManagementAPI,
     type SettingsPreset,
@@ -388,6 +388,11 @@ export function useOrgSettings() {
             setMembers(items);
             setMembersLoadError(null);
         } catch (err) {
+            // R2 P0-1 (2026-05-19): fetches aborted by navigation should be
+            // silent. The catch-and-rethrow used to land setMembersLoadError
+            // with "Failed to fetch" on the unmounting component and console-
+            // error the noisy stack the persona observers flagged.
+            if (isFetchAbortError(err)) throw err;
             // Mirror loadInvites: surface via inline banner state, not toast.
             // Mutation paths still emit their own failure toasts.
             const message = (err as Error)?.message || "Could not load members.";
@@ -403,6 +408,7 @@ export function useOrgSettings() {
             setInvites(response.invites || []);
             setInvitesLoadError(null);
         } catch (err) {
+            if (isFetchAbortError(err)) throw err;
             const message = (err as Error)?.message || "Could not load invites.";
             console.error("Failed to load invites", err);
             setInvitesLoadError(message);
@@ -419,6 +425,7 @@ export function useOrgSettings() {
             setPermissions(mergePermissionsFromServer(response.permissions_by_role));
             setPermissionsLoadError(null);
         } catch (err) {
+            if (isFetchAbortError(err)) throw err;
             const message = (err as Error)?.message || "Could not load role permissions.";
             console.error("Failed to load permissions", err);
             setPermissionsLoadError(message);
@@ -500,6 +507,8 @@ export function useOrgSettings() {
             if (isStale()) return me;
             return me;
         } catch (err: any) {
+            // R2 P0-1: silent on navigation-cancel aborts.
+            if (isFetchAbortError(err)) throw err;
             const message = err?.message || "";
             if (message.includes("Organization membership required")) {
                 window.location.href = "/create-organization";

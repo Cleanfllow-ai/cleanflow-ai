@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit"
 import { fileManagementAPI, FileStatusResponse } from "@/modules/files"
+import { isFetchAbortError } from "@/modules/shared/api-error"
 import { RootState } from "@/shared/store/store"
 
 export interface FilesListError {
@@ -29,6 +30,15 @@ export const fetchFiles = createAsyncThunk(
       const response = await fileManagementAPI.getUploads(authToken)
       return response.items || []
     } catch (error: any) {
+      // R2 P0-1 (2026-05-19): navigation-cancel aborts shouldn't transition
+      // the slice to "failed" — leave it loadable so the next mount re-tries
+      // without surfacing a stale error banner from the abandoned navigation.
+      if (isFetchAbortError(error)) {
+        return rejectWithValue({
+          message: "__navigation_cancel__",
+          status: null,
+        })
+      }
       // Preserve the HTTP status so callers can distinguish 401 (session
       // expired) from 5xx (server error) and show the correct toast.
       return rejectWithValue({
@@ -115,8 +125,16 @@ const filesSlice = createSlice({
         state.lastUpdated = Date.now()
       })
       .addCase(fetchFiles.rejected, (state, action) => {
+        const payload = action.payload as FilesListError
+        // R2 P0-1: navigation-cancel sentinel — keep slice idle so the next
+        // mount can re-fetch instead of getting stuck on a failed banner.
+        if (payload?.message === "__navigation_cancel__") {
+          state.status = "idle"
+          state.error = null
+          return
+        }
         state.status = "failed"
-        state.error = action.payload as FilesListError
+        state.error = payload
       })
       // Enrich Files
       .addCase(enrichFiles.fulfilled, (state, action) => {

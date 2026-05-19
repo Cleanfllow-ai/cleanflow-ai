@@ -45,6 +45,7 @@ import {
 } from "@/modules/connectors/hooks/use-connector-metadata-cache"
 import { warehouseConnectorsAPI } from "@/modules/connectors/api/warehouse-connectors-api"
 import type { WarehouseMetadataItem } from "@/modules/connectors/api/warehouse-connectors-api"
+import { isFetchAbortError } from "@/modules/shared/api-error"
 import { ConnectorLogo } from "./connector-logo"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -138,6 +139,10 @@ export function ConnectorsHub() {
         }
       }
     } catch (err) {
+      // R2 P0-1 (2026-05-19): silence navigation-cancel aborts. The next mount
+      // (or tab return) will re-fire loadProviders cleanly; surfacing a red
+      // error banner here for an unmount-cancelled fetch is misleading.
+      if (isFetchAbortError(err)) return
       console.error("[Connectors:loadProviders]", err)
       setError("Could not load connectors. Please try again.")
       setLoading(false)

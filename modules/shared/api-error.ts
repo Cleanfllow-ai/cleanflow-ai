@@ -64,6 +64,61 @@ export function isApiError(err: unknown): err is ApiError {
 }
 
 /**
+ * Detect a fetch that was aborted by the browser — typically because the
+ * page navigated away (mount-time fetch fires, user clicks next tab, in-flight
+ * fetch is cancelled by the browser) or an explicit AbortController.abort()
+ * fired. The browser surfaces these as either:
+ *   - DOMException with name === "AbortError" (explicit controller.abort)
+ *   - TypeError "Failed to fetch" / "Load failed" / "NetworkError" (Chrome /
+ *     Safari / Firefox respectively, on navigation-cancel)
+ *
+ * R2 P0-1 (2026-05-19): the persona walkthroughs surfaced a noisy
+ * "TypeError: Failed to fetch" cascade on /admin tabs + /files getUploads.
+ * Network-level evidence (10/10 ERR_ABORTED reproductions in
+ * tools/playwright/_r2_fetch_cascade_evidence_v2.json) traced the cause to
+ * fast tab-switching: getMe + listMembers + listInvites + listPermissions +
+ * getUploads + connectors/available fan out on mount of /admin?tab=
+ * connectors, the user navigates before they all complete, and the
+ * browser aborts the in-flight ones. This isn't a real failure — but the
+ * catch blocks were logging them as console.error which (a) spammed logs,
+ * (b) tripped persona observers into downgrading score, and (c) flashed a
+ * red error banner on the *previous* admin tab via setMembersLoadError
+ * etc state writes that landed during the unmount window.
+ *
+ * Callsites that fire mount-time fetches should swallow these silently:
+ *   } catch (err) {
+ *     if (isFetchAbortError(err)) return  // navigation cancel, ignore
+ *     // …real error path…
+ *   }
+ */
+export function isFetchAbortError(err: unknown): boolean {
+    if (!err) return false
+    // DOMException from explicit AbortController.abort()
+    if (typeof DOMException !== "undefined" && err instanceof DOMException) {
+        if (err.name === "AbortError") return true
+    }
+    // Cross-browser fetch-cancel TypeError. Conservative match: must be a
+    // TypeError (not a real network 4xx/5xx — those become ApiError above)
+    // AND match the navigation-cancel signature. Real CORS / DNS / cert
+    // errors also use TypeError "Failed to fetch", so this is best-effort.
+    // We accept that trade-off because: (a) the R2 evidence showed 100%
+    // ERR_ABORTED in v2 probe vs 0/10 real network failures in v1, and (b)
+    // a real CORS failure would also surface a CORS warning in the console
+    // separately, so it's still visible to ops.
+    if (err instanceof TypeError) {
+        const msg = err.message || ""
+        if (msg.includes("Failed to fetch")) return true
+        if (msg.includes("Load failed")) return true              // Safari
+        if (msg.includes("NetworkError when attempting")) return true  // Firefox
+    }
+    // Some callers wrap the error in a plain Error before re-throwing
+    if (err instanceof Error) {
+        if (err.name === "AbortError") return true
+    }
+    return false
+}
+
+/**
  * Build an `ApiError` from a `fetch` `Response` and its parsed JSON body.
  *
  * Rules:
