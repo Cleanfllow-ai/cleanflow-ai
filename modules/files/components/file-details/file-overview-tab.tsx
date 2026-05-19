@@ -21,6 +21,18 @@ import { formatBytes, formatToIST } from "@/shared/lib/utils"
 import type { FileStatusResponse } from "@/modules/files"
 
 import { PartialCompletionBanner } from "../partial-completion-banner"
+import { DqProgressStepper } from "./dq-progress-stepper"
+
+// W5A-1 — render the stage-aware stepper for any in-flight DQ status. Marcus's
+// review flagged the blank-spinner UX for 5 GB uploads; this surface
+// (FileOverviewTab) is the first place users land when they open a file
+// detail dialog, so the stepper has the highest information-value here.
+const IN_FLIGHT_DQ_STATUSES = new Set([
+  "DQ_DISPATCHED",
+  "DQ_RUNNING",
+  "QUEUED",
+  "NORMALIZING",
+])
 
 interface FileOverviewTabProps {
   file: FileStatusResponse
@@ -28,9 +40,13 @@ interface FileOverviewTabProps {
 }
 
 export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
+  const showDqStepper = IN_FLIGHT_DQ_STATUSES.has((file.status || "").toUpperCase())
+
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6">
+        {showDqStepper && <DqProgressStepper file={file} />}
+
         <PartialCompletionBanner
           partialCompletion={file.partial_completion === true}
           failedShards={file.failed_shards}
