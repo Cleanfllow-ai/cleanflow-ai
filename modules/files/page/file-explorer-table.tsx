@@ -285,10 +285,15 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent border-b border-border/60 bg-muted/30">
-                                <TableHead className="w-10 text-center" onClick={(e) => e.stopPropagation()}>
+                                <TableHead
+                                    className="w-10 text-center"
+                                    data-bulk-checkbox="true"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     <Checkbox
                                         checked={filteredFiles.length > 0 && selectedFiles.size === filteredFiles.length}
                                         onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
+                                        aria-label="Select all files"
                                     />
                                 </TableHead>
                                 {visibleColumns.has("file") && (
@@ -461,16 +466,34 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                 <TableRow
                                     key={file.upload_id}
                                     data-file-id={file.upload_id}
+                                    data-testid="file-row"
                                     className={cn(
                                         "hover:bg-muted/20 cursor-pointer transition-all duration-150 border-b border-border/40",
                                         highlightedFileId === file.upload_id && "bg-primary/8 ring-1 ring-primary/20 animate-pulse"
                                     )}
-                                    onClick={() => handleViewDetails(file)}
+                                    onClick={(e) => {
+                                        // Wave 2 FIX D: row-click opens detail dialog, but
+                                        // ONLY when the click did NOT originate inside the
+                                        // leftmost bulk-select cell (data-bulk-checkbox).
+                                        // Preserves Bug 21 bulk-select: checkbox cell selects
+                                        // without opening dialog; rest of row opens.
+                                        const target = e.target as HTMLElement | null
+                                        if (target?.closest('[data-bulk-checkbox="true"]')) {
+                                            return
+                                        }
+                                        handleViewDetails(file)
+                                    }}
                                 >
-                                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                    <TableCell
+                                        className="text-center"
+                                        data-bulk-checkbox="true"
+                                        data-testid="file-row-checkbox-cell"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
                                         <Checkbox
                                             checked={selectedFiles.has(file.upload_id)}
                                             onCheckedChange={(checked) => handleSelectFile(file.upload_id, Boolean(checked))}
+                                            aria-label={`Select ${file.original_filename || file.filename || 'file'}`}
                                         />
                                     </TableCell>
                                     {visibleColumns.has("file") && (
