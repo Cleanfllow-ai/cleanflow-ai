@@ -505,7 +505,7 @@ export function FileMetadataTab({ file, versions }: FileMetadataTabProps) {
               className={cn(
                 "rounded-md border px-2 py-1 text-[11px] font-medium transition-colors",
                 showEmpty
-                  ? "border-primary/40 bg-primary/10 text-foreground"
+                  ? "border-neutral-400 bg-neutral-100 text-neutral-900"
                   : "border-border bg-muted/30 text-muted-foreground hover:bg-muted",
               )}
             >
@@ -549,7 +549,7 @@ export function FileMetadataTab({ file, versions }: FileMetadataTabProps) {
                 className={cn(
                   "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                   active
-                    ? "border-primary/40 bg-primary/10 text-foreground"
+                    ? "border-neutral-400 bg-neutral-100 text-neutral-900"
                     : "border-border bg-muted/30 text-muted-foreground hover:bg-muted",
                 )}
               >

@@ -11,7 +11,7 @@ export function DqScoreCard({ file, dqReport }: DqScoreCardProps) {
   const score = dqReport?.dq_score ?? file.dq_score ?? 0
 
   return (
-    <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 rounded-xl border">
+    <div className="bg-neutral-50 dark:bg-card p-6 rounded-xl border border-neutral-200 dark:border-border">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold mb-1">Data Quality Score</h3>

@@ -77,8 +77,11 @@ export function FileDqReportTab({
             {/* Bug 6 follow-up: overfire banner — shown when rules were flagged
                 but not quarantined because they hit >50% of rows */}
             {(dqReport?.overfire_rules?.length ?? 0) > 0 && (
-              <div className="flex items-start gap-3 rounded-md border border-amber-400 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-600 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
-                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
+              <div
+                className="flex items-start gap-3 rounded-md border px-4 py-3 text-sm dark:text-amber-300"
+                style={{ backgroundColor: '#fffbeb', borderColor: '#f59e0b', color: '#92400e' }}
+              >
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: '#d97706' }} />
                 <div>
                   <span className="font-medium">
                     {dqReport!.overfire_rules!.reduce((sum, r) => sum + r.count, 0).toLocaleString()} row

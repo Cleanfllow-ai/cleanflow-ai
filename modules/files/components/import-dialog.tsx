@@ -73,12 +73,23 @@ export function ImportDialog({
 
         {/* Tabs */}
         <Tabs defaultValue="upload" className="flex flex-col">
-          <TabsList className="mx-6 mt-4 shrink-0 w-fit">
-            <TabsTrigger value="upload" className="gap-1.5">
+          <TabsList
+            className="mx-6 mt-4 shrink-0 w-fit"
+            style={{ backgroundColor: '#f3f4f6', border: 'none' }}
+          >
+            <TabsTrigger
+              value="upload"
+              className="gap-1.5 text-neutral-500 border-0 data-[state=active]:bg-white data-[state=active]:text-neutral-900 data-[state=active]:shadow-sm"
+              style={{ backgroundColor: 'transparent', borderColor: 'transparent' }}
+            >
               <FolderUp className="h-3.5 w-3.5" />
               Upload
             </TabsTrigger>
-            <TabsTrigger value="bridge" className="gap-1.5">
+            <TabsTrigger
+              value="bridge"
+              className="gap-1.5 text-neutral-500 border-0 data-[state=active]:bg-white data-[state=active]:text-neutral-900 data-[state=active]:shadow-sm"
+              style={{ backgroundColor: 'transparent', borderColor: 'transparent' }}
+            >
               <Server className="h-3.5 w-3.5" />
               Connections
             </TabsTrigger>

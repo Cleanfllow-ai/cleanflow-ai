@@ -22,18 +22,18 @@
   --primary: #69C04B;
   --primary-foreground: #FFFFFF;
   --accent: #69C04B;
-  --accent-foreground: #164234;   /* dark forest green on light-green hover = 5.4:1 contrast */
-  --secondary: #F1FFEE;
-  --secondary-foreground: #164234;
+  --accent-foreground: #164234;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #374151;
 
-  --muted: #F1FFEE;
-  --muted-foreground: #4b6358;   /* solid dark-green-gray — readable even at /70 opacity */
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
 
   --destructive: oklch(0.62 0.25 25);
   --destructive-foreground: #FFFFFF;
 
-  --border: #d1e0d8;             /* solid light green-gray — visible borders on white */
-  --input: #f4faf7;              /* very light green tint for inputs */
+  --border: #e5e7eb;
+  --input: #f9fafb;
   --ring: #69C04B;
 
   --chart-1: #69C04B;
@@ -50,13 +50,13 @@
   --gradient-dark:  linear-gradient(43deg, #15421A 15.21%, #6AC04C 123.6%);
   --gradient-white: linear-gradient(39deg, #FFFFFF 37.87%, #CDE7C4 81.89%);
 
-  --sidebar: #164234;
-  --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #69C04B;
-  --sidebar-primary-foreground: #164234;
-  --sidebar-accent: rgba(105, 192, 75, 0.15);
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: rgba(105, 192, 75, 0.20);
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #164234;
+  --sidebar-primary: #164234;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #f3f4f6;
+  --sidebar-accent-foreground: #164234;
+  --sidebar-border: rgba(22, 66, 52, 0.10);
   --sidebar-ring: #69C04B;
 }
 
@@ -74,8 +74,8 @@
 
   --primary: #69C04B;              /* bright green accent */
   --primary-foreground: #164234;
-  --accent: #69C04B;
-  --accent-foreground: #164234;
+  --accent: rgba(105, 192, 75, 0.12);   /* subtle overlay — avoids solid-green blast on hover */
+  --accent-foreground: #d1fae5;          /* light mint — readable on dark bg (was #164234 = invisible) */
   --secondary: rgba(105, 192, 75, 0.12);
   --secondary-foreground: #A2F087;
 
@@ -104,8 +104,8 @@
   --sidebar-foreground: oklch(0.88 0 0);
   --sidebar-primary: #69C04B;
   --sidebar-primary-foreground: #164234;
-  --sidebar-accent: #69C04B;
-  --sidebar-accent-foreground: #164234;
+  --sidebar-accent: rgba(105, 192, 75, 0.18);  /* semi-transparent — avoids solid-green blast on hover */
+  --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: rgba(105, 192, 75, 0.14);
   --sidebar-ring: color-mix(in oklab, #69C04B 70%, white 20%);
 }
@@ -160,15 +160,43 @@
   --gradient-brand-white: var(--gradient-white);
 }
 
-/* ─── Base ──────────────────────────────────────────────────────────────────── */
-*, *::before, *::after {
-  border-color: var(--border);
+/* ─── Force light theme on auth pages (login / signup) ─────────────────────── */
+/* Applied via .auth-light class on the page root div.  Declared after .dark   */
+/* so it wins the cascade with equal specificity — overrides dark mode vars.   */
+.auth-light {
+  --background: #FFFFFF;
+  --foreground: #111827;
+  --card: #FFFFFF;
+  --card-foreground: #111827;
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+  --primary: #69C04B;
+  --primary-foreground: #FFFFFF;
+  --accent: rgba(105, 192, 75, 0.12);
+  --accent-foreground: #164234;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #374151;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --destructive: oklch(0.62 0.25 25);
+  --destructive-foreground: #FFFFFF;
+  --border: #e5e7eb;
+  --input: #f9fafb;
+  --ring: #69C04B;
+  color-scheme: light;
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  -webkit-font-smoothing: antialiased;
+/* ─── Base ──────────────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+  }
 }
 
 /* ─── Scrollbar ────────────────────────────────────────────────────────────── */

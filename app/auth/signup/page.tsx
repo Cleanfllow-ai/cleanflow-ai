@@ -6,33 +6,33 @@ import { SignUpForm } from "@/modules/auth"
 
 export default function SignUpPage() {
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="auth-light min-h-screen flex bg-background">
       {/* Left Side — Hero */}
-      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-[#0f1729]">
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-[#164234]">
         {/* Gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#162244]/80 via-[#0f1729] to-[#0a1628]" />
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/[0.07] rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-cyan-500/[0.05] rounded-full blur-[100px]" />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(43deg, #15421A 15.21%, #6AC04C 123.6%)" }} />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#69C04B]/[0.12] rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#69C04B]/[0.08] rounded-full blur-[100px]" />
 
         {/* Subtle grid */}
         <div
-          className="absolute inset-0 opacity-[0.03]"
+          className="absolute inset-0 opacity-[0.06]"
           style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(rgba(105,192,75,0.3) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(105,192,75,0.3) 1px, transparent 1px)`,
             backgroundSize: "64px 64px",
           }}
         />
 
         <div className="relative z-10 flex flex-col justify-between p-12 h-full w-full">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="relative w-8 h-8">
-              <Image src="/images/rightrev-logo.png" alt="RightRev" width={32} height={32} className="object-contain" />
+          <div className="flex items-center gap-4">
+            <div className="relative w-12 h-12">
+              <Image src="/images/rightrev-logo.png" alt="RightRev" width={48} height={48} className="object-contain" />
             </div>
             <div>
-              <span className="font-semibold text-[15px] text-white tracking-tight">RightRev</span>
-              <p className="text-[9px] uppercase tracking-[0.25em] text-white/50 font-medium">Data Quality Platform</p>
+              <span className="font-semibold text-[20px] text-white tracking-tight">RightRev</span>
+              <p className="text-[11px] uppercase tracking-[0.25em] text-white/50 font-medium">Data Quality Platform</p>
             </div>
           </div>
 
