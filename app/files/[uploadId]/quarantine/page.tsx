@@ -29,7 +29,7 @@ import type { QuarantineRow } from '@/modules/files/types'
 import { unlockRow } from '@/modules/files/api/file-quarantine-api'
 import { fileManagementAPI } from '@/modules/files'
 import { AWS_CONFIG } from '@/shared/config/aws-config'
-import { toast } from 'sonner'
+import { toast, Toaster as SonnerToaster } from 'sonner'
 
 interface PageProps {
   params: Promise<{ uploadId: string }>
@@ -1011,6 +1011,17 @@ export default function QuarantineEditorPage({ params }: PageProps) {
         onUndo={handleUndo}
       />
 
+      {/* W5B-1: Sonner Toaster — required for the `toast.success(...)` calls
+          throughout this page (undo confirmation, bulk-apply success, etc.)
+          to actually render. Without this mount, sonner's `toast(...)` API
+          pushes into the void. Bottom-right position to avoid clashing with
+          the Radix undo toast (above) which sits bottom-right via Radix. */}
+      <SonnerToaster
+        position="bottom-right"
+        richColors
+        closeButton={false}
+        toastOptions={{ duration: 3500 }}
+      />
     </div>
   )
 }
