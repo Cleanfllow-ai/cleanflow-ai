@@ -19,27 +19,28 @@ import { redirect } from "next/navigation"
  * under app/connectors/ and keep /admin?tab=connectors as a back-compat
  * redirect. Tracked in commit message for `fix(fe): /connectors 404`.
  */
-export default function ConnectorsRedirectPage({
+export default async function ConnectorsRedirectPage({
   searchParams,
 }: {
-  searchParams?: { [key: string]: string | string[] | undefined }
+  // Next.js 15 promoted `searchParams` to a Promise — sync types fail the
+  // type-check step of `next build` (PageProps requires Promise<any>).
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   // Forward all incoming query params on /admin so callers like
   // ?reconnect=quickbooks or ?connect=zohobooks continue to work end-to-end.
   // Always inject tab=connectors so OrganizationSettings opens on the right
   // tab regardless of what the caller passed.
+  const resolved = (await searchParams) ?? {}
   const params = new URLSearchParams()
   params.set("tab", "connectors")
-  if (searchParams) {
-    for (const [key, value] of Object.entries(searchParams)) {
-      if (key === "tab") continue
-      if (Array.isArray(value)) {
-        for (const v of value) {
-          if (v !== undefined) params.append(key, v)
-        }
-      } else if (value !== undefined) {
-        params.append(key, value)
+  for (const [key, value] of Object.entries(resolved)) {
+    if (key === "tab") continue
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        if (v !== undefined) params.append(key, v)
       }
+    } else if (value !== undefined) {
+      params.append(key, value)
     }
   }
   redirect(`/admin?${params.toString()}`)
