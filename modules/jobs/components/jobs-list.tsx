@@ -167,6 +167,16 @@ export function JobsList() {
 
     // `silent` skips the loading-state toggle so auto-polls don't re-mount
     // the skeleton (which causes a visible UI jerk every 10s).
+    //
+    // W4-1 polish (Sarah / Marcus / Lisa): the previous error toast was a
+    // destructive-red "Failed to load jobs" on every failure path, which
+    // misread as an alarm for first-run users on a healthy empty workspace.
+    // Empty + 200 already short-circuits to the "No jobs yet" empty-state
+    // card without a toast (see render path); we now also distinguish:
+    //   * 401 (auth)          → destructive toast, sign-in CTA copy.
+    //   * 5xx / network blip  → soft default-variant toast ("Couldn't reach
+    //                           the jobs service") so a transient outage
+    //                           doesn't gaslight the user on first open.
     const loadJobs = useCallback(async (silent = false) => {
         if (!silent) setLoading(true)
         try {
@@ -175,7 +185,24 @@ export function JobsList() {
         } catch (err) {
             console.error("Failed to load jobs:", err)
             if (!silent) {
-                toast({ title: "Error", description: "Failed to load jobs", variant: "destructive" })
+                const status = isApiError(err) ? err.status : 0
+                if (status === 401) {
+                    toast({
+                        title: "Session expired",
+                        description: "Please sign in again to view jobs.",
+                        variant: "destructive",
+                    })
+                } else if (status >= 500 || status === 0) {
+                    toast({
+                        title: "Couldn't reach the jobs service",
+                        description: "We'll try again — or use Refresh in the header.",
+                    })
+                } else {
+                    toast({
+                        title: "Couldn't load jobs",
+                        description: "Please try again in a moment.",
+                    })
+                }
             }
         } finally {
             if (!silent) setLoading(false)
@@ -600,10 +627,10 @@ export function JobsList() {
                         >
                             {searchQuery ? "No matching jobs" : "No jobs yet"}
                         </h3>
-                        <p className="text-sm text-muted-foreground mb-5 text-center max-w-sm">
+                        <p className="text-sm text-muted-foreground mb-5 text-center max-w-sm" data-testid="jobs-empty-state-copy">
                             {searchQuery
                                 ? "Try a different search term"
-                                : "Create your first automated ERP sync job to get started"
+                                : "No jobs yet. Create your first automated ERP sync job to get started."
                             }
                         </p>
                         {!searchQuery && (
