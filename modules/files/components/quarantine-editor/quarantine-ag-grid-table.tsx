@@ -21,6 +21,7 @@ import {
 } from 'ag-grid-community'
 import type { QuarantineRow } from '@/modules/files/types'
 import type { CellLockInfo } from '@/modules/files/types'
+import { getRuleLabel } from '@/shared/lib/dq-rules'
 
 interface QuarantineAgGridTableProps {
   columns: string[]
@@ -194,13 +195,24 @@ function getCellTooltip(field: string, row: QuarantineRow) {
   const violations = extractForColumn(String(row?.dq_violations ?? ''))
   const fixes = extractForColumn(String(row?.fixes_applied ?? ''))
 
+  // Replace any inline raw rule code (R1..R99 / CUST_xxx) with a friendly
+  // label. The BE often emits "R33: invalid email" — we want "Invalid Email
+  // / Phone: invalid email" so the user reads English, not a code book.
+  // CROSS:/INTRA: prefixes are kept as-is for now (they encode a rule key +
+  // condition; the dq-engine renderer presents them in business terms in
+  // dq_violations directly).
+  const humanizeInlineCode = (s: string): string => {
+    return s.replace(/\bR\d{1,3}\b/g, (m) => getRuleLabel(m))
+      .replace(/\bCUST_\w+/g, () => "Custom Rule")
+  }
+
   const lines: string[] = []
   if (violations.length > 0) {
-    lines.push(...violations)
+    lines.push(...violations.map(humanizeInlineCode))
   }
   if (cellStatus === 'fixed') {
     if (fixes.length > 0) {
-      lines.push(...fixes)
+      lines.push(...fixes.map(humanizeInlineCode))
     } else if (violations.length === 0) {
       lines.push('Auto-fixed by DQ engine')
     }
@@ -211,7 +223,7 @@ function getCellTooltip(field: string, row: QuarantineRow) {
   if (lines.length === 0) {
     const raw = String(row?.dq_violations ?? '').trim()
     if (raw) {
-      lines.push(raw)
+      lines.push(humanizeInlineCode(raw))
     } else {
       lines.push(cellStatus === 'fixed' ? 'Fixed' : 'Quarantined')
     }

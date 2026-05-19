@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 import type { ProfilingResponse } from "@/modules/files/api/file-management-api"
 import { getRuleMeta } from "@/shared/lib/rule-metadata"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 
 const RULE_SEVERITY_STYLES: Record<string, string> = {
   critical: "bg-red-500/10 text-red-700 border-red-500/20",
@@ -303,7 +304,26 @@ export function ColumnProfilingPanel({ data, loading, embedded, augmentedColumns
                             return (
                               <>
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                  <span className="font-semibold text-primary">{displayName}</span>
+                                  <TooltipProvider delayDuration={150}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span
+                                          className="font-semibold text-primary cursor-help"
+                                          data-rule-id={rule.rule_id}
+                                          data-testid="column-profile-rule-name"
+                                        >
+                                          {displayName}
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side="top"
+                                        className="max-w-xs"
+                                        data-testid="column-profile-rule-tooltip"
+                                      >
+                                        {meta.description}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                   <Badge
                                     variant="outline"
                                     className={`text-[10px] h-4 px-1 uppercase ${
@@ -312,17 +332,16 @@ export function ColumnProfilingPanel({ data, loading, embedded, augmentedColumns
                                   >
                                     {meta.severity}
                                   </Badge>
-                                  <Badge 
+                                  <Badge
                                     variant={rule.decision === 'auto' ? "default" : "secondary"}
                                     className={`text-[10px] h-4 px-1 ${
-                                      rule.decision === 'auto' 
-                                        ? 'bg-green-500/10 text-green-700 hover:bg-green-500/20' 
+                                      rule.decision === 'auto'
+                                        ? 'bg-green-500/10 text-green-700 hover:bg-green-500/20'
                                         : 'bg-orange-500/10 text-orange-700 hover:bg-orange-500/20'
                                     }`}
                                   >
                                     {rule.decision}
                                   </Badge>
-                                  <span className="text-[10px] text-muted-foreground">Rule ID: {rule.rule_id}</span>
                                 </div>
                                 <p className="text-muted-foreground leading-tight">
                                   {meta.description}

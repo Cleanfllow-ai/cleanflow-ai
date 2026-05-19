@@ -435,9 +435,8 @@ function DateFormatsSection({
                 Strptime patterns the engine accepts as valid dates. Empty list
                 means {`"use the built-in DMY/MDY detector"`}. Values matching
                 <span className="font-mono"> any </span>
-                listed format are accepted; everything else flags as
-                <span className="font-mono"> R-FORMULA-* </span>
-                or <span className="font-mono">R14</span>.
+                listed format are accepted; everything else is flagged as an
+                <span> unparseable date</span>.
             </p>
 
             {/* Existing formats */}

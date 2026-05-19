@@ -16,8 +16,33 @@ import { fileManagementAPI, type CustomRuleDefinition } from "@/modules/files"
 import { isApiError } from "@/modules/shared/api-error"
 import { AugmentationPipelineTab } from "./augmentation-pipeline-tab"
 import { cn } from "@/shared/lib/utils"
-import { getRuleLabel } from "@/shared/lib/dq-rules"
+import { getRuleLabel, getRuleDescription } from "@/shared/lib/dq-rules"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { deriveRulesV2, CORE_TYPES, TYPE_ALIASES } from "@/shared/lib/type-catalog"
+
+// Friendly label for cross-field / business-consistency rule IDs. These BE
+// rule_ids look like "discount_equals_pct_of_total", "row_group_equals",
+// "non_negative" — internal names rather than user-facing language. The
+// wizard now shows a humanized title and the raw id only in a tooltip
+// (for audit / debugging).
+function humanizeCrossRuleId(ruleId: string): string {
+    if (!ruleId) return "Business consistency rule"
+    // Strip leading prefix like "CROSS:" or "INTRA:"
+    let body = ruleId
+    const colon = body.indexOf(":")
+    if (colon !== -1 && (body.startsWith("CROSS:") || body.startsWith("INTRA:"))) {
+        body = body.slice(colon + 1)
+    }
+    const pipe = body.indexOf("|")
+    if (pipe !== -1) body = body.slice(0, pipe)
+    const words = body
+        .replace(/_/g, " ")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .toLowerCase()
+        .trim()
+    if (!words) return "Business consistency rule"
+    return words.charAt(0).toUpperCase() + words.slice(1)
+}
 
 // ── @ mention helpers ──────────────────────────────────────────────────────────
 
@@ -435,7 +460,25 @@ export function RulesStep() {
                             </td>
                             <td className="px-3 py-2 align-top">
                               <div className="flex flex-col gap-1">
-                                <span className="font-mono text-xs font-medium">{rule.rule_id}</span>
+                                <TooltipProvider delayDuration={150}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span
+                                        className="text-xs font-medium cursor-help"
+                                        data-rule-id={rule.rule_id}
+                                        data-testid="wizard-bcr-label"
+                                      >
+                                        {humanizeCrossRuleId(rule.rule_id)}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs" data-testid="wizard-bcr-tooltip">
+                                      {rule.reasoning ||
+                                        rule.condition ||
+                                        rule.predicate ||
+                                        getRuleDescription(rule.rule_id)}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                                 {rule.relationship && (
                                   <Badge variant="secondary" className="text-[10px] w-fit">{rule.relationship}</Badge>
                                 )}
@@ -562,7 +605,25 @@ export function RulesStep() {
                       {pendingCrossRules.map((rule, i) => (
                         <div key={i} className="p-2 rounded border border-primary/30 bg-primary/5">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{rule.rule_id}</span>
+                            <TooltipProvider delayDuration={150}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span
+                                    className="text-sm font-medium cursor-help"
+                                    data-rule-id={rule.rule_id}
+                                    data-testid="wizard-pending-bcr-label"
+                                  >
+                                    {humanizeCrossRuleId(rule.rule_id)}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs" data-testid="wizard-pending-bcr-tooltip">
+                                  {rule.reasoning ||
+                                    rule.condition ||
+                                    rule.predicate ||
+                                    getRuleDescription(rule.rule_id)}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             {rule.relationship && <Badge variant="secondary" className="text-[10px]">{rule.relationship}</Badge>}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">{rule.condition || rule.predicate}</p>

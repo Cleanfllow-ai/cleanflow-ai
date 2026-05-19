@@ -7,7 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { getColumnValues } from '@/modules/files/api/file-quarantine-api'
+import { getRuleLabel, getRuleDescription } from '@/shared/lib/dq-rules'
 import type { ColumnFilter } from '@/modules/files/types'
 
 interface QuarantineColumnFilterProps {
@@ -84,15 +86,28 @@ export function QuarantineColumnFilter({
             ) : violations.length === 0 ? (
               <p className="text-xs text-muted-foreground py-2">No violations found for this column</p>
             ) : (
-              violations.map((v) => (
-                <label key={v} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
-                  <Checkbox
-                    checked={selectedViolations.includes(v)}
-                    onCheckedChange={() => toggleViolation(v)}
-                  />
-                  {v}
-                </label>
-              ))
+              <TooltipProvider delayDuration={150}>
+                {violations.map((v) => (
+                  <Tooltip key={v}>
+                    <TooltipTrigger asChild>
+                      <label
+                        data-rule-id={v}
+                        data-testid="qcol-filter-row"
+                        className="flex items-center gap-2 py-1 text-xs cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={selectedViolations.includes(v)}
+                          onCheckedChange={() => toggleViolation(v)}
+                        />
+                        {getRuleLabel(v)}
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs" data-testid="qcol-filter-tooltip">
+                      {getRuleDescription(v) || getRuleLabel(v)}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
             )}
           </TabsContent>
           <TabsContent value="values" className="p-2">

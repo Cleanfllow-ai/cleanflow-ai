@@ -1,9 +1,11 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { AlertTriangle, Inbox } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { TopIssue } from "@/modules/files"
+import { getRuleLabel, getRuleDescription } from "@/shared/lib/dq-rules"
 
 const COLORS = [
   "bg-rose-400/70",
@@ -39,18 +41,34 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
     .filter((i) => typeof i.count === "number" && i.count > 0)
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
-    .map((issue, idx) => ({
-      id: idx + 1,
-      name: issue.short_label || issue.violation.replace(/_/g, " "),
-      // Long-form sentence used as the native `title` (browser tooltip) so
-      // users can hover over a chip to see the full rule semantics without
-      // leaving the dashboard. Fall back to the short label when the BE
-      // didn't supply a description (legacy data / custom rules pre-2026-05-18).
-      description: issue.description || issue.short_label || issue.violation,
-      count: issue.count,
-      color: COLORS[idx % COLORS.length],
-      barColor: BAR_COLORS[idx % BAR_COLORS.length],
-    }))
+    .map((issue, idx) => {
+      // Hide raw rule codes (R1..R39, CUST_*) from the user-facing label.
+      // Prefer the BE-supplied short_label; fall back to getRuleLabel() for
+      // built-ins or "Custom Rule" for CUST_*. The raw violation code is
+      // NEVER rendered visibly — only available in the tooltip / DOM data
+      // attribute for technical inspection.
+      const friendly =
+        issue.short_label?.trim() ||
+        getRuleLabel(issue.violation) ||
+        "Data Quality Rule"
+      // Long-form description used in the shadcn Tooltip on hover. Backend
+      // populates this from rule_business_messages.RULE_DESCRIPTIONS for
+      // built-in rules and from the LLM payload for CUST_* rules. Falls
+      // back to the local catalog (getRuleDescription) so the tooltip is
+      // never empty even for legacy data.
+      const longDesc =
+        (issue.description && issue.description.trim()) ||
+        getRuleDescription(issue.violation) ||
+        friendly
+      return {
+        id: idx + 1,
+        name: friendly,
+        description: longDesc,
+        count: issue.count,
+        color: COLORS[idx % COLORS.length],
+        barColor: BAR_COLORS[idx % BAR_COLORS.length],
+      }
+    })
 
   const totalIssues = normalized.reduce((sum, issue) => sum + issue.count, 0)
   const issuesWithPct = normalized.map((issue) => ({
@@ -120,44 +138,51 @@ export function TopIssuesChart({ issues, isLoading, errorMessage }: Props) {
             </p>
           </div>
         ) : (
-          <div className="space-y-2.5">
-            {issuesWithPct.map((issue, index) => (
-              <div
-                key={issue.id}
-                className="flex items-center gap-2.5"
-                title={issue.description}
-                data-testid="top-issue-row"
-              >
-                <span className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0",
-                  issue.color
-                )}>
-                  {index + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="min-w-0 flex flex-col">
-                      <span
-                        className="text-xs font-medium text-foreground truncate"
-                        data-testid="top-issue-label"
-                      >
-                        {issue.name}
-                      </span>
-                    </div>
-                    <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0 ml-2">
-                      {issue.count.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+          <TooltipProvider delayDuration={150}>
+            <div className="space-y-2.5">
+              {issuesWithPct.map((issue, index) => (
+                <Tooltip key={issue.id}>
+                  <TooltipTrigger asChild>
                     <div
-                      className={cn("h-full rounded-full transition-all", issue.barColor)}
-                      style={{ width: `${issue.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                      className="flex items-center gap-2.5 cursor-help"
+                      data-testid="top-issue-row"
+                    >
+                      <span className={cn(
+                        "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0",
+                        issue.color
+                      )}>
+                        {index + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="min-w-0 flex flex-col">
+                            <span
+                              className="text-xs font-medium text-foreground truncate"
+                              data-testid="top-issue-label"
+                            >
+                              {issue.name}
+                            </span>
+                          </div>
+                          <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0 ml-2">
+                            {issue.count.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full transition-all", issue.barColor)}
+                            style={{ width: `${issue.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs" data-testid="top-issue-tooltip">
+                    {issue.description}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </TooltipProvider>
         )}
       </CardContent>
     </Card>

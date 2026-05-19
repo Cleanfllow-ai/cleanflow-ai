@@ -1,6 +1,8 @@
 import { AlertTriangle } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { getRuleLabel, getRuleDescription } from "@/shared/lib/dq-rules"
 import type { DqReportResponse, TopIssue } from "@/modules/files"
 
 interface DqTopViolationsProps {
@@ -25,25 +27,48 @@ export function DqTopViolations({ dqReport }: DqTopViolationsProps) {
         <AlertTriangle className="w-4 h-4" />
         Top Violations
       </h4>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-        {topViolations.map((item) => {
-          const displayLabel = item.short_label || item.violation.replace(/_/g, " ")
-          const showCode = item.short_label && item.short_label !== item.violation
-          return (
-            <div key={item.violation} className="p-3 rounded-lg border bg-muted/40 flex items-center justify-between gap-2">
-              <div className="min-w-0 flex flex-col">
-                <span className="text-sm truncate" title={displayLabel}>
-                  {displayLabel}
-                </span>
-                {showCode && (
-                  <span className="text-[10px] text-muted-foreground/60 font-mono">{item.violation}</span>
-                )}
-              </div>
-              <Badge variant="secondary" className="shrink-0">{item.count.toLocaleString()}</Badge>
-            </div>
-          )
-        })}
-      </div>
+      <TooltipProvider delayDuration={150}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {topViolations.map((item) => {
+            // Hide raw rule code (R1..R39 / CUST_*). Only the human label
+            // is visible; the long description lives in the hover tooltip;
+            // the code itself is in data-rule-id for inspection but never
+            // rendered to the user.
+            const friendly =
+              item.short_label?.trim() ||
+              getRuleLabel(item.violation) ||
+              "Data Quality Rule"
+            const longDesc =
+              (item.description && item.description.trim()) ||
+              getRuleDescription(item.violation) ||
+              friendly
+            return (
+              <Tooltip key={item.violation}>
+                <TooltipTrigger asChild>
+                  <div
+                    data-rule-id={item.violation}
+                    data-testid="dq-top-violation-row"
+                    className="p-3 rounded-lg border bg-muted/40 flex items-center justify-between gap-2 cursor-help"
+                  >
+                    <div className="min-w-0 flex flex-col">
+                      <span
+                        className="text-sm truncate"
+                        data-testid="dq-top-violation-label"
+                      >
+                        {friendly}
+                      </span>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">{item.count.toLocaleString()}</Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs" data-testid="dq-top-violation-tooltip">
+                  {longDesc}
+                </TooltipContent>
+              </Tooltip>
+            )
+          })}
+        </div>
+      </TooltipProvider>
     </div>
   )
 }
