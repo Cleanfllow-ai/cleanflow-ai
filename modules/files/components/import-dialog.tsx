@@ -74,21 +74,18 @@ export function ImportDialog({
         {/* Tabs */}
         <Tabs defaultValue="upload" className="flex flex-col">
           <TabsList
-            className="mx-6 mt-4 shrink-0 w-fit"
-            style={{ backgroundColor: '#f3f4f6', border: 'none' }}
+            className="mx-6 mt-4 shrink-0 w-fit bg-neutral-100 dark:bg-muted border-none"
           >
             <TabsTrigger
               value="upload"
-              className="gap-1.5 text-neutral-500 border-0 data-[state=active]:bg-white data-[state=active]:text-neutral-900 data-[state=active]:shadow-sm"
-              style={{ backgroundColor: 'transparent', borderColor: 'transparent' }}
+              className="gap-1.5 text-neutral-500 dark:text-muted-foreground border-0 data-[state=active]:bg-white dark:data-[state=active]:bg-card data-[state=active]:text-neutral-900 dark:data-[state=active]:text-foreground data-[state=active]:shadow-sm"
             >
               <FolderUp className="h-3.5 w-3.5" />
               Upload
             </TabsTrigger>
             <TabsTrigger
               value="bridge"
-              className="gap-1.5 text-neutral-500 border-0 data-[state=active]:bg-white data-[state=active]:text-neutral-900 data-[state=active]:shadow-sm"
-              style={{ backgroundColor: 'transparent', borderColor: 'transparent' }}
+              className="gap-1.5 text-neutral-500 dark:text-muted-foreground border-0 data-[state=active]:bg-white dark:data-[state=active]:bg-card data-[state=active]:text-neutral-900 dark:data-[state=active]:text-foreground data-[state=active]:shadow-sm"
             >
               <Server className="h-3.5 w-3.5" />
               Connections
