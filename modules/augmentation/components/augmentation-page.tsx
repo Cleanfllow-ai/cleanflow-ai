@@ -54,11 +54,15 @@ function formatCurrency(value: unknown, digits = 4): string {
     return `$${n.toFixed(digits)}`
 }
 
+// N3 fix (2026-05-19): FAILED tone bumped from text-red-500/bg-red-500/10
+// (light pink on light pink) to text-red-900 on bg-red-50 with darker border
+// for WCAG AA contrast. The other statuses are informational badges, not
+// error banners, so they retain the soft tonal palette.
 const TONE: Record<AugmentationJobStatus, string> = {
     PENDING: "bg-amber-500/10 text-amber-500 border-amber-500/30",
     RUNNING: "bg-blue-500/10 text-blue-500 border-blue-500/30",
     SUCCEEDED: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
-    FAILED: "bg-red-500/10 text-red-500 border-red-500/30",
+    FAILED: "bg-red-50 text-red-900 border-red-300 dark:bg-red-950/60 dark:text-red-200 dark:border-red-700",
 }
 
 const StatusBadge = ({ status }: { status: string }) => (
@@ -113,7 +117,15 @@ export function AugmentationPage() {
                     <TabsTrigger value="templates">Prompt templates</TabsTrigger>
                 </TabsList>
                 <TabsContent value="jobs" className="mt-4">
-                    {error && <p className="text-sm text-red-500 mb-2" role="alert">{error}</p>}
+                    {error && (
+                        <div
+                            className="mb-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700 dark:bg-red-950/60 dark:text-red-200"
+                            role="alert"
+                            data-testid="aug-error-banner"
+                        >
+                            {error}
+                        </div>
+                    )}
                     <div className="mb-3">
                         <Select value={statusFilter} onValueChange={setStatusFilter} data-testid="aug-status-filter-select">
                             <SelectTrigger className="w-[160px] h-8 text-sm" data-testid="aug-status-filter-trigger">
@@ -198,7 +210,15 @@ export function AugmentationPage() {
                             <div><span className="text-muted-foreground">Rows: </span>{selected.output_rows_count ?? "—"}</div>
                             <div><span className="text-muted-foreground">Cost: </span>
                                 {formatCurrency(selected.cost_actual_usd, 4)}</div>
-                            {selected.error_message && <p className="text-red-500">{sanitizeErrorMessage(selected.error_message)}</p>}
+                            {selected.error_message && (
+                                <div
+                                    className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700 dark:bg-red-950/60 dark:text-red-200"
+                                    role="alert"
+                                    data-testid="aug-detail-error-banner"
+                                >
+                                    {sanitizeErrorMessage(selected.error_message)}
+                                </div>
+                            )}
                             <Link href={`/augmentation/jobs/${selected.job_id}`}
                                 className="text-blue-500 underline text-xs">Open full detail →</Link>
                         </div>

@@ -87,7 +87,15 @@ function JobDetail({ jobId }: { jobId: string }) {
                 </Button>
             </div>
             <h1 className="text-xl font-semibold font-mono">{jobId}</h1>
-            {err && <p className="text-red-500 text-sm" role="alert">{err}</p>}
+            {err && (
+                <div
+                    className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700 dark:bg-red-950/60 dark:text-red-200"
+                    role="alert"
+                    data-testid="aug-detail-page-error-banner"
+                >
+                    {err}
+                </div>
+            )}
             {!job ? <p className="text-muted-foreground">Loading…</p> : (
                 <div className="space-y-2 text-sm">
                     <p>
@@ -105,7 +113,15 @@ function JobDetail({ jobId }: { jobId: string }) {
                     <p><span className="text-muted-foreground">Cost: </span>
                         {formatCurrency(job.cost_actual_usd, 4)}</p>
                     <p><span className="text-muted-foreground">Created: </span>{job.created_at}</p>
-                    {job.error_message && <p className="text-red-500">{job.error_message}</p>}
+                    {job.error_message && (
+                        <div
+                            className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700 dark:bg-red-950/60 dark:text-red-200"
+                            role="alert"
+                            data-testid="aug-job-error-banner"
+                        >
+                            {job.error_message}
+                        </div>
+                    )}
                     {job.status === "SUCCEEDED" && (
                         <Button size="sm" onClick={download}>
                             <Download className="h-4 w-4 mr-1" />Download output
