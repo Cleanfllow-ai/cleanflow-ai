@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/shared/lib/utils"
+// W4-2 polish: friendlier "Demo User 01" rendering for battle-test demo
+// accounts in the sidebar avatar (real Cognito display names unchanged).
+import { formatUserDisplayName, isDemoUserEmail } from "@/shared/lib/user-display"
 import { useAuth } from "@/modules/auth"
 import { usePathname, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -75,6 +78,11 @@ function AppSidebarComponent() {
 		logout()
 		window.location.href = '/auth/login'
 	}
+	// W4-2: friendly display + subline derived once per render.
+	const friendlyDisplayName = formatUserDisplayName(user?.email, user?.name)
+	const isDemoUser = isDemoUserEmail(user?.email)
+	const sidebarSubline = isDemoUser ? 'Demo account' : (user?.email || '')
+	const avatarInitial = (friendlyDisplayName || 'U').charAt(0)
 	const renderNavItem = (item: typeof mainNav[0], badge?: React.ReactNode) => {
 		const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href))
 		return (
@@ -205,14 +213,20 @@ function AppSidebarComponent() {
 							{isAuthenticated && (
 								<div className="flex items-center gap-2 px-3 py-1.5 mb-1">
 									<div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-semibold text-primary uppercase">
-										{(user?.name || user?.email || "U").charAt(0)}
+										{avatarInitial}
 									</div>
 									<div className="flex-1 min-w-0">
-										<div className="text-[12px] font-medium truncate leading-tight text-foreground">
-											{user?.name || 'User'}
+										<div
+											className="text-[12px] font-medium truncate leading-tight text-foreground"
+											data-testid="sidebar-user-name"
+										>
+											{friendlyDisplayName}
 										</div>
-										<div className="text-[10px] text-muted-foreground truncate leading-tight">
-											{user?.email}
+										<div
+											className="text-[10px] text-muted-foreground truncate leading-tight"
+											data-testid="sidebar-user-subline"
+										>
+											{sidebarSubline}
 										</div>
 									</div>
 								</div>
@@ -258,9 +272,10 @@ function AppSidebarComponent() {
 							{isAuthenticated && (
 								<div
 									className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-semibold text-primary uppercase cursor-default"
-									title={user?.name || user?.email || "User"}
+									title={friendlyDisplayName}
+									data-testid="sidebar-user-avatar-collapsed"
 								>
-									{(user?.name || user?.email || "U").charAt(0)}
+									{avatarInitial}
 								</div>
 							)}
 							<button

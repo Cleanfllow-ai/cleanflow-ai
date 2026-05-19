@@ -22,6 +22,10 @@ import {
 } from "@/modules/files/api/file-quarantine-api"
 import { cn } from "@/shared/lib/utils"
 import { formatToUserTZ } from "@/shared/lib/utils"
+// W4-2 polish: render demo emails (battletest-user01@…) as "Demo User 01"
+// in the changed_by column so the audit log never leaks the raw demo
+// identity. Real customer emails flow through unchanged.
+import { formatUserEmailForDisplay } from "@/shared/lib/user-display"
 
 const SOURCE_OPTIONS: Array<{ value: AuditLogSource | "all"; label: string }> = [
     { value: "all", label: "All sources" },
@@ -265,7 +269,9 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
                 >
                     {entry.source.replace("_", " ")}
                 </Badge>
-                <span className="shrink-0 truncate font-medium">{entry.changed_by}</span>
+                <span className="shrink-0 truncate font-medium" data-testid="audit-row-changed-by">
+                    {formatUserEmailForDisplay(entry.changed_by)}
+                </span>
                 {entry.column && (
                     <span className="shrink-0 truncate text-muted-foreground">
                         edited <span className="font-mono">{entry.column}</span>
