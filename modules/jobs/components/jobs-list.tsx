@@ -75,7 +75,7 @@ const statusBadge = (status: string) => {
     switch (status) {
         case "ACTIVE":
             return (
-                <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25 dark:hover:bg-emerald-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <span className="relative flex h-1.5 w-1.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
@@ -85,21 +85,21 @@ const statusBadge = (status: string) => {
             )
         case "PAUSED":
             return (
-                <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/25 hover:bg-amber-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25 dark:hover:bg-amber-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <Pause className="h-3 w-3" />
                     Paused
                 </Badge>
             )
         case "FAILED":
             return (
-                <Badge className="bg-red-500/10 text-red-400 border border-red-500/25 hover:bg-red-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/25 dark:hover:bg-red-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <XCircle className="h-3 w-3" />
                     Failed
                 </Badge>
             )
         case "AUTO_PAUSED":
             return (
-                <Badge className="bg-orange-500/10 text-orange-400 border border-orange-500/25 hover:bg-orange-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/25 dark:hover:bg-orange-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <Pause className="h-3 w-3" />
                     Auto-Paused
                 </Badge>
@@ -815,7 +815,7 @@ export function JobsList() {
                                                         {getProviderDisplayName(job.source_provider || "")}
                                                     </span>
                                                     <ArrowRight className="h-3 w-3 text-muted-foreground/40" />
-                                                    <span className="font-medium text-accent dark:text-accent">
+                                                    <span className="font-medium text-foreground/80">
                                                         {getProviderDisplayName(job.destination_provider || "")}
                                                     </span>
                                                 </div>
