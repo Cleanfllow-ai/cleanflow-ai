@@ -836,7 +836,7 @@ export function SettingsStep() {
             ) : (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="border border-muted rounded-lg p-4 bg-white/60">
+                  <div className="border border-muted rounded-lg p-4 bg-white/60 dark:bg-card">
                     <div className="flex items-center gap-2 text-sm font-medium mb-2">
                       <Shield className="w-4 h-4" /> Policies
                     </div>
@@ -846,7 +846,7 @@ export function SettingsStep() {
                       <Badge variant="outline">Unknown: {unknownBehavior}</Badge>
                     </div>
                   </div>
-                  <div className="border border-muted rounded-lg p-4 bg-white/60">
+                  <div className="border border-muted rounded-lg p-4 bg-white/60 dark:bg-card">
                     <div className="text-sm font-medium mb-2">Lookups</div>
                     <p className="text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">Currencies:</span> {currencyValues || "n/a"}
@@ -858,7 +858,7 @@ export function SettingsStep() {
                       <span className="font-medium text-foreground">Status:</span> {statusEnums || "n/a"}
                     </p>
                   </div>
-                  <div className="border border-muted rounded-lg p-4 bg-white/60">
+                  <div className="border border-muted rounded-lg p-4 bg-white/60 dark:bg-card">
                     <div className="text-sm font-medium mb-2">Data Hygiene</div>
                     <p className="text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">Placeholders:</span> {placeholders || "n/a"}
