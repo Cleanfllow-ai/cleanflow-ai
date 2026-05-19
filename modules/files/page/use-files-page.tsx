@@ -1559,6 +1559,15 @@ export function useFilesPage() {
 
     const openActionsDialog = (file: FileStatusResponse) => {
         if (!ensureFilesPermission()) return;
+        // FIX (Bug: Export column selector empty): set loading state + clear stale
+        // columns SYNCHRONOUSLY so the dialog opens in "Loading columns..." state
+        // instead of briefly rendering "0 of 0 selected, No columns match" while
+        // the async /versions → /columns round-trip is in flight. Previously the
+        // dialog opened with isLoadingColumns=false (default) and columns=[]
+        // (default), producing the empty-selector flash that greys out Download.
+        setColumnExportFile(file);
+        setColumnExportColumns([]);
+        setColumnExportLoading(true);
         setActionsDialogFile(file);
         setActionsDialogOpen(true);
         void (async () => {
@@ -1589,9 +1598,34 @@ export function useFilesPage() {
         if (!ensureFilesPermission()) return;
         setColumnExportFile(file);
         setColumnExportLoading(true);
+        // FIX: try /columns first; if it returns [], fall back to preview headers
+        // (some uploads have a parquet result that read_parquet_columns trims).
+        // If BOTH return empty, surface a warning toast so the user is not stuck
+        // on a silently-empty dialog (Download stays disabled in that case).
         try {
             const resp = await fileManagementAPI.getFileColumns(file.upload_id, idToken);
-            setColumnExportColumns(resp.columns || []);
+            const cols = resp.columns || [];
+            if (cols.length > 0) {
+                setColumnExportColumns(cols);
+            } else {
+                // /columns returned empty → fall back to preview headers
+                try {
+                    const preview = await fileManagementAPI.getFilePreview(file.upload_id, idToken);
+                    const previewCols = preview.headers || [];
+                    setColumnExportColumns(previewCols);
+                    if (previewCols.length === 0) {
+                        toast({
+                            title: "No columns detected",
+                            description: "We could not detect any columns for this file. Try re-uploading or contact support.",
+                            variant: "destructive",
+                        });
+                    }
+                } catch (previewError) {
+                    console.error("Failed to get columns from preview:", previewError);
+                    setColumnExportColumns([]);
+                    toast({ title: "No columns detected", description: "Could not load column list. Export may not work correctly.", variant: "destructive" });
+                }
+            }
         } catch (error) {
             console.error("Failed to fetch columns for export:", error);
             try {
