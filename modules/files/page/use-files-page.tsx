@@ -783,8 +783,12 @@ export function useFilesPage() {
                 console.warn("getFileStatus pre-check failed; opening with cached data", err);
             }
         }
-        openDetailsWithUrl(file);
-    }, [idToken, dispatch, toast, loadFiles, openDetailsWithUrl]);
+        // W5B-3: navigate to the dedicated /files/{uploadId} page route.
+        // The legacy `openDetailsWithUrl(file)` modal path remains alive
+        // (FilesPageDialogs still renders <FileDetailsDialog>) but the row
+        // click no longer triggers it. Deep-linkable, refresh-stable URLs.
+        router.push(`/files/${file.upload_id}`);
+    }, [idToken, dispatch, toast, loadFiles, router]);
 
     const handleOpenQuarantineEditor = (file: FileStatusResponse) => {
         if (!ensureFilesPermission()) return;
