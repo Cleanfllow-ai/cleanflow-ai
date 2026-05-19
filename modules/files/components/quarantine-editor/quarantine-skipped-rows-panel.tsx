@@ -44,9 +44,9 @@ export function classifySkippedReason(raw: string | undefined | null): SkippedRe
 }
 
 const CHIP_STYLES: Record<SkippedReason, string> = {
-  LOCKED: 'bg-amber-100 text-amber-800 border-amber-200',
-  PUSHED_TO_ERP: 'bg-sky-100 text-sky-800 border-sky-200',
-  READ_ONLY_RULE: 'bg-violet-100 text-violet-800 border-violet-200',
+  LOCKED: 'bg-amber-100 text-amber-800 border-amber-300',
+  PUSHED_TO_ERP: 'bg-sky-100 text-sky-800 border-sky-300',
+  READ_ONLY_RULE: 'bg-violet-100 text-violet-800 border-violet-300',
   OTHER: 'bg-muted text-muted-foreground border-border',
 }
 

@@ -37,26 +37,26 @@ import { useJobRunFiles } from "./use-job-run-files"
 function getStatusColor(status: string) {
     const s = (status || "").toUpperCase()
     if (s.includes("FIXED") || s.includes("COMPLETED") || s.includes("PROCESSED"))
-        return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+        return "bg-emerald-1000/15 text-emerald-400 border-emerald-500/30"
     if (s.includes("FAILED"))
-        return "bg-red-500/15 text-red-600 border-red-500/25"
+        return "bg-red-1000/15 text-red-600 border-red-500/25"
     if (s.includes("RUNNING") || s.includes("PROCESSING") || s.includes("QUEUED"))
-        return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-    return "bg-blue-500/15 text-blue-400 border-blue-500/30"
+        return "bg-amber-1000/15 text-amber-600 border-amber-500/25"
+    return "bg-blue-1000/15 text-blue-400 border-blue-500/30"
 }
 
 function getScoreColor(score: number) {
-    if (score >= 90) return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-    if (score >= 70) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-    return "bg-red-500/15 text-red-600 border-red-500/25"
+    if (score >= 90) return "bg-emerald-1000/15 text-emerald-400 border-emerald-500/30"
+    if (score >= 70) return "bg-amber-1000/15 text-amber-600 border-amber-500/25"
+    return "bg-red-1000/15 text-red-600 border-red-500/25"
 }
 
 function getRunStatusColor(status: string) {
     switch (status) {
-        case "SUCCESS": return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-        case "FAILED": return "bg-red-500/15 text-red-600 border-red-500/25"
-        case "PARTIAL": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-        default: return "bg-slate-500/20 text-slate-300 border-slate-500/30"
+        case "SUCCESS": return "bg-emerald-1000/15 text-emerald-400 border-emerald-500/30"
+        case "FAILED": return "bg-red-1000/15 text-red-600 border-red-500/25"
+        case "PARTIAL": return "bg-amber-1000/15 text-amber-600 border-amber-500/25"
+        default: return "bg-slate-1000/20 text-slate-300 border-slate-500/30"
     }
 }
 
@@ -211,7 +211,7 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                                                         {(file.rows_quarantined ?? 0) > 0 && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:text-violet-700"
+                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:text-violet-800"
                                                                         onClick={() => router.push(`/files/${file.upload_id}/quarantine?returnTo=/jobs`)}>
                                                                         <Pencil className="h-3.5 w-3.5" />
                                                                     </Button>
@@ -253,7 +253,7 @@ export function JobRunFileViewer({ run, open, onOpenChange }: JobRunFileViewerPr
                 <DialogContent className="max-w-4xl h-[90vh] flex flex-col overflow-hidden">
                     <DialogHeader className="border-b pb-4">
                         <DialogTitle className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950">
+                            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950">
                                 <CloudUpload className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                             </div>
                             Download Data

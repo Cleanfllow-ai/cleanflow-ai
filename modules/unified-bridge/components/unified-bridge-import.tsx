@@ -184,8 +184,8 @@ export default function UnifiedBridgeImport({
             className={cn(
               "flex items-center gap-2 p-3 rounded-lg mb-4 text-sm",
               lastResult.success
-                ? "bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20"
-                : "bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20"
+                ? "bg-green-500/10 text-green-800 dark:text-green-400 border border-green-500/20"
+                : "bg-red-500/10 text-red-800 dark:text-red-400 border border-red-500/20"
             )}
           >
             {lastResult.success ? (
@@ -249,7 +249,7 @@ export default function UnifiedBridgeImport({
 
       {/* Auth Warning */}
       {!idToken && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border border-yellow-500/20 mt-4 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-500/10 text-yellow-800 dark:text-yellow-400 border border-yellow-500/20 mt-4 text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>Please log in to use Unified Bridge {mode === "source" ? "ingestion" : "export"}</span>
         </div>

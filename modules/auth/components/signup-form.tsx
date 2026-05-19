@@ -307,10 +307,10 @@ export function SignUpForm() {
             <Image src="/images/rightrev-logo.png" alt="RightRev" width={56} height={56} className="object-contain" />
           </div>
         </div>
-        <h1 className="text-4xl font-semibold tracking-tight text-white">
+        <h1 className="text-4xl font-semibold tracking-tight text-foreground">
           {step === 1 ? "Create account" : "Organization details"}
         </h1>
-        <p className="text-sm text-white/60 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           {step === 1 ? "Set up your account to get started" : "Tell us about your organization"}
         </p>
       </div>
@@ -319,10 +319,10 @@ export function SignUpForm() {
       <div className="mb-6">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 flex-1">
-            <div className={`h-1 flex-1 rounded-full transition-colors duration-300 ${step >= 1 ? "bg-[#69C04B]" : "bg-white/10"}`} />
-            <div className={`h-1 flex-1 rounded-full transition-colors duration-300 ${step >= 2 ? "bg-white" : "bg-white/10"}`} />
+            <div className={`h-1 flex-1 rounded-full transition-colors duration-300 ${step >= 1 ? "bg-primary" : "bg-border"}`} />
+            <div className={`h-1 flex-1 rounded-full transition-colors duration-300 ${step >= 2 ? "bg-primary" : "bg-border"}`} />
           </div>
-          <span className="text-xs text-white/60 font-medium tabular-nums">Step {step} of 2</span>
+          <span className="text-xs text-muted-foreground font-medium tabular-nums">Step {step} of 2</span>
         </div>
       </div>
 
@@ -331,29 +331,29 @@ export function SignUpForm() {
           <>
             {/* Full Name */}
             <div className="space-y-1.5">
-              <Label htmlFor="fullName" className="text-xs font-medium text-white/60 uppercase tracking-wider">
+              <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Full Name
               </Label>
               <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   id="fullName"
                   placeholder="Enter your full name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="pl-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors"
+                  className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors"
                 />
               </div>
             </div>
 
             {/* Email */}
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs font-medium text-white/60 uppercase tracking-wider">
+              <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Email
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   id="email"
                   type="email"
@@ -361,18 +361,18 @@ export function SignUpForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="pl-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors"
+                  className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs font-medium text-white/60 uppercase tracking-wider">
+              <Label htmlFor="password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -380,11 +380,11 @@ export function SignUpForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pl-10 pr-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors"
+                  className="pl-10 pr-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors"
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -402,7 +402,7 @@ export function SignUpForm() {
                       />
                     ))}
                   </div>
-                  <span className="text-[10px] text-white/50 uppercase font-semibold tracking-wider min-w-[60px] text-right">
+                  <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider min-w-[60px] text-right">
                     {getPasswordStrengthLabel(getPasswordStrength(password))}
                   </span>
                 </div>
@@ -411,11 +411,11 @@ export function SignUpForm() {
 
             {/* Confirm Password */}
             <div className="space-y-1.5">
-              <Label htmlFor="confirmPassword" className="text-xs font-medium text-white/60 uppercase tracking-wider">
+              <Label htmlFor="confirmPassword" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Confirm Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
@@ -423,11 +423,11 @@ export function SignUpForm() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  className="pl-10 pr-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors"
+                  className="pl-10 pr-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors"
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -440,43 +440,43 @@ export function SignUpForm() {
             {/* Step 2: Org details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="orgName" className="text-xs font-medium text-white/60 uppercase tracking-wider">Organization Name</Label>
+                <Label htmlFor="orgName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Organization Name</Label>
                 <div className="relative">
-                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
-                  <Input id="orgName" placeholder="e.g. Acme Corp" value={orgName} onChange={(e) => setOrgName(e.target.value)} required className="pl-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors" />
+                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input id="orgName" placeholder="e.g. Acme Corp" value={orgName} onChange={(e) => setOrgName(e.target.value)} required className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="industry" className="text-xs font-medium text-white/60 uppercase tracking-wider">Industry</Label>
+                <Label htmlFor="industry" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Industry</Label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
-                  <Input id="industry" placeholder="e.g. Finance, Healthcare" value={industry} onChange={(e) => setIndustry(e.target.value)} required className="pl-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors" />
+                  <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input id="industry" placeholder="e.g. Finance, Healthcare" value={industry} onChange={(e) => setIndustry(e.target.value)} required className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="orgEmail" className="text-xs font-medium text-white/60 uppercase tracking-wider">Email</Label>
+                <Label htmlFor="orgEmail" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
-                  <Input id="orgEmail" type="email" placeholder="contact@acme.com" value={orgEmail} onChange={(e) => setOrgEmail(e.target.value)} className="pl-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input id="orgEmail" type="email" placeholder="contact@acme.com" value={orgEmail} onChange={(e) => setOrgEmail(e.target.value)} className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="orgPhone" className="text-xs font-medium text-white/60 uppercase tracking-wider">Phone</Label>
+                <Label htmlFor="orgPhone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
                 <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
-                  <Input id="orgPhone" placeholder="+91 000 000 0000" value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} required className="pl-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors" />
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input id="orgPhone" placeholder="+91 000 000 0000" value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} required className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors" />
                 </div>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="orgAddress" className="text-xs font-medium text-white/60 uppercase tracking-wider">Address</Label>
+              <Label htmlFor="orgAddress" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Address</Label>
               <div className="relative">
-                <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/50 h-4 w-4" />
-                <Input id="orgAddress" placeholder="Full organization address" value={orgAddress} onChange={(e) => setOrgAddress(e.target.value)} required className="pl-10 h-11 bg-white/5 border border-green-600/40 text-white placeholder:text-white/40 focus:bg-[#082a18] focus:border-[#69C04B] transition-colors" />
+                <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input id="orgAddress" placeholder="Full organization address" value={orgAddress} onChange={(e) => setOrgAddress(e.target.value)} required className="pl-10 h-11 bg-background dark:bg-white/5 border-border dark:border-green-600/40 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-primary dark:focus:bg-[#082a18] transition-colors" />
               </div>
             </div>
 
@@ -487,13 +487,13 @@ export function SignUpForm() {
         {step === 2 && (
           <div className="flex items-start space-x-2.5 pt-1">
             <input id="terms" type="checkbox" required className="h-3.5 w-3.5 mt-0.5 rounded border-green-500 text-[#69C04B] focus:ring-[#7fea95]" />
-            <Label htmlFor="terms" className="text-sm text-white/60 cursor-pointer leading-5">
+            <Label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer leading-5">
               I agree to the{" "}
-              <Link href="/terms" className="text-[#69C04B] hover:text-white transition-colors">
+              <Link href="/terms" className="text-primary hover:text-[#164234] dark:hover:text-white transition-colors">
                 Terms of Service
               </Link>{" "}
               and{" "}
-              <Link href="/privacy" className="text-[#69C04B] hover:text-white transition-colors">
+              <Link href="/privacy" className="text-primary hover:text-[#164234] dark:hover:text-white transition-colors">
                 Privacy Policy
               </Link>
             </Label>
@@ -516,13 +516,13 @@ export function SignUpForm() {
         {/* Actions */}
         <div className="flex gap-3 pt-1">
           {step === 2 && (
-            <Button type="button" variant="outline" onClick={prevStep} className="h-11 px-5 border-green-600/40 text-white/60 hover:bg-white/5" disabled={isLoading}>
+            <Button type="button" variant="outline" onClick={prevStep} className="h-11 px-5 border-border text-muted-foreground hover:bg-secondary" disabled={isLoading}>
               Back
             </Button>
           )}
           <Button
             type="submit"
-            className="flex-1 h-11 font-semibold transition-all bg-[#69C04B] hover:bg-[#5db040] text-[#164234]"
+            className="flex-1 h-11 font-semibold transition-all bg-primary hover:bg-[#5db040] text-white"
             disabled={isLoading}
           >
             {isLoading
@@ -535,9 +535,9 @@ export function SignUpForm() {
       </form>
 
       {/* Sign in link */}
-      <p className="text-center text-sm text-white/60 mt-8">
+      <p className="text-center text-sm text-muted-foreground mt-8">
         Already have an account?{" "}
-        <Link href={`/auth/login${window.location.search}`} className="text-[#69C04B] hover:text-white font-medium transition-colors">
+        <Link href={`/auth/login${window.location.search}`} className="text-primary hover:text-[#164234] dark:hover:text-white font-medium transition-colors">
           Sign in
         </Link>
       </p>

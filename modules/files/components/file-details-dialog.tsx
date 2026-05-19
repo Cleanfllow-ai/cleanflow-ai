@@ -83,13 +83,13 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
   const getStatusColor = (status: string) => {
     const s = status?.toUpperCase() || ""
     if (s.includes("FIXED") || s.includes("COMPLETED") || s.includes("PROCESSED")) {
-      return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-green-500/10 dark:text-green-500 dark:border-green-500/20"
+      return "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-green-500/10 dark:text-green-500 dark:border-green-500/20"
     }
-    if (s.includes("FAILED")) return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-500 dark:border-red-500/20"
-    if (s.includes("RUNNING") || s.includes("PROCESSING") || s.includes("QUEUED")) {
-      return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-yellow-500/10 dark:text-yellow-500 dark:border-yellow-500/20"
+    if (s.includes("FAILED") || s.includes("REJECT")) return "bg-red-100 text-red-800 border-red-300 dark:bg-red-500/10 dark:text-red-500 dark:border-red-500/20"
+    if (s.includes("RUNNING") || s.includes("PROCESSING") || s.includes("QUEUED") || s.includes("UPLOADING")) {
+      return "bg-amber-100 text-amber-800 border-amber-300 dark:bg-yellow-500/10 dark:text-yellow-500 dark:border-yellow-500/20"
     }
-    return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-500 dark:border-blue-500/20"
+    return "bg-sky-100 text-sky-800 border-sky-300 dark:bg-blue-500/10 dark:text-blue-500 dark:border-blue-500/20"
   }
 
   const isDqMatrixReady = (() => {
@@ -141,9 +141,9 @@ export function FileDetailsDialog({ file, open, onOpenChange, onRemediate, hideT
                       </Badge>
                     )}
                     {versionInfo && (
-                      <Badge variant="outline" className="shrink-0 text-[10px] font-medium">
+                      <Badge variant="outline" className="shrink-0 text-[10px] font-medium bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/30">
                         v{versionInfo.versionNumber}
-                        <span className="ml-1 text-muted-foreground">of {versionInfo.totalVersions}</span>
+                        <span className="ml-1 opacity-70">of {versionInfo.totalVersions}</span>
                       </Badge>
                     )}
                   </div>

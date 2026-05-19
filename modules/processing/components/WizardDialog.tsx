@@ -203,7 +203,7 @@ function QuickProcessView({
 
                 {status === "success" && (
                     <>
-                        <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto">
+                        <div className="w-14 h-14 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center mx-auto">
                             <CheckCircle className="w-7 h-7 text-emerald-500" />
                         </div>
                         <div>
@@ -216,7 +216,7 @@ function QuickProcessView({
 
                 {status === "background" && (
                     <>
-                        <div className="w-14 h-14 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto">
+                        <div className="w-14 h-14 rounded-full bg-blue-100 border border-blue-300 flex items-center justify-center mx-auto">
                             <Loader2 className="w-7 h-7 text-blue-500 animate-spin" />
                         </div>
                         <div>
@@ -231,7 +231,7 @@ function QuickProcessView({
 
                 {status === "error" && (
                     <>
-                        <div className="w-14 h-14 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mx-auto">
+                        <div className="w-14 h-14 rounded-full bg-red-100 border border-red-300 flex items-center justify-center mx-auto">
                             <XCircle className="w-7 h-7 text-destructive" />
                         </div>
                         <div>
@@ -373,7 +373,7 @@ function WizardInitializer({
         return (
             <div className="flex items-center justify-center h-full px-6">
                 <div className="w-full max-w-sm space-y-5 text-center">
-                    <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto">
+                    <div className="w-12 h-12 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center mx-auto">
                         <RotateCcw className="w-5 h-5 text-amber-600" />
                     </div>
                     <div>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CustomerUsageDashboard — AA4 Phase 1 page composition.
  *
  * Replaces the legacy admin-style /dashboard with a customer-facing view:

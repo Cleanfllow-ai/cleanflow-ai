@@ -280,7 +280,7 @@ export function FileVersionHistory({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="gap-1.5 text-xs text-green-600 hover:text-green-700"
+                        className="gap-1.5 text-xs text-green-600 hover:text-green-800"
                         disabled={processingId === v.upload_id}
                         onClick={() => handleProcess(v.upload_id)}
                       >
@@ -362,19 +362,19 @@ export function FileVersionHistory({
                     )}
                     {previewVersion.rows_fixed != null && previewVersion.rows_fixed > 0 && (
                       <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-amber-1000 inline-block" />
                         {previewVersion.rows_fixed} fixed
                       </span>
                     )}
                     {previewVersion.rows_clean != null && previewVersion.rows_clean > 0 && (
                       <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-emerald-1000 inline-block" />
                         {previewVersion.rows_clean} no issues
                       </span>
                     )}
                     {previewVersion.rows_quarantined != null && previewVersion.rows_quarantined > 0 && (
                       <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-red-1000 inline-block" />
                         {previewVersion.rows_quarantined} quarantined
                       </span>
                     )}

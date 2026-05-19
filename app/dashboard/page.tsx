@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { ActivityFeed, DashboardHeader, DqCharts, ProcessingSummary, TopIssuesChart } from "@/modules/dashboard"
 import { DashboardKpiCards } from "@/modules/dashboard/components/dashboard-kpi-cards"
@@ -167,19 +167,19 @@ export default function DashboardPage() {
 function DashboardSkeleton() {
   return (
     <div className="space-y-5 animate-pulse">
-      <div className="h-10 w-72 rounded-md bg-[#0f2d23]/50" />
+      <div className="h-10 w-72 rounded-md bg-muted" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-24 rounded-xl border border-[#69C04B]/20 bg-[#0f2d23]/50" />
+          <div key={i} className="h-24 rounded-xl border border-[#69C04B]/20 bg-muted" />
         ))}
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-5">
         <div className="xl:col-span-3 space-y-5">
-          <div className="h-80 rounded-xl border border-[#69C04B]/20 bg-[#0f2d23]/50" />
+          <div className="h-80 rounded-xl border border-[#69C04B]/20 bg-muted" />
         </div>
         <div className="xl:col-span-1 space-y-4">
-          <div className="h-56 rounded-xl border border-[#69C04B]/20 bg-[#0f2d23]/50" />
-          <div className="h-56 rounded-xl border border-[#69C04B]/20 bg-[#0f2d23]/50" />
+          <div className="h-56 rounded-xl border border-[#69C04B]/20 bg-muted" />
+          <div className="h-56 rounded-xl border border-[#69C04B]/20 bg-muted" />
         </div>
       </div>
     </div>

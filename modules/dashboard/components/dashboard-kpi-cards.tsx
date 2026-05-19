@@ -44,7 +44,7 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             iconColor: "text-[#69C04B]",
             bgColor: "bg-[#69C04B]/8",
             valueColor: "",
-            alertColor: "text-white/60",
+            alertColor: "text-muted-foreground",
             accentColor: "bg-[#69C04B]",
         },
         {
@@ -61,7 +61,7 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             icon: ShieldCheck,
             iconColor:
                 stats.avgScore === null
-                    ? "text-white/60"
+                    ? "text-muted-foreground"
                     : stats.avgScore >= 90
                     ? "text-emerald-500 dark:text-emerald-400"
                     : stats.avgScore >= 70
@@ -71,9 +71,9 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
                 stats.avgScore === null
                     ? "bg-[#164234]/5 dark:bg-muted/40"
                     : stats.avgScore >= 90
-                    ? "bg-emerald-500/8 dark:bg-emerald-500/8"
+                    ? "bg-emerald-1000/8 dark:bg-emerald-500/8"
                     : stats.avgScore >= 70
-                    ? "bg-amber-500/8 dark:bg-amber-500/8"
+                    ? "bg-amber-1000/8 dark:bg-amber-500/8"
                     : "bg-destructive/8",
             valueColor:
                 stats.avgScore === null
@@ -83,14 +83,14 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
                     : stats.avgScore >= 70
                     ? "text-amber-600 dark:text-amber-400"
                     : "text-destructive",
-            alertColor: "text-white/60",
+            alertColor: "text-muted-foreground",
             accentColor:
                 stats.avgScore === null
                     ? "bg-[#164234]/20 dark:bg-muted-foreground/30"
                     : stats.avgScore >= 90
-                    ? "bg-emerald-500"
+                    ? "bg-emerald-1000"
                     : stats.avgScore >= 70
-                    ? "bg-amber-500"
+                    ? "bg-amber-1000"
                     : "bg-destructive",
         },
         {
@@ -99,24 +99,24 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
             sub: stats.failed > 0 ? `${stats.failed} failed` : "all sources",
             icon: CheckCircle2,
             iconColor: "text-emerald-500 dark:text-emerald-400",
-            bgColor: "bg-emerald-500/8 dark:bg-emerald-500/8",
+            bgColor: "bg-emerald-1000/8 dark:bg-emerald-500/8",
             valueColor: "",
-            alertColor: stats.failed > 0 ? "text-destructive" : "text-white/60",
-            accentColor: "bg-emerald-500",
+            alertColor: stats.failed > 0 ? "text-destructive" : "text-muted-foreground",
+            accentColor: "bg-emerald-1000",
         },
         {
             label: "Quarantined Rows",
             value: stats.totalQuarantined.toLocaleString(),
             sub: stats.totalQuarantined > 0 ? "require remediation" : "all rows clean",
             icon: AlertTriangle,
-            iconColor: stats.totalQuarantined > 0 ? "text-amber-500 dark:text-amber-400" : "text-white/60",
-            bgColor: stats.totalQuarantined > 0 ? "bg-amber-500/8 dark:bg-amber-500/8" : "bg-[#164234]/5 dark:bg-muted/40",
+            iconColor: stats.totalQuarantined > 0 ? "text-amber-500 dark:text-amber-400" : "text-muted-foreground",
+            bgColor: stats.totalQuarantined > 0 ? "bg-amber-1000/8 dark:bg-amber-500/8" : "bg-[#164234]/5 dark:bg-muted/40",
             valueColor:
                 stats.totalQuarantined > 0
                     ? "text-amber-600 dark:text-amber-400"
                     : "",
-            alertColor: "text-white/60",
-            accentColor: stats.totalQuarantined > 0 ? "bg-amber-500" : "bg-[#164234]/20 dark:bg-muted-foreground/30",
+            alertColor: "text-muted-foreground",
+            accentColor: stats.totalQuarantined > 0 ? "bg-amber-1000" : "bg-[#164234]/20 dark:bg-muted-foreground/30",
         },
     ]
 
@@ -136,13 +136,13 @@ export function DashboardKpiCards({ files }: DashboardKpiCardsProps) {
                         <card.icon className={`h-4 w-4 ${card.iconColor}`} />
                     </div>
                     <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70 leading-none mb-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground leading-none mb-2">
                             {card.label}
                         </p>
-                        <p className={`text-xl font-bold leading-none font-mono tabular-nums ${card.valueColor || 'text-white'}`}>
+                        <p className={`text-xl font-bold leading-none font-mono tabular-nums ${card.valueColor || 'text-foreground'}`}>
                             {card.value}
                         </p>
-                        <p className={`text-[11px] mt-1.5 leading-none ${card.alertColor || 'text-white/60'}`}>
+                        <p className={`text-[11px] mt-1.5 leading-none ${card.alertColor || 'text-muted-foreground'}`}>
                             {card.sub}
                         </p>
                     </div>

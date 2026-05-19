@@ -43,7 +43,7 @@ export function TransformResults() {
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
-        <Card className="hover:shadow-lg transition-all duration-300 border-green-200 bg-green-50/50">
+        <Card className="hover:shadow-lg transition-all duration-300 border-green-300 bg-green-100/50">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <motion.div

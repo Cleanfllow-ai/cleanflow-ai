@@ -38,11 +38,11 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
 
 function getStatusColor(status: string) {
     switch (status) {
-        case "SUCCESS": return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-        case "FAILED": return "bg-red-500/15 text-red-600 border-red-500/25"
-        case "PARTIAL": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-        case "AWAITING_REVIEW": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-        case "NO_CHANGES": return "bg-slate-500/20 text-slate-300 border-slate-500/30"
+        case "SUCCESS": return "bg-emerald-1000/15 text-emerald-400 border-emerald-500/30"
+        case "FAILED": return "bg-red-1000/15 text-red-600 border-red-500/25"
+        case "PARTIAL": return "bg-amber-1000/15 text-amber-600 border-amber-500/25"
+        case "AWAITING_REVIEW": return "bg-amber-1000/15 text-amber-600 border-amber-500/25"
+        case "NO_CHANGES": return "bg-slate-1000/20 text-slate-300 border-slate-500/30"
         default: return "bg-muted text-muted-foreground border-border"
     }
 }
@@ -59,9 +59,9 @@ function getStatusIcon(status: string) {
 }
 
 function getScoreColor(score: number) {
-    if (score >= 90) return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-    if (score >= 70) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-    return "bg-red-500/15 text-red-600 border-red-500/25"
+    if (score >= 90) return "bg-emerald-1000/15 text-emerald-400 border-emerald-500/30"
+    if (score >= 70) return "bg-amber-1000/15 text-amber-600 border-amber-500/25"
+    return "bg-red-1000/15 text-red-600 border-red-500/25"
 }
 
 function safeFormatDate(value: string | undefined, fmt: string): string {
@@ -163,7 +163,7 @@ export function JobRunsExplorer({ jobId }: JobRunsExplorerProps) {
                     <span className="text-sm text-muted-foreground">Loading run history...</span>
                 </div>
             ) : state.runsError && state.runs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-6 px-3 rounded-md border border-red-500/25 bg-red-500/5">
+                <div className="flex flex-col items-center justify-center py-6 px-3 rounded-md border border-red-500/25 bg-red-1000/5">
                     <AlertTriangle className="h-5 w-5 text-red-500 mb-2" />
                     <span className="text-sm text-red-600 dark:text-red-400 text-center max-w-md">
                         {state.runsError}

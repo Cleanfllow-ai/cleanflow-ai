@@ -72,7 +72,7 @@ const statusBadge = (status: string) => {
     switch (status) {
         case "ACTIVE":
             return (
-                <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-emerald-1000/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-1000/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <span className="relative flex h-1.5 w-1.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
@@ -82,21 +82,21 @@ const statusBadge = (status: string) => {
             )
         case "PAUSED":
             return (
-                <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/25 hover:bg-amber-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-amber-1000/10 text-amber-400 border border-amber-500/25 hover:bg-amber-1000/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <Pause className="h-3 w-3" />
                     Paused
                 </Badge>
             )
         case "FAILED":
             return (
-                <Badge className="bg-red-500/10 text-red-400 border border-red-500/25 hover:bg-red-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-red-1000/10 text-red-400 border border-red-500/25 hover:bg-red-1000/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <XCircle className="h-3 w-3" />
                     Failed
                 </Badge>
             )
         case "AUTO_PAUSED":
             return (
-                <Badge className="bg-orange-500/10 text-orange-400 border border-orange-500/25 hover:bg-orange-500/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
+                <Badge className="bg-orange-1000/10 text-orange-400 border border-orange-500/25 hover:bg-orange-1000/15 font-medium text-[11px] tracking-wide uppercase gap-1.5 px-2.5 py-0.5">
                     <Pause className="h-3 w-3" />
                     Auto-Paused
                 </Badge>
@@ -440,7 +440,7 @@ export function JobsList() {
                         </div>
                         {/* Active */}
                         <div className="flex items-center gap-2 px-5 py-2.5 border-r border-border/30">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                            <span className="w-2 h-2 rounded-full bg-emerald-1000 inline-block" />
                             <span
                                 className="text-[10px] text-muted-foreground uppercase tracking-widest"
                                 
@@ -473,7 +473,7 @@ export function JobsList() {
                         {/* Failed */}
                         {failed > 0 && (
                             <div className="flex items-center gap-2 px-5 py-2.5">
-                                <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                                <span className="w-2 h-2 rounded-full bg-red-1000 inline-block" />
                                 <span
                                     className="text-[10px] text-muted-foreground uppercase tracking-widest"
                                     
@@ -513,10 +513,10 @@ export function JobsList() {
                 if (failedJobs.length === 0 || loading) return null
 
                 return (
-                    <div className="mx-6 mt-3 flex items-center gap-3 p-3 rounded-lg border border-red-500/25 bg-red-500/5"
+                    <div className="mx-6 mt-3 flex items-center gap-3 p-3 rounded-lg border border-red-500/25 bg-red-1000/5"
                         style={{ boxShadow: "0 0 15px -3px rgba(239, 68, 68, 0.1), 0 0 6px -4px rgba(239, 68, 68, 0.15)" }}
                     >
-                        <div className="flex items-center justify-center w-7 h-7 rounded-md bg-red-500/10 border border-red-500/20 shrink-0">
+                        <div className="flex items-center justify-center w-7 h-7 rounded-md bg-red-1000/10 border border-red-500/20 shrink-0">
                             <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
                         </div>
                         <p className="text-sm text-foreground/80 flex-1">

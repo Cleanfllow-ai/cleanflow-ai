@@ -29,7 +29,7 @@ export function DqScoreCard({ file, dqReport }: DqScoreCardProps) {
             variant="secondary"
             className={cn(
               "mt-1",
-              score >= 90 ? "bg-emerald-100 text-emerald-700" : score >= 70 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"
+              score >= 90 ? "bg-emerald-100 text-emerald-800" : score >= 70 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-700"
             )}
           >
             {score >= 90 ? "Excellent" : score >= 70 ? "Good" : "Needs Attention"}

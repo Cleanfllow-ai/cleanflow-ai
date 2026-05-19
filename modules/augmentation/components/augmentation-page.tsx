@@ -32,10 +32,10 @@ function sanitizeErrorMessage(raw: string): string {
 }
 
 const TONE: Record<AugmentationJobStatus, string> = {
-    PENDING: "bg-amber-500/10 text-amber-500 border-amber-500/30",
-    RUNNING: "bg-blue-500/10 text-blue-500 border-blue-500/30",
-    SUCCEEDED: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
-    FAILED: "bg-red-500/10 text-red-500 border-red-500/30",
+    PENDING: "bg-amber-1000/10 text-amber-500 border-amber-500/30",
+    RUNNING: "bg-blue-1000/10 text-blue-500 border-blue-500/30",
+    SUCCEEDED: "bg-emerald-1000/10 text-emerald-500 border-emerald-500/30",
+    FAILED: "bg-red-1000/10 text-red-500 border-red-500/30",
 }
 
 const StatusBadge = ({ status }: { status: string }) => (

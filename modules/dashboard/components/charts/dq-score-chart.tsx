@@ -12,13 +12,13 @@ export function DqScoreChart({ completedFiles }: DqScoreChartProps) {
     return (
       <Card className="border-border bg-card/80 backdrop-blur-sm">
         <CardHeader className="pb-1 pt-3 px-4">
-          <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-white/70"
+          <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground"
           >
             Score Distribution
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-3 pt-1">
-          <div className="h-[220px] flex items-center justify-center text-white/60 text-xs">
+          <div className="h-[220px] flex items-center justify-center text-muted-foreground text-xs">
             No processed files available
           </div>
         </CardContent>
@@ -36,7 +36,7 @@ export function DqScoreChart({ completedFiles }: DqScoreChartProps) {
   return (
     <Card className="border-border bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-1 pt-3 px-4">
-        <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-white/70"
+        <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground"
         >
           Score Distribution
         </CardTitle>
@@ -70,15 +70,15 @@ export function DqScoreChart({ completedFiles }: DqScoreChartProps) {
           <div className="flex gap-2 justify-center">
             <div className="p-2.5 rounded-lg bg-[#69C04B]/10 border border-[#69C04B]/20 text-center flex-1">
               <p className="text-lg font-bold text-[#69C04B] font-mono tabular-nums">{excellent}</p>
-              <p className="text-[10px] uppercase tracking-[0.08em] text-white/60 font-medium">Excellent</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-medium">Excellent</p>
             </div>
-            <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center flex-1">
+            <div className="p-2.5 rounded-lg bg-amber-1000/10 border border-amber-500/20 text-center flex-1">
               <p className="text-lg font-bold text-amber-400 font-mono tabular-nums">{good}</p>
-              <p className="text-[10px] uppercase tracking-[0.08em] text-white/60 font-medium">Good</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-medium">Good</p>
             </div>
             <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-center flex-1">
               <p className="text-lg font-bold text-rose-400 font-mono tabular-nums">{bad}</p>
-              <p className="text-[10px] uppercase tracking-[0.08em] text-white/60 font-medium">Bad</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-medium">Bad</p>
             </div>
           </div>
         </div>

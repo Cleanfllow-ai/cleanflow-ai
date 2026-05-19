@@ -102,21 +102,21 @@ export function QuarantineEditorToolbar({
     switch (approvalStatus) {
       case 'APPROVED':
         return (
-          <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 gap-1.5">
+          <Badge variant="outline" className="border-emerald-500/40 bg-emerald-1000/10 text-emerald-600 gap-1.5">
             <Check className="h-3 w-3" />
             Approved
           </Badge>
         )
       case 'PENDING':
         return (
-          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-600 gap-1.5">
+          <Badge variant="outline" className="border-amber-500/40 bg-amber-1000/10 text-amber-600 gap-1.5">
             <Clock className="h-3 w-3" />
             Pending approval
           </Badge>
         )
       case 'REJECTED':
         return (
-          <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-600 gap-1.5">
+          <Badge variant="outline" className="border-red-500/40 bg-red-1000/10 text-red-600 gap-1.5">
             <X className="h-3 w-3" />
             Rejected
           </Badge>
@@ -201,9 +201,9 @@ export function QuarantineEditorToolbar({
           {/* Color legend */}
           <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-border">
             <LegendDot color="bg-transparent border border-border" label="Clean" />
-            <LegendDot color="bg-orange-500" label="Fixed" />
+            <LegendDot color="bg-orange-1000" label="Fixed" />
             <LegendDot color="bg-red-400" label="Quarantined" />
-            <LegendDot color="bg-blue-500" label="Edited" />
+            <LegendDot color="bg-blue-1000" label="Edited" />
           </div>
         </div>
 

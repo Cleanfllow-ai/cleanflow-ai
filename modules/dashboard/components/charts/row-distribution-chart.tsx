@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { CHART_COLORS, chartConfig } from "@/modules/dashboard/components/chart-constants"
@@ -34,7 +34,7 @@ export function RowDistributionChart({
   return (
     <Card className="border-border bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-1 pt-3 px-4">
-        <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-white/70"
+        <CardTitle className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground"
         >
           Row Distribution
         </CardTitle>
@@ -67,7 +67,7 @@ export function RowDistributionChart({
             </PieChart>
           </ChartContainer>
         ) : (
-          <div className="h-[220px] flex items-center justify-center text-white/60 text-xs">
+          <div className="h-[220px] flex items-center justify-center text-muted-foreground text-xs">
             No records available
           </div>
         )}

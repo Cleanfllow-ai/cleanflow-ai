@@ -66,10 +66,10 @@ export function RowWiseIssues({
     };
 
     const getViolationColor = (violation: string) => {
-        if (violation.includes('missing') || violation.includes('required')) return 'text-red-500 bg-red-500/10 border-red-500/20';
-        if (violation.includes('invalid') || violation.includes('duplicate')) return 'text-orange-500 bg-orange-500/10 border-orange-500/20';
-        if (violation.includes('format') || violation.includes('type')) return 'text-amber-700 bg-amber-50 border-amber-200 dark:text-yellow-500 dark:bg-yellow-500/10 dark:border-yellow-500/20';
-        return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
+        if (violation.includes('missing') || violation.includes('required')) return 'text-red-500 bg-red-1000/10 border-red-500/20';
+        if (violation.includes('invalid') || violation.includes('duplicate')) return 'text-orange-500 bg-orange-1000/10 border-orange-500/20';
+        if (violation.includes('format') || violation.includes('type')) return 'text-amber-800 bg-amber-100 border-amber-300 dark:text-yellow-500 dark:bg-yellow-500/10 dark:border-yellow-500/20';
+        return 'text-blue-500 bg-blue-1000/10 border-blue-500/20';
     };
 
     return (
@@ -78,7 +78,7 @@ export function RowWiseIssues({
                 <h4 className="text-sm font-medium flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-red-500" />
                     Outstanding Issues
-                    <Badge variant="secondary" className="bg-red-500/10 text-red-500">
+                    <Badge variant="secondary" className="bg-red-1000/10 text-red-500">
                         {issues.length} issues in {Object.keys(issuesByRow).length} rows
                     </Badge>
                 </h4>

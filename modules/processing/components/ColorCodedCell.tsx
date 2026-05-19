@@ -21,9 +21,9 @@ interface ColorCodedCellProps {
 }
 
 const STATUS_STYLES: Record<DqStatus, string> = {
-    clean: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
-    fixed: "bg-orange-500/10 text-orange-700 border-orange-500/20",
-    quarantined: "bg-red-500/10 text-red-700 border-red-500/20",
+    clean: "bg-emerald-1000/10 text-emerald-800 border-emerald-500/20",
+    fixed: "bg-orange-1000/10 text-orange-800 border-orange-500/20",
+    quarantined: "bg-red-1000/10 text-red-800 border-red-500/20",
 }
 
 const STATUS_INDICATORS: Record<DqStatus, string> = {

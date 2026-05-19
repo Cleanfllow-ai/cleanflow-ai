@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TopIssue } from "@/modules/files"
@@ -53,7 +53,7 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-3.5 w-3.5 text-[#69C04B]" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               Top DQ Issues
             </span>
           </CardTitle>
@@ -64,10 +64,10 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
               </span>
             ) : (
               <>
-                <span className="text-lg font-bold font-mono tabular-nums text-white">
+                <span className="text-lg font-bold font-mono tabular-nums text-foreground">
                   {totalIssues.toLocaleString()}
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.12em] text-white/70">total</span>
+                <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">total</span>
               </>
             )}
           </div>
@@ -90,7 +90,7 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
             ))}
           </div>
         ) : issuesWithPct.length === 0 ? (
-          <div className="text-center text-sm text-white/60 py-6">
+          <div className="text-center text-sm text-muted-foreground py-6">
             No data available for this card yet.
           </div>
         ) : (
@@ -98,17 +98,17 @@ export function TopIssuesChart({ issues, isLoading }: Props) {
             {issuesWithPct.map((issue, index) => (
               <div key={issue.id} className="flex items-center gap-2.5">
                 <span className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0",
+                  "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-foreground shrink-0",
                   issue.color
                 )}>
                   {index + 1}
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-white truncate">
+                    <span className="text-xs font-medium text-foreground truncate">
                       {issue.name}
                     </span>
-                    <span className="text-xs font-mono tabular-nums text-white/60 shrink-0 ml-2">
+                    <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0 ml-2">
                       {issue.count.toLocaleString()}
                     </span>
                   </div>

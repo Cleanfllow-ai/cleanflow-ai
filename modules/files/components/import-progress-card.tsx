@@ -249,7 +249,7 @@ export function ImportProgressCard({
   const fillColor = (() => {
     switch (importStatus) {
       case "completed":
-        return "bg-emerald-500"
+        return "bg-emerald-1000"
       case "failed":
         return "bg-destructive"
       default:

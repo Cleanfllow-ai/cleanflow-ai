@@ -23,13 +23,13 @@ import { JobErrorBanner } from "./job-error-banner"
 
 function getStatusColor(status: string) {
     switch (status) {
-        case "SUCCESS": return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-        case "FAILED": return "bg-red-500/15 text-red-600 border-red-500/25"
-        case "PARTIAL": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-        case "AWAITING_REVIEW": return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-        case "NO_CHANGES": return "bg-slate-500/20 text-slate-300 border-slate-500/30"
-        case "NO_EXPORTABLE_ROWS": return "bg-slate-500/20 text-slate-300 border-slate-500/30"
-        case "SKIPPED": return "bg-slate-500/20 text-slate-300 border-slate-500/30"
+        case "SUCCESS": return "bg-emerald-1000/15 text-emerald-400 border-emerald-500/30"
+        case "FAILED": return "bg-red-1000/15 text-red-600 border-red-500/25"
+        case "PARTIAL": return "bg-amber-1000/15 text-amber-600 border-amber-500/25"
+        case "AWAITING_REVIEW": return "bg-amber-1000/15 text-amber-600 border-amber-500/25"
+        case "NO_CHANGES": return "bg-slate-1000/20 text-slate-300 border-slate-500/30"
+        case "NO_EXPORTABLE_ROWS": return "bg-slate-1000/20 text-slate-300 border-slate-500/30"
+        case "SKIPPED": return "bg-slate-1000/20 text-slate-300 border-slate-500/30"
         default: return "bg-muted text-muted-foreground border-border"
     }
 }
@@ -45,9 +45,9 @@ function getStatusIcon(status: string) {
 }
 
 function getScoreColor(score: number) {
-    if (score >= 90) return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-    if (score >= 70) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-    return "bg-red-500/15 text-red-600 border-red-500/25"
+    if (score >= 90) return "bg-emerald-1000/15 text-emerald-400 border-emerald-500/30"
+    if (score >= 70) return "bg-amber-1000/15 text-amber-600 border-amber-500/25"
+    return "bg-red-1000/15 text-red-600 border-red-500/25"
 }
 
 function formatDuration(seconds: number | undefined): string {
@@ -112,12 +112,12 @@ async function fetchLiveFileStatus(uploadId: string, token: string): Promise<Fil
 function getFileStatusColor(status: string | undefined) {
     const s = (status || "").toUpperCase()
     if (s.includes("FIXED") || s.includes("COMPLETED") || s.includes("PROCESSED"))
-        return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-    if (s.includes("FAILED")) return "bg-red-500/15 text-red-600 border-red-500/25"
+        return "bg-emerald-1000/15 text-emerald-400 border-emerald-500/30"
+    if (s.includes("FAILED")) return "bg-red-1000/15 text-red-600 border-red-500/25"
     if (s.includes("RUNNING") || s.includes("PROCESSING") || s.includes("QUEUED"))
-        return "bg-blue-500/15 text-blue-400 border-blue-500/30"
-    if (s.includes("QUARANTINED")) return "bg-amber-500/15 text-amber-600 border-amber-500/25"
-    return "bg-slate-500/20 text-slate-300 border-slate-500/30"
+        return "bg-blue-1000/15 text-blue-400 border-blue-500/30"
+    if (s.includes("QUARANTINED")) return "bg-amber-1000/15 text-amber-600 border-amber-500/25"
+    return "bg-slate-1000/20 text-slate-300 border-slate-500/30"
 }
 
 export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed, onRefresh, refreshing }: JobRunDetailModalProps) {
@@ -255,7 +255,7 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
 
                 {/* ── Partial-success CTA ───────────────────────────────── */}
                 {showPartialBanner && (
-                    <div className="rounded-lg border border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/5 p-3 space-y-2">
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-100/60 dark:bg-amber-500/5 p-3 space-y-2">
                         <div className="flex items-center gap-2 text-sm">
                             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                             <span>
@@ -277,7 +277,7 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-xs gap-1.5 border-amber-500/40 text-amber-400 hover:bg-amber-500/10 mt-1"
+                                className="h-7 text-xs gap-1.5 border-amber-500/40 text-amber-400 hover:bg-amber-1000/10 mt-1"
                                 onClick={() => router.push(`/files/${partialQuarantineUploadId}/quarantine?returnTo=/jobs`)}
                             >
                                 <ExternalLink className="h-3 w-3" />
@@ -424,7 +424,7 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-7 text-xs gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                                                    className="h-7 text-xs gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-1000/10"
                                                     onClick={() => router.push(`/files/${uploadId}/quarantine?returnTo=/jobs`)}
                                                 >
                                                     <ExternalLink className="h-3 w-3" />
@@ -446,7 +446,7 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                             <AlertTriangle className="h-4 w-4" />
                             Errors
                         </p>
-                        <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-2 text-xs">
+                        <div className="rounded-lg border border-red-500/20 bg-red-1000/5 p-3 space-y-2 text-xs">
                             {entityEntries.map(([entity, result]) => {
                                 if (!result.error) return null
                                 return (
@@ -467,7 +467,7 @@ export function JobRunDetailModal({ run, open, onOpenChange, jobId, onRunResumed
                             <AlertTriangle className="h-4 w-4" />
                             Export Failures
                         </p>
-                        <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-1 text-xs max-h-[200px] overflow-y-auto">
+                        <div className="rounded-lg border border-red-500/20 bg-red-1000/5 p-3 space-y-1 text-xs max-h-[200px] overflow-y-auto">
                             {run.pipeline_logs
                                 .filter(l => l.phase === "export" && l.details?.errors?.length)
                                 // l.details is guaranteed by the filter above, but the

@@ -139,7 +139,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                         {d.sourceCategory === "warehouse" && d.sourceProvider && (
                             <>
                                 {d.sourceConfigMissing ? (
-                                    <Alert className="border-amber-200 bg-amber-50 py-2">
+                                    <Alert className="border-amber-300 bg-amber-100 py-2">
                                         <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
                                         <AlertDescription className="text-xs text-amber-900">
                                             Warehouse/database not configured.{" "}
@@ -401,7 +401,7 @@ export function JobDialog({ open, onOpenChange, job, onSuccess, onCancel }: JobD
                     )}
 
                     {d.frequency === "batch" && (
-                        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-100 border border-amber-300 text-amber-900">
                             <Zap className="h-4 w-4 flex-shrink-0" />
                             <p className="text-xs">
                                 One-time transfer. Data will be transferred immediately after creation.

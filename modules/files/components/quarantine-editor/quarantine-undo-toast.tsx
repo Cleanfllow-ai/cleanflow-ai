@@ -37,7 +37,7 @@ export function QuarantineUndoToast({
         onOpenChange={onOpenChange}
         duration={AUTO_DISMISS_MS}
         data-testid="quarantine-undo-toast"
-        className="pointer-events-auto flex items-center justify-between gap-3 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 shadow-lg"
+        className="pointer-events-auto flex items-center justify-between gap-3 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 shadow-lg"
       >
         <Title className="font-medium">
           Edited {column ? <span className="font-mono">{column}</span> : 'cell'}
@@ -54,7 +54,7 @@ export function QuarantineUndoToast({
           <button
             type="button"
             data-testid="quarantine-undo-button"
-            className="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-800 hover:bg-slate-100"
           >
             <span aria-hidden>↶</span>
             <span>Undo edit to {column ?? 'cell'}</span>

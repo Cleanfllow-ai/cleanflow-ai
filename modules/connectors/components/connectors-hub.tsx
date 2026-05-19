@@ -610,7 +610,7 @@ function ConnectorCard({
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1 h-9 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 border-border"
+                className="flex-1 h-9 text-xs text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/30 border-border"
                 onClick={() => onDisconnect(pid, displayName)}
                 disabled={isDisconnecting}
               >

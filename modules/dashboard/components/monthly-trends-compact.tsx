@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
     Card,
@@ -239,7 +239,7 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
         <Card className="border-border bg-card/80 backdrop-blur-sm">
             <CardHeader className="py-3 px-4 pb-1">
                 <div className="flex items-center justify-between mb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2 text-white/70">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                         <BarChart3 className="h-3.5 w-3.5 text-[#69C04B]" />
                         Trends
                     </CardTitle>
@@ -290,8 +290,8 @@ export function MonthlyTrendsCompact({ files }: DqChartsProps) {
 
                                         return (
                                             <div className="bg-card border border-border rounded-md shadow-sm p-2 text-xs">
-                                                <p className="font-medium text-white">{displayPeriod}</p>
-                                                <p className="text-white/70">
+                                                <p className="font-medium text-foreground">{displayPeriod}</p>
+                                                <p className="text-muted-foreground">
                                                     {payload[0].value?.toLocaleString()} rows
                                                 </p>
                                             </div>

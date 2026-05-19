@@ -142,8 +142,8 @@ export function MfaSetupDialog({ open, onOpenChange, onSuccess }: MfaSetupDialog
                             </div>
 
                             {error && (
-                                <Alert variant="destructive" className="bg-red-50 border-red-200">
-                                    <AlertDescription className="text-red-700">{error}</AlertDescription>
+                                <Alert variant="destructive" className="bg-red-100 border-red-300">
+                                    <AlertDescription className="text-red-800">{error}</AlertDescription>
                                 </Alert>
                             )}
 
@@ -241,8 +241,8 @@ export function MfaSetupDialog({ open, onOpenChange, onSuccess }: MfaSetupDialog
                             </div>
 
                             {error && (
-                                <Alert variant="destructive" className="bg-red-50 border-red-200">
-                                    <AlertDescription className="text-red-700">{error}</AlertDescription>
+                                <Alert variant="destructive" className="bg-red-100 border-red-300">
+                                    <AlertDescription className="text-red-800">{error}</AlertDescription>
                                 </Alert>
                             )}
 

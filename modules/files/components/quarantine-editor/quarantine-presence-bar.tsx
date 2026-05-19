@@ -96,7 +96,7 @@ export function QuarantinePresenceBar({ users, connected }: QuarantinePresenceBa
         })}
         {overflow > 0 && (
           <div
-            className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-300 text-[10px] font-semibold text-slate-700 shadow-sm"
+            className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-300 text-[10px] font-semibold text-slate-800 shadow-sm"
             title={users
               .slice(MAX_AVATARS_VISIBLE)
               .map((u) => u.displayName || u.email || u.id)

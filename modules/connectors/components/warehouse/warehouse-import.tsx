@@ -115,7 +115,7 @@ export default function WarehouseImport({
 
             {/* Success Alert */}
             {s.importResult && mode === "source" && (
-                <Alert className="border-green-200 bg-green-50 py-2 sm:py-3">
+                <Alert className="border-green-300 bg-green-100 py-2 sm:py-3">
                     <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                     <AlertDescription className="text-sm sm:text-base text-green-900">
                         Imported {s.importResult.records_imported || 0} records • {s.importResult.filename}
@@ -125,7 +125,7 @@ export default function WarehouseImport({
 
             {/* Export Success Alert */}
             {s.exportResult && mode === "destination" && (
-                <Alert className="border-green-200 bg-green-50 py-2 sm:py-3">
+                <Alert className="border-green-300 bg-green-100 py-2 sm:py-3">
                     <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                     <AlertDescription className="text-sm sm:text-base text-green-900">
                         {s.exportResult.message || `Successfully exported to ${providerDisplayName}`}
@@ -143,11 +143,11 @@ export default function WarehouseImport({
                                     <span className="text-sm text-muted-foreground">Loading {providerDisplayName} metadata...</span>
                                 </div>
                             ) : s.configMissing ? (
-                                <Alert className="border-amber-200 bg-amber-50 py-3">
+                                <Alert className="border-amber-300 bg-amber-100 py-3">
                                     <AlertCircle className="h-4 w-4 text-amber-600" />
                                     <AlertDescription className="text-sm text-amber-900">
                                         Warehouse and database are not configured. Please set them up in{" "}
-                                        <a href="/admin" className="font-medium underline hover:text-amber-700">
+                                        <a href="/admin" className="font-medium underline hover:text-amber-800">
                                             Admin &gt; Connectors
                                         </a>{" "}
                                         first.
@@ -281,11 +281,11 @@ export default function WarehouseImport({
                                     <span className="text-sm text-muted-foreground">Loading {providerDisplayName} metadata...</span>
                                 </div>
                             ) : s.configMissing ? (
-                                <Alert className="border-amber-200 bg-amber-50 py-3">
+                                <Alert className="border-amber-300 bg-amber-100 py-3">
                                     <AlertCircle className="h-4 w-4 text-amber-600" />
                                     <AlertDescription className="text-sm text-amber-900">
                                         Warehouse and database are not configured. Please set them up in{" "}
-                                        <a href="/admin" className="font-medium underline hover:text-amber-700">
+                                        <a href="/admin" className="font-medium underline hover:text-amber-800">
                                             Admin &gt; Connectors
                                         </a>{" "}
                                         first.
@@ -374,7 +374,7 @@ export default function WarehouseImport({
 
                             {/* Selected File Info */}
                             {s.selectedFile && (
-                                <Alert className="border-blue-200 bg-blue-50 py-2 sm:py-3">
+                                <Alert className="border-blue-300 bg-blue-100 py-2 sm:py-3">
                                     <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                                     <AlertDescription className="text-sm sm:text-base text-blue-900 ml-2">
                                         {s.selectedFile.original_filename || s.selectedFile.filename} • Status: {s.selectedFile.status}

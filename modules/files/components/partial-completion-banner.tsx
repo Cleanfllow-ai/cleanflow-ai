@@ -60,7 +60,7 @@ export function PartialCompletionBanner({
     <>
       <Alert
         data-testid="partial-completion-banner"
-        className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400"
+        className="border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400"
       >
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle className="font-semibold">Processed with warnings</AlertTitle>
@@ -73,7 +73,7 @@ export function PartialCompletionBanner({
               type="button"
               variant="outline"
               size="sm"
-              className="mt-2 h-7 border-amber-300 bg-amber-100/70 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-500/20"
+              className="mt-2 h-7 border-amber-300 bg-amber-100/70 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-1000/20"
               onClick={() => setDetailsOpen(true)}
             >
               View details
@@ -100,7 +100,7 @@ export function PartialCompletionBanner({
                 {failedShards!.map((shard, idx) => (
                   <div
                     key={`${shard.shard_id}-${idx}`}
-                    className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm dark:border-amber-500/30 dark:bg-amber-500/5"
+                    className="rounded-md border border-amber-300 bg-amber-100/60 p-3 text-sm dark:border-amber-500/30 dark:bg-amber-500/5"
                   >
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <code className="text-xs font-mono text-amber-900 dark:text-amber-200">

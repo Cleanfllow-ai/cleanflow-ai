@@ -360,7 +360,7 @@ export function QuarantineCustomRuleDialog({
               The real textarea floats on top with bg-transparent so highlights
               are visible behind the typed text.
             */}
-            <div className="relative rounded-lg border border-violet-200 bg-violet-50/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white">
+            <div className="relative rounded-lg border border-violet-300 bg-violet-100/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white">
               {/* Mirror — highlight backgrounds only, all text is invisible */}
               <div
                 aria-hidden="true"
@@ -427,12 +427,12 @@ export function QuarantineCustomRuleDialog({
                         }}
                         className={`w-full text-left px-3 py-1.5 text-xs font-mono flex items-center gap-2 transition-colors ${
                           idx === mentionIndex
-                            ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300'
+                            ? 'bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-300'
                             : 'hover:bg-muted/60'
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                          idx === mentionIndex ? 'bg-violet-500' : 'bg-muted-foreground/30'
+                          idx === mentionIndex ? 'bg-violet-1000' : 'bg-muted-foreground/30'
                         }`} />
                         {col === 'all' ? <span className="text-violet-600 font-semibold">all <span className="font-normal text-muted-foreground">— all columns</span></span> : col}
                       </button>
@@ -457,13 +457,13 @@ export function QuarantineCustomRuleDialog({
 
           {/* ── Success / Warning after apply-all ─────────────────── */}
           {successCount !== null && successCount > 0 && (
-            <div className="rounded-md bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-700 flex items-center gap-2">
+            <div className="rounded-md bg-green-100 border border-green-300 px-3 py-2 text-sm text-green-800 flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               Applied to {successCount} {successCount === 1 ? 'row' : 'rows'} successfully.
             </div>
           )}
           {successCount === 0 && !applying && (
-            <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 space-y-1.5">
+            <div className="rounded-md bg-amber-100 border border-amber-300 px-3 py-2 space-y-1.5">
               <div className="flex items-center gap-2 text-sm text-amber-800 font-medium">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 No rows were changed. The rule may not match any quarantined values.
@@ -476,8 +476,8 @@ export function QuarantineCustomRuleDialog({
                   )}
                 </div>
               )}
-              <p className="text-xs text-amber-700">
-                Try refining your description — use <kbd className="px-1 py-0.5 rounded bg-amber-100 border border-amber-200 text-[10px] font-mono">@COLUMN</kbd> to reference a specific column.
+              <p className="text-xs text-amber-800">
+                Try refining your description — use <kbd className="px-1 py-0.5 rounded bg-amber-100 border border-amber-300 text-[10px] font-mono">@COLUMN</kbd> to reference a specific column.
               </p>
             </div>
           )}
@@ -516,7 +516,7 @@ export function QuarantineCustomRuleDialog({
                         {fix.original || <em className="not-italic opacity-50">(empty)</em>}
                       </span>
                       <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="text-green-700 max-w-[130px] truncate" title={fix.fixed}>
+                      <span className="text-green-800 max-w-[130px] truncate" title={fix.fixed}>
                         {fix.fixed || <em className="not-italic opacity-50">(empty)</em>}
                       </span>
                     </div>
@@ -573,7 +573,7 @@ export function QuarantineCustomRuleDialog({
 
           {/* ── Debug info (only shown when 0 changes detected) ──────── */}
           {debugInfo && (
-            <div className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs space-y-1">
+            <div className="rounded-md border border-amber-300 bg-amber-100/60 px-3 py-2 text-xs space-y-1">
               <p className="font-semibold text-amber-800">Diagnostic (0 changes — checking date parsing)</p>
               {debugInfo.first_row_date_cols &&
                 Object.entries(
@@ -585,7 +585,7 @@ export function QuarantineCustomRuleDialog({
                 ))}
               {debugInfo.exec_errors &&
                 (debugInfo.exec_errors as string[]).map((e, i) => (
-                  <div key={i} className="text-red-700 font-mono">{e}</div>
+                  <div key={i} className="text-red-800 font-mono">{e}</div>
                 ))}
             </div>
           )}

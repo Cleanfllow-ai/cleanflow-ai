@@ -264,7 +264,7 @@ export function ColumnExportContent({
       {showTitle && (
         <div className="space-y-2">
           <div className="flex items-center gap-3 text-sm font-semibold">
-            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950">
+            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950">
               <Columns className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             Select Columns for Export
@@ -398,7 +398,7 @@ export function ColumnExportContent({
                           if (e.key === 'Escape') handleResetName(col)
                         }}
                       />
-                      <button onClick={() => handleEndEdit(col)} className="p-0.5 text-emerald-600 hover:bg-emerald-50 rounded" title="Confirm">
+                      <button onClick={() => handleEndEdit(col)} className="p-0.5 text-emerald-600 hover:bg-emerald-100 rounded" title="Confirm">
                         <Check className="h-3 w-3" />
                       </button>
                       <button onClick={() => handleResetName(col)} className="p-0.5 text-muted-foreground hover:bg-muted rounded" title="Cancel">
@@ -519,7 +519,7 @@ export function ColumnExportDialog({
       <DialogContent className="sm:max-w-2xl max-h-[92vh] h-[92vh] flex flex-col overflow-hidden">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="flex items-center gap-3 text-lg">
-            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950">
+            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950">
               <Columns className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             Select Columns for Export

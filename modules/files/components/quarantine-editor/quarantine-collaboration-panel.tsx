@@ -73,8 +73,8 @@ export function QuarantineCollaborationPanel({
 
       {/* Connection status */}
       {!connected && (
-        <div className="border-b border-border bg-amber-50 px-3 py-1.5">
-          <span className="text-[10px] font-medium text-amber-700">Reconnecting…</span>
+        <div className="border-b border-border bg-amber-100 px-3 py-1.5">
+          <span className="text-[10px] font-medium text-amber-800">Reconnecting…</span>
         </div>
       )}
 

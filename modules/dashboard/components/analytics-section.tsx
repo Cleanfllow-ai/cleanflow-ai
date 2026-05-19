@@ -78,13 +78,13 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
           <div key={stat.title} className="h-full">
             <Card className="h-full border-border bg-card/80 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-white/70 flex items-center space-x-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center space-x-2">
                   <stat.icon className={`w-5 h-5 ${stat.color}`} />
                   <span>{stat.title}</span>
                 </CardTitle>
                 {/* <Badge
                   variant="default"
-                  className="text-[10px] font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                  className="text-[10px] font-medium bg-green-1000/20 text-green-400 hover:bg-green-1000/30"
                 >
                   {stat.change}
                 </Badge> */}
@@ -101,7 +101,7 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
       {/* DQ Issues Analysis */}
       <Card className="border-border bg-card/80 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="mb-4 flex items-center gap-2 text-white">
+          <CardTitle className="mb-4 flex items-center gap-2 text-foreground">
             <AlertTriangle className="w-5 h-5 text-[#69C04B]" />
             Data Quality Issues Analysis
           </CardTitle>
@@ -111,22 +111,22 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
             {topIssues.length > 0 ? topIssues.map((issue) => (
               <div key={issue.issue} className="flex items-center justify-between p-3 bg-card rounded-lg border border-border">
                 <div>
-                  <span className="font-medium text-white">{issue.issue}</span>
+                  <span className="font-medium text-foreground">{issue.issue}</span>
                   <Badge variant="secondary" className={
-                    issue.severity === 'Fatal' ? "bg-red-500/20 text-red-300 ml-2" :
-                    issue.severity === 'High' ? "bg-orange-500/20 text-orange-300 ml-2" :
-                    "bg-yellow-500/20 text-yellow-300 ml-2"
+                    issue.severity === 'Fatal' ? "bg-red-1000/20 text-red-300 ml-2" :
+                    issue.severity === 'High' ? "bg-orange-1000/20 text-orange-300 ml-2" :
+                    "bg-yellow-1000/20 text-yellow-300 ml-2"
                   }>
                     {issue.severity}
                   </Badge>
                 </div>
-                <span className="text-white/70">{issue.count} occurrences</span>
+                <span className="text-muted-foreground">{issue.count} occurrences</span>
               </div>
             )) : (
               <div className="text-center py-8">
-                <AlertTriangle className="w-12 h-12 text-white/40 mx-auto mb-4" />
-                <h4 className="text-lg font-medium mb-2 text-white">No Issues Found</h4>
-                <p className="text-white/60">Upload and process files to see data quality analysis</p>
+                <AlertTriangle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h4 className="text-lg font-medium mb-2 text-foreground">No Issues Found</h4>
+                <p className="text-muted-foreground">Upload and process files to see data quality analysis</p>
               </div>
             )}
           </div>
@@ -138,19 +138,19 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="border-border bg-card/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-white">File Status Distribution</CardTitle>
+              <CardTitle className="text-foreground">File Status Distribution</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <div className="flex justify-between text-white">
+                <div className="flex justify-between text-foreground">
                   <span className="text-[#69C04B]">Completed</span>
                   <span>{completedFiles.length}</span>
                 </div>
-                <div className="flex justify-between text-white">
+                <div className="flex justify-between text-foreground">
                   <span className="text-yellow-400">Processing</span>
                   <span>{processingFiles.length}</span>
                 </div>
-                <div className="flex justify-between text-white">
+                <div className="flex justify-between text-foreground">
                   <span className="text-red-400">Failed</span>
                   <span>{failedFiles.length}</span>
                 </div>
@@ -160,19 +160,19 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
 
           <Card className="border-border bg-card/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-white">Data Quality Summary</CardTitle>
+              <CardTitle className="text-foreground">Data Quality Summary</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <div className="flex justify-between text-white">
-                  <span className="text-white/70">Total Input Rows</span>
+                <div className="flex justify-between text-foreground">
+                  <span className="text-muted-foreground">Total Input Rows</span>
                   <span>{files.reduce((sum, f) => sum + (f.rows_in || 0), 0)}</span>
                 </div>
-                <div className="flex justify-between text-white">
+                <div className="flex justify-between text-foreground">
                   <span className="text-[#69C04B]">Validated Output Rows</span>
                   <span>{totalRowsProcessed}</span>
                 </div>
-                <div className="flex justify-between text-white">
+                <div className="flex justify-between text-foreground">
                   <span className="text-yellow-400">Records Quarantined</span>
                   <span>{totalQuarantined}</span>
                 </div>
@@ -182,20 +182,20 @@ export function AnalyticsSection({ files }: AnalyticsSectionProps) {
 
           <Card className="border-border bg-card/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-white">Performance Metrics</CardTitle>
+              <CardTitle className="text-foreground">Performance Metrics</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <div className="flex justify-between text-white">
-                  <span className="text-white/70">Avg Processing Time</span>
+                <div className="flex justify-between text-foreground">
+                  <span className="text-muted-foreground">Avg Processing Time</span>
                   <span>N/A</span>
                 </div>
-                <div className="flex justify-between text-white">
-                  <span className="text-white/70">Total Files Processed</span>
+                <div className="flex justify-between text-foreground">
+                  <span className="text-muted-foreground">Total Files Processed</span>
                   <span>{completedFiles.length}</span>
                 </div>
-                <div className="flex justify-between text-white">
-                  <span className="text-white/70">Success Rate</span>
+                <div className="flex justify-between text-foreground">
+                  <span className="text-muted-foreground">Success Rate</span>
                   <span>
                     {files.length > 0 ? `${Math.round((completedFiles.length / files.length) * 100)}%` : '0%'}
                   </span>

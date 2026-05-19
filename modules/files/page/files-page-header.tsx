@@ -51,7 +51,7 @@ export function FilesPageHeader({ files }: FilesPageHeaderProps) {
                     </div>
 
                     {stats.processed > 0 && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-1000/10 border border-emerald-500/20">
                             <CheckCircle2 className="h-3 w-3 text-emerald-400" />
                             <span className="font-mono text-[12px] font-semibold tabular-nums text-emerald-400">
                                 {stats.processed}

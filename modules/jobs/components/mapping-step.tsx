@@ -150,7 +150,7 @@ export function MappingStep({ pipeline, onBack, onNext, isFinalStep, isCreating,
                     />
 
                     {pipelineSteps.length === 0 ? (
-                        <Alert className="border-amber-200 bg-amber-50">
+                        <Alert className="border-amber-300 bg-amber-100">
                             <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
                             <AlertDescription className="text-xs text-amber-900">
                                 No source-destination pairs to map yet. Go back and configure endpoints.

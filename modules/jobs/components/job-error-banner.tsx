@@ -74,9 +74,9 @@ const ERROR_CONFIGS: Record<string, ErrorConfig> = {
 }
 
 const VARIANT_STYLES = {
-    warning: "bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-400",
-    error: "bg-red-500/10 border-red-500/25 text-red-700 dark:text-red-400",
-    info: "bg-blue-500/10 border-blue-500/25 text-blue-700 dark:text-blue-400",
+    warning: "bg-amber-1000/10 border-amber-500/25 text-amber-800 dark:text-amber-400",
+    error: "bg-red-1000/10 border-red-500/25 text-red-800 dark:text-red-400",
+    info: "bg-blue-1000/10 border-blue-500/25 text-blue-800 dark:text-blue-400",
 }
 
 const ACTION_ICONS: Record<string, LucideIcon> = {

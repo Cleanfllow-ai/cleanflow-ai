@@ -13,13 +13,13 @@ import { getRuleLabel } from "@/shared/lib/dq-rules"
 // The stripe groups visually-similar checks so a 19-rule list is scannable
 // instead of a wall of repetition.
 const RULE_META: Record<string, { title: string; stripe: string; label: string }> = {
-  non_negative:        { title: "Non-negative",        stripe: "before:bg-emerald-400", label: "text-emerald-700 dark:text-emerald-400" },
-  pct_of:              { title: "Percentage of",       stripe: "before:bg-sky-400",     label: "text-sky-700 dark:text-sky-400" },
-  mutual_exclusion:    { title: "Mutually exclusive",  stripe: "before:bg-amber-400",   label: "text-amber-700 dark:text-amber-400" },
-  date_order:          { title: "Date order",          stripe: "before:bg-violet-400",  label: "text-violet-700 dark:text-violet-400" },
-  sum_of:              { title: "Sum of",              stripe: "before:bg-sky-400",     label: "text-sky-700 dark:text-sky-400" },
+  non_negative:        { title: "Non-negative",        stripe: "before:bg-emerald-400", label: "text-emerald-800 dark:text-emerald-400" },
+  pct_of:              { title: "Percentage of",       stripe: "before:bg-sky-400",     label: "text-sky-800 dark:text-sky-400" },
+  mutual_exclusion:    { title: "Mutually exclusive",  stripe: "before:bg-amber-400",   label: "text-amber-800 dark:text-amber-400" },
+  date_order:          { title: "Date order",          stripe: "before:bg-violet-400",  label: "text-violet-800 dark:text-violet-400" },
+  sum_of:              { title: "Sum of",              stripe: "before:bg-sky-400",     label: "text-sky-800 dark:text-sky-400" },
   conditional:         { title: "Conditional",         stripe: "before:bg-rose-400",    label: "text-rose-700 dark:text-rose-400" },
-  range:               { title: "Range",               stripe: "before:bg-indigo-400",  label: "text-indigo-700 dark:text-indigo-400" },
+  range:               { title: "Range",               stripe: "before:bg-indigo-400",  label: "text-indigo-800 dark:text-indigo-400" },
 }
 function getRuleMeta(rule_id: string) {
   return RULE_META[rule_id] || {

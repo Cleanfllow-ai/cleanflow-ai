@@ -6,13 +6,13 @@ import React from "react"
 
 export default function SignUpPage() {
   return (
-    <div className="min-h-screen flex bg-[#041a0f]">
-      {/* Left Side — Hero */}
-      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-[#042012]">
+    <div className="min-h-screen flex bg-background text-foreground">
+      {/* Left Side — Brand Hero (always dark green) */}
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-[#164234]">
         {/* Gradient overlays */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#05281d]/90 via-[#082a1f]/90 to-[#062417]/95" />
-        <div className="absolute top-0 right-0 w-[520px] h-[520px] bg-[#1ec76c]/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-0 w-[420px] h-[420px] bg-[#18b762]/10 rounded-full blur-[100px]" />
+        <div className="absolute top-0 right-0 w-[520px] h-[520px] bg-[#69C04B]/15 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-0 w-[420px] h-[420px] bg-[#69C04B]/10 rounded-full blur-[100px]" />
 
         {/* Subtle grid */}
         <div
@@ -43,9 +43,9 @@ export default function SignUpPage() {
                 <h1 className="text-[2.75rem] font-bold leading-[1.1] text-white tracking-tight">
                   Get started
                   <br />
-                  <span className="text-white/70">in minutes.</span>
+                  <span className="text-[#69C04B]">in minutes.</span>
                 </h1>
-                <p className="text-[15px] text-white/60 leading-relaxed max-w-sm">
+                <p className="text-[15px] text-white/70 leading-relaxed max-w-sm">
                   Connect any data source, apply intelligent transformations, and export clean datasets — all from one platform.
                 </p>
               </div>
@@ -79,8 +79,8 @@ export default function SignUpPage() {
       </div>
 
       {/* Right Side — Signup Form */}
-      <div className="w-full lg:w-[45%] flex items-center justify-center p-8 lg:p-16 bg-[#03160e]">
-        <div className="w-full max-w-[440px] bg-[#0c2617]/95 shadow-[0_40px_120px_rgba(0,0,0,0.18)] rounded-[32px] p-8">
+      <div className="w-full lg:w-[45%] flex items-center justify-center p-8 lg:p-16 bg-background">
+        <div className="w-full max-w-[440px] bg-card border border-border shadow-lg dark:shadow-[0_40px_120px_rgba(0,0,0,0.18)] rounded-[32px] p-8">
           <React.Suspense fallback={<div className="flex items-center justify-center min-h-[400px]">Loading...</div>}>
             <SignUpForm />
           </React.Suspense>

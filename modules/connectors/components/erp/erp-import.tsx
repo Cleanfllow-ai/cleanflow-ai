@@ -66,7 +66,7 @@ export default function ERPImport(props: UseERPImportProps) {
 
       {/* Success Alert */}
       {q.importResult && (
-        <Alert className="border-green-200 bg-green-50 py-2 sm:py-3">
+        <Alert className="border-green-300 bg-green-100 py-2 sm:py-3">
           <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
           <AlertDescription className="text-sm sm:text-base text-green-900 whitespace-pre-line">
             {q.importResult.message || `Imported ${q.importResult.records_imported || 0} records`}
@@ -76,7 +76,7 @@ export default function ERPImport(props: UseERPImportProps) {
 
       {/* Export polling indicator */}
       {q.exportPolling && (
-        <Alert className="border-blue-200 bg-blue-50 py-2 sm:py-3">
+        <Alert className="border-blue-300 bg-blue-100 py-2 sm:py-3">
           <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 animate-spin" />
           <AlertDescription className="text-sm sm:text-base text-blue-900 ml-2">
             Export in progress... This may take a moment.
@@ -221,7 +221,7 @@ export default function ERPImport(props: UseERPImportProps) {
               </div>
 
               {q.selectedFile && (
-                <Alert className="border-blue-200 bg-blue-50 py-2 sm:py-3">
+                <Alert className="border-blue-300 bg-blue-100 py-2 sm:py-3">
                   <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                   <AlertDescription className="text-sm sm:text-base text-blue-900 ml-2">
                     {q.selectedFile.original_filename || q.selectedFile.filename} • Status:{" "}

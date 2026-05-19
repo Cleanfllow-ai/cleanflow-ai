@@ -1672,7 +1672,7 @@ function EntityBlock(props: EntityBlockProps) {
                                         side === 'source' && 'cursor-grab active:cursor-grabbing',
                                         side === 'dest' && selectedSourceField && 'cursor-pointer hover:border-primary/60',
                                         isSelected && 'ring-2 ring-primary border-primary bg-primary/5',
-                                        !isSelected && mapped && 'border-emerald-300 bg-emerald-50/40',
+                                        !isSelected && mapped && 'border-emerald-300 bg-emerald-100/40',
                                         !isSelected && !mapped && 'border-border/50 bg-card hover:border-primary/40',
                                     )}
                                 >
@@ -1680,7 +1680,7 @@ function EntityBlock(props: EntityBlockProps) {
                                         <span
                                             className={cn(
                                                 'h-2 w-2 rounded-full mr-2 flex-shrink-0',
-                                                mapped ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+                                                mapped ? 'bg-emerald-1000' : 'bg-muted-foreground/30',
                                             )}
                                         />
                                     )}
@@ -1694,7 +1694,7 @@ function EntityBlock(props: EntityBlockProps) {
                                         <span
                                             className={cn(
                                                 'h-2 w-2 rounded-full ml-auto flex-shrink-0',
-                                                mapped ? 'bg-emerald-500' : isSelected ? 'bg-primary' : 'bg-muted-foreground/30',
+                                                mapped ? 'bg-emerald-1000' : isSelected ? 'bg-primary' : 'bg-muted-foreground/30',
                                             )}
                                         />
                                     )}

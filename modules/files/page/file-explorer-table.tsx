@@ -575,7 +575,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                 <TooltipTrigger asChild>
                                                                     <Badge
                                                                         variant="outline"
-                                                                        className="text-[9px] font-medium whitespace-nowrap px-1.5 py-0 h-4 border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                                                        className="text-[9px] font-medium whitespace-nowrap px-1.5 py-0 h-4 border-amber-500/40 bg-amber-1000/10 text-amber-600 dark:text-amber-400"
                                                                         data-testid="generic-fallback-badge"
                                                                     >
                                                                         Generic
@@ -810,7 +810,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10"
+                                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500 hover:text-orange-400 hover:bg-orange-1000/10"
                                                                     onClick={() => handleOpenQuarantineEditor(file)}
                                                                 >
                                                                     <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />

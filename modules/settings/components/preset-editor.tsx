@@ -165,7 +165,7 @@ export function PresetEditor({
         <form onSubmit={handleSubmit} data-testid="preset-editor-form">
             {!canEdit && (
                 <div
-                    className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 mb-4"
+                    className="rounded-md border border-amber-300 bg-amber-100 px-3 py-2 text-xs text-amber-800 mb-4"
                     data-testid="preset-editor-readonly-banner"
                 >
                     You don't have permission to edit presets. Contact your admin to request access.

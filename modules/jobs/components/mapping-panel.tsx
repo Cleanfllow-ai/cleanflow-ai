@@ -464,7 +464,7 @@ export function MappingPanel({
                         </Badge>
                         {isModified && (
                             <>
-                                <Badge variant="outline" className="text-[10px] bg-amber-50 border-amber-300 text-amber-700">
+                                <Badge variant="outline" className="text-[10px] bg-amber-100 border-amber-300 text-amber-800">
                                     Modified
                                 </Badge>
                                 <button

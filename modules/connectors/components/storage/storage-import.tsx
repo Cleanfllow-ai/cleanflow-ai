@@ -55,20 +55,20 @@ function getFileIcon(mimeType: string) {
         return <FileSpreadsheet className="h-4 w-4 text-green-600" />
     }
     if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) {
-        return <FileSpreadsheet className="h-4 w-4 text-green-700" />
+        return <FileSpreadsheet className="h-4 w-4 text-green-800" />
     }
     return <FileText className="h-4 w-4 text-blue-600" />
 }
 
 function getTypeBadge(mimeType: string) {
     if (mimeType === "application/vnd.google-apps.spreadsheet") {
-        return <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-50 text-green-700 border-green-200">Sheet</Badge>
+        return <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-800 border-green-300">Sheet</Badge>
     }
     if (mimeType === "text/csv") {
-        return <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-700 border-blue-200">CSV</Badge>
+        return <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-800 border-blue-300">CSV</Badge>
     }
     if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) {
-        return <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">Excel</Badge>
+        return <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-800 border-emerald-300">Excel</Badge>
     }
     return <Badge variant="outline" className="text-[10px] px-1.5 py-0">File</Badge>
 }
@@ -216,7 +216,7 @@ export default function StorageImport({
 
             {/* Import success */}
             {!g.isImporting && g.importResult && (
-                <Alert className="bg-green-50 dark:bg-green-950/20 border-green-200">
+                <Alert className="bg-green-100 dark:bg-green-950/20 border-green-300">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     <AlertDescription className="text-green-800 dark:text-green-200">
                         Imported <strong>{g.importResult.filename}</strong>

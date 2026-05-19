@@ -91,8 +91,8 @@ export function EmailVerification({ email, onVerified, onBack }: EmailVerificati
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-20 dark:opacity-10">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-cyan-400 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-teal-400 rounded-full blur-3xl" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-[#69C04B] rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#164234] rounded-full blur-3xl" />
       </div>
       
       {/* Grid pattern overlay */}
@@ -118,7 +118,7 @@ export function EmailVerification({ email, onVerified, onBack }: EmailVerificati
           <p className="text-muted-foreground text-sm">
             We've sent a verification code to
           </p>
-          <p className="text-cyan-600 dark:text-cyan-400 font-medium text-sm mt-1">
+          <p className="text-primary font-medium text-sm mt-1">
             {email}
           </p>
         </div>
@@ -126,7 +126,7 @@ export function EmailVerification({ email, onVerified, onBack }: EmailVerificati
         <Card className="border border-border bg-card shadow-lg">
           <CardHeader className="space-y-1 pb-4">
             <div className="flex items-center space-x-2 text-foreground">
-              <Shield className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+              <Shield className="w-5 h-5 text-primary" />
               <span className="text-lg font-semibold">Email Verification</span>
             </div>
             
@@ -167,16 +167,16 @@ export function EmailVerification({ email, onVerified, onBack }: EmailVerificati
               )}
 
               {success && (
-                <Alert className="bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20">
-                  <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <AlertDescription className="text-emerald-700 dark:text-emerald-300">{success}</AlertDescription>
+                <Alert className="bg-primary/5 border-primary/20">
+                  <CheckCircle className="w-4 h-4 text-primary" />
+                  <AlertDescription className="text-primary">{success}</AlertDescription>
                 </Alert>
               )}
 
               {/* Submit Button */}
               <Button 
                 type="submit" 
-                className="w-full h-12 bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-600 dark:hover:bg-cyan-500 text-white font-semibold rounded-xl transition-all duration-200" 
+                className="w-full h-12 bg-primary hover:bg-[#5db040] text-white font-semibold rounded-xl transition-all duration-200"
                 disabled={isLoading || code.length !== 6}
               >
                 {isLoading ? (

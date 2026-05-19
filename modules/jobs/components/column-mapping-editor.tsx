@@ -52,9 +52,9 @@ function confidenceTier(score: number): 'high' | 'medium' | 'low' {
 }
 
 const CONFIDENCE_CLASSES: Record<'high' | 'medium' | 'low', string> = {
-    high: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    medium: 'bg-amber-100 text-amber-700 border-amber-200',
-    low: 'bg-red-100 text-red-700 border-red-200',
+    high: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    medium: 'bg-amber-100 text-amber-800 border-amber-300',
+    low: 'bg-red-100 text-red-800 border-red-300',
 }
 
 export function ColumnMappingEditor({
@@ -256,7 +256,7 @@ export function ColumnMappingEditor({
                         <div
                             key={srcField.key}
                             className={`grid grid-cols-[1fr_30px_1fr] gap-2 items-start px-1 py-1 rounded text-xs ${
-                                isMapped ? 'bg-emerald-500/5' : ''
+                                isMapped ? 'bg-emerald-1000/5' : ''
                             }`}
                         >
                             {/* Source field */}
@@ -598,7 +598,7 @@ function VisualMapper({
                                     'flex items-center justify-between px-2 py-1.5 rounded-md border text-xs cursor-grab active:cursor-grabbing transition-all select-none',
                                     isDragging && 'ring-2 ring-primary border-primary bg-primary/10 shadow-md',
                                     isSelected && !isDragging && 'ring-2 ring-primary border-primary bg-primary/5',
-                                    !isSelected && !isDragging && isMapped && 'border-emerald-300 bg-emerald-50/40',
+                                    !isSelected && !isDragging && isMapped && 'border-emerald-300 bg-emerald-100/40',
                                     !isSelected && !isDragging && !isMapped && 'border-border/60 bg-card hover:border-primary/40',
                                 )}
                             >
@@ -609,7 +609,7 @@ function VisualMapper({
                                 {/* connection node — visual hint */}
                                 <span className={cn(
                                     'h-2 w-2 rounded-full ml-2 flex-shrink-0',
-                                    isMapped ? 'bg-emerald-500' : (isSelected || isDragging) ? 'bg-primary' : 'bg-muted-foreground/30',
+                                    isMapped ? 'bg-emerald-1000' : (isSelected || isDragging) ? 'bg-primary' : 'bg-muted-foreground/30',
                                 )} />
                             </div>
                         )
@@ -634,13 +634,13 @@ function VisualMapper({
                                     'flex items-center px-2 py-1.5 rounded-md border text-xs transition-all',
                                     isClickable ? 'cursor-pointer hover:border-primary/60' : 'cursor-default',
                                     isHoveredDuringDrag && 'ring-2 ring-primary border-primary bg-primary/10 scale-[1.02]',
-                                    !isHoveredDuringDrag && isUsed && 'border-emerald-300 bg-emerald-50/40',
+                                    !isHoveredDuringDrag && isUsed && 'border-emerald-300 bg-emerald-100/40',
                                     !isHoveredDuringDrag && !isUsed && 'border-border/60 bg-card',
                                 )}
                             >
                                 <span className={cn(
                                     'h-2 w-2 rounded-full mr-2 flex-shrink-0',
-                                    isUsed ? 'bg-emerald-500' : isHoveredDuringDrag ? 'bg-primary' : 'bg-muted-foreground/30',
+                                    isUsed ? 'bg-emerald-1000' : isHoveredDuringDrag ? 'bg-primary' : 'bg-muted-foreground/30',
                                 )} />
                                 <span className="truncate">
                                     {f.label || f.key}
@@ -715,7 +715,7 @@ function VisualMapper({
                         type="button"
                         onClick={() => handleRemoveLine(l.src)}
                         title={`Disconnect ${l.src} → ${l.dst}`}
-                        className="absolute z-10 h-4 w-4 rounded-full bg-white border border-emerald-300 shadow-sm flex items-center justify-center hover:bg-red-50 hover:border-red-300"
+                        className="absolute z-10 h-4 w-4 rounded-full bg-white border border-emerald-300 shadow-sm flex items-center justify-center hover:bg-red-100 hover:border-red-300"
                         style={{ left: l.mid.x - 8, top: l.mid.y - 8 }}
                     >
                         <Link2Off className="h-2.5 w-2.5 text-emerald-600" />

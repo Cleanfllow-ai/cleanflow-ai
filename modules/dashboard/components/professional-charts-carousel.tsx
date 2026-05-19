@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChartTooltip } from "@/components/ui/chart";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -267,9 +267,9 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
                 <div>
                     <div className="mb-2 flex items-center gap-3">
                         <LineChartIcon className="h-5 w-5 text-[#69C04B]" />
-                        <h3 className="text-base font-semibold text-white">Data Processing Trends</h3>
+                        <h3 className="text-base font-semibold text-foreground">Data Processing Trends</h3>
                     </div>
-                    <p className="text-sm text-white/70">
+                    <p className="text-sm text-muted-foreground">
                         Validated, fixed, and quarantined record movement across the selected time window
                     </p>
                 </div>
@@ -304,7 +304,7 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
             <div className="relative overflow-hidden rounded-xl border border-border bg-background/60 p-4">
                 <div className="h-[360px]">
                     {trendData.length === 0 ? (
-                        <div className="flex h-full items-center justify-center text-sm text-white/60">
+                        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                             No processed trend data available yet.
                         </div>
                     ) : (
@@ -350,7 +350,7 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
                                         if (!active || !payload || payload.length === 0) return null;
                                         return (
                                             <div className="min-w-[180px] rounded-xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
-                                                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/70">
+                                                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                                                     {label}
                                                 </div>
                                                 <div className="space-y-1.5">
@@ -364,9 +364,9 @@ export function ProfessionalChartsCarousel({ files }: DqChartsProps) {
                                                                     className="h-2.5 w-2.5 rounded-full"
                                                                     style={{ backgroundColor: entry.color }}
                                                                 />
-                                                                    <span className="text-white/70">{entry.name}</span>
+                                                                    <span className="text-muted-foreground">{entry.name}</span>
                                                             </div>
-                                                            <span className="font-mono font-medium tabular-nums text-white">
+                                                            <span className="font-mono font-medium tabular-nums text-foreground">
                                                                 {Number(entry.value || 0).toLocaleString()}
                                                             </span>
                                                         </div>

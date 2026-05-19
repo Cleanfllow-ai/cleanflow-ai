@@ -165,7 +165,7 @@ export function OrgMembersTab({
                               {person.displayAvatar ? (
                                 <AvatarImage src={person.displayAvatar} />
                               ) : null}
-                              <AvatarFallback className={`${isInvite ? 'bg-indigo-50 text-indigo-600 font-bold' : 'bg-primary/10 text-primary'} text-xs`}>
+                              <AvatarFallback className={`${isInvite ? 'bg-indigo-100 text-indigo-600 font-bold' : 'bg-primary/10 text-primary'} text-xs`}>
                                 {person.displayName
                                   .split(" ")
                                   .map((n) => n?.[0])
@@ -202,8 +202,8 @@ export function OrgMembersTab({
                               variant={isInvite ? "secondary" : getStatusBadgeVariant(person.displayStatus)}
                               className={cn(
                                 "text-[10px] h-5 px-3 min-w-[80px] justify-center",
-                                person.displayStatus === "Active" && "bg-emerald-50 text-emerald-700 border-emerald-100",
-                                isInvite && "bg-indigo-50 text-indigo-700 border-indigo-100"
+                                person.displayStatus === "Active" && "bg-emerald-100 text-emerald-800 border-emerald-100",
+                                isInvite && "bg-indigo-100 text-indigo-800 border-indigo-100"
                               )}
                             >
                               {person.displayStatus}
@@ -240,7 +240,7 @@ export function OrgMembersTab({
 
                               {isInvite ? (
                                 <DropdownMenuItem
-                                  className="text-red-600 focus:text-red-600 focus:bg-red-50 gap-2 cursor-pointer"
+                                  className="text-red-600 focus:text-red-600 focus:bg-red-100 gap-2 cursor-pointer"
                                   onClick={() => handleRevokeInvite(person.displayId, person.displayEmail)}
                                 >
                                   {revokingInviteId === person.displayId ? (
@@ -292,7 +292,7 @@ export function OrgMembersTab({
                                     <>
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
-                                        className="text-red-600 focus:text-red-600 focus:bg-red-50 gap-2 cursor-pointer"
+                                        className="text-red-600 focus:text-red-600 focus:bg-red-100 gap-2 cursor-pointer"
                                         onClick={() => removeMember(person.displayId)}
                                       >
                                         <UserMinus className="w-3.5 h-3.5" />

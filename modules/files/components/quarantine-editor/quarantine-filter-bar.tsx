@@ -15,7 +15,7 @@ export function QuarantineFilterBar({ chips, onRemoveFilter, onClearAll }: Quara
   if (chips.length === 0) return null
 
   return (
-    <div className="flex items-center gap-2 border-b px-4 py-1.5 bg-slate-50">
+    <div className="flex items-center gap-2 border-b px-4 py-1.5 bg-slate-100">
       <Filter className="h-3.5 w-3.5 text-slate-400" />
       <div className="flex flex-wrap gap-1.5">
         {chips.map((chip) => (

@@ -54,7 +54,7 @@ const DATA_TYPE_OPTIONS = [
     gradient: 'from-emerald-500/10 to-green-500/10',
     border: 'border-emerald-500',
     borderHover: 'hover:border-emerald-500/50',
-    dot: 'bg-emerald-500',
+    dot: 'bg-emerald-1000',
   },
   {
     id: 'quarantine' as const,
@@ -65,7 +65,7 @@ const DATA_TYPE_OPTIONS = [
     gradient: 'from-amber-500/10 to-orange-500/10',
     border: 'border-amber-500',
     borderHover: 'hover:border-amber-500/50',
-    dot: 'bg-amber-500',
+    dot: 'bg-amber-1000',
   },
   {
     id: 'all' as const,
@@ -76,7 +76,7 @@ const DATA_TYPE_OPTIONS = [
     gradient: 'from-blue-500/10 to-indigo-500/10',
     border: 'border-blue-500',
     borderHover: 'hover:border-blue-500/50',
-    dot: 'bg-blue-500',
+    dot: 'bg-blue-1000',
   },
 ]
 
@@ -258,7 +258,7 @@ export function ERPTransformationModal({
                   !noTransformation ? "border-purple-500" : "border-muted-foreground/50"
                 )}>
                   {!noTransformation && (
-                    <div className="w-2 h-2 rounded-full bg-purple-500" />
+                    <div className="w-2 h-2 rounded-full bg-purple-1000" />
                   )}
                 </div>
                 <Database className={cn(
@@ -286,7 +286,7 @@ export function ERPTransformationModal({
                         className={cn(
                           "flex items-center space-x-2 rounded-md border px-3 py-2 cursor-pointer transition-colors",
                           selectedErp === erp
-                            ? "border-purple-500 bg-purple-500/10"
+                            ? "border-purple-500 bg-purple-1000/10"
                             : "border-border hover:border-purple-500/50"
                         )}
                         onClick={() => setSelectedErp(erp)}

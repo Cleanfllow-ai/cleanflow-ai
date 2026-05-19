@@ -72,11 +72,11 @@ export function DqDetectionInfo({ dqReport }: DqDetectionInfoProps) {
 
       {/* Schema Intelligence violation summary */}
       {si && ((si.hierarchy_violations ?? 0) > 0 || (si.invariant_violations ?? 0) > 0 || (si.si_cross_violations ?? 0) > 0) && (
-        <div className="bg-amber-50 dark:bg-amber-950/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800 flex items-start gap-3">
+        <div className="bg-amber-100 dark:bg-amber-950/20 p-3 rounded-lg border border-amber-300 dark:border-amber-800 flex items-start gap-3">
           <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
           <div className="text-sm space-y-1">
             <p className="font-medium text-amber-800 dark:text-amber-200">Business Rule Violations</p>
-            <div className="flex gap-4 text-xs text-amber-700 dark:text-amber-300">
+            <div className="flex gap-4 text-xs text-amber-800 dark:text-amber-300">
               {(si.hierarchy_violations ?? 0) > 0 && (
                 <span>Hierarchy: {si.hierarchy_violations}</span>
               )}

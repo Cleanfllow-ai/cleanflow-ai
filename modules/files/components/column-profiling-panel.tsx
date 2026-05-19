@@ -25,9 +25,9 @@ import type { ProfilingResponse } from "@/modules/files/api/file-management-api"
 import { getRuleMeta } from "@/shared/lib/rule-metadata"
 
 const RULE_SEVERITY_STYLES: Record<string, string> = {
-  critical: "bg-red-500/10 text-red-700 border-red-500/20",
-  warning: "bg-amber-500/10 text-amber-700 border-amber-500/20",
-  info: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+  critical: "bg-red-1000/10 text-red-800 border-red-500/20",
+  warning: "bg-amber-1000/10 text-amber-800 border-amber-500/20",
+  info: "bg-blue-1000/10 text-blue-800 border-blue-500/20",
 }
 
 interface ColumnProfilingPanelProps {
@@ -257,8 +257,8 @@ export function ColumnProfilingPanel({ data, loading, embedded }: ColumnProfilin
                                     variant={rule.decision === 'auto' ? "default" : "secondary"}
                                     className={`text-[10px] h-4 px-1 ${
                                       rule.decision === 'auto' 
-                                        ? 'bg-green-500/10 text-green-700 hover:bg-green-500/20' 
-                                        : 'bg-orange-500/10 text-orange-700 hover:bg-orange-500/20'
+                                        ? 'bg-green-1000/10 text-green-800 hover:bg-green-1000/20' 
+                                        : 'bg-orange-1000/10 text-orange-800 hover:bg-orange-1000/20'
                                     }`}
                                   >
                                     {rule.decision}

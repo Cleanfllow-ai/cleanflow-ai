@@ -217,10 +217,10 @@ export function CreateOrganizationForm() {
 
     if (success) {
         return (
-            <Card className="w-full max-w-lg mx-auto mt-12 border-green-200 bg-green-50/30">
+            <Card className="w-full max-w-lg mx-auto mt-12 border-green-300 bg-green-100/30">
                 <CardContent className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
                     <CheckCircle2 className="h-16 w-16 text-green-500" />
-                    <CardTitle className="text-2xl text-green-700">Setup Complete!</CardTitle>
+                    <CardTitle className="text-2xl text-green-800">Setup Complete!</CardTitle>
                     <CardDescription className="text-green-600">
                         {isInviteFlow
                             ? "You've successfully joined the organization."

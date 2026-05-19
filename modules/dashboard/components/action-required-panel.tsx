@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { Button } from "@/components/ui/button"
 import type { FileStatusResponse } from "@/modules/files"
@@ -49,15 +49,15 @@ export function ActionRequiredPanel({ files }: { files: FileStatusResponse[] }) 
     >
       <div className="flex items-center gap-2.5">
         <AlertCircle className="h-4 w-4 text-[#69C04B] shrink-0" />
-        <span className="text-sm text-white">
+        <span className="text-sm text-foreground">
           <strong className="font-semibold">{stats.total} file{stats.total !== 1 ? "s" : ""}</strong>
           {" "}need attention
           {parts.length > 0 && (
-            <span className="text-white/70"> — {parts.join(", ")}</span>
+            <span className="text-foreground/70"> — {parts.join(", ")}</span>
           )}
         </span>
         {stats.processing > 0 && (
-          <span className="text-xs text-white/70 ml-2">
+          <span className="text-xs text-foreground/70 ml-2">
             · {stats.processing} processing
           </span>
         )}

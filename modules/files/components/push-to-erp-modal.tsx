@@ -90,7 +90,7 @@ function EntityProgressRow({
       {status === 'running' && <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />}
       {status === 'failed' && <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />}
       {status === 'pending' && <span className="h-4 w-4 shrink-0" />}
-      <span className={status === 'failed' ? 'text-red-700' : status === 'done' ? 'text-green-700' : 'text-muted-foreground'}>
+      <span className={status === 'failed' ? 'text-red-800' : status === 'done' ? 'text-green-800' : 'text-muted-foreground'}>
         {label}
       </span>
       {status === 'done' && <span className="text-xs text-muted-foreground ml-auto">({success} exported)</span>}
@@ -122,12 +122,12 @@ function MultiEntitySummaryCard({
     <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
       <p className="text-sm font-medium text-muted-foreground">{chain}</p>
       <div className="flex items-center gap-3 flex-wrap">
-        <Badge variant="secondary" className="gap-1 text-green-700 bg-green-50">
+        <Badge variant="secondary" className="gap-1 text-green-800 bg-green-100">
           <CheckCircle2 className="h-3 w-3" />
           {mappedCount} mapped
         </Badge>
         {unmappedColumns.length > 0 && (
-          <Badge variant="secondary" className="gap-1 text-amber-700 bg-amber-50">
+          <Badge variant="secondary" className="gap-1 text-amber-800 bg-amber-100">
             <AlertCircle className="h-3 w-3" />
             {unmappedColumns.length} unmapped
           </Badge>
@@ -311,11 +311,11 @@ function ConnectionBadge({ opt, checked }: { opt: ERPOption; checked: boolean | 
     return <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">Coming Soon</span>
   }
   if (checked === undefined) {
-    return <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">Available</span>
+    return <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">Available</span>
   }
   return checked
-    ? <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Connected</span>
-    : <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">Not Connected</span>
+    ? <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Connected</span>
+    : <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">Not Connected</span>
 }
 
 // ─── Shared ERP push UI (used by both modal and inline content) ─────────────
@@ -421,7 +421,7 @@ function ERPPushBody({
           )}
 
           {multiExport.exportState === 'done' && (
-            <Alert className="border-green-200 bg-green-50">
+            <Alert className="border-green-300 bg-green-100">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-900">
                 Export complete —{' '}
@@ -436,7 +436,7 @@ function ERPPushBody({
       {!isMultiEntity && (
         <>
           {legacyStatus && (
-            <Alert className="border-blue-200 bg-blue-50">
+            <Alert className="border-blue-300 bg-blue-100">
               <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
               <AlertDescription className="text-blue-900 ml-2">{legacyStatus}</AlertDescription>
             </Alert>
@@ -448,7 +448,7 @@ function ERPPushBody({
             </Alert>
           )}
           {legacyResult && (
-            <Alert className={legacyResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+            <Alert className={legacyResult.success ? 'border-green-300 bg-green-100' : 'border-red-300 bg-red-100'}>
               {legacyResult.success
                 ? <CheckCircle2 className="h-4 w-4 text-green-600" />
                 : <AlertCircle className="h-4 w-4 text-red-600" />}

@@ -49,14 +49,14 @@ function resolveSteps(status: string): StepConfig {
 }
 
 const dotClass: Record<StepState, string> = {
-  done: "bg-emerald-500",
+  done: "bg-emerald-1000",
   active: "bg-primary animate-pulse",
   failed: "bg-destructive",
   pending: "bg-border",
 };
 
 const lineClass: Record<StepState, string> = {
-  done: "bg-emerald-500",
+  done: "bg-emerald-1000",
   active: "bg-primary",
   failed: "bg-destructive",
   pending: "bg-border",

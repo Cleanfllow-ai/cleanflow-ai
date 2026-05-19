@@ -78,7 +78,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
     switch (status) {
       case "DQ_FIXED":
       case "EXPORTED":
-        return "bg-emerald-500/10"
+        return "bg-emerald-1000/10"
       case "DQ_FAILED":
       case "UPLOAD_FAILED":
         return "bg-rose-500/10"
@@ -86,7 +86,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
       case "NORMALIZING":
       case "QUEUED":
       case "UPLOADING":
-        return "bg-amber-500/10"
+        return "bg-amber-1000/10"
       default:
         return "bg-muted"
     }
@@ -133,10 +133,10 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
     <Card className="h-fit border-border bg-card/80 backdrop-blur-sm">
       <CardHeader className="py-2.5 px-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70">
+          <CardTitle className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Recent Activity
           </CardTitle>
-          <span className="text-[10px] font-mono tabular-nums text-white/70">
+          <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
             {recentFiles.length}
           </span>
         </div>
@@ -167,7 +167,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-white truncate group-hover:text-white/80" title={filename}>
+                      <p className="text-xs font-medium text-foreground truncate group-hover:text-foreground/80" title={filename}>
                         {filename.length > 20 ? filename.slice(0, 20) + '...' : filename}
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">
@@ -183,7 +183,7 @@ export function ActivityFeed({ files }: ActivityFeedProps) {
                     </div>
 
                     {/* Time */}
-                    <span className="text-[10px] font-mono tabular-nums text-white/60 shrink-0">
+                    <span className="text-[10px] font-mono tabular-nums text-muted-foreground shrink-0">
                       {(file.updated_at || file.created_at) ? formatTime(file.updated_at ?? file.created_at ?? '') : ''}
                     </span>
                   </div>

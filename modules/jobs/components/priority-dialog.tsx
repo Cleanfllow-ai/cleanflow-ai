@@ -124,14 +124,14 @@ export function PriorityDialog({
                                             key={entity}
                                             className={cn(
                                                 "flex items-center justify-between px-3 py-2 text-sm",
-                                                idx === 0 && "bg-emerald-50/30",
+                                                idx === 0 && "bg-emerald-100/30",
                                             )}
                                         >
                                             <div className="flex items-center gap-2">
                                                 <span className={cn(
                                                     "inline-flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-semibold",
                                                     idx === 0
-                                                        ? "bg-emerald-500 text-white"
+                                                        ? "bg-emerald-1000 text-white"
                                                         : "bg-muted text-muted-foreground",
                                                 )}>
                                                     {idx + 1}
@@ -162,7 +162,7 @@ export function PriorityDialog({
                                     ))}
                                 </div>
                                 {isCustom && (
-                                    <Alert className="border-amber-200 bg-amber-50 py-2">
+                                    <Alert className="border-amber-300 bg-amber-100 py-2">
                                         <Info className="h-3.5 w-3.5 text-amber-600" />
                                         <AlertDescription className="text-xs text-amber-900">
                                             Custom order set. Backend will switch <code>run_mode</code> to

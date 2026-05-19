@@ -511,7 +511,7 @@ export function RulesStep() {
                   <p className="text-xs text-muted-foreground font-medium">Describe the business consistency rule in plain language:</p>
 
                   {/* Textarea with @ mention highlight overlay */}
-                  <div className="relative rounded-lg border border-violet-200 bg-violet-50/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white">
+                  <div className="relative rounded-lg border border-violet-300 bg-violet-100/40 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 focus-within:bg-white">
                     {/* Mirror div — highlight backgrounds only */}
                     <div
                       aria-hidden="true"
@@ -561,11 +561,11 @@ export function RulesStep() {
                               onMouseDown={(e) => { e.preventDefault(); insertColumn(col) }}
                               className={`w-full text-left px-3 py-1.5 text-xs font-mono flex items-center gap-2 transition-colors ${
                                 idx === mentionIndex
-                                  ? "bg-violet-50 text-violet-700"
+                                  ? "bg-violet-100 text-violet-800"
                                   : "hover:bg-muted/60"
                               }`}
                             >
-                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${idx === mentionIndex ? "bg-violet-500" : "bg-muted-foreground/30"}`} />
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${idx === mentionIndex ? "bg-violet-1000" : "bg-muted-foreground/30"}`} />
                               {col === "all" ? <span className="text-violet-600 font-semibold not-italic">all <span className="font-normal text-muted-foreground">— all columns</span></span> : col}
                             </button>
                           ))}
@@ -710,7 +710,7 @@ export function RulesStep() {
                 <div className="border border-dashed border-muted rounded-md p-3 space-y-3 mt-1">
                   <p className="text-xs text-muted-foreground font-medium">Describe the group consistency rule in plain language:</p>
                   <textarea
-                    className="w-full min-h-[60px] rounded-lg border border-violet-200 bg-violet-50/40 px-3 py-2 text-sm focus:ring-2 focus:ring-violet-400 focus:border-violet-400 focus:bg-white outline-none resize-none"
+                    className="w-full min-h-[60px] rounded-lg border border-violet-300 bg-violet-100/40 px-3 py-2 text-sm focus:ring-2 focus:ring-violet-400 focus:border-violet-400 focus:bg-white outline-none resize-none"
                     placeholder="e.g. Legal Entity must be the same for all rows sharing the same Order Financial ID"
                     value={crossRowPrompt}
                     onChange={(e) => setCrossRowPrompt(e.target.value)}
@@ -725,9 +725,9 @@ export function RulesStep() {
                   {/* Pending cross-row suggestions */}
                   {pendingCrossRowRules && (
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-green-700">CleanAI suggested {pendingCrossRowRules.length} group consistency rule(s):</p>
+                      <p className="text-xs font-medium text-green-800">CleanAI suggested {pendingCrossRowRules.length} group consistency rule(s):</p>
                       {pendingCrossRowRules.map((r, i) => (
-                        <div key={i} className="p-2 rounded border border-green-200 bg-green-50/50">
+                        <div key={i} className="p-2 rounded border border-green-300 bg-green-100/50">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{r.rule_id}</span>
                             {r.relationship && <Badge variant="secondary" className="text-[10px]">{r.relationship}</Badge>}
