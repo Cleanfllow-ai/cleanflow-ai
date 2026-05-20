@@ -86,6 +86,7 @@ function AppSidebarComponent() {
 	const avatarInitial = (friendlyDisplayName || 'U').charAt(0)
 	const renderNavItem = (item: typeof mainNav[0], badge?: React.ReactNode) => {
 		const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href))
+		const isDarkActive = isActive && theme === 'dark'
 		return (
 			<Link key={item.name} href={item.href}>
 				<div
@@ -93,7 +94,7 @@ function AppSidebarComponent() {
 					className={cn(
 						"group flex items-center gap-2.5 px-3 py-[8px] rounded-lg transition-colors",
 						isActive
-							? "bg-sidebar-accent text-sidebar-primary font-semibold"
+							? cn("bg-sidebar-accent font-semibold", isDarkActive ? "text-white" : "text-sidebar-primary")
 							: "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
 						collapsed && "justify-center px-2",
 					)}
@@ -102,6 +103,7 @@ function AppSidebarComponent() {
 						active={isActive}
 						className={cn(
 							"w-[18px] h-[18px] flex-shrink-0",
+							isDarkActive && "text-white [&_*]:stroke-white",
 							!isActive && "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80"
 						)}
 					/>
@@ -163,12 +165,12 @@ function AppSidebarComponent() {
 				)}
 				{/* Logo */}
 				<div data-tour="logo" className="flex items-center gap-2.5 px-3 py-3 border-b border-sidebar-border">
-					<div className="relative w-8 h-8 flex-shrink-0">
+					<div className="relative w-10 h-10 flex-shrink-0">
 						<Image
 							src="/images/rightrev-logo.png"
 							alt="RightRev"
-							width={32}
-							height={32}
+							width={40}
+							height={40}
 							className="rounded-md object-contain"
 						/>
 					</div>
