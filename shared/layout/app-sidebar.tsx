@@ -1,5 +1,5 @@
 "use client"
-import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, Compass, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sparkles, Sun, X } from "lucide-react"
+import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, Compass, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sparkles, Sun, Workflow, X } from "lucide-react"
 import { memo, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,7 @@ const mainNav = [
 	{ name: "Data Catalog", href: "/files", icon: FileText, tourId: "nav-data-catalog" },
 	...(AUGMENTATION_ENABLED ? [{ name: "Augmentation", href: "/augmentation", icon: Sparkles, tourId: "nav-augmentation" }] : []),
 	{ name: "Jobs", href: "/jobs", icon: CalendarClock, tourId: "nav-jobs" },
+	{ name: "Unified Bridge", href: "/admin/unified-bridge", icon: Workflow, tourId: "nav-unified-bridge" },
 ]
 const settingsNav = [
 	{ name: "Admin", href: "/admin", icon: Settings, tourId: "nav-admin" },
@@ -84,7 +85,14 @@ function AppSidebarComponent() {
 	const sidebarSubline = isDemoUser ? 'Demo account' : (user?.email || '')
 	const avatarInitial = (friendlyDisplayName || 'U').charAt(0)
 	const renderNavItem = (item: typeof mainNav[0], badge?: React.ReactNode) => {
-		const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href))
+		const isActive = pathname === item.href || (
+			item.href !== '/dashboard' &&
+			item.href !== '/admin' &&
+			pathname?.startsWith(item.href)
+		) || (
+			item.href === '/admin' &&
+			(pathname === '/admin' || (pathname?.startsWith('/admin/') && !pathname?.startsWith('/admin/unified-bridge')))
+		)
 		return (
 			<Link key={item.name} href={item.href}>
 				<div
