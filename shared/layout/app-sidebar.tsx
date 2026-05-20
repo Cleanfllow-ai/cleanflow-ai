@@ -1,5 +1,6 @@
 "use client"
-import { BarChart3, CalendarClock, ChevronLeft, ChevronRight, Compass, FileText, HelpCircle, LogOut, Menu, Moon, Settings, Sparkles, Sun, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Compass, HelpCircle, LogOut, Menu, Moon, Sparkles, Sun, X } from "lucide-react"
+import { AdminIcon, DataCatalogIcon, DashboardIcon, JobsIcon } from "@/components/icons/brand-icons"
 import { memo, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
@@ -23,13 +24,13 @@ const ChatDrawer = dynamic(
 // TODO: re-enable after augmentation audit completes (track: a575f372010d13bca)
 const AUGMENTATION_ENABLED = false
 const mainNav = [
-	{ name: "Dashboard", href: "/dashboard", icon: BarChart3, tourId: "nav-dashboard" },
-	{ name: "Data Catalog", href: "/files", icon: FileText, tourId: "nav-data-catalog" },
+	{ name: "Dashboard", href: "/dashboard", icon: DashboardIcon, tourId: "nav-dashboard" },
+	{ name: "Data Catalog", href: "/files", icon: DataCatalogIcon, tourId: "nav-data-catalog" },
 	...(AUGMENTATION_ENABLED ? [{ name: "Augmentation", href: "/augmentation", icon: Sparkles, tourId: "nav-augmentation" }] : []),
-	{ name: "Jobs", href: "/jobs", icon: CalendarClock, tourId: "nav-jobs" },
+	{ name: "Jobs", href: "/jobs", icon: JobsIcon, tourId: "nav-jobs" },
 ]
 const settingsNav = [
-	{ name: "Admin", href: "/admin", icon: Settings, tourId: "nav-admin" },
+	{ name: "Admin", href: "/admin", icon: AdminIcon, tourId: "nav-admin" },
 ]
 function AppSidebarComponent() {
 	const [collapsed, setCollapsed] = useState(false)
@@ -97,10 +98,13 @@ function AppSidebarComponent() {
 						collapsed && "justify-center px-2",
 					)}
 				>
-					<item.icon className={cn(
-						"w-[18px] h-[18px] flex-shrink-0",
-						isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80"
-					)} />
+					<item.icon
+						active={isActive}
+						className={cn(
+							"w-[18px] h-[18px] flex-shrink-0",
+							!isActive && "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80"
+						)}
+					/>
 					{!collapsed && (
 						<>
 							<span className="text-[13px] font-medium leading-none flex-1">{item.name}</span>
