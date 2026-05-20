@@ -187,19 +187,35 @@ export default function ConnectorCallbackPage() {
     function startCountdownAndClose(seconds: number) {
       setCountdown(seconds)
       let remaining = seconds
+      // Detect popup vs same-tab redirect (Salesforce BYO uses
+      // window.location.assign rather than window.open, so window.opener
+      // is null and calling window.close() would close the entire app tab).
+      const isPopup = (() => {
+        try {
+          return window.opener != null && window.opener !== window
+        } catch {
+          return false
+        }
+      })()
       const tick = setInterval(() => {
         remaining -= 1
         if (remaining <= 0) {
           clearInterval(tick)
           setCountdown(0)
-          try { window.close() } catch { /* noop */ }
-          // If the window is still open ~500ms later, we're in a
-          // direct-navigation (non-popup) scenario — show a manual-close hint.
-          setTimeout(() => {
-            if (!window.closed) {
-              setCannotClose(true)
-            }
-          }, 500)
+          if (isPopup) {
+            try { window.close() } catch { /* noop */ }
+            // If the window is still open ~500ms later, we're in a
+            // direct-navigation (non-popup) scenario — show a manual-close hint.
+            setTimeout(() => {
+              if (!window.closed) {
+                setCannotClose(true)
+              }
+            }, 500)
+          } else {
+            // Same-tab redirect (no opener) — navigate back to the
+            // connectors hub instead of closing the entire app tab.
+            window.location.replace("/admin/connectors")
+          }
         } else {
           setCountdown(remaining)
         }

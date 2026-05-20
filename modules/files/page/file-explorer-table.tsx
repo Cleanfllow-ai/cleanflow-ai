@@ -894,15 +894,14 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className={cn("h-10 w-10", isProcessed ? "text-muted-foreground hover:text-foreground" : "text-muted-foreground/40 cursor-not-allowed")}
-                                                            disabled={!isProcessed}
-                                                            onClick={() => isProcessed && handleViewDetails(file)}
-                                                            aria-label={isProcessed ? "View file details" : "Details available after processing"}
+                                                            className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                                                            onClick={() => handleViewDetails(file)}
+                                                            aria-label="View file details"
                                                         >
                                                             <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>{isProcessed ? "Details" : "Available after processing"}</TooltipContent>
+                                                    <TooltipContent>{isProcessed ? "Details" : "Preview"}</TooltipContent>
                                                 </Tooltip>
                                                 {isProcessed && (
                                                     <Tooltip>
