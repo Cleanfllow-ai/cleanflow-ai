@@ -9,18 +9,16 @@ export default function LoginPage() {
     <div className="auth-light min-h-screen flex bg-background">
       {/* Left Side — Hero */}
       <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-[#164234]">
-        {/* Gradient overlays */}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(43deg, #15421A 15.21%, #6AC04C 123.6%)" }} />
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#69C04B]/[0.12] rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#69C04B]/[0.08] rounded-full blur-[100px]" />
-
-        {/* Subtle grid */}
+        {/* RightRev logo mark repeating pattern */}
         <div
-          className="absolute inset-0 opacity-[0.06]"
+          className="absolute inset-0 w-full h-full"
+          aria-hidden="true"
           style={{
-            backgroundImage: `linear-gradient(rgba(105,192,75,0.3) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(105,192,75,0.3) 1px, transparent 1px)`,
-            backgroundSize: "64px 64px",
+            backgroundImage: "url('/images/patterrr-spaced.svg')",
+            backgroundSize: "23px auto",
+            backgroundRepeat: "repeat",
+            filter: "brightness(0) invert(1)",
+            opacity: 0.06,
           }}
         />
 
@@ -40,10 +38,12 @@ export default function LoginPage() {
           <div className="flex-1 flex flex-col justify-center max-w-lg">
             <div className="space-y-6">
               <div className="space-y-4">
-                <h1 className="text-[2.75rem] font-bold leading-[1.1] text-white tracking-tight">
-                  Enterprise-grade
-                  <br />
-                  <span className="text-white/70">data quality.</span>
+                <h1 className="text-[2.75rem] font-bold leading-[1.1] tracking-tight">
+                  <span className="text-shine">
+                    Enterprise-grade
+                    <br />
+                    data quality.
+                  </span>
                 </h1>
                 <p className="text-[15px] text-white/60 leading-relaxed max-w-sm">
                   Profile, validate, transform, and export your data with confidence. Built for teams that demand precision.

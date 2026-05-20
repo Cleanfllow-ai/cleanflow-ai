@@ -1,0 +1,882 @@
+{
+  "headings": [
+    {
+      "text": "Every Use Case Accounted For.\nAI-Powered Revenue Recognition.",
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "none",
+      "backgroundClip": "border-box",
+      "webkitBackgroundClip": "border-box",
+      "webkitTextFillColor": "rgb(255, 255, 255)",
+      "animation": "none",
+      "filter": "none",
+      "textShadow": "none",
+      "fontSize": "60px",
+      "fontWeight": "500",
+      "classes": "heading-2 heading color-white mb-40 ",
+      "spans": [
+        {
+          "text": "Every Use Case Accounted For.\nAI-Powered Revenue Recognition.",
+          "color": "rgb(255, 255, 255)",
+          "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+          "backgroundClip": "text",
+          "webkitBackgroundClip": "text",
+          "webkitTextFillColor": "rgba(0, 0, 0, 0)",
+          "animation": "10s linear infinite shine",
+          "filter": "none",
+          "textShadow": "none",
+          "classes": "gradient-animation-light"
+        }
+      ]
+    },
+    {
+      "text": "Trusted for AI-Powered Rev Rec and Forecasting",
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "none",
+      "backgroundClip": "border-box",
+      "webkitBackgroundClip": "border-box",
+      "webkitTextFillColor": "rgb(255, 255, 255)",
+      "animation": "none",
+      "filter": "none",
+      "textShadow": "none",
+      "fontSize": "18px",
+      "fontWeight": "400",
+      "classes": "heading-7 heading text-center",
+      "spans": []
+    },
+    {
+      "text": "Revenue Deserves AI-Power. Not Workarounds.",
+      "color": "rgb(7, 43, 24)",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "backgroundClip": "text",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)",
+      "animation": "10s linear infinite shine",
+      "filter": "invert(1) hue-rotate(167deg) brightness(1.5)",
+      "textShadow": "none",
+      "fontSize": "60px",
+      "fontWeight": "500",
+      "classes": "heading-default heading mb-20",
+      "spans": []
+    },
+    {
+      "text": "AI-Powered Rev Rec Platform for Any Revenue Model",
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "backgroundClip": "text",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)",
+      "animation": "10s linear infinite shine",
+      "filter": "none",
+      "textShadow": "none",
+      "fontSize": "60px",
+      "fontWeight": "500",
+      "classes": "heading-default heading mb-20",
+      "spans": []
+    },
+    {
+      "text": "Granularity in RightRev, Visibility in Your ERP",
+      "color": "rgb(7, 43, 24)",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "backgroundClip": "text",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)",
+      "animation": "10s linear infinite shine",
+      "filter": "none",
+      "textShadow": "none",
+      "fontSize": "60px",
+      "fontWeight": "500",
+      "classes": "heading-default heading mb-30 gradient-animation-dark",
+      "spans": []
+    },
+    {
+      "text": "A Leader in Automated Revenue Management",
+      "color": "rgb(7, 43, 24)",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "backgroundClip": "text",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)",
+      "animation": "10s linear infinite shine",
+      "filter": "none",
+      "textShadow": "none",
+      "fontSize": "80px",
+      "fontWeight": "500",
+      "classes": "heading-default heading  gradient-animation-light mb-30",
+      "spans": []
+    },
+    {
+      "text": "Automated Revenue Recognition Solutions",
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "backgroundClip": "text",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)",
+      "animation": "10s linear infinite shine",
+      "filter": "none",
+      "textShadow": "none",
+      "fontSize": "60px",
+      "fontWeight": "500",
+      "classes": "heading-default heading mb-20",
+      "spans": []
+    },
+    {
+      "text": "Our Customers Say It Best",
+      "color": "rgb(7, 43, 24)",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "backgroundClip": "text",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)",
+      "animation": "10s linear infinite shine",
+      "filter": "none",
+      "textShadow": "none",
+      "fontSize": "60px",
+      "fontWeight": "500",
+      "classes": "heading-2 heading mb-20",
+      "spans": []
+    },
+    {
+      "text": "Get out of spreadsheets and workarounds. Get back to accounting.",
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "backgroundClip": "text",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)",
+      "animation": "10s linear infinite shine",
+      "filter": "none",
+      "textShadow": "none",
+      "fontSize": "60px",
+      "fontWeight": "500",
+      "classes": "heading-default heading gradient-animation-light mb-30",
+      "spans": []
+    }
+  ],
+  "gradients": [
+    {
+      "tag": "div",
+      "classes": " osano-cm-info__info-dialog-header osano-cm-info-dialog-header ",
+      "text": "",
+      "backgroundImage": "linear-gradient(rgb(255, 255, 255) 40px, rgba(255, 255, 255, 0) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 0, 0)",
+      "width": "320px",
+      "height": "52px",
+      "animation": "none"
+    },
+    {
+      "tag": "p",
+      "classes": " osano-cm-info-dialog-header__header osano-cm-header ",
+      "text": "",
+      "backgroundImage": "linear-gradient(rgb(255, 255, 255) 40px, rgba(255, 255, 255, 0) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 0, 0)",
+      "width": "280.8px",
+      "height": "32px",
+      "animation": "none"
+    },
+    {
+      "tag": "span",
+      "classes": "gradient-animation-light",
+      "text": "Every Use Case Accounted For.\nAI-Powered Revenue Recognition.",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(255, 255, 255)",
+      "width": "auto",
+      "height": "auto",
+      "animation": "10s linear infinite shine"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-default heading mb-20",
+      "text": "Revenue Deserves AI-Power. Not Workarounds.",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(7, 43, 24)",
+      "width": "1296px",
+      "height": "63.6px",
+      "animation": "10s linear infinite shine"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-default heading mb-20",
+      "text": "AI-Powered Rev Rec Platform for Any Revenue Model",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(255, 255, 255)",
+      "width": "1296px",
+      "height": "127.2px",
+      "animation": "10s linear infinite shine"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "Rules You Can Explain to Your Auditor\n\nConfigure ratable or point-in-time recogn",
+      "backgroundImage": "linear-gradient(0deg, rgba(22, 67, 53, 0) 0%, rgba(22, 67, 53, 0.8) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "412px",
+      "height": "334.8px",
+      "animation": "none"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "Architect Use Cases Using Prompts\n\nGoverned AI agents automate SSP, bundles, ser",
+      "backgroundImage": "linear-gradient(0deg, rgba(22, 67, 53, 0) 0%, rgba(22, 67, 53, 0.8) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "412px",
+      "height": "334.8px",
+      "animation": "none"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "Automated Contract Modifications\n\nAmend, cancel, renew, expand. RightRev detects",
+      "backgroundImage": "linear-gradient(0deg, rgba(22, 67, 53, 0) 0%, rgba(22, 67, 53, 0.8) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "412px",
+      "height": "334.8px",
+      "animation": "none"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "SSP Engine & Simulator\n\nModel, test, and validate SSP and allocation outcomes be",
+      "backgroundImage": "linear-gradient(0deg, rgba(22, 67, 53, 0) 0%, rgba(22, 67, 53, 0.8) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "412px",
+      "height": "312.4px",
+      "animation": "none"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "Any Selling Motion\n\nSubscriptions, usage, AI outcomes, credits, milestones, comm",
+      "backgroundImage": "linear-gradient(0deg, rgba(22, 67, 53, 0) 0%, rgba(22, 67, 53, 0.8) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "412px",
+      "height": "312.4px",
+      "animation": "none"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "Salesforce-Native Architecture\n\nBuilt on Salesforce with RCA / RCB support and E",
+      "backgroundImage": "linear-gradient(0deg, rgba(22, 67, 53, 0) 0%, rgba(22, 67, 53, 0.8) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "412px",
+      "height": "312.4px",
+      "animation": "none"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "High-Volume Processing\n\nCloud-marketplace compatible, built for scale and transa",
+      "backgroundImage": "linear-gradient(0deg, rgba(22, 67, 53, 0) 0%, rgba(22, 67, 53, 0.8) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "412px",
+      "height": "273.4px",
+      "animation": "none"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "Forecast-Ready Intelligence\n\nRevenue waterfalls with explainable variance analys",
+      "backgroundImage": "linear-gradient(0deg, rgba(22, 67, 53, 0) 0%, rgba(22, 67, 53, 0.8) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "412px",
+      "height": "273.4px",
+      "animation": "none"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "Journal Entry Automation\n\nPost directly to your GL daily or periodically with fu",
+      "backgroundImage": "linear-gradient(0deg, rgba(22, 67, 53, 0) 0%, rgba(22, 67, 53, 0.8) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "412px",
+      "height": "273.4px",
+      "animation": "none"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-default heading mb-30 gradient-animation-dark",
+      "text": "Granularity in RightRev, Visibility in Your ERP",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(7, 43, 24)",
+      "width": "494px",
+      "height": "190.8px",
+      "animation": "10s linear infinite shine"
+    },
+    {
+      "tag": "h1",
+      "classes": "heading-default heading  gradient-animation-light mb-30",
+      "text": "A Leader in Automated Revenue Management",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(7, 43, 24)",
+      "width": "850px",
+      "height": "169.6px",
+      "animation": "10s linear infinite shine"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-default heading mb-20",
+      "text": "Automated Revenue Recognition Solutions",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(255, 255, 255)",
+      "width": "1296px",
+      "height": "63.6px",
+      "animation": "10s linear infinite shine"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "Standalone Revenue Recognition Software\nOpen Application\n\nOur standalone revenue",
+      "backgroundImage": "linear-gradient(45deg, rgb(16, 38, 37) 0%, rgb(21, 66, 52) 30%, rgba(21, 66, 52, 0.95) 70%, rgb(16, 39, 37) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "636px",
+      "height": "827.688px",
+      "animation": "none"
+    },
+    {
+      "tag": "div",
+      "classes": "card-item",
+      "text": "Revenue Recognition Software For Salesforce\nSalesforce Application\n\nRightRev for",
+      "backgroundImage": "linear-gradient(45deg, rgb(16, 38, 37) 0%, rgb(21, 66, 52) 30%, rgba(21, 66, 52, 0.95) 70%, rgb(16, 39, 37) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(22, 66, 52)",
+      "width": "636px",
+      "height": "827.688px",
+      "animation": "none"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-2 heading mb-20",
+      "text": "Our Customers Say It Best",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(7, 43, 24)",
+      "width": "1296px",
+      "height": "63.6px",
+      "animation": "10s linear infinite shine"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-default heading gradient-animation-light mb-30",
+      "text": "Get out of spreadsheets and workarounds. Get back to accounting.",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(255, 255, 255)",
+      "width": "740px",
+      "height": "190.8px",
+      "animation": "10s linear infinite shine"
+    }
+  ],
+  "animatedText": [
+    {
+      "tag": "span",
+      "classes": "gradient-animation-light",
+      "text": "Every Use Case Accounted For.\nAI-Powered Revenue Recognition.",
+      "animation": "10s linear infinite shine",
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-default heading mb-20",
+      "text": "Revenue Deserves AI-Power. Not Workarounds.",
+      "animation": "10s linear infinite shine",
+      "color": "rgb(7, 43, 24)",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-default heading mb-20",
+      "text": "AI-Powered Rev Rec Platform for Any Revenue Model",
+      "animation": "10s linear infinite shine",
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-default heading mb-30 gradient-animation-dark",
+      "text": "Granularity in RightRev, Visibility in Your ERP",
+      "animation": "10s linear infinite shine",
+      "color": "rgb(7, 43, 24)",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "tag": "h1",
+      "classes": "heading-default heading  gradient-animation-light mb-30",
+      "text": "A Leader in Automated Revenue Management",
+      "animation": "10s linear infinite shine",
+      "color": "rgb(7, 43, 24)",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-default heading mb-20",
+      "text": "Automated Revenue Recognition Solutions",
+      "animation": "10s linear infinite shine",
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-2 heading mb-20",
+      "text": "Our Customers Say It Best",
+      "animation": "10s linear infinite shine",
+      "color": "rgb(7, 43, 24)",
+      "backgroundImage": "linear-gradient(81deg, rgb(21, 66, 52) 33%, rgb(147, 227, 109) 57%, rgb(21, 66, 52) 69%)",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "tag": "h2",
+      "classes": "heading-default heading gradient-animation-light mb-30",
+      "text": "Get out of spreadsheets and workarounds. Get back to accounting.",
+      "animation": "10s linear infinite shine",
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "radial-gradient(circle, rgb(255, 255, 255) 14%, rgb(105, 192, 75) 57%, rgb(255, 255, 255) 100%)",
+      "webkitBackgroundClip": "text",
+      "webkitTextFillColor": "rgba(0, 0, 0, 0)"
+    }
+  ],
+  "patterns": [],
+  "keyframes": [
+    {
+      "selector": ".osano-cm-info",
+      "cssText": ".osano-cm-info { animation: 0.4s ease 0s 1 normal none running delay-overflow; bottom: 0px; box-shadow: rgb(204, 204, 204) 0px 0px 2px 2px; box-sizing: border-box; max-width: 20em; overflow: visible; position: fixed; top: 0px; transition-duration: 0.4s; transition-property: transform; width: 100%; }"
+    },
+    {
+      "selector": ".osano-cm-info--open",
+      "cssText": ".osano-cm-info--open { animation: auto ease 0s 1 normal none running none; overflow: hidden auto; transform: translate(0px); }"
+    },
+    {
+      "selector": ".osano-cm-info--do_not_sell",
+      "cssText": ".osano-cm-info--do_not_sell { animation: auto ease 0s 1 normal none running none; height: fit-content; left: 50%; position: fixed; right: auto; top: 50%; transform: translate(-50%, -50%); transition: none; }"
+    },
+    {
+      "name": "delay-overflow",
+      "cssText": "@keyframes delay-overflow { \n  0% { overflow: hidden auto; }\n}"
+    },
+    {
+      "selector": ".osano-cm-disclosure--loading .osano-cm-disclosure__list::after",
+      "cssText": ".osano-cm-disclosure--loading .osano-cm-disclosure__list::after { animation-duration: 1s; animation-iteration-count: infinite; animation-name: osano-load-scale; animation-timing-function: ease-in-out; border-radius: 100%; content: \"\"; display: block; height: 1em; position: relative; top: -0.125em; transform: translateY(-50%); width: 1em; }"
+    },
+    {
+      "name": "osano-load-scale",
+      "cssText": "@keyframes osano-load-scale { \n  0% { transform: translateY(-50%) scale(0); }\n  100% { opacity: 0; transform: translateY(-50%) scale(1); }\n}"
+    },
+    {
+      "selector": ".osano-cm-header, .osano-cm-info-dialog-header",
+      "cssText": ".osano-cm-header, .osano-cm-info-dialog-header { background: linear-gradient(rgb(255, 255, 255) 2.5em, rgba(255, 255, 255, 0) 100%); }"
+    },
+    {
+      "selector": ":root .has-vivid-green-cyan-to-vivid-cyan-blue-gradient-background",
+      "cssText": ":root .has-vivid-green-cyan-to-vivid-cyan-blue-gradient-background { background: linear-gradient(135deg, rgb(0, 208, 132), rgb(6, 147, 227)); }"
+    },
+    {
+      "selector": ":root .has-purple-crush-gradient-background",
+      "cssText": ":root .has-purple-crush-gradient-background { background: linear-gradient(135deg, rgb(52, 226, 228), rgb(71, 33, 251) 50%, rgb(171, 29, 254)); }"
+    },
+    {
+      "selector": ":root .has-hazy-dawn-gradient-background",
+      "cssText": ":root .has-hazy-dawn-gradient-background { background: linear-gradient(135deg, rgb(250, 172, 168), rgb(218, 208, 236)); }"
+    },
+    {
+      "selector": ":root .has-subdued-olive-gradient-background",
+      "cssText": ":root .has-subdued-olive-gradient-background { background: linear-gradient(135deg, rgb(250, 250, 225), rgb(103, 166, 113)); }"
+    },
+    {
+      "selector": ":root .has-atomic-cream-gradient-background",
+      "cssText": ":root .has-atomic-cream-gradient-background { background: linear-gradient(135deg, rgb(253, 215, 154), rgb(0, 74, 89)); }"
+    },
+    {
+      "selector": ":root .has-nightshade-gradient-background",
+      "cssText": ":root .has-nightshade-gradient-background { background: linear-gradient(135deg, rgb(51, 9, 104), rgb(49, 205, 207)); }"
+    },
+    {
+      "selector": ":root .has-midnight-gradient-background",
+      "cssText": ":root .has-midnight-gradient-background { background: linear-gradient(135deg, rgb(2, 3, 129), rgb(40, 116, 252)); }"
+    },
+    {
+      "selector": ":root",
+      "cssText": ":root { --wp--preset--aspect-ratio--square: 1; --wp--preset--aspect-ratio--4-3: 4/3; --wp--preset--aspect-ratio--3-4: 3/4; --wp--preset--aspect-ratio--3-2: 3/2; --wp--preset--aspect-ratio--2-3: 2/3; --wp--preset--aspect-ratio--16-9: 16/9; --wp--preset--aspect-ratio--9-16: 9/16; --wp--preset--color--black: #000000; --wp--preset--color--cyan-bluish-gray: #abb8c3; --wp--preset--color--white: #ffffff; --wp--preset--color--pale-pink: #f78da7; --wp--preset--color--vivid-red: #cf2e2e; --wp--preset--col"
+    },
+    {
+      "selector": ".has-vivid-cyan-blue-to-vivid-purple-gradient-background",
+      "cssText": ".has-vivid-cyan-blue-to-vivid-purple-gradient-background { background: var(--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple) !important; }"
+    },
+    {
+      "selector": ".has-light-green-cyan-to-vivid-green-cyan-gradient-background",
+      "cssText": ".has-light-green-cyan-to-vivid-green-cyan-gradient-background { background: var(--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan) !important; }"
+    },
+    {
+      "selector": ".has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background",
+      "cssText": ".has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background { background: var(--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange) !important; }"
+    },
+    {
+      "selector": ".has-luminous-vivid-orange-to-vivid-red-gradient-background",
+      "cssText": ".has-luminous-vivid-orange-to-vivid-red-gradient-background { background: var(--wp--preset--gradient--luminous-vivid-orange-to-vivid-red) !important; }"
+    },
+    {
+      "selector": ".has-very-light-gray-to-cyan-bluish-gray-gradient-background",
+      "cssText": ".has-very-light-gray-to-cyan-bluish-gray-gradient-background { background: var(--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray) !important; }"
+    },
+    {
+      "selector": ".has-cool-to-warm-spectrum-gradient-background",
+      "cssText": ".has-cool-to-warm-spectrum-gradient-background { background: var(--wp--preset--gradient--cool-to-warm-spectrum) !important; }"
+    },
+    {
+      "selector": ".has-blush-light-purple-gradient-background",
+      "cssText": ".has-blush-light-purple-gradient-background { background: var(--wp--preset--gradient--blush-light-purple) !important; }"
+    },
+    {
+      "selector": ".has-blush-bordeaux-gradient-background",
+      "cssText": ".has-blush-bordeaux-gradient-background { background: var(--wp--preset--gradient--blush-bordeaux) !important; }"
+    },
+    {
+      "selector": ".has-luminous-dusk-gradient-background",
+      "cssText": ".has-luminous-dusk-gradient-background { background: var(--wp--preset--gradient--luminous-dusk) !important; }"
+    },
+    {
+      "selector": ".has-pale-ocean-gradient-background",
+      "cssText": ".has-pale-ocean-gradient-background { background: var(--wp--preset--gradient--pale-ocean) !important; }"
+    },
+    {
+      "selector": ".has-electric-grass-gradient-background",
+      "cssText": ".has-electric-grass-gradient-background { background: var(--wp--preset--gradient--electric-grass) !important; }"
+    },
+    {
+      "selector": ".has-midnight-gradient-background",
+      "cssText": ".has-midnight-gradient-background { background: var(--wp--preset--gradient--midnight) !important; }"
+    },
+    {
+      "selector": ".wpcf7-spinner::before",
+      "cssText": ".wpcf7-spinner::before { content: \"\"; position: absolute; background-color: rgb(251, 251, 252); top: 4px; left: 4px; width: 6px; height: 6px; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; border-radius: 100%; transform-origin: 8px 8px; animation-name: spin; animation-duration: 1000ms; animation-timing-function: linear; animation-iteration-count: infinite; }"
+    },
+    {
+      "name": "spin",
+      "cssText": "@keyframes spin { \n  0% { transform: rotate(0deg); }\n  100% { transform: rotate(360deg); }\n}"
+    },
+    {
+      "name": "blink",
+      "cssText": "@keyframes blink { \n  0% { opacity: 0; }\n  50% { opacity: 1; }\n  100% { opacity: 0; }\n}"
+    },
+    {
+      "selector": ".fa-spin",
+      "cssText": ".fa-spin { animation: 2s linear 0s infinite normal none running fa-spin; }"
+    },
+    {
+      "selector": ".fa-pulse",
+      "cssText": ".fa-pulse { animation: 1s steps(8) 0s infinite normal none running fa-spin; }"
+    },
+    {
+      "name": "fa-spin",
+      "cssText": "@-webkit-keyframes fa-spin { \n  0% { transform: rotate(0deg); }\n  100% { transform: rotate(360deg); }\n}"
+    },
+    {
+      "name": "fa-spin",
+      "cssText": "@keyframes fa-spin { \n  0% { transform: rotate(0deg); }\n  100% { transform: rotate(360deg); }\n}"
+    },
+    {
+      "selector": ":root, [data-bs-theme=\"light\"]",
+      "cssText": ":root, [data-bs-theme=\"light\"] { --bs-blue: #0d6efd; --bs-indigo: #6610f2; --bs-purple: #6f42c1; --bs-pink: #d63384; --bs-red: #dc3545; --bs-orange: #fd7e14; --bs-yellow: #ffc107; --bs-green: #198754; --bs-teal: #20c997; --bs-cyan: #0dcaf0; --bs-black: #000; --bs-white: #fff; --bs-gray: #6c757d; --bs-gray-dark: #343a40; --bs-gray-100: #f8f9fa; --bs-gray-200: #e9ecef; --bs-gray-300: #dee2e6; --bs-gray-400: #ced4da; --bs-gray-500: #adb5bd; --bs-gray-600: #6c757d; --bs-gray-700: #495057; --bs-gray-"
+    },
+    {
+      "selector": ".form-control",
+      "cssText": ".form-control { display: block; width: 100%; padding: 0.375rem 0.75rem; font-size: 1rem; font-weight: 400; line-height: 1.5; color: var(--bs-body-color); appearance: none; background-color: var(--bs-body-bg); background-clip: padding-box; border: var(--bs-border-width) solid var(--bs-border-color); border-radius: var(--bs-border-radius); transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }"
+    },
+    {
+      "selector": ".btn-outline-primary",
+      "cssText": ".btn-outline-primary { --bs-btn-color: #0d6efd; --bs-btn-border-color: #0d6efd; --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #0d6efd; --bs-btn-hover-border-color: #0d6efd; --bs-btn-focus-shadow-rgb: 13,110,253; --bs-btn-active-color: #fff; --bs-btn-active-bg: #0d6efd; --bs-btn-active-border-color: #0d6efd; --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); --bs-btn-disabled-color: #0d6efd; --bs-btn-disabled-bg: transparent; --bs-btn-disabled-border-color: #0d6efd; --bs-gradient: non"
+    },
+    {
+      "selector": ".btn-outline-secondary",
+      "cssText": ".btn-outline-secondary { --bs-btn-color: #6c757d; --bs-btn-border-color: #6c757d; --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #6c757d; --bs-btn-hover-border-color: #6c757d; --bs-btn-focus-shadow-rgb: 108,117,125; --bs-btn-active-color: #fff; --bs-btn-active-bg: #6c757d; --bs-btn-active-border-color: #6c757d; --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); --bs-btn-disabled-color: #6c757d; --bs-btn-disabled-bg: transparent; --bs-btn-disabled-border-color: #6c757d; --bs-gradient: "
+    },
+    {
+      "selector": ".btn-outline-success",
+      "cssText": ".btn-outline-success { --bs-btn-color: #198754; --bs-btn-border-color: #198754; --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #198754; --bs-btn-hover-border-color: #198754; --bs-btn-focus-shadow-rgb: 25,135,84; --bs-btn-active-color: #fff; --bs-btn-active-bg: #198754; --bs-btn-active-border-color: #198754; --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); --bs-btn-disabled-color: #198754; --bs-btn-disabled-bg: transparent; --bs-btn-disabled-border-color: #198754; --bs-gradient: none"
+    },
+    {
+      "selector": ".btn-outline-info",
+      "cssText": ".btn-outline-info { --bs-btn-color: #0dcaf0; --bs-btn-border-color: #0dcaf0; --bs-btn-hover-color: #000; --bs-btn-hover-bg: #0dcaf0; --bs-btn-hover-border-color: #0dcaf0; --bs-btn-focus-shadow-rgb: 13,202,240; --bs-btn-active-color: #000; --bs-btn-active-bg: #0dcaf0; --bs-btn-active-border-color: #0dcaf0; --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); --bs-btn-disabled-color: #0dcaf0; --bs-btn-disabled-bg: transparent; --bs-btn-disabled-border-color: #0dcaf0; --bs-gradient: none; "
+    },
+    {
+      "selector": ".btn-outline-warning",
+      "cssText": ".btn-outline-warning { --bs-btn-color: #ffc107; --bs-btn-border-color: #ffc107; --bs-btn-hover-color: #000; --bs-btn-hover-bg: #ffc107; --bs-btn-hover-border-color: #ffc107; --bs-btn-focus-shadow-rgb: 255,193,7; --bs-btn-active-color: #000; --bs-btn-active-bg: #ffc107; --bs-btn-active-border-color: #ffc107; --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); --bs-btn-disabled-color: #ffc107; --bs-btn-disabled-bg: transparent; --bs-btn-disabled-border-color: #ffc107; --bs-gradient: none"
+    },
+    {
+      "selector": ".btn-outline-danger",
+      "cssText": ".btn-outline-danger { --bs-btn-color: #dc3545; --bs-btn-border-color: #dc3545; --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #dc3545; --bs-btn-hover-border-color: #dc3545; --bs-btn-focus-shadow-rgb: 220,53,69; --bs-btn-active-color: #fff; --bs-btn-active-bg: #dc3545; --bs-btn-active-border-color: #dc3545; --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); --bs-btn-disabled-color: #dc3545; --bs-btn-disabled-bg: transparent; --bs-btn-disabled-border-color: #dc3545; --bs-gradient: none;"
+    },
+    {
+      "selector": ".btn-outline-light",
+      "cssText": ".btn-outline-light { --bs-btn-color: #f8f9fa; --bs-btn-border-color: #f8f9fa; --bs-btn-hover-color: #000; --bs-btn-hover-bg: #f8f9fa; --bs-btn-hover-border-color: #f8f9fa; --bs-btn-focus-shadow-rgb: 248,249,250; --bs-btn-active-color: #000; --bs-btn-active-bg: #f8f9fa; --bs-btn-active-border-color: #f8f9fa; --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); --bs-btn-disabled-color: #f8f9fa; --bs-btn-disabled-bg: transparent; --bs-btn-disabled-border-color: #f8f9fa; --bs-gradient: none"
+    },
+    {
+      "selector": ".btn-outline-dark",
+      "cssText": ".btn-outline-dark { --bs-btn-color: #212529; --bs-btn-border-color: #212529; --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #212529; --bs-btn-hover-border-color: #212529; --bs-btn-focus-shadow-rgb: 33,37,41; --bs-btn-active-color: #fff; --bs-btn-active-bg: #212529; --bs-btn-active-border-color: #212529; --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); --bs-btn-disabled-color: #212529; --bs-btn-disabled-bg: transparent; --bs-btn-disabled-border-color: #212529; --bs-gradient: none; }"
+    },
+    {
+      "selector": ".dropdown-menu",
+      "cssText": ".dropdown-menu { --bs-dropdown-zindex: 1000; --bs-dropdown-min-width: 10rem; --bs-dropdown-padding-x: 0; --bs-dropdown-padding-y: 0.5rem; --bs-dropdown-spacer: 0.125rem; --bs-dropdown-font-size: 1rem; --bs-dropdown-color: var(--bs-body-color); --bs-dropdown-bg: var(--bs-body-bg); --bs-dropdown-border-color: var(--bs-border-color-translucent); --bs-dropdown-border-radius: var(--bs-border-radius); --bs-dropdown-border-width: var(--bs-border-width); --bs-dropdown-inner-border-radius: calc(var(--bs-"
+    },
+    {
+      "selector": ".card",
+      "cssText": ".card { --bs-card-spacer-y: 1rem; --bs-card-spacer-x: 1rem; --bs-card-title-spacer-y: 0.5rem; --bs-card-title-color: ; --bs-card-subtitle-color: ; --bs-card-border-width: var(--bs-border-width); --bs-card-border-color: var(--bs-border-color-translucent); --bs-card-border-radius: var(--bs-border-radius); --bs-card-box-shadow: ; --bs-card-inner-border-radius: calc(var(--bs-border-radius) - (var(--bs-border-width))); --bs-card-cap-padding-y: 0.5rem; --bs-card-cap-padding-x: 1rem; --bs-card-cap-bg: "
+    },
+    {
+      "name": "progress-bar-stripes",
+      "cssText": "@keyframes progress-bar-stripes { \n  0% { background-position-x: 1rem; }\n}"
+    },
+    {
+      "selector": ".progress-bar-striped",
+      "cssText": ".progress-bar-striped { background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent); background-size: var(--bs-progress-height) var(--bs-progress-height); }"
+    },
+    {
+      "selector": ".progress-bar-animated",
+      "cssText": ".progress-bar-animated { animation: 1s linear 0s infinite normal none running progress-bar-stripes; }"
+    },
+    {
+      "selector": ".toast",
+      "cssText": ".toast { --bs-toast-zindex: 1090; --bs-toast-padding-x: 0.75rem; --bs-toast-padding-y: 0.5rem; --bs-toast-spacing: 1.5rem; --bs-toast-max-width: 350px; --bs-toast-font-size: 0.875rem; --bs-toast-color: ; --bs-toast-bg: rgba(var(--bs-body-bg-rgb), 0.85); --bs-toast-border-width: var(--bs-border-width); --bs-toast-border-color: var(--bs-border-color-translucent); --bs-toast-border-radius: var(--bs-border-radius); --bs-toast-box-shadow: var(--bs-box-shadow); --bs-toast-header-color: var(--bs-second"
+    },
+    {
+      "selector": ".toast-header",
+      "cssText": ".toast-header { display: flex; align-items: center; padding: var(--bs-toast-padding-y) var(--bs-toast-padding-x); color: var(--bs-toast-header-color); background-color: var(--bs-toast-header-bg); background-clip: padding-box; border-bottom: var(--bs-toast-border-width) solid var(--bs-toast-header-border-color); border-top-left-radius: calc(var(--bs-toast-border-radius) - var(--bs-toast-border-width)); border-top-right-radius: calc(var(--bs-toast-border-radius) - var(--bs-toast-border-width)); }"
+    },
+    {
+      "selector": ".modal-content",
+      "cssText": ".modal-content { position: relative; display: flex; flex-direction: column; width: 100%; color: var(--bs-modal-color); pointer-events: auto; background-color: var(--bs-modal-bg); background-clip: padding-box; border: var(--bs-modal-border-width) solid var(--bs-modal-border-color); border-radius: var(--bs-modal-border-radius); outline: 0px; }"
+    },
+    {
+      "selector": ".popover",
+      "cssText": ".popover { --bs-popover-zindex: 1070; --bs-popover-max-width: 276px; --bs-popover-font-size: 0.875rem; --bs-popover-bg: var(--bs-body-bg); --bs-popover-border-width: var(--bs-border-width); --bs-popover-border-color: var(--bs-border-color-translucent); --bs-popover-border-radius: var(--bs-border-radius-lg); --bs-popover-inner-border-radius: calc(var(--bs-border-radius-lg) - var(--bs-border-width)); --bs-popover-box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); --bs-popover-header-padding-x: 1rem; -"
+    },
+    {
+      "selector": ".carousel-indicators [data-bs-target]",
+      "cssText": ".carousel-indicators [data-bs-target] { box-sizing: content-box; flex: 0 1 auto; width: 30px; height: 3px; padding: 0px; margin-right: 3px; margin-left: 3px; text-indent: -999px; cursor: pointer; background-color: rgb(255, 255, 255); background-clip: padding-box; border-width: 10px 0px; border-style: solid none; border-color: transparent currentcolor; border-image: initial; opacity: 0.5; transition: opacity 0.6s; }"
+    },
+    {
+      "selector": ".spinner-border, .spinner-grow",
+      "cssText": ".spinner-border, .spinner-grow { display: inline-block; width: var(--bs-spinner-width); height: var(--bs-spinner-height); vertical-align: var(--bs-spinner-vertical-align); border-radius: 50%; animation: var(--bs-spinner-animation-speed) linear infinite var(--bs-spinner-animation-name); }"
+    },
+    {
+      "name": "spinner-border",
+      "cssText": "@keyframes spinner-border { \n  100% { transform: rotate(360deg); }\n}"
+    },
+    {
+      "selector": ".spinner-border",
+      "cssText": ".spinner-border { --bs-spinner-width: 2rem; --bs-spinner-height: 2rem; --bs-spinner-vertical-align: -0.125em; --bs-spinner-border-width: 0.25em; --bs-spinner-animation-speed: 0.75s; --bs-spinner-animation-name: spinner-border; border-top-color: ; border-top-style: ; border-top-width: ; border-right-style: ; border-right-width: ; border-bottom-color: ; border-bottom-style: ; border-bottom-width: ; border-left-color: ; border-left-style: ; border-left-width: ; border-image-source: ; border-image-s"
+    },
+    {
+      "name": "spinner-grow",
+      "cssText": "@keyframes spinner-grow { \n  0% { transform: scale(0); }\n  50% { opacity: 1; transform: none; }\n}"
+    },
+    {
+      "selector": ".spinner-grow",
+      "cssText": ".spinner-grow { --bs-spinner-width: 2rem; --bs-spinner-height: 2rem; --bs-spinner-vertical-align: -0.125em; --bs-spinner-animation-speed: 0.75s; --bs-spinner-animation-name: spinner-grow; background-color: currentcolor; opacity: 0; }"
+    },
+    {
+      "selector": ".offcanvas",
+      "cssText": ".offcanvas { position: fixed; bottom: 0px; z-index: var(--bs-offcanvas-zindex); display: flex; flex-direction: column; max-width: 100%; color: var(--bs-offcanvas-color); visibility: hidden; background-color: var(--bs-offcanvas-bg); background-clip: padding-box; outline: 0px; transition: var(--bs-offcanvas-transition); }"
+    }
+  ],
+  "sections": [
+    {
+      "tag": "div",
+      "classes": " osano-cm-info__info-dialog-header osano-cm-info-dialog-header ",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "linear-gradient(rgb(255, 255, 255) 40px, rgba(255, 255, 255, 0) 100%)",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    },
+    {
+      "tag": "p",
+      "classes": " osano-cm-info-dialog-header__header osano-cm-header ",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "linear-gradient(rgb(255, 255, 255) 40px, rgba(255, 255, 255, 0) 100%)",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    },
+    {
+      "tag": "header",
+      "classes": "navbar navbar-expand-xl rightrev-navbar header-white",
+      "backgroundColor": "rgba(22, 66, 52, 0.95)",
+      "backgroundImage": "none",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    },
+    {
+      "tag": "section",
+      "classes": "block-hero bg-primary-green-medium bg-pattern block_HR001  block-lottie",
+      "backgroundColor": "rgb(22, 66, 52)",
+      "backgroundImage": "none",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    },
+    {
+      "tag": "section",
+      "classes": "section-content block_LOG001 bg-primary-green-medium   pt-0 ",
+      "backgroundColor": "rgb(22, 66, 52)",
+      "backgroundImage": "none",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    },
+    {
+      "tag": "section",
+      "classes": "section-content block_AB001  section-bg-default section-cards-no-border ",
+      "backgroundColor": "rgb(22, 66, 52)",
+      "backgroundImage": "none",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    },
+    {
+      "tag": "section",
+      "classes": "section-content block_AB001  section-bg-green  ",
+      "backgroundColor": "rgb(22, 66, 52)",
+      "backgroundImage": "none",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    },
+    {
+      "tag": "section",
+      "classes": "section-content block_TXT001 section-bg-green-light  chevron-visible",
+      "backgroundColor": "rgb(240, 255, 238)",
+      "backgroundImage": "none",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    },
+    {
+      "tag": "section",
+      "classes": "section-content block_AB003  section-cards-no-border section-bg-green ",
+      "backgroundColor": "rgb(22, 66, 52)",
+      "backgroundImage": "none",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    },
+    {
+      "tag": "section",
+      "classes": "section-content block_SL001 section-bg-default ",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "backgroundImage": "none",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    },
+    {
+      "tag": "section",
+      "classes": "section-content block_PF001 bg-pattern ",
+      "backgroundColor": "rgb(22, 66, 52)",
+      "backgroundImage": "none",
+      "backgroundSize": "auto",
+      "backgroundPosition": "0% 0%"
+    }
+  ],
+  "svgBackgrounds": [
+    {
+      "classes": "[object SVGAnimatedString]",
+      "viewBox": "0 0 20 20",
+      "width": "20px",
+      "height": "20px",
+      "position": "static",
+      "innerHTML": " <title id=\"06b2d161-5d44-48d8-9aca-e3c0eb3ad336\"><!---->Close this dialog<!----></title> <line role=\"presentation\" x1=\"2\" y1=\"2\" x2=\"18\" y2=\"18\"></line> <line role=\"presentation\" x1=\"2\" y1=\"18\" x2=\"18\" y2=\"2\"></line> ",
+      "parentClasses": " osano-cm-dialog__close osano-cm-close ",
+      "parentBg": "none"
+    },
+    {
+      "classes": "[object SVGAnimatedString]",
+      "viewBox": "0 0 71.85 72.23",
+      "width": "40px",
+      "height": "40px",
+      "position": "static",
+      "innerHTML": " <path d=\"m67.6 36.73a6.26 6.26 0 0 1 -3.2-2.8 5.86 5.86 0 0 0 -5.2-3.1h-.3a11 11 0 0 1 -11.4-9.5 6 6 0 0 1 -.1-1.4 9.2 9.2 0 0 1 .4-2.9 8.65 8.65 0 0 0 .2-1.6 5.38 5.38 0 0 0 -1.9-4.3 7.3 7.3 0 0 1 -2.5-5.5 3.91 3.91 0 0 0 -3.5-3.9 36.46 36.46 0 0 0 -15 1.5 33.14 33.14 0 0 0 -22.1 22.7 35.62 35.62 0 0 0 -1.5 10.2 34.07 34.07 0 0 0 4.8 17.6.75.75 0 0 0 .07.12c.11.17 1.22 1.39 2.68 3-.36.47 5.18 6.16 5.65 6.52a34.62 34.62 0 0 0 55.6-21.9 4.38 4.38 0 0 0 -2.7-4.74z\" stroke-width=\"3\" class=\" osano-",
+      "parentClasses": "osano-cm-window__widget osano-cm-widget osano-cm-widget--position_right",
+      "parentBg": "none"
+    },
+    {
+      "classes": "[object SVGAnimatedString]",
+      "viewBox": "0 0 20 20",
+      "width": "20px",
+      "height": "20px",
+      "position": "static",
+      "innerHTML": " <title id=\"cf218ef2-a95f-4af3-ba9b-d768fc82e531\"><!---->Close Cookie Preferences<!----></title> <line role=\"presentation\" x1=\"2\" y1=\"2\" x2=\"18\" y2=\"18\"></line> <line role=\"presentation\" x1=\"2\" y1=\"18\" x2=\"18\" y2=\"2\"></line> ",
+      "parentClasses": " osano-cm-info-dialog-header__close osano-cm-close ",
+      "parentBg": "none"
+    },
+    {
+      "classes": "[object SVGAnimatedString]",
+      "viewBox": "0 0 30 30",
+      "width": "100%",
+      "height": "30px",
+      "position": "static",
+      "innerHTML": "\n                <rect x=\"3\" y=\"7\" width=\"24\" height=\"2\" fill=\"white\"></rect>\n                <rect x=\"3\" y=\"14\" width=\"24\" height=\"2\" fill=\"white\"></rect>\n                <rect x=\"3\" y=\"21\" width=\"24\" height=\"2\" fill=\"white\"></rect>\n            ",
+      "parentClasses": "navbar-toggler",
+      "parentBg": "none"
+    },
+    {
+      "classes": "[object SVGAnimatedString]",
+      "viewBox": "0 0 30 30",
+      "width": "30px",
+      "height": "30px",
+      "position": "static",
+      "innerHTML": "\n                <rect x=\"7.41418\" y=\"6\" width=\"24\" height=\"2\" transform=\"rotate(45 7.41418 6)\" fill=\"white\"></rect>\n                <rect x=\"24.5773\" y=\"7.41406\" width=\"24\" height=\"2\" transform=\"rotate(135 24.5773 7.41406)\" fill=\"white\"></rect>\n            ",
+      "parentClasses": "navbar-toggler",
+      "parentBg": "none"
+    },
+    {
+      "classes": "[object SVGAnimatedString]",
+      "viewBox": "0 0 29 29",
+      "width": "29px",
+      "height": "29px",
+      "position": "static",
+      "innerHTML": "\n\t\t\t\t\t\t\t\t\t\t<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M17.9582 9.49449L16.6163 9.49539C15.564 9.49539 15.36 9.99525 15.36 10.7286V12.3467H17.87L17.543 14.8816H15.36V21.3843H12.743V14.8816H10.5547V12.3467H12.743V10.4782C12.743 8.30854 14.068 7.12793 16.0024 7.12793C16.9291 7.12793 17.7257 7.19654 17.9582 7.22772V9.49449ZM14.2564 0C6.38331 0 0 6.38242 0 14.2564C0 22.1295 6.38331 28.5128 14.2564 28.5128C22.1304 28.5128 28.5128 22.1295 28.5128 14.2564C28.5128 6.38242 22.1304 0 14.2564 0Z\" fill",
+      "parentClasses": "",
+      "parentBg": "none"
+    },
+    {
+      "classes": "[object SVGAnimatedString]",
+      "viewBox": "0 0 29 29",
+      "width": "29px",
+      "height": "29px",
+      "position": "static",
+      "innerHTML": "\n\t\t\t\t\t\t\t\t\t\t<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M21.8716 21.3715H18.9178V16.7488C18.9178 15.6466 18.8982 14.229 17.3826 14.229C15.8456 14.229 15.6112 15.4301 15.6112 16.6704V21.3715H12.6602V11.866H15.4918V13.166H15.5328C15.9267 12.4184 16.8907 11.6299 18.328 11.6299C21.3191 11.6299 21.8716 13.5982 21.8716 16.1581V21.3715ZM9.32957 10.5675C8.38063 10.5675 7.61523 9.79945 7.61523 8.85407C7.61523 7.90869 8.38063 7.14062 9.32957 7.14062C10.2741 7.14062 11.0412 7.90869 11.0412 8.85407C11.0",
+      "parentClasses": "",
+      "parentBg": "none"
+    },
+    {
+      "classes": "[object SVGAnimatedString]",
+      "viewBox": "0 0 32 32",
+      "width": "29px",
+      "height": "29px",
+      "position": "static",
+      "innerHTML": "\n\t\t\t\t\t\t\t\t\t\t<g id=\"OUTLINE_copy_2\">\n\t\t\t\t\t\t\t\t\t\t\t<g>\n\t\t\t\t\t\t\t\t\t\t\t\t<g>\n\t\t\t\t\t\t\t\t\t\t\t\t\t<polygon points=\"13.83,19.259 19.262,16 13.83,12.741    \"></polygon>\n\t\t\t\t\t\t\t\t\t\t\t\t</g>\n\t\t\t\t\t\t\t\t\t\t\t\t<g>\n\t\t\t\t\t\t\t\t\t\t\t\t\t<path d=\"M16,0C7.164,0,0,7.163,0,16s7.164,16,16,16s16-7.164,16-16S24.836,0,16,0z M24.688,16.701c0,1.5-0.174,3-0.174,3     s-0.17,1.278-0.69,1.839c-0.661,0.738-1.401,0.742-1.741,0.786C19.651,22.512,16,22.518,16,22.518s-4.518-0.044-5.908-0.186     c-0.387-0.077-1.254-0.055-1.916-0.792c-0.521-0.562-0.69-1.83",
+      "parentClasses": "",
+      "parentBg": "none"
+    }
+  ]
+}

@@ -174,9 +174,9 @@ export function EmailVerification({ email, onVerified, onBack }: EmailVerificati
               )}
 
               {/* Submit Button */}
-              <Button 
-                type="submit" 
-                className="w-full h-12 bg-primary hover:bg-[#5db040] text-white font-semibold rounded-xl transition-all duration-200"
+              <Button
+                type="submit"
+                className="w-full h-12 bg-[#69C04B] hover:bg-[#69C04B]/90 text-white font-semibold rounded-xl transition-all duration-200"
                 disabled={isLoading || code.length !== 6}
               >
                 {isLoading ? (

@@ -122,7 +122,7 @@ export function LoginForm() {
         {/* Submit */}
         <Button
           type="submit"
-          className="w-full h-11 font-medium transition-all"
+          className="w-full h-11 font-medium transition-all bg-[#69C04B] hover:bg-[#69C04B]/90 text-white"
           disabled={f.isLoading || f.isVerifying}
         >
           {f.isLoading ? (
@@ -171,7 +171,7 @@ export function LoginForm() {
             {f.error && (
               <Alert variant="destructive"><AlertDescription>{f.error}</AlertDescription></Alert>
             )}
-            <Button onClick={f.handleSetNewPassword} className="w-full h-11" disabled={f.isSettingPassword || !f.newPassword || !f.confirmNewPassword}>
+            <Button onClick={f.handleSetNewPassword} className="w-full h-11 bg-[#69C04B] hover:bg-[#69C04B]/90 text-white" disabled={f.isSettingPassword || !f.newPassword || !f.confirmNewPassword}>
               {f.isSettingPassword ? (
                 <span className="flex items-center gap-2"><LoadingSpinner size="sm" />Setting password...</span>
               ) : (
@@ -214,7 +214,7 @@ export function LoginForm() {
                 <AlertDescription className="text-destructive">{f.mfaError}</AlertDescription>
               </Alert>
             )}
-            <Button onClick={f.handleVerifyMfa} className="w-full h-11 bg-[#4a9a32] hover:bg-[#3f8829] text-white" disabled={f.mfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
+            <Button onClick={f.handleVerifyMfa} className="w-full h-11 bg-[#69C04B] hover:bg-[#69C04B]/90 text-white" disabled={f.mfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
               {f.isVerifyingMfa ? (
                 <span className="flex items-center gap-2"><LoadingSpinner size="sm" />Verifying...</span>
               ) : f.isVerifying ? (
@@ -276,7 +276,7 @@ export function LoginForm() {
                   </div>
                 )}
 
-                <Button onClick={() => f.setMfaSetupStep('verify')} className="w-full h-11">I&apos;ve scanned the QR code</Button>
+                <Button onClick={() => f.setMfaSetupStep('verify')} className="w-full h-11 bg-[#69C04B] hover:bg-[#69C04B]/90 text-white">I&apos;ve scanned the QR code</Button>
               </>
             )}
 
@@ -301,7 +301,7 @@ export function LoginForm() {
 
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => f.setMfaSetupStep('qr')} className="flex-1 h-11" disabled={f.isVerifyingMfa || f.isVerifying}>Back</Button>
-                  <Button onClick={f.handleVerifySetupMfa} className="flex-1 h-11" disabled={f.setupMfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
+                  <Button onClick={f.handleVerifySetupMfa} className="flex-1 h-11 bg-[#69C04B] hover:bg-[#69C04B]/90 text-white" disabled={f.setupMfaCode.length !== 6 || f.isVerifyingMfa || f.isVerifying}>
                     {f.isVerifyingMfa ? (
                       <span className="flex items-center gap-2"><LoadingSpinner size="sm" />Verifying...</span>
                     ) : f.isVerifying ? (

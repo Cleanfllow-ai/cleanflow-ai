@@ -553,7 +553,7 @@ export function SignUpForm() {
           )}
           <Button
             type="submit"
-            className="flex-1 h-11 font-medium transition-all"
+            className="flex-1 h-11 font-medium transition-all bg-[#69C04B] hover:bg-[#69C04B]/90 text-white"
             disabled={isLoading || (step === 1 && !isStep1Valid)}
           >
             {isLoading

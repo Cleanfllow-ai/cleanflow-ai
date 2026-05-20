@@ -1,0 +1,101 @@
+transaction_id,customer_name,amount,currency_code,region
+TXN-001,Alice Hartman,1250.00,USD,North America
+TXN-002,Bruno Ferreira,890.50,EUR,Europe
+TXN-003,Clara Stevens,430.00,GBP,Europe
+TXN-004,David Kim,2100.75,CAD,North America
+TXN-005,Emily Zhao,560.00,USD,Asia Pacific
+TXN-006,Frank Müller,1340.90,EUR,Europe
+TXN-007,Grace Okonkwo,780.00,GBP,Europe
+TXN-008,Henry Lawson,3200.00,CAD,North America
+TXN-009,Isabella Costa,450.25,USD,Latin America
+TXN-010,James Whitfield,670.00,EUR,Europe
+TXN-011,Karen Nguyen,1890.00,USD,Asia Pacific
+TXN-012,Liam Patel,310.50,GBP,Europe
+TXN-013,Mia Johansson,2450.00,EUR,Europe
+TXN-014,Nathan Brooks,990.00,USD,North America
+TXN-015,Olivia Dupont,1120.75,EUR,Europe
+TXN-016,Patrick O'Brien,540.00,GBP,Europe
+TXN-017,Quinn Torres,760.00,CAD,North America
+TXN-018,Rachel Singh,1800.00,USD,Asia Pacific
+TXN-019,Samuel Weber,650.00,EUR,Europe
+TXN-020,Tina Nakamura,2300.00,XYZ,Asia Pacific
+TXN-021,Uma Sharma,410.00,USD,Asia Pacific
+TXN-022,Victor Blanc,1050.00,EUR,Europe
+TXN-023,Wendy Castillo,880.00,USD,Latin America
+TXN-024,Xander Voss,2750.00,ABC,Europe
+TXN-025,Yara Mensah,920.00,GBP,Africa
+TXN-026,Zoe Bellamy,1460.00,USD,North America
+TXN-027,Aaron Chen,370.50,CAD,North America
+TXN-028,Beatrice Moreau,1580.00,EUR,Europe
+TXN-029,Carlos Reyes,690.00,USD,Latin America
+TXN-030,Diana Fischer,2200.00,ZZZ,Europe
+TXN-031,Ethan Clarke,830.00,GBP,Europe
+TXN-032,Fatima Al-Hassan,1100.00,USD,Middle East
+TXN-033,George Papadopoulos,475.00,EUR,Europe
+TXN-034,Hannah Wright,1350.00,CAD,North America
+TXN-035,Ivan Petrov,610.00,EUR,Europe
+TXN-036,Julia Andersen,990.00,INR,Asia Pacific
+TXN-037,Kevin Soto,1720.00,USD,Latin America
+TXN-038,Laura Hoffman,840.00,GBP,Europe
+TXN-039,Marco Ricci,2050.00,EUR,Europe
+TXN-040,Nina Oduya,700.00,USD,Africa
+TXN-041,Oscar Lindqvist,1430.00,SEK,Europe
+TXN-042,Paula Vargas,550.00,USD,Latin America
+TXN-043,Raj Krishnamurthy,1960.00,CAD,North America
+TXN-044,Sofia Esposito,890.00,EUR,Europe
+TXN-045,Thomas Becker,1280.00,GBP,Europe
+TXN-046,Ursula Schmitt,JPY,EUR,Europe
+TXN-047,Valentina Cruz,1640.00,USD,Latin America
+TXN-048,William Nkrumah,920.50,GBP,Africa
+TXN-049,Xiomara Flores,310.00,MXN,Latin America
+TXN-050,Yusuf Ibrahim,1850.00,USD,Middle East
+TXN-051,Zara Quinn,730.00,EUR,Europe
+TXN-052,Albert Rousseau,2400.00,EUR,Europe
+TXN-053,Brigitte Tanaka,1070.00,USD,Asia Pacific
+TXN-054,Christopher Nwachukwu,460.00,GBP,Africa
+TXN-055,Daniela Herrera,1590.00,USD,Latin America
+TXN-056,Edward Mackenzie,870.00,CAD,North America
+TXN-057,Felicia Park,2130.00,USD,Asia Pacific
+TXN-058,Gerhard Braun,950.00,EUR,Europe
+TXN-059,Hina Watanabe,1410.00,XYZ,Asia Pacific
+TXN-060,Igor Sokolov,780.00,EUR,Europe
+TXN-061,Jana Novák,620.00,EUR,Europe
+TXN-062,Kwame Asante,1750.00,GBP,Africa
+TXN-063,Leila Hosseini,990.00,USD,Middle East
+TXN-064,Marcelo Alves,540.00,USD,Latin America
+TXN-065,Nadia Volkov,2080.00,EUR,Europe
+TXN-066,Oluwaseun Adeleke,1300.00,GBP,Africa
+TXN-067,Pierre Lefebvre,860.00,EUR,Europe
+TXN-068,Qing Li,1470.00,ABC,Asia Pacific
+TXN-069,Rania Khalil,700.00,USD,Middle East
+TXN-070,Stefan Kovalev,1130.00,EUR,Europe
+TXN-071,Tamara Visser,960.00,EUR,Europe
+TXN-072,Ugo Marchetti,1650.00,EUR,Europe
+TXN-073,Vera Steinberg,810.00,GBP,Europe
+TXN-074,Werner Köhler,2350.00,EUR,Europe
+TXN-075,Xiu Zhang,580.00,ZZZ,Asia Pacific
+TXN-076,Yasmin Osei,1190.00,USD,Africa
+TXN-077,Zbigniew Kowalski,740.00,EUR,Europe
+TXN-078,Amelia Ford,1900.00,USD,North America
+TXN-079,Benjamin Adesanya,640.00,GBP,Africa
+TXN-080,Camille Bertrand,1040.00,EUR,Europe
+TXN-081,Dominic Russo,2600.00,USD,North America
+TXN-082,Elena Vasquez,910.00,USD,Latin America
+TXN-083,Florian Maier,1260.00,EUR,Europe
+TXN-084,Giselle Laurent,MXN,EUR,Europe
+TXN-085,Hamid Rahimi,830.00,USD,Middle East
+TXN-086,Ingrid Bergström,1520.00,EUR,Europe
+TXN-087,Jacques Fontaine,990.00,EUR,Europe
+TXN-088,Katarina Eriksson,1380.00,GBP,Europe
+TXN-089,Lorenzo Bianchi,720.00,EUR,Europe
+TXN-090,Miriam Okafor,INR,GBP,Africa
+TXN-091,Nikolas Papadimitriou,1650.00,EUR,Europe
+TXN-092,Olga Kozlov,870.00,EUR,Europe
+TXN-093,Paulo Salave'a,1490.00,USD,Asia Pacific
+TXN-094,Quincy Adebayo,610.00,GBP,Africa
+TXN-095,Rosa Mendez,2050.00,USD,Latin America
+TXN-096,Sven Lindberg,1140.00,EUR,Europe
+TXN-097,Thabo Dlamini,780.00,GBP,Africa
+TXN-098,Ulrike Hoffmann,1360.00,EUR,Europe
+TXN-099,Vincent Okonkwo,940.00,USD,Africa
+TXN-100,Wanda Kowalczyk,1710.00,USD,North America
