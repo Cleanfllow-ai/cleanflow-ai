@@ -214,7 +214,7 @@ export default function ConnectorCallbackPage() {
           } else {
             // Same-tab redirect (no opener) — navigate back to the
             // connectors hub instead of closing the entire app tab.
-            window.location.replace("/admin/connectors")
+            window.location.replace("/connectors")
           }
         } else {
           setCountdown(remaining)
