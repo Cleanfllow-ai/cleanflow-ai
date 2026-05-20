@@ -936,49 +936,35 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                {/* Export — icon button (a11y target + compact viewports) */}
+                                                {/* Export — single button (icon + label), opens dialog with Download CSV / Parquet / Push to ERP options */}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className={cn("h-10 w-10", isProcessed ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground/40 cursor-not-allowed")}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className={cn(
+                                                                "h-9 gap-1.5 px-3 text-xs",
+                                                                isProcessed
+                                                                    ? "border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                                                                    : "text-muted-foreground/40 cursor-not-allowed"
+                                                            )}
                                                             disabled={!isProcessed || downloading === file.upload_id}
                                                             onClick={() => isProcessed && openActionsDialog(file)}
                                                             aria-label={isProcessed ? "Export file" : "Export available after processing"}
+                                                            data-testid="export-button"
                                                         >
                                                             {downloading === file.upload_id ? (
-                                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                             ) : (
-                                                                <Upload className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                                <Upload className="h-3.5 w-3.5" />
                                                             )}
+                                                            Export
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>{isProcessed ? "Export" : "Available after processing"}</TooltipContent>
+                                                    <TooltipContent>
+                                                        {isProcessed ? "Download CSV/Parquet or push to ERP" : "Available after processing"}
+                                                    </TooltipContent>
                                                 </Tooltip>
-                                                {/* Export — visible "Download" text button (Bug 1 fix: discoverability).
-                                                    Same handler as the icon button above. Hidden on narrow screens to avoid row overflow;
-                                                    icon button remains tappable on mobile. aria-hidden because the icon button already
-                                                    exposes the action to screen readers — this is purely visual reinforcement. */}
-                                                {isProcessed && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="hidden md:inline-flex h-8 gap-1.5 px-2.5 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
-                                                        disabled={downloading === file.upload_id}
-                                                        onClick={() => openActionsDialog(file)}
-                                                        data-testid="export-download-text-button"
-                                                        aria-hidden="true"
-                                                        tabIndex={-1}
-                                                    >
-                                                        {downloading === file.upload_id ? (
-                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                        ) : (
-                                                            <Upload className="h-3.5 w-3.5" />
-                                                        )}
-                                                        Download
-                                                    </Button>
-                                                )}
                                                 {/* Delete (terminal states only) */}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
