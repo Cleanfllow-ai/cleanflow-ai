@@ -31,6 +31,18 @@ export interface ConnectionStatus {
   status?: string
   connection?: Record<string, unknown>
   post_auth_config?: PostAuthConfigField[]
+  /**
+   * Salesforce-specific (and other future BYO-OAuth providers): which auth
+   * variant was used to create this connection. Lets the UI offer a
+   * Manage / Reconnect path that pre-fills the right form fields.
+   */
+  oauth_mode?: "byo" | "shared"
+  /**
+   * Set by the backend when the stored refresh token has been revoked or the
+   * Connected App credentials were rotated server-side. UI surfaces a red
+   * "Reconnect required" banner and reopens the setup modal.
+   */
+  needs_reconnect?: boolean
 }
 
 export interface ProviderInfo {

@@ -31,3 +31,16 @@ export type {
   StorageFoldersResponse,
   StorageImportResponse,
 } from "./storage-connectors-api"
+
+export { salesforceByoAPI } from "./salesforce-byo-api"
+export type {
+  SalesforceEnvironment,
+  SalesforceOAuthMode,
+  SalesforceSetupInfo,
+  SalesforceByoInitRequest,
+  SalesforceSharedInitRequest,
+  SalesforceInitRequest,
+  SalesforceInitResponse,
+  SalesforceInitError,
+  SalesforceTestConfigResponse,
+} from "./salesforce-byo-api"

@@ -46,6 +46,11 @@ import {
 import { warehouseConnectorsAPI } from "@/modules/connectors/api/warehouse-connectors-api"
 import type { WarehouseMetadataItem } from "@/modules/connectors/api/warehouse-connectors-api"
 import { ConnectorLogo } from "./connector-logo"
+import { SalesforceSetupModal, type SalesforceSetupModalMode } from "./salesforce-setup-modal"
+import type {
+  SalesforceEnvironment,
+  SalesforceOAuthMode,
+} from "@/modules/connectors/api/salesforce-byo-api"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -95,6 +100,16 @@ export function ConnectorsHub() {
   const [savingConfig, setSavingConfig] = useState<string | null>(null)
   const [warehouseMeta, setWarehouseMeta] = useState<Record<string, { warehouses: WarehouseMetadataItem[]; databases: WarehouseMetadataItem[] }>>({})
   const [pendingDisconnect, setPendingDisconnect] = useState<{ providerId: string; displayName: string } | null>(null)
+  const [salesforceModal, setSalesforceModal] = useState<{
+    open: boolean
+    mode: SalesforceSetupModalMode
+    existing: {
+      oauth_mode?: SalesforceOAuthMode
+      client_id?: string
+      login_url?: string
+      environment?: SalesforceEnvironment
+    } | null
+  }>({ open: false, mode: "create", existing: null })
   const { toast } = useToast()
 
   const loadProviders = useCallback(async () => {
@@ -159,6 +174,31 @@ export function ConnectorsHub() {
 
   useEffect(() => { loadProviders() }, [loadProviders])
 
+  const openSalesforceSetup = useCallback(
+    (mode: SalesforceSetupModalMode, status?: ConnectionStatus | null) => {
+      const conn = status?.connection || {}
+      const existing = status?.connected
+        ? {
+            oauth_mode: status.oauth_mode,
+            client_id:
+              typeof conn.client_id === "string"
+                ? (conn.client_id as string)
+                : undefined,
+            login_url:
+              typeof conn.login_url === "string"
+                ? (conn.login_url as string)
+                : undefined,
+            environment:
+              typeof conn.environment === "string"
+                ? (conn.environment as SalesforceEnvironment)
+                : undefined,
+          }
+        : null
+      setSalesforceModal({ open: true, mode, existing })
+    },
+    [],
+  )
+
   const handleConnect = async (providerId: string) => {
     const provider = providers.find((p) => p.provider_id === providerId)
     if (provider?.uiOnly) {
@@ -167,6 +207,17 @@ export function ConnectorsHub() {
         description:
           "This connector card is now available for discovery and selection. Backend authentication and data sync wiring will be enabled later.",
       })
+      return
+    }
+
+    // Salesforce uses a dedicated BYO Connected App setup modal instead of
+    // the standard OAuth popup. Salesforce blocks iframed auth screens, so
+    // a popup-based flow does not work; the modal performs a full-page
+    // redirect to login.salesforce.com after the user supplies their
+    // Connected App credentials.
+    if (providerId === "salesforce") {
+      const status = provider?.connectionStatus
+      openSalesforceSetup(status?.connected ? "manage" : "create", status)
       return
     }
 
@@ -355,6 +406,50 @@ export function ConnectorsHub() {
         </Alert>
       )}
 
+      {/* Needs-reconnect banners — surface above the category grid so users
+         see the recovery action prominently. Currently only Salesforce sets
+         needs_reconnect; future BYO providers will reuse this pattern. */}
+      {providers
+        .filter((p) => p.connectionStatus?.connected && p.connectionStatus?.needs_reconnect)
+        .map((p) => (
+          <Alert
+            key={`reconnect-${p.provider_id}`}
+            variant="destructive"
+            data-testid={`reconnect-banner-${p.provider_id}`}
+          >
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Reconnect required: {p.display_name}</AlertTitle>
+            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p>
+                  Your {p.display_name} credentials need to be refreshed. This
+                  typically happens when:
+                </p>
+                <ul className="list-disc list-inside text-xs ml-1 space-y-0.5">
+                  <li>You rotated your Consumer Secret in {p.display_name}</li>
+                  <li>The Connected App was revoked by an admin</li>
+                </ul>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 sm:ml-4"
+                onClick={() => {
+                  if (p.provider_id === "salesforce") {
+                    openSalesforceSetup("reconnect", p.connectionStatus)
+                  } else {
+                    handleConnect(p.provider_id)
+                  }
+                }}
+                data-testid={`reconnect-button-${p.provider_id}`}
+              >
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                Reconnect
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ))}
+
       {/* Category sections */}
       {Object.entries(CATEGORIES).map(([catKey, catMeta]) => {
         const catProviders = grouped[catKey]
@@ -399,6 +494,17 @@ export function ConnectorsHub() {
         </div>
       )}
 
+      <SalesforceSetupModal
+        open={salesforceModal.open}
+        onOpenChange={(open) =>
+          setSalesforceModal((prev) =>
+            open ? { ...prev, open } : { open: false, mode: "create", existing: null },
+          )
+        }
+        modalMode={salesforceModal.mode}
+        existingConnection={salesforceModal.existing}
+      />
+
       <AlertDialog
         open={pendingDisconnect !== null}
         onOpenChange={(open) => { if (!open) setPendingDisconnect(null) }}
@@ -409,9 +515,9 @@ export function ConnectorsHub() {
               Disconnect from {pendingDisconnect?.displayName}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              RightRev will stop using this {pendingDisconnect?.displayName} connection.
+              CleanFlowAI will stop using this {pendingDisconnect?.displayName} connection.
               Any in-progress imports or exports for this connector will stop, and you can
-              reconnect at any time. To fully revoke RightRev's access at the provider,
+              reconnect at any time. To fully revoke CleanFlowAI's access at the provider,
               also remove the app from your {pendingDisconnect?.displayName} account.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -493,11 +599,22 @@ function ConnectorCard({
               {provider.statusLoading ? (
                 <span className="text-xs text-muted-foreground">Checking...</span>
               ) : isConnected ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     Connected
+                    {provider.connectionStatus?.oauth_mode === "byo" && (
+                      <span className="ml-1 inline-flex items-center rounded-sm bg-emerald-500/10 px-1 text-[10px] uppercase tracking-wide">
+                        BYO
+                      </span>
+                    )}
                   </span>
+                  {provider.connectionStatus?.needs_reconnect && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+                      <AlertTriangle className="w-3 h-3" />
+                      Reconnect
+                    </span>
+                  )}
                   {linkedAt && (
                     <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -661,12 +778,21 @@ function ConnectorCard({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 px-3"
+                className="h-9 px-3 text-xs"
                 onClick={() => onConnect(pid)}
                 disabled={isConnecting}
-                title="Reconnect"
+                title={pid === "salesforce" ? "Manage connection" : "Reconnect"}
               >
-                {isConnecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                {isConnecting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : pid === "salesforce" ? (
+                  <>
+                    <Settings2 className="w-3.5 h-3.5 mr-1" />
+                    Manage
+                  </>
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
               </Button>
             </>
           ) : (
