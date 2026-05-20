@@ -61,7 +61,12 @@ const READY_FOR_REPORT = new Set(["DQ_FIXED", "DQ_COMPLETE", "COMPLETED", "PROCE
  * REJECTED files are permanently unavailable.
  */
 const READY_FOR_PREVIEW = new Set([
+  // Post-DQ — preview reads result_parts/ or quarantine shards.
   "DQ_FIXED", "DQ_FAILED", "DQ_COMPLETE", "COMPLETED", "PROCESSED",
+  // Pre-DQ — preview falls back to raw.csv (no DQ overlay). Imported
+  // Salesforce / connector files land here so customers can see rows
+  // immediately without waiting for DQ.
+  "UPLOADED", "VALIDATED", "DQ_DISPATCHED", "DQ_RUNNING",
 ])
 
 /**
