@@ -2,12 +2,24 @@
 
 import { useEffect, useState } from "react"
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react"
+import { AWS_CONFIG } from "@/shared/config/aws-config"
 
 /**
  * Generic OAuth Callback Page for all connectors.
  *
- * The backend redirects here after OAuth with query params:
- *   ?provider=quickbooks&success=true  (or &error=...)
+ * Two entry paths:
+ *   1. PROVIDER → FE directly (Salesforce BYO):
+ *        ?provider=salesforce&code=...&state=...
+ *      We must FORWARD code+state to the BE so the token exchange + DDB row
+ *      write actually happens. Without this forward, the BE never runs
+ *      `handle_callback`, no ConnectorConnections-V2 row is written, and the
+ *      parent Connectors page stays on "Not connected" even though the popup
+ *      shows success. (P0 bug fix, 2026-05-20.)
+ *
+ *   2. BE → FE after exchange (QB, Zoho, Snowflake, GoogleDrive, and
+ *      Salesforce shared-app where the BE was the OAuth redirect_uri):
+ *        ?provider=quickbooks&success=true  (or &error=...)
+ *      We just show success/error and notify the opener.
  *
  * This page sends a postMessage to the opener window so the
  * ConnectorsHub / ERPImport popup flow completes correctly.
@@ -76,8 +88,48 @@ export default function ConnectorCallbackPage() {
     const success = params.get("success")
     const error = params.get("error")
     const errorDesc = params.get("error_description")
+    const code = params.get("code")
+    const state = params.get("state")
 
     setProvider(providerParam)
+
+    // ── BE forward (Salesforce BYO P0 fix, 2026-05-20) ───────────────────
+    // When SF redirects DIRECTLY here (code+state present, no success/error
+    // marker), the BE has NOT yet exchanged the code for tokens, so no
+    // ConnectorConnections-V2 row exists. We MUST forward to the BE callback
+    // endpoint so the token exchange + DDB write happens. The BE will then
+    // 302-redirect this same popup back here with `success=true`, which
+    // re-enters this effect and runs the success path below.
+    if (code && state && !success && !error) {
+      const apiBase = AWS_CONFIG.API_BASE_URL || ""
+      if (!apiBase) {
+        // No API base URL baked in — surface as a real error rather than
+        // silently dropping the auth code.
+        setStatus("error")
+        setMessage(
+          "Connection misconfigured (missing API base URL). Please contact support.",
+        )
+        setErrorCode("config_missing")
+        return
+      }
+      // Build BE callback URL: /connectors/callback/{provider}?code=...&state=...
+      // (API GW route is NO AUTH; the BE matches state HMAC and runs
+      // handle_callback which writes the connection row.)
+      const beCallback = new URL(
+        `${apiBase}/connectors/callback/${encodeURIComponent(providerParam)}`,
+      )
+      beCallback.searchParams.set("code", code)
+      beCallback.searchParams.set("state", state)
+      beCallback.searchParams.set("provider", providerParam)
+      // Realm ID for QB; harmless for other providers.
+      const realmId = params.get("realmId")
+      if (realmId) beCallback.searchParams.set("realmId", realmId)
+      // Replace navigation so the browser doesn't keep the raw code in
+      // history (which would also stop the back button from re-triggering
+      // the exchange on a stale code).
+      window.location.replace(beCallback.toString())
+      return
+    }
 
     function notifyOpener(type: string, data: Record<string, unknown>) {
       const payload = { type, ...data }
