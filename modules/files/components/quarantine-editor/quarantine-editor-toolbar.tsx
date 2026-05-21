@@ -6,15 +6,17 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ClipboardCheck, Loader2, Play, Check, Save, Search, Shield, Users, Clock, X, GitCompare, CheckSquare, Wand2 } from 'lucide-react'
 import type { QuarantineSession } from '@/modules/files/types'
 import type { CollaborationUser } from '@/modules/files/types'
 import type { ApprovalStatus } from '@/modules/auth/api/org-api'
+import { useQuarantineShortcuts } from '@/modules/files/hooks/use-quarantine-shortcuts'
 import { QuarantinePresenceBar } from './quarantine-presence-bar'
 import { QuarantineColumnToggle } from './quarantine-column-toggle'
+import { QuarantineShortcutsCheatsheet } from './quarantine-shortcuts-cheatsheet'
 
 interface QuarantineEditorToolbarProps {
   session: QuarantineSession | null
@@ -45,6 +47,13 @@ interface QuarantineEditorToolbarProps {
   onBulkMarkFixed?: () => void
   onBulkClearSelection?: () => void
   bulkApplying?: boolean
+  /** Power-user keyboard-shortcut handlers (Bug 2).  Optional — when a
+   *  handler is missing, the toolbar falls back to a DOM-level default
+   *  (e.g. ⌘S commits the AG-Grid cell editor by blurring it).  This keeps
+   *  the toolbar drop-in even when the host page doesn't yet pass them. */
+  onShortcutSave?: () => void
+  onShortcutAdvanceCell?: () => void
+  onShortcutDeselectCell?: () => void
 }
 
 export function QuarantineEditorToolbar({
@@ -73,9 +82,74 @@ export function QuarantineEditorToolbar({
   onBulkMarkFixed,
   onBulkClearSelection,
   bulkApplying = false,
+  onShortcutSave,
+  onShortcutAdvanceCell,
+  onShortcutDeselectCell,
 }: QuarantineEditorToolbarProps) {
   const [showSaved, setShowSaved] = useState(false)
+  const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
   const isSuperAdmin = currentUserRole === 'Super Admin'
+
+  // ── Power-user shortcuts (Bug 2) ────────────────────────────────────
+  // The toolbar owns the keyboard wiring because it is always mounted
+  // alongside the editor and already receives `onFindReplace`.  When the
+  // host page doesn't pass save/advance handlers we fall back to DOM-level
+  // commit behaviour that works with AG-Grid out of the box.
+
+  const handleSaveShortcut = useCallback(() => {
+    if (onShortcutSave) {
+      onShortcutSave()
+      return
+    }
+    // Fallback: blur whatever cell is currently being edited so AG-Grid's
+    // built-in stop-editing commit-on-blur fires.  The page's autosave
+    // timer then flushes the change.
+    const editing = document.querySelector<HTMLElement>(
+      '.ag-cell-edit-wrapper input, .ag-cell-edit-wrapper textarea',
+    )
+    if (editing) editing.blur()
+  }, [onShortcutSave])
+
+  const handleAdvanceShortcut = useCallback(() => {
+    if (onShortcutAdvanceCell) {
+      onShortcutAdvanceCell()
+      return
+    }
+    // Fallback: dispatch a Tab to the currently-focused cell so AG-Grid
+    // commits + advances using its native keyboard navigation.
+    const focused = document.querySelector<HTMLElement>('.ag-cell-focus')
+    if (!focused) return
+    const tab = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      code: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    })
+    focused.dispatchEvent(tab)
+  }, [onShortcutAdvanceCell])
+
+  const handleDeselectShortcut = useCallback(() => {
+    if (onShortcutDeselectCell) {
+      onShortcutDeselectCell()
+      return
+    }
+    // Fallback: blur the focused cell.
+    const focused = document.querySelector<HTMLElement>('.ag-cell-focus')
+    if (focused) focused.blur()
+  }, [onShortcutDeselectCell])
+
+  const handleOpenCheatsheet = useCallback(() => {
+    setCheatsheetOpen(true)
+  }, [])
+
+  useQuarantineShortcuts({
+    enabled: true,
+    onSave: handleSaveShortcut,
+    onAdvanceToNextCell: handleAdvanceShortcut,
+    onOpenFindReplace: onFindReplace,
+    onDeselectCell: handleDeselectShortcut,
+    onShowCheatsheet: handleOpenCheatsheet,
+  })
 
   const primaryLabel = (() => {
     if (isSuperAdmin) return 'Reprocess'
@@ -225,6 +299,10 @@ export function QuarantineEditorToolbar({
           {collabUsers && (
             <QuarantinePresenceBar users={collabUsers} connected={collabConnected ?? false} />
           )}
+          <QuarantineShortcutsCheatsheet
+            open={cheatsheetOpen}
+            onOpenChange={setCheatsheetOpen}
+          />
           {onToggleCollabPanel && (
             <Button
               variant={collabPanelOpen ? 'secondary' : 'outline'}
