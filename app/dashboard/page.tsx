@@ -101,6 +101,10 @@ export default function DashboardPage() {
   const [topIssues, setTopIssues] = useState<TopIssue[]>([])
   const [filesError, setFilesError] = useState<string | null>(null)
   const [overallError, setOverallError] = useState<string | null>(null)
+  // Bug 2: track wall-clock ms of the last data load so the header can
+  // render an "Updated Ns ago" pill. Refresh button + initial load both
+  // bump this; manual Refresh therefore resets the pill to "just now".
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null)
   const { idToken } = useAuth()
 
   // ── Race protection: only the latest fetch wins ─────────────────────────
@@ -193,6 +197,7 @@ export default function DashboardPage() {
       // other (no Promise.all). Each writes its own error/state slot.
       await Promise.allSettled([loadFiles(), loadOverall()])
       setIsLoading(false)
+      setLastRefreshedAt(Date.now())
     }
     void loadData()
   }, [loadFiles, loadOverall])
@@ -202,6 +207,7 @@ export default function DashboardPage() {
     await Promise.allSettled([loadFiles(), loadOverall()])
     setIsLoading(false)
     setRefreshKey(prev => prev + 1)
+    setLastRefreshedAt(Date.now())
   }, [loadFiles, loadOverall])
 
   return (
@@ -211,7 +217,7 @@ export default function DashboardPage() {
           <DashboardSkeleton />
         ) : (
           <div className="space-y-5">
-            <DashboardHeader onRefresh={handleRefresh} />
+            <DashboardHeader onRefresh={handleRefresh} lastRefreshedAt={lastRefreshedAt} />
 
             {/* Files-load failure banner — distinguishes "failed to fetch"
                 from "you have no files yet". Other widgets still render. */}

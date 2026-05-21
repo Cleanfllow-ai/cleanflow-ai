@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
     CheckCircle,
     FileText,
@@ -65,11 +67,72 @@ import {
     isActiveStatus,
 } from "@/modules/files/page/utils";
 import { getFriendlyStatusLabel } from "@/shared/lib/file-status-label";
+import { formatFileDisplayName } from "@/shared/lib/file-name-format";
 import { useUploadManager } from "@/modules/files/context/upload-manager";
 import type { FilesPageState } from "./use-files-page";
 
 // Set to true to re-expose the Generic ERP-template badge (technical detail, hidden for customer-facing UI)
 const SHOW_GENERIC_BADGE = false;
+
+// ─── Bug 3 (P1, 2026-05-21): multi-status filter chips ─────────────────
+// Power users asked for "show me only failed + quarantined". The legacy
+// single-status dropdown lives in the hook (use-files-page); we layer chip
+// state on top of it purely in this component so the hook contract stays
+// frozen for Wave 1C. Chip clicks force statusFilter -> "all" (broadest
+// underlying pool) and we re-filter `visibleFiles`/`filteredFiles` locally.
+// URL persistence uses `status_multi=cleaned,failed` so back/forward works.
+type StatusChipKey = "cleaned" | "quarantined" | "failed" | "processing" | "ready";
+
+const STATUS_CHIPS: Array<{
+    key: StatusChipKey;
+    label: string;
+    /** Predicate against a FilesPageState file row. */
+    match: (file: { status?: string; rows_quarantined?: number | null }) => boolean;
+}> = [
+    {
+        key: "cleaned",
+        label: "Cleaned",
+        // DQ_FIXED rows with NO outstanding quarantine = truly clean.
+        match: (f) => f.status === "DQ_FIXED" && !((f.rows_quarantined ?? 0) > 0),
+    },
+    {
+        key: "quarantined",
+        label: "Quarantined",
+        // Any processed file with at least one quarantined row.
+        match: (f) => f.status === "DQ_FIXED" && (f.rows_quarantined ?? 0) > 0,
+    },
+    {
+        key: "failed",
+        label: "Failed",
+        match: (f) =>
+            f.status === "DQ_FAILED" ||
+            f.status === "FAILED" ||
+            f.status === "UPLOAD_FAILED" ||
+            f.status === "REJECTED",
+    },
+    {
+        key: "processing",
+        label: "Processing",
+        match: (f) =>
+            f.status === "DQ_RUNNING" ||
+            f.status === "DQ_DISPATCHED" ||
+            f.status === "QUEUED" ||
+            f.status === "REPROCESSING" ||
+            f.status === "NORMALIZING" ||
+            f.status === "SHARDING" ||
+            f.status === "IMPORTING" ||
+            f.status === "UPLOADING" ||
+            f.status === "INITIATING" ||
+            f.status === "OPTIMIZING",
+    },
+    {
+        key: "ready",
+        label: "Ready",
+        // Validated / uploaded — waiting for the user to kick off DQ.
+        match: (f) => f.status === "UPLOADED" || f.status === "VALIDATED",
+    },
+];
+const CHIP_KEYS = new Set<StatusChipKey>(STATUS_CHIPS.map((c) => c.key));
 
 interface FileExplorerTableProps {
     state: FilesPageState;
@@ -99,6 +162,110 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         handleNewImportOpen,
     } = state;
     const { activeUploads, getUploadForFile, cancelUpload } = useUploadManager();
+
+    // ─── Bug 3: chip filter state (URL-synced) ─────────────────────────
+    // Single source of truth: ?status_multi=cleaned,failed in the URL. We
+    // hydrate from the URL on mount, push back to the URL on toggle. The
+    // hook's `statusFilter` stays decoupled — when chips are active we
+    // force-call setStatusFilter("all") so the underlying pool is broad
+    // enough to feed our local re-filter.
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const [statusChips, setStatusChips] = useState<Set<StatusChipKey>>(new Set());
+
+    // Hydrate chip state from URL on mount + when the user navigates back.
+    useEffect(() => {
+        const raw = searchParams.get("status_multi");
+        if (!raw) {
+            if (statusChips.size > 0) setStatusChips(new Set());
+            return;
+        }
+        const next = new Set<StatusChipKey>();
+        for (const part of raw.split(",")) {
+            const trimmed = part.trim() as StatusChipKey;
+            if (CHIP_KEYS.has(trimmed)) next.add(trimmed);
+        }
+        // Only update if it actually changed to avoid render loops.
+        const sameSize = next.size === statusChips.size;
+        const sameMembers = sameSize && Array.from(next).every((k) => statusChips.has(k));
+        if (!sameMembers) setStatusChips(next);
+        // We intentionally depend only on searchParams — statusChips would
+        // create a feedback loop with the URL writer below.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
+    const writeChipsToUrl = (next: Set<StatusChipKey>) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (next.size === 0) {
+            params.delete("status_multi");
+        } else {
+            params.set("status_multi", Array.from(next).join(","));
+        }
+        const qs = params.toString();
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    };
+
+    const chipsActive = statusChips.size > 0;
+
+    // Mutual exclusion: when chips are active, force the legacy dropdown to
+    // "all" so the hook returns the broadest possible pool that we then
+    // re-filter below.
+    useEffect(() => {
+        if (chipsActive && statusFilter !== "all") {
+            setStatusFilter("all");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chipsActive]);
+
+    const toggleChip = (key: StatusChipKey) => {
+        const next = new Set(statusChips);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        setStatusChips(next);
+        writeChipsToUrl(next);
+        // Picking a chip implicitly clears any single-status dropdown
+        // selection so we don't end up with two filters fighting.
+        if (next.size > 0 && statusFilter !== "all") setStatusFilter("all");
+    };
+
+    const clearChips = () => {
+        if (statusChips.size === 0) return;
+        setStatusChips(new Set());
+        writeChipsToUrl(new Set());
+    };
+
+    // Dropdown picks override chips — wrap setStatusFilter so we always
+    // clear chips when the user picks a single-status option.
+    const handleDropdownPick = (value: string) => {
+        if (chipsActive) {
+            setStatusChips(new Set());
+            writeChipsToUrl(new Set());
+        }
+        setStatusFilter(value);
+    };
+
+    // Apply chip filter on top of the hook output. When no chips are
+    // active these collapse to the pass-through identity (no-op cost).
+    const chipFilteredVisible = useMemo(() => {
+        if (!chipsActive) return visibleFiles;
+        const matchers = STATUS_CHIPS.filter((c) => statusChips.has(c.key));
+        return visibleFiles.filter((f) => matchers.some((m) => m.match(f)));
+    }, [chipsActive, statusChips, visibleFiles]);
+
+    const chipFilteredAll = useMemo(() => {
+        if (!chipsActive) return filteredFiles;
+        const matchers = STATUS_CHIPS.filter((c) => statusChips.has(c.key));
+        return filteredFiles.filter((f) => matchers.some((m) => m.match(f)));
+    }, [chipsActive, statusChips, filteredFiles]);
+
+    // Effective values the table body should read. Falls back to the hook
+    // outputs when chips are inactive so we don't subtly change behaviour
+    // for the existing single-status path.
+    const effectiveVisibleFiles = chipsActive ? chipFilteredVisible : visibleFiles;
+    const effectiveFilteredFiles = chipsActive ? chipFilteredAll : filteredFiles;
+    const effectiveTableEmpty = chipsActive ? chipFilteredAll.length === 0 : tableEmpty;
+    const hasAnyActiveFilter = chipsActive || !!searchQuery || statusFilter !== "all";
 
     const SortIcon = ({
         field,
@@ -186,32 +353,34 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                 className="h-9 w-32 sm:w-36 text-sm justify-between border-border/60"
                             >
                                 <span className="truncate text-muted-foreground">
-                                    {STATUS_OPTIONS.find((opt) => opt.value === statusFilter)?.label || "Filter"}
+                                    {chipsActive
+                                        ? "Custom"
+                                        : STATUS_OPTIONS.find((opt) => opt.value === statusFilter)?.label || "Filter"}
                                 </span>
                                 <Filter className="h-3.5 w-3.5 ml-2 opacity-40" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-48">
-                            <DropdownMenuItem onClick={() => setStatusFilter("all")}>All</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setStatusFilter("attention")} className="text-amber-600 font-medium">
+                            <DropdownMenuItem onClick={() => handleDropdownPick("all")}>All</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDropdownPick("attention")} className="text-amber-600 font-medium">
                                 Needs Attention
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setStatusFilter("UPLOADED")}>Uploaded</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setStatusFilter("DQ_FIXED")}>Processed</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setStatusFilter("DQ_RUNNING")}>Processing</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setStatusFilter("QUEUED")}>Queued</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setStatusFilter("FAILED")}>Failed</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDropdownPick("UPLOADED")}>Uploaded</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDropdownPick("DQ_FIXED")}>Processed</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDropdownPick("DQ_RUNNING")}>Processing</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDropdownPick("QUEUED")}>Queued</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDropdownPick("FAILED")}>Failed</DropdownMenuItem>
                             <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>Quality</DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
-                                    <DropdownMenuItem onClick={() => setStatusFilter("excellent")}>Excellent</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setStatusFilter("good")}>Good</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setStatusFilter("bad")}>Bad</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDropdownPick("excellent")}>Excellent</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDropdownPick("good")}>Good</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDropdownPick("bad")}>Bad</DropdownMenuItem>
                                 </DropdownMenuSubContent>
                             </DropdownMenuSub>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    {(searchQuery || statusFilter !== "all") && (
+                    {(searchQuery || statusFilter !== "all" || chipsActive) && (
                         <Button
                             variant="ghost"
                             size="sm"
@@ -220,6 +389,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                             onClick={() => {
                                 setSearchQuery("");
                                 setStatusFilter("all");
+                                clearChips();
                             }}
                             title="Clear filters"
                         >
@@ -230,9 +400,9 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                 <div className="flex items-center gap-2 ml-auto">
                     {!loading && files.length > 0 && (
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium tabular-nums font-mono hidden sm:inline">
-                            {filteredFiles.length === files.length
+                            {effectiveFilteredFiles.length === files.length
                                 ? `${files.length} file${files.length !== 1 ? "s" : ""}`
-                                : `${filteredFiles.length} of ${files.length}`}
+                                : `${effectiveFilteredFiles.length} of ${files.length}`}
                         </span>
                     )}
                     {/*
@@ -322,6 +492,55 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                 </div>
             </div>
 
+            {/* Bug 3 (P1, 2026-05-21): multi-status chip strip. Sits below the
+                search/filter bar so it doesn't fight for horizontal space on
+                small screens. Each chip toggles independently; "Clear filters"
+                appears next to them when at least one is active. */}
+            <div
+                className="flex flex-wrap items-center gap-1.5"
+                data-testid="files-status-chip-strip"
+                role="group"
+                aria-label="Filter files by status"
+            >
+                {STATUS_CHIPS.map((chip) => {
+                    const active = statusChips.has(chip.key);
+                    return (
+                        <button
+                            key={chip.key}
+                            type="button"
+                            data-testid={`status-chip-${chip.key}`}
+                            data-active={active}
+                            aria-pressed={active}
+                            onClick={() => toggleChip(chip.key)}
+                            className={cn(
+                                "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                                active
+                                    ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
+                                    : "border-border/60 bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                            )}
+                        >
+                            {chip.label}
+                            {chip.key === "cleaned" && active && (
+                                <CheckCircle className="h-3 w-3" aria-hidden />
+                            )}
+                            {chip.key === "cleaned" && !active && (
+                                <span aria-hidden className="text-muted-foreground/50">{"✓"}</span>
+                            )}
+                        </button>
+                    );
+                })}
+                {chipsActive && (
+                    <button
+                        type="button"
+                        onClick={clearChips}
+                        data-testid="status-chip-clear"
+                        className="ml-1 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                        Clear filters
+                    </button>
+                )}
+            </div>
+
             {/* Table */}
             <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
                 <div className="overflow-x-auto">
@@ -334,7 +553,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <Checkbox
-                                        checked={filteredFiles.length > 0 && selectedFiles.size === filteredFiles.length}
+                                        checked={effectiveFilteredFiles.length > 0 && selectedFiles.size === effectiveFilteredFiles.length}
                                         onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
                                         aria-label="Select all files"
                                     />
@@ -463,7 +682,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                     ))}
                                 </>
                             )}
-                            {!loading && tableEmpty && (
+                            {!loading && effectiveTableEmpty && (
                                 <TableRow>
                                     <TableCell colSpan={11} className="py-20 text-center">
                                         <div className="flex flex-col items-center gap-4">
@@ -472,15 +691,15 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                             </div>
                                             <div className="space-y-1.5">
                                                 <p className="font-sans text-sm font-semibold tracking-tight">
-                                                    {searchQuery || statusFilter !== "all" ? "No files match these filters." : "No files yet"}
+                                                    {hasAnyActiveFilter ? "No files match these filters." : "No files yet"}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground/60">
-                                                    {searchQuery || statusFilter !== "all"
+                                                    {hasAnyActiveFilter
                                                         ? "Try clearing them to see all files."
                                                         : "Import a file to start analyzing data quality"}
                                                 </p>
                                             </div>
-                                            {(searchQuery || statusFilter !== "all") && (
+                                            {hasAnyActiveFilter && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
@@ -489,13 +708,14 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                     onClick={() => {
                                                         setSearchQuery("");
                                                         setStatusFilter("all");
+                                                        clearChips();
                                                     }}
                                                 >
                                                     <X className="h-3.5 w-3.5" />
                                                     Clear Filters
                                                 </Button>
                                             )}
-                                            {!searchQuery && statusFilter === "all" && (
+                                            {!hasAnyActiveFilter && (
                                                 <Button size="sm" className="gap-1.5 mt-1" onClick={handleNewImportOpen}>
                                                     <Plus className="h-3.5 w-3.5" />
                                                     Import File
@@ -510,7 +730,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                 the full filtered list to keep the DOM bounded at
                                 100 rows by default. "Load more" footer below
                                 grows the window in PAGE_SIZE increments. */}
-                            {visibleFiles.map((file) => (
+                            {effectiveVisibleFiles.map((file) => (
                                 <TableRow
                                     key={file.upload_id}
                                     data-file-id={file.upload_id}
@@ -550,10 +770,25 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                 const upload = file.status === "UPLOADING"
                                                     ? getUploadForFile(file.upload_id) || getUploadForFile(file.original_filename || file.filename || "")
                                                     : undefined;
+                                                // Bug 4: friendly display name for connector imports and
+                                                // unstructured-* UUID filenames. The raw filename is preserved
+                                                // in `original_filename`/`filename` for downloads + search; only
+                                                // the rendered string here changes.
+                                                const rawName = file.original_filename || file.filename || "";
+                                                const friendlyName = rawName
+                                                    ? formatFileDisplayName(rawName, {
+                                                          source: file.source_type,
+                                                          importedAt: file.uploaded_at || file.created_at,
+                                                      })
+                                                    : "Untitled";
                                                 return (
                                                     <div>
-                                                        <p className="text-xs sm:text-sm font-medium truncate max-w-[100px] sm:max-w-[200px]">
-                                                            {file.original_filename || file.filename || "Untitled"}
+                                                        <p
+                                                            className="text-xs sm:text-sm font-medium truncate max-w-[100px] sm:max-w-[200px]"
+                                                            title={rawName || undefined}
+                                                            data-testid="file-row-display-name"
+                                                        >
+                                                            {friendlyName}
                                                         </p>
                                                         {upload && upload.status === "uploading" ? (
                                                             <div className="flex items-center gap-1.5 mt-0.5">
@@ -1048,12 +1283,17 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                     "Showing X of Y" + a Load More button that grows the window
                     by PAGE_SIZE. Below-the-fold timestamps note moved into the
                     same border-top stripe so we don't ship two separate rules. */}
-                {filteredFiles.length > 0 && (
+                {effectiveFilteredFiles.length > 0 && (
                     <div className="flex flex-col gap-2 border-t border-border/40 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-mono">
-                            {hasMoreFiles ? (
+                            {/* When chips are active we hide "Load more" because the
+                                local re-filter is applied AFTER the hook's PAGE_SIZE
+                                window — bumping the window wouldn't change the chip
+                                output reliably. The page-size window still works for
+                                the non-chip path, which is what most users hit. */}
+                            {hasMoreFiles && !chipsActive ? (
                                 <>
-                                    Showing {visibleFiles.length} of {filteredFiles.length}
+                                    Showing {effectiveVisibleFiles.length} of {effectiveFilteredFiles.length}
                                     <span className="ml-2 text-muted-foreground/40">
                                         · Timestamps in IST (UTC+5:30)
                                     </span>
@@ -1062,7 +1302,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                 <>Timestamps in IST (UTC+5:30)</>
                             )}
                         </p>
-                        {hasMoreFiles && (
+                        {hasMoreFiles && !chipsActive && (
                             <Button
                                 variant="outline"
                                 size="sm"

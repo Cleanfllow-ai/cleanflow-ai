@@ -1,23 +1,71 @@
 "use client"
 
 import { Download, RefreshCw, Loader2 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/modules/auth"
 import { fileManagementAPI } from "@/modules/files"
 import { useToast } from "@/shared/hooks/use-toast"
+import { formatWelcomeName } from "./welcome-name"
 
 interface DashboardHeaderProps {
   onRefresh?: () => Promise<void>
+  /**
+   * Wall-clock epoch (ms) of the last successful data load. When provided,
+   * the header renders a "Updated Ns ago" pill next to Refresh that ticks
+   * every 30s and resets when the user clicks Refresh. Omit on surfaces
+   * that don't track freshness — the pill simply disappears.
+   */
+  lastRefreshedAt?: number | null
 }
 
-export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
+/**
+ * Build a short "Updated Xs ago" string using the native Intl.RelativeTimeFormat
+ * (no new deps). Caps at "MMM DD" once we cross the 7-day boundary so the
+ * pill never balloons. Returns null if `at` is missing/invalid.
+ */
+function formatRelative(at: number | null | undefined, now: number): string | null {
+  if (!at || !Number.isFinite(at)) return null
+  const deltaSec = Math.max(0, Math.round((now - at) / 1000))
+  if (deltaSec < 5) return "Updated just now"
+  // Native API — supported in every browser we ship to (no polyfill needed).
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto", style: "short" })
+  if (deltaSec < 60) return `Updated ${rtf.format(-deltaSec, "second")}`
+  const min = Math.round(deltaSec / 60)
+  if (min < 60) return `Updated ${rtf.format(-min, "minute")}`
+  const hr = Math.round(min / 60)
+  if (hr < 24) return `Updated ${rtf.format(-hr, "hour")}`
+  const day = Math.round(hr / 24)
+  if (day < 7) return `Updated ${rtf.format(-day, "day")}`
+  const d = new Date(at)
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  return `Updated ${months[d.getMonth()]} ${String(d.getDate()).padStart(2, "0")}`
+}
+
+export function DashboardHeader({ onRefresh, lastRefreshedAt }: DashboardHeaderProps) {
   const { user, isAuthenticated, idToken } = useAuth()
   const [exporting, setExporting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const { toast } = useToast()
+
+  // Tick every 30s so "Updated 14s ago" rolls forward without the user
+  // having to click Refresh. We re-render rather than recompute on render
+  // because relative-time depends on wall-clock, not props/state.
+  const [tickNow, setTickNow] = useState<number>(() => Date.now())
+  useEffect(() => {
+    if (!lastRefreshedAt) return
+    const id = window.setInterval(() => setTickNow(Date.now()), 30_000)
+    return () => window.clearInterval(id)
+  }, [lastRefreshedAt])
+  // Force-tick on prop change so the pill flips to "just now" the moment
+  // a manual Refresh resolves rather than waiting up to 30s.
+  useEffect(() => {
+    if (lastRefreshedAt) setTickNow(Date.now())
+  }, [lastRefreshedAt])
+
+  const relativeLabel = formatRelative(lastRefreshedAt, tickNow)
 
   const handleRefresh = async () => {
     if (!onRefresh) return
@@ -103,7 +151,9 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
     <div className="flex flex-col space-y-4 sm:flex-row sm:items-end sm:justify-between sm:space-y-0">
       <div>
         <h1 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-1.5">
-          {isAuthenticated && user ? `Welcome back, ${user.name?.split(" ")[0] || "there"}` : "Dashboard"}
+          {isAuthenticated && user
+            ? `Welcome back, ${formatWelcomeName(user.email, user.name)}`
+            : "Dashboard"}
         </h1>
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           {today}
@@ -111,6 +161,16 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {relativeLabel && (
+          <span
+            data-testid="dashboard-last-refreshed-pill"
+            className="hidden sm:inline-flex items-center rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground"
+            title="Time since the dashboard last loaded fresh data"
+            aria-live="polite"
+          >
+            {relativeLabel}
+          </span>
+        )}
         <Button
           variant="ghost"
           size="sm"
