@@ -19,6 +19,8 @@
  * Per CLAUDE.md Z2 bugfix — accessToken is for API Gateway.
  */
 
+import { toast } from "sonner"
+
 import type { User } from "@/modules/auth/types/auth.types"
 import { cognitoApi } from "@/modules/auth/api/cognito-client"
 
@@ -320,6 +322,36 @@ export function startIdleTimer(
   }
 }
 
+// ─── Session-expired user notification ───────────────────────────────────────
+
+// Throttle the toast: if several in-flight requests all 401 at the same
+// moment, we don't want to stack N copies of the same message. A 5-second
+// window is plenty — the redirect to /auth/login fires immediately after,
+// so the next legitimate session-expiry toast will be on a fresh page load.
+let _lastExpiredToastAt = 0
+
+/**
+ * Show a single "Your session has expired" toast before the redirect to
+ * /auth/login. Wave-3B regression: users were silently bounced to the
+ * login screen with no explanation. Called from every onLogout path in
+ * this module (proactive near-expiry refresh failure + 401-retry refresh
+ * failure + still-401-after-retry).
+ *
+ * Safe to call from any browser context; no-ops on the server and when
+ * called more than once within 5 seconds.
+ */
+function notifySessionExpired(): void {
+  if (typeof window === "undefined") return
+  const now = Date.now()
+  if (now - _lastExpiredToastAt < 5_000) return
+  _lastExpiredToastAt = now
+  try {
+    toast.error("Your session has expired. Please sign in again.")
+  } catch {
+    // sonner not mounted yet — silently ignore; the redirect still happens.
+  }
+}
+
 // ─── Authenticated fetch wrapper (cases 1, 2, 9) ─────────────────────────────
 
 type LogoutFn = () => void
@@ -373,6 +405,7 @@ export async function authenticatedFetch(
       accessToken = await doRefreshAndSave()
     } catch (err) {
       if (err instanceof AuthRefreshExpiredError) {
+        notifySessionExpired()
         onLogout()
         throw err
       }
@@ -394,6 +427,7 @@ export async function authenticatedFetch(
       response = await performRequest(accessToken)
     } catch (err) {
       if (err instanceof AuthRefreshExpiredError) {
+        notifySessionExpired()
         onLogout()
         throw err
       }
@@ -406,6 +440,7 @@ export async function authenticatedFetch(
 
     // If still 401 after retry → log out
     if (response.status === 401) {
+      notifySessionExpired()
       onLogout()
       throw new AuthRefreshExpiredError()
     }

@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { formatBytes, formatToIST, getUserTimezone } from "@/shared/lib/utils"
+import { formatTimezoneShort } from "@/shared/lib/timezone-format"
 import type { FileStatusResponse } from "@/modules/files"
 
 import { PartialCompletionBanner } from "../partial-completion-banner"
@@ -42,6 +43,7 @@ interface FileOverviewTabProps {
 export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
   const showDqStepper = IN_FLIGHT_DQ_STATUSES.has((file.status || "").toUpperCase())
   const userTz = getUserTimezone()
+  const userTzLabel = formatTimezoneShort(userTz) || userTz
   // Brand-pass 2026-05-21: only render the raw-payload debug panel in non-prod
   // builds, or when the URL contains ?debug=1 (engineer-only opt-in).
   const showDebugPanel =
@@ -84,25 +86,32 @@ export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
             <div className="text-2xl font-bold">{file.rows_in || 0}</div>
           </div>
           <div className="bg-muted/50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 text-green-600 mb-2">
+            {/* Wave 4: text-green-600 on bg-gray-100 → 2.91:1. status-success token
+                resolves to green-700 on light + green-400 on dark, both ≥ AA. */}
+            <div className="flex items-center gap-2 text-[color:var(--status-success)] mb-2">
               <CheckCircle2 className="w-4 h-4" />
               <span className="text-sm font-medium">No Issues</span>
             </div>
             <div className="text-2xl font-bold">{file.rows_clean || 0}</div>
           </div>
           <div className="bg-muted/50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 text-yellow-600 mb-2">
+            {/* Wave 4: text-yellow-600 on bg-gray-100 → 2.66:1. status-warning
+                token resolves to amber-700 light + amber-400 dark, both ≥ AA. */}
+            <div className="flex items-center gap-2 text-[color:var(--status-warning)] mb-2">
               <AlertTriangle className="w-4 h-4" />
               <span className="text-sm font-medium">Fixed</span>
             </div>
             <div className="text-2xl font-bold">{file.rows_fixed || 0}</div>
           </div>
           <div className="bg-muted/50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 text-red-600 mb-2">
+            {/* Wave 4: text-red-600 + the 1,701,611 count below was 4.32:1
+                (just under AA). text-destructive token deepens to red-800 on
+                light (5.94:1) and red-300 on dark — see globals.css. */}
+            <div className="flex items-center gap-2 text-[color:var(--text-destructive)] mb-2">
               <XCircle className="w-4 h-4" />
               <span className="text-sm font-medium">Quarantined</span>
             </div>
-            <div className="text-2xl font-bold">{file.rows_quarantined || 0}</div>
+            <div className="text-2xl font-bold text-[color:var(--text-destructive)]">{file.rows_quarantined || 0}</div>
           </div>
         </div>
 
@@ -142,7 +151,7 @@ export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
         <div className="space-y-4">
           <h4 className="text-sm font-medium flex items-center gap-2">
             <Clock className="w-4 h-4" />
-            Timeline ({userTz})
+            Timeline ({userTzLabel})
           </h4>
           <div className="grid gap-4 text-sm sm:grid-cols-3">
             <div className="bg-muted/30 rounded-lg p-4 border">

@@ -100,7 +100,7 @@ export function TimezonePreferenceCard() {
           <div className="space-y-2">
             <Label htmlFor="user-timezone">Timezone</Label>
             <Select value={tz} onValueChange={handleChange}>
-              <SelectTrigger id="user-timezone">
+              <SelectTrigger id="user-timezone" aria-label="Select timezone">
                 <SelectValue placeholder="Select a timezone" />
               </SelectTrigger>
               <SelectContent className="max-h-80">

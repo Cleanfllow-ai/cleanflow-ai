@@ -55,6 +55,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/shared/lib/utils'
+import { getFriendlyStatusLabel } from '@/shared/lib/file-status-label'
 import { MainLayout } from '@/shared/layout/main-layout'
 import {
   fileManagementAPI,
@@ -340,8 +341,9 @@ function FileDetailsPageContent({ params }: PageProps) {
                       getStatusColor(resolvedFile.status),
                     )}
                     variant="outline"
+                    title={resolvedFile.status}
                   >
-                    {resolvedFile.status}
+                    {getFriendlyStatusLabel(resolvedFile.status)}
                   </Badge>
                 )}
                 {details.versionInfo && (
@@ -384,7 +386,7 @@ function FileDetailsPageContent({ params }: PageProps) {
                         key={version.upload_id}
                         value={version.upload_id}
                       >
-                        {`v${version.version_number} | ${version.status || 'Unknown'}${version.is_latest ? ' | Latest' : ''}`}
+                        {`v${version.version_number} | ${getFriendlyStatusLabel(version.status) || 'Unknown'}${version.is_latest ? ' | Latest' : ''}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
