@@ -8,9 +8,20 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-card text-card-foreground",
+        default: "bg-card text-card-foreground border-border",
         destructive:
-          "text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
+          // text-destructive on bg-card → dark mode flips destructive token
+          // automatically, but we set the dark fg explicitly so any consumer
+          // overriding bg still gets a readable label.
+          "text-destructive bg-card border-red-200 dark:text-red-300 dark:bg-card dark:border-red-900/60 [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90 dark:*:data-[slot=alert-description]:text-red-300/90",
+        warning:
+          // Banner-style amber callout. Light = amber-50 bg + amber-900 text;
+          // dark = amber-900/20 bg + amber-100 text — both ≥4.5:1.
+          "bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-900/20 dark:text-amber-100 dark:border-amber-900/60 [&>svg]:text-current *:data-[slot=alert-description]:text-amber-900/90 dark:*:data-[slot=alert-description]:text-amber-100/90",
+        success:
+          "bg-green-50 text-green-900 border-green-200 dark:bg-green-900/20 dark:text-green-100 dark:border-green-900/60 [&>svg]:text-current *:data-[slot=alert-description]:text-green-900/90 dark:*:data-[slot=alert-description]:text-green-100/90",
+        info:
+          "bg-blue-50 text-blue-900 border-blue-200 dark:bg-blue-900/20 dark:text-blue-100 dark:border-blue-900/60 [&>svg]:text-current *:data-[slot=alert-description]:text-blue-900/90 dark:*:data-[slot=alert-description]:text-blue-100/90",
       },
     },
     defaultVariants: {
@@ -55,7 +66,10 @@ function AlertDescription({
     <div
       data-slot="alert-description"
       className={cn(
-        "text-muted-foreground col-start-2 grid justify-items-start gap-1 text-sm [&_p]:leading-relaxed",
+        // Default to current colour (inherited from variant) so warning /
+        // success / destructive carry through to the description. Plain
+        // alerts fall back to muted-foreground via the explicit class.
+        "col-start-2 grid justify-items-start gap-1 text-sm [&_p]:leading-relaxed text-current/85",
         className
       )}
       {...props}

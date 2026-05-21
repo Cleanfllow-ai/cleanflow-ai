@@ -20,10 +20,15 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+  // Surface that re-themes on dark — was sticking with a light bg on `.dark`
+  // (visibility audit found light header bg under .dark surfaces).
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn(
+        "[&_tr]:border-b bg-muted/40 text-foreground dark:bg-card dark:text-foreground",
+        className
+      )}
       {...props}
     />
   )
@@ -66,11 +71,13 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 }
 
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+  // Was rendering at /60-/70 opacity (3.7-3.8:1). text-foreground/85 clears
+  // 4.5:1 in both themes while still feeling lighter than the body cell.
   return (
     <th
       data-slot="table-head"
       className={cn(
-        "text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "text-foreground/85 h-10 px-2 text-left align-middle font-semibold whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}

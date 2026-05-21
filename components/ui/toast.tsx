@@ -31,7 +31,9 @@ const toastVariants = cva(
       variant: {
         default: "border bg-background text-foreground",
         destructive:
-          "destructive group border-destructive bg-destructive text-destructive-foreground",
+          // bg now resolves to #b91c1c (red-700) via --destructive; white
+          // text clears 5.94:1 (WCAG AA).
+          "destructive group border-destructive bg-destructive text-white dark:bg-destructive",
       },
     },
     defaultVariants: {

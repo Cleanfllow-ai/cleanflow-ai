@@ -38,11 +38,14 @@ function AvatarFallback({
   className,
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+  // Default to brand fill with high-contrast foreground so consumers that
+  // pass `bg-primary` (sidebar + Members tab) don't accidentally render
+  // `text-primary` on `bg-primary` (1.0:1 contrast — the audit bug).
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
+        "bg-primary text-primary-foreground flex size-full items-center justify-center rounded-full font-medium",
         className
       )}
       {...props}
