@@ -4,7 +4,8 @@
 // link manually even when SES isn't yet configured for the customer's domain.
 const INVITES_ENABLED = true;
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Building2, Cable, Check, ClipboardCheck, Cog, Copy, Loader2, Mail, Plus, RefreshCw, Shield, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { useToast } from "@/shared/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -21,16 +22,55 @@ import { OrgServicesTab } from "./org-settings/org-services-tab";
 import { OrgApprovalsTab } from "./org-settings/org-approvals-tab";
 import { ConnectorsHub } from "@/modules/connectors/components/connectors-hub";
 
+// Tab IDs valid for `?tab=` query param.  Must match the Tabs <TabsTrigger value="">
+// values rendered below — keep in lockstep with use-org-settings.tsx VALID_TABS.
+const URL_VALID_TABS = new Set([
+  "organization",
+  "members",
+  "permissions",
+  "services",
+  "connectors",
+  "approvals",
+]);
+
 export function OrganizationSettings() {
   const hookData = useOrgSettings();
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   // Local UI-only flag flipped on successful clipboard write so the Copy
   // button shows a "Copied!" affordance for ~2s. Reset when the dialog
   // closes or another invite is started.
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
 
+  // URL → state sync.  Keeps the tab in sync when the user navigates via
+  // browser back/forward or via Command Palette deep-link (which only
+  // mutates the search param without a full route change).  Mirrors the
+  // pattern used in app/files/[uploadId]/page.tsx.
+  const urlTab = searchParams?.get("tab") ?? null;
+  useEffect(() => {
+    if (!urlTab) return;
+    if (!URL_VALID_TABS.has(urlTab)) return;
+    if (hookData.activeTab === urlTab) return;
+    hookData.setActiveTab(urlTab);
+  }, [urlTab, hookData]);
+
+  // State → URL sync.  Wraps the Tabs onValueChange to mirror the active
+  // tab into ?tab=.  Uses router.replace so per-tab clicks don't pile up
+  // in the browser back-stack.
+  const handleTabChange = useCallback(
+    (next: string) => {
+      hookData.setActiveTab(next);
+      if (!URL_VALID_TABS.has(next)) return;
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      params.set("tab", next);
+      router.replace(`/admin?${params.toString()}`, { scroll: false });
+    },
+    [hookData, router, searchParams],
+  );
+
   return (
-    <Tabs value={hookData.activeTab} onValueChange={hookData.setActiveTab} className="space-y-6">
+    <Tabs value={hookData.activeTab} onValueChange={handleTabChange} className="space-y-6">
       {/* Invite Dialog — hidden while INVITES_ENABLED=false (SES unverified) */}
       <Dialog
         open={INVITES_ENABLED && hookData.isInviteDialogOpen}

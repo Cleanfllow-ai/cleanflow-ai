@@ -4,6 +4,7 @@ import { Inter, IBM_Plex_Mono } from "next/font/google"
 import { AuthProvider } from "@/modules/auth"
 import { CookieBanner } from "@/modules/privacy/components/cookie-banner"
 import { FilePreloader } from "@/modules/files/components/file-preloader"
+import { CommandPalette } from "@/shared/components/command-palette"
 import type { Metadata } from "next"
 import type React from "react"
 import { ReduxProvider } from "@/shared/providers/redux-provider"
@@ -49,6 +50,8 @@ export default function RootLayout({
               {children}
               <FilePreloader />
               <CookieBanner />
+              {/* Global Cmd+K palette — self-disables when not authenticated. */}
+              <CommandPalette />
             </ThemeProvider>
           </AuthProvider>
         </ReduxProvider>
