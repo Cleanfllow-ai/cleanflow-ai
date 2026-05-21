@@ -522,6 +522,7 @@ export function QuarantineVersionCompareDialog({
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Previous page"
                   className="h-7 px-2"
                   disabled={safePage === 0 || loading}
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
@@ -534,6 +535,7 @@ export function QuarantineVersionCompareDialog({
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Next page"
                   className="h-7 px-2"
                   disabled={safePage >= totalPages - 1 || loading}
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}

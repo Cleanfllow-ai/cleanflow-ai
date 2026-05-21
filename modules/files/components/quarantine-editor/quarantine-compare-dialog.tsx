@@ -225,6 +225,7 @@ export function QuarantineCompareDialog({
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Previous row"
                   className="h-7 px-2"
                   disabled={safeIndex === 0}
                   onClick={goPrev}
@@ -237,6 +238,7 @@ export function QuarantineCompareDialog({
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Next row"
                   className="h-7 px-2"
                   disabled={safeIndex >= total - 1}
                   onClick={goNext}

@@ -209,7 +209,7 @@ export function OrgGeneralTab({
               )}
             </div>
             <div className="space-y-2">
-              <h4 className="font-medium">Organization Logo</h4>
+              <h3 className="font-medium">Organization Logo</h3>
               <p className="text-sm text-muted-foreground">
                 Upload a logo for your organization
               </p>
@@ -346,7 +346,7 @@ export function OrgGeneralTab({
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
             <div className="space-y-1">
-              <h4 className="text-sm font-medium">Export my data</h4>
+              <h3 className="text-sm font-medium">Export my data</h3>
               <p className="text-sm text-muted-foreground">
                 Downloads a JSON of your account, memberships, invites,
                 and permissions.
@@ -369,7 +369,7 @@ export function OrgGeneralTab({
 
           <div className="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
             <div className="space-y-1">
-              <h4 className="text-sm font-medium">Delete my account</h4>
+              <h3 className="text-sm font-medium">Delete my account</h3>
               <p className="text-sm text-muted-foreground">
                 Removes your access to all organizations and disables
                 your login. Audit logs are retained per legal basis.
@@ -450,7 +450,7 @@ export function OrgGeneralTab({
           <CardContent>
             <div className="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
               <div className="space-y-1">
-                <h4 className="text-sm font-medium">Delete this organization</h4>
+                <h3 className="text-sm font-medium">Delete this organization</h3>
                 <p className="text-sm text-muted-foreground">
                   Removes all members, invites, and role permissions. The
                   organization record is retained for audit. Files, jobs, and

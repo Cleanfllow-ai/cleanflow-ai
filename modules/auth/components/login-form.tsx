@@ -50,6 +50,7 @@ export function LoginForm() {
             <Input
               id="email"
               type="email"
+              autoComplete="email"
               placeholder="Enter your email"
               value={f.email}
               onChange={(e) => f.setEmail(e.target.value)}
@@ -72,6 +73,7 @@ export function LoginForm() {
             <Input
               id="password"
               type={f.showPassword ? "text" : "password"}
+              autoComplete="current-password"
               placeholder="Enter your password"
               value={f.password}
               onChange={(e) => f.setPassword(e.target.value)}
@@ -81,6 +83,7 @@ export function LoginForm() {
             <button
               type="button"
               aria-label={f.showPassword ? "Hide password" : "Show password"}
+              aria-pressed={f.showPassword}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
               onClick={() => f.setShowPassword(!f.showPassword)}
             >
@@ -162,11 +165,11 @@ export function LoginForm() {
           <div className="space-y-4 mt-4">
             <div className="space-y-1.5">
               <Label htmlFor="new-password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">New Password</Label>
-              <Input id="new-password" type="password" placeholder="Enter new password" value={f.newPassword} onChange={(e) => f.setNewPassword(e.target.value)} autoFocus disabled={f.isSettingPassword} className="h-11" />
+              <Input id="new-password" type="password" autoComplete="new-password" placeholder="Enter new password" value={f.newPassword} onChange={(e) => f.setNewPassword(e.target.value)} autoFocus disabled={f.isSettingPassword} className="h-11" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="confirm-new-password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Confirm Password</Label>
-              <Input id="confirm-new-password" type="password" placeholder="Confirm new password" value={f.confirmNewPassword} onChange={(e) => f.setConfirmNewPassword(e.target.value)} disabled={f.isSettingPassword} className="h-11" />
+              <Input id="confirm-new-password" type="password" autoComplete="new-password" placeholder="Confirm new password" value={f.confirmNewPassword} onChange={(e) => f.setConfirmNewPassword(e.target.value)} disabled={f.isSettingPassword} className="h-11" />
             </div>
             {f.error && (
               <Alert variant="destructive"><AlertDescription>{f.error}</AlertDescription></Alert>

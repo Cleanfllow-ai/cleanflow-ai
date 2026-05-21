@@ -154,6 +154,7 @@ export function OrgMembersTab({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
                 <Input
                   data-testid="members-search"
+                  aria-label="Search members"
                   placeholder="Search by name or email..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}

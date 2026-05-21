@@ -123,9 +123,9 @@ export function OrgServicesTab({
                 <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="min-w-0">
-                <h4 className="font-medium text-sm sm:text-base">
+                <h3 className="font-medium text-sm sm:text-base">
                   Data Transform
-                </h4>
+                </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   Transform and normalize data between different ERP formats
                 </p>
@@ -147,9 +147,9 @@ export function OrgServicesTab({
                 <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div className="min-w-0">
-                <h4 className="font-medium text-sm sm:text-base">
+                <h3 className="font-medium text-sm sm:text-base">
                   Data Quality
-                </h4>
+                </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   Validate, clean, and fix data quality issues automatically
                 </p>
@@ -172,9 +172,9 @@ export function OrgServicesTab({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-medium text-sm sm:text-base">
+                  <h3 className="font-medium text-sm sm:text-base">
                     CleanDataShield™
-                  </h4>
+                  </h3>
                   <Badge variant="secondary" className="text-xs">
                     Premium
                   </Badge>
