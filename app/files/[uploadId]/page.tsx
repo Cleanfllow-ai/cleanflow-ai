@@ -31,6 +31,7 @@
 import { use, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
+  AlertCircle,
   ArrowLeft,
   FileText,
   GitBranch,
@@ -117,11 +118,20 @@ function FileDetailsPageContent({ params }: PageProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Distinguish "file not found / deleted" (404) from other errors so we can
+  // render the dedicated empty-state UI instead of a silent redirect or a
+  // generic error string. Pre-fix behaviour was to fall through into the
+  // generic `error || 'File not found.'` branch which made stale deep-links
+  // look identical to network failures and offered no recovery affordance
+  // beyond a Back button.
+  const [notFound, setNotFound] = useState(false)
+
   useEffect(() => {
     if (!uploadId || !idToken) return
     let cancelled = false
     setLoading(true)
     setError(null)
+    setNotFound(false)
     fileManagementAPI
       .getFileStatus(uploadId, idToken)
       .then((resp) => {
@@ -129,8 +139,15 @@ function FileDetailsPageContent({ params }: PageProps) {
       })
       .catch((err: any) => {
         if (cancelled) return
-        const msg = err?.message || 'Failed to load file'
-        setError(msg)
+        const status = err?.status
+        const msg = (err?.message || '').toLowerCase()
+        const isNotFound =
+          status === 404 || msg.includes('not found') || msg.includes('does not exist')
+        if (isNotFound) {
+          setNotFound(true)
+        } else {
+          setError(err?.message || 'Failed to load file')
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -219,6 +236,42 @@ function FileDetailsPageContent({ params }: PageProps) {
         data-testid="file-page-loading"
       >
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+  // P0 fix (Bug #1, 2026-05-21): deep-link to a deleted / stale file used to
+  // fall through to the generic error branch (or, before the route existed,
+  // silently redirect). Render a dedicated empty-state card so the user
+  // knows *why* the file is missing and how to recover.
+  if (notFound || (!error && !resolvedFile)) {
+    return (
+      <div
+        className="flex h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center"
+        data-testid="file-page-not-found"
+      >
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border/40 bg-muted/40">
+          <AlertCircle className="h-6 w-6 text-muted-foreground/60" />
+        </div>
+        <div className="space-y-1.5">
+          <p className="font-sans text-sm font-semibold tracking-tight">
+            File not found
+          </p>
+          <p className="max-w-md text-xs text-muted-foreground/80">
+            This file may have been deleted, or the link is no longer valid. It
+            could have been removed in another session or by another user in
+            your organization.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => router.push('/files')}
+          data-testid="file-not-found-back"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to catalog
+        </Button>
       </div>
     )
   }

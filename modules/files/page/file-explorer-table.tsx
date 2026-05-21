@@ -14,6 +14,7 @@ import {
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
+    ChevronDown,
     Menu,
     RefreshCw,
     X,
@@ -77,6 +78,10 @@ interface FileExplorerTableProps {
 export function FileExplorerTable({ state }: FileExplorerTableProps) {
     const {
         files, loading, filteredFiles, tableEmpty,
+        // Bug #2: render `visibleFiles` (windowed) instead of `filteredFiles`
+        // so the DOM stays bounded at PAGE_SIZE rows (100 default). The
+        // "Showing N of M / Load more" affordance lives below the table.
+        visibleFiles, hasMoreFiles, handleLoadMoreFiles, visibleRowLimit,
         searchQuery, setSearchQuery, statusFilter, setStatusFilter,
         sortField, sortDirection, handleSort,
         visibleColumns, setDisplayColumnModalOpen,
@@ -87,6 +92,8 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
         handleStopClick, stopping,
         handleOpenQuarantineEditor, highlightedFileId,
         selectedFiles, handleSelectFile, handleSelectAll, handleBulkDeleteClick, bulkDeleting,
+        // Bug #6: bulk Re-run DQ
+        handleBulkRerunDq, bulkRerunning,
         recentlyUploaded, setRecentlyUploaded,
         setWizardFile, setWizardOpen,
         handleNewImportOpen,
@@ -228,21 +235,57 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                 : `${filteredFiles.length} of ${files.length}`}
                         </span>
                     )}
+                    {/*
+                      * Bug #6 (P1, 2026-05-21): bulk-action toolbar. Previously
+                      * the only bulk action was Delete; power users asked for
+                      * Re-run DQ (loops POST /files/{id}/process). Archive is
+                      * NOT exposed: no BE archive endpoint exists today —
+                      * surfacing a button that always errors would be worse
+                      * than silence. TODO: wire to /uploads/{id}/archive once
+                      * the connectors-context owners add it. The pattern here
+                      * mirrors `modules/jobs/components/jobs-list.tsx` so the
+                      * two batch toolbars stay visually consistent.
+                      */}
                     {selectedFiles.size > 0 && (
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            className="h-9 gap-1.5 px-3.5"
-                            onClick={handleBulkDeleteClick}
-                            disabled={bulkDeleting}
-                        >
-                            {bulkDeleting ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
-                            )}
-                            <span className="text-sm font-medium">Delete {selectedFiles.size}</span>
-                        </Button>
+                        <>
+                            <span
+                                className="hidden sm:inline text-[11px] font-semibold tabular-nums text-primary mr-1"
+                                style={{ fontFamily: "'IBM Plex Mono', var(--font-mono, monospace)" }}
+                                data-testid="bulk-selection-count"
+                            >
+                                {selectedFiles.size} selected
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 gap-1.5 px-3 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                                onClick={handleBulkRerunDq}
+                                disabled={bulkRerunning || bulkDeleting}
+                                data-testid="bulk-rerun-dq-button"
+                            >
+                                {bulkRerunning ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <Play className="h-3.5 w-3.5" />
+                                )}
+                                <span className="text-sm font-medium">Re-run DQ</span>
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="h-9 gap-1.5 px-3.5"
+                                onClick={handleBulkDeleteClick}
+                                disabled={bulkDeleting || bulkRerunning}
+                                data-testid="bulk-delete-button"
+                            >
+                                {bulkDeleting ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                                <span className="text-sm font-medium">Delete {selectedFiles.size}</span>
+                            </Button>
+                        </>
                     )}
                     <Button
                         size="sm"
@@ -462,7 +505,12 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {filteredFiles.map((file) => (
+                            {/* Bug #2: render windowed `visibleFiles` (capped at
+                                visibleRowLimit ≤ filteredFiles.length) instead of
+                                the full filtered list to keep the DOM bounded at
+                                100 rows by default. "Load more" footer below
+                                grows the window in PAGE_SIZE increments. */}
+                            {visibleFiles.map((file) => (
                                 <TableRow
                                     key={file.upload_id}
                                     data-file-id={file.upload_id}
@@ -995,10 +1043,41 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                         </TableBody>
                     </Table>
                 </div>
+                {/* Bug #2 (P1, 2026-05-21): pagination affordance. Only rendered
+                    when the windowed slice hides at least one row; the user gets
+                    "Showing X of Y" + a Load More button that grows the window
+                    by PAGE_SIZE. Below-the-fold timestamps note moved into the
+                    same border-top stripe so we don't ship two separate rules. */}
                 {filteredFiles.length > 0 && (
-                    <p className="px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground/50 border-t border-border/40 font-mono">
-                        Timestamps in IST (UTC+5:30)
-                    </p>
+                    <div className="flex flex-col gap-2 border-t border-border/40 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-mono">
+                            {hasMoreFiles ? (
+                                <>
+                                    Showing {visibleFiles.length} of {filteredFiles.length}
+                                    <span className="ml-2 text-muted-foreground/40">
+                                        · Timestamps in IST (UTC+5:30)
+                                    </span>
+                                </>
+                            ) : (
+                                <>Timestamps in IST (UTC+5:30)</>
+                            )}
+                        </p>
+                        {hasMoreFiles && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1.5 self-start sm:self-auto"
+                                onClick={handleLoadMoreFiles}
+                                data-testid="files-load-more-button"
+                            >
+                                <ChevronDown className="h-3.5 w-3.5" />
+                                Load more
+                                <span className="text-[10px] text-muted-foreground/70 tabular-nums font-mono">
+                                    ({filteredFiles.length - visibleFiles.length} remaining)
+                                </span>
+                            </Button>
+                        )}
+                    </div>
                 )}
             </div>
         </div>

@@ -34,6 +34,7 @@ import {
 import {
     getDqQuality,
 } from "@/modules/files/page/utils";
+import { useFilesStatePersistence } from "@/modules/files/page/use-files-state-persistence";
 
 export function useFilesPage() {
     const dispatch = useAppDispatch();
@@ -347,6 +348,13 @@ export function useFilesPage() {
 
     // Highlighted file (from activity feed click — animates the row)
     const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null);
+
+    // Bug #3 (P1, 2026-05-21): mirror URL filter state to localStorage so
+    // navigating away from /files and back later restores the last view.
+    // This runs in parallel with the URL → state hydration below; the helper
+    // only fires when the URL is empty (cold mount from another page), so the
+    // two never fight.
+    useFilesStatePersistence();
 
     // ── URL-state hydration: pick up search/sort/status from query on mount ─
     // We persist these on change too (effect below) so a Cmd+R / opening the
@@ -907,6 +915,59 @@ export function useFilesPage() {
     // Same pause semantics as the IMPORTING poller — suspend during a
     // user-initiated stop+delete to avoid clobbering optimistic state.
     useOptimizingFilesPoll({ files, onRefresh: loadFiles, isPaused: stopping !== null });
+
+    // Bug #4 (P1, 2026-05-21): background list-refresh for "still in flight"
+    // rows (DQ_RUNNING / QUEUED / NORMALIZING / etc.) at a relaxed 30 s
+    // cadence. The IMPORTING/OPTIMIZING pollers cover their own narrow
+    // windows; this loop handles the much more common "I just started DQ
+    // and I'm watching the row turn green" case. Constraints:
+    //   - Only ticks when ≥ 1 row is in an active state (zero cost on a
+    //     static catalog).
+    //   - Pauses while the tab is hidden — a backgrounded /files tab must
+    //     not keep hammering /uploads.
+    //   - Catches up immediately on tab refocus.
+    //   - Suspended during the stop+delete chain so a stale list refresh
+    //     can't clobber optimistic UI state mid-operation.
+    const ACTIVE_BG_STATUSES = useMemo(
+        () => new Set([
+            "DQ_DISPATCHED", "DQ_RUNNING", "QUEUED", "PROCESSING",
+            "REPROCESS_SUBMITTED", "REPROCESSING",
+            "NORMALIZING", "SHARDING", "INITIATING",
+        ]),
+        [],
+    );
+    const hasActiveBg = useMemo(
+        () => files.some((f) => ACTIVE_BG_STATUSES.has(f.status)),
+        [files, ACTIVE_BG_STATUSES],
+    );
+    useEffect(() => {
+        if (!hasActiveBg) return;
+        if (stopping !== null) return;
+        let cancelled = false;
+        const POLL_MS = 30_000;
+        const tick = () => {
+            if (cancelled) return;
+            if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+            void Promise.resolve(loadFiles()).catch(() => {/* soft-fail */});
+        };
+        const id = setInterval(tick, POLL_MS);
+        const onVisibilityChange = () => {
+            if (cancelled) return;
+            if (typeof document !== "undefined" && document.visibilityState === "visible") {
+                tick();
+            }
+        };
+        if (typeof document !== "undefined") {
+            document.addEventListener("visibilitychange", onVisibilityChange);
+        }
+        return () => {
+            cancelled = true;
+            clearInterval(id);
+            if (typeof document !== "undefined") {
+                document.removeEventListener("visibilitychange", onVisibilityChange);
+            }
+        };
+    }, [hasActiveBg, stopping, loadFiles]);
 
     const handleQuarantineEditorComplete = () => {
         // Reload files to reflect new version
@@ -1507,6 +1568,72 @@ export function useFilesPage() {
         setShowBulkDeleteModal(true);
     };
 
+    // ─── Bulk Re-run DQ (Bug #6, 2026-05-21) ─────────────────────────
+    // Loops POST /files/{id}/process for each selected file. Per-file errors
+    // are surfaced individually; the loop continues so one bad row doesn't
+    // skip the remaining N-1 files. Files that aren't in a runnable status
+    // (terminal-but-runnable: UPLOADED / VALIDATED / DQ_FAILED / FAILED /
+    // DQ_FIXED for re-run) are still attempted — the backend is the final
+    // arbiter of "can this file run". Auth bail-out (401) breaks the loop
+    // immediately because every subsequent call would 401 too.
+    const [bulkRerunning, setBulkRerunning] = useState(false);
+
+    const handleBulkRerunDq = useCallback(async () => {
+        if (selectedFiles.size === 0 || !idToken) return;
+        if (!ensureFilesPermission()) return;
+        setBulkRerunning(true);
+        const ids = Array.from(selectedFiles);
+        let successCount = 0;
+        let failCount = 0;
+        const perFileErrors: string[] = [];
+        let bailedOnAuth = false;
+        for (const id of ids) {
+            const file = files.find((f) => f.upload_id === id);
+            const name = file?.original_filename || file?.filename || id;
+            try {
+                await fileManagementAPI.startProcessing(id, idToken);
+                successCount += 1;
+            } catch (err) {
+                failCount += 1;
+                console.error(`Bulk re-run failed for ${id}:`, err);
+                if (err instanceof ApiError && err.status === 401) {
+                    bailedOnAuth = true;
+                    break;
+                }
+                const reason = err instanceof Error ? err.message : String(err);
+                // Cap per-file error count surfaced in the toast — full set
+                // is in the console.
+                if (perFileErrors.length < 3) {
+                    perFileErrors.push(`${name}: ${reason}`);
+                }
+            }
+        }
+        setBulkRerunning(false);
+        setSelectedFiles(new Set());
+        await loadFiles();
+        if (bailedOnAuth) {
+            toast({
+                title: "Session expired",
+                description: "Sign in again to continue re-running.",
+                variant: "destructive",
+            });
+            return;
+        }
+        if (failCount === 0) {
+            toast({
+                title: "Re-run started",
+                description: `${successCount} file(s) queued for DQ processing.`,
+            });
+        } else {
+            const trailing = perFileErrors.length > 0 ? ` — e.g. ${perFileErrors[0]}` : "";
+            toast({
+                title: "Re-run partial",
+                description: `${successCount} queued, ${failCount} failed${trailing}.`,
+                variant: "destructive",
+            });
+        }
+    }, [selectedFiles, idToken, ensureFilesPermission, files, loadFiles, toast]);
+
     const handleBulkDeleteConfirm = async () => {
         if (selectedFiles.size === 0 || !idToken) return;
         if (!ensureFilesPermission()) return;
@@ -1870,6 +1997,33 @@ export function useFilesPage() {
         }
     };
 
+    // ─── Pagination / windowing (Bug #2, 2026-05-21) ─────────────────
+    // /files renders every row at once — 284 rows today, will break at 1k+.
+    // Lowest-effort fix: cap visible rows to PAGE_SIZE and let the user
+    // "Load more" in PAGE_SIZE-sized increments. Avoids adding a new
+    // dependency (@tanstack/react-virtual) which would also require a
+    // pnpm-lock regen — see memory `feedback_fe_pnpm_lockfile_must_match`.
+    // Pure FE fix; BE /uploads currently returns the full list (no cursor
+    // pagination yet), so windowing here keeps the DOM bounded regardless.
+    //
+    // Resets to PAGE_SIZE whenever the filter / search / sort actually
+    // changes the result set — otherwise scrolling state would persist
+    // across a filter change and the user would land on row 200+ of a
+    // 30-row result.
+    const PAGE_SIZE = 100;
+    const [visibleRowLimit, setVisibleRowLimit] = useState(PAGE_SIZE);
+    useEffect(() => {
+        setVisibleRowLimit(PAGE_SIZE);
+    }, [searchQuery, statusFilter, sortField, sortDirection]);
+    const visibleFiles = useMemo(
+        () => filteredFiles.slice(0, visibleRowLimit),
+        [filteredFiles, visibleRowLimit],
+    );
+    const hasMoreFiles = filteredFiles.length > visibleFiles.length;
+    const handleLoadMoreFiles = useCallback(() => {
+        setVisibleRowLimit((prev) => prev + PAGE_SIZE);
+    }, []);
+
     // ─── Derived state ────────────────────────────────────────────────
     const tableEmpty = filteredFiles.length === 0;
 
@@ -1902,6 +2056,8 @@ export function useFilesPage() {
         // Search / filter / sort
         searchQuery, setSearchQuery, statusFilter, setStatusFilter, highlightedFileId,
         sortField, sortDirection, handleSort, filteredFiles, tableEmpty,
+        // Pagination (Bug #2)
+        visibleFiles, hasMoreFiles, handleLoadMoreFiles, visibleRowLimit,
         // Section
         activeSection, setActiveSection,
         // Source / destination
@@ -1935,6 +2091,8 @@ export function useFilesPage() {
         // Multi-select & Bulk Delete
         selectedFiles, handleSelectFile, handleSelectAll, handleBulkDeleteClick,
         showBulkDeleteModal, setShowBulkDeleteModal, handleBulkDeleteConfirm, bulkDeleting,
+        // Bulk Re-run DQ (Bug #6)
+        handleBulkRerunDq, bulkRerunning,
         // Download / export
         downloading, downloadingFormat,
         showDownloadModal, setShowDownloadModal, downloadModalFile,
