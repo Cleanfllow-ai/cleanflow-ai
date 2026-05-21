@@ -36,6 +36,12 @@ const badgeVariants = cva(
           "border-amber-200/60 bg-amber-100 text-[color:var(--status-warning)] dark:bg-amber-900/30 dark:border-amber-900/50",
         "soft-danger":
           "border-red-200/60 bg-red-100 text-[color:var(--status-danger)] dark:bg-red-900/30 dark:border-red-900/50",
+        // Filled teal pill (Snowflake-style brand chip). Brand teal #0cbeb6
+        // with WHITE label clears 3.0:1 — for AA at small sizes we deepen
+        // the bg to #0a8f89 (teal-700). Use this for any "connected to teal
+        // service" pill instead of hand-rolling `bg-[#0cbeb6]`.
+        teal:
+          "border-transparent bg-[#0a8f89] text-white dark:bg-[#0a8f89]",
       },
     },
     defaultVariants: {

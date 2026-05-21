@@ -80,6 +80,15 @@ export const AVATAR_FALLBACK_BRAND =
 export const BRAND_TEXT_ON_DARK = "text-[color:var(--primary-tint)]";
 
 /**
+ * Red AS TEXT on a light surface (KPI counts, "Quarantined: 1,701,611" on
+ * file-detail). Deepened to red-800 on light (5.94:1) and red-300 on dark
+ * (6.6:1). Use this instead of `text-destructive` when red is the foreground
+ * — `--destructive` was deepened only enough for white-on-red fills (4.5:1)
+ * which leaves it at 4.32:1 when used the other way around.
+ */
+export const TEXT_DESTRUCTIVE = "text-[color:var(--text-destructive)]";
+
+/**
  * Card / tile primitive helper. Card and connector tiles must explicitly
  * honour `dark:bg-card dark:border-border` so feature modules can drop in.
  */

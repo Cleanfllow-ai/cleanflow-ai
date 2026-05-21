@@ -39,10 +39,12 @@ interface FileVersionHistoryProps {
 }
 
 function dqScoreColor(score?: number | null): string {
+  // Wave 4: replaced raw -600 tints (2.6–2.9:1 on light bg, regression on dark)
+  // with the audited status tokens which auto-flip per theme to clear AA.
   if (score == null) return 'text-muted-foreground'
-  if (score >= 90) return 'text-green-600'
-  if (score >= 70) return 'text-yellow-600'
-  return 'text-red-600'
+  if (score >= 90) return 'text-[color:var(--status-success)]'
+  if (score >= 70) return 'text-[color:var(--status-warning)]'
+  return 'text-[color:var(--text-destructive)]'
 }
 
 function statusBadgeVariant(status?: string): 'default' | 'secondary' | 'destructive' | 'outline' {
@@ -281,7 +283,7 @@ export function FileVersionHistory({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="gap-1.5 text-xs text-green-600 hover:text-green-700"
+                        className="gap-1.5 text-xs text-[color:var(--status-success)] hover:underline"
                         disabled={processingId === v.upload_id}
                         onClick={() => handleProcess(v.upload_id)}
                       >

@@ -51,24 +51,32 @@ export function FilesPageHeader({ files }: FilesPageHeaderProps) {
                     </div>
 
                     {stats.processed > 0 && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20">
-                            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                            <span className="font-mono text-[12px] font-semibold tabular-nums text-emerald-400">
+                        // Wave 4: emerald-400 on emerald-500/10 was 1.70:1 (regression).
+                        // Use status-success token (green-700 light / green-400 dark) which
+                        // clears AA on both surfaces. Drop the /60 opacity on the small
+                        // uppercase label — `text-[color:var(--status-success)]/75` would
+                        // still erode contrast below AA at 10px.
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-100 border border-green-200/60 dark:bg-green-900/30 dark:border-green-900/50">
+                            <CheckCircle2 className="h-3 w-3 text-[color:var(--status-success)]" />
+                            <span className="font-mono text-[12px] font-semibold tabular-nums text-[color:var(--status-success)]">
                                 {stats.processed}
                             </span>
-                            <span className="text-[10px] uppercase tracking-wider text-emerald-400/60">
+                            <span className="text-[10px] uppercase tracking-wider text-[color:var(--status-success)]">
                                 processed
                             </span>
                         </div>
                     )}
 
                     {stats.failed > 0 && (
+                        // Wave 4: `text-destructive/60` on the 10px uppercase "failed"
+                        // label diluted the deepened red-700 to 2.81:1. Drop the /60
+                        // opacity so the small label clears AA.
                         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-destructive/10 border border-destructive/20">
-                            <AlertTriangle className="h-3 w-3 text-destructive" />
-                            <span className="font-mono text-[12px] font-semibold tabular-nums text-destructive">
+                            <AlertTriangle className="h-3 w-3 text-[color:var(--text-destructive)]" />
+                            <span className="font-mono text-[12px] font-semibold tabular-nums text-[color:var(--text-destructive)]">
                                 {stats.failed}
                             </span>
-                            <span className="text-[10px] uppercase tracking-wider text-destructive/60">
+                            <span className="text-[10px] uppercase tracking-wider text-[color:var(--text-destructive)]">
                                 failed
                             </span>
                         </div>

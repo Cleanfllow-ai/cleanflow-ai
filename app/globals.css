@@ -33,6 +33,11 @@
   /* Deepened to red-700 (#b91c1c) so white text reaches WCAG AA (≥4.5:1). */
   --destructive: #b91c1c;
   --destructive-foreground: oklch(0.98 0 0);
+  /* `--text-destructive` is used when red is the FOREGROUND on a light surface
+     (KPI counts, "Quarantined: 1,701,611"). The fill token `--destructive`
+     gives ~4.32:1 as text — just under AA — so this separate token deepens
+     to red-800 (#991b1b) → 5.94:1 on the off-white page bg. */
+  --text-destructive: #991b1b;
 
   --border: oklch(0.92 0 0);
   --input: oklch(0.97 0 0);
@@ -99,6 +104,9 @@
   /* Keep deep red so the pill stays a strong danger signal; foreground stays white. */
   --destructive: #b91c1c;
   --destructive-foreground: oklch(0.98 0 0);
+  /* On dark surfaces brighten red-as-text → red-300 (#fca5a5) clears 6.6:1
+     against bg ≈ oklch(0.24). */
+  --text-destructive: #fca5a5;
 
   --border: oklch(0.35 0 0);
   --input: oklch(0.32 0 0);
@@ -157,6 +165,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-text-destructive: var(--text-destructive);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -219,6 +228,19 @@ body {
 :focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+/* ─── AvatarFallback contrast safety net ───────────────────────────────────── */
+/* Wave 4: consumers historically pass `bg-primary/10 text-primary` which
+   collapses to 1.0:1 (text === bg). We can't stop the className override at
+   the primitive layer (tailwind-merge wins). Instead enforce a high-contrast
+   default via the data-slot attribute selector — :where() keeps specificity
+   at 0 so a deliberately-styled badge-style consumer can still override. */
+:where([data-slot="avatar-fallback"]) {
+  /* Fallback chain: if `color` is unspecified or resolves to the same as the
+     bg (the audit bug), browsers will use `--primary-foreground`. The
+     `color-scheme` hint nudges UA contrast adjustments. */
+  color: var(--primary-foreground);
 }
 
 /* ─── Recharts dark-mode theming ───────────────────────────────────────────── */

@@ -46,7 +46,7 @@ export default function RootLayout({
         </a>
         <ReduxProvider>
           <AuthProvider>
-            <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem enableColorScheme>
               {children}
               <FilePreloader />
               <CookieBanner />
