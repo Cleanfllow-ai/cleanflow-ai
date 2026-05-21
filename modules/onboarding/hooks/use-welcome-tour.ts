@@ -4,6 +4,33 @@ import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } 
 
 const TOUR_COMPLETED_KEY = "rightrev:tour:completed:v1"
 
+// W4-NAV (2026-05-21): be permissive about "tour already done" — any of these
+// historical / alternate keys counts as "skip auto-open". Verify agents reported
+// stale completion state leaking past the v1 key (browser-extension wipes, prior
+// FE versions) and the tour mask would auto-open on every dashboard mount,
+// which we suspected of intercepting sidebar / row clicks. Treat the union as
+// truthy; only fall back to auto-open if NONE of these keys are set.
+const TOUR_COMPLETED_ALIASES = [
+  TOUR_COMPLETED_KEY,
+  "tour_completed",
+  "rightrev_tour_done",
+  "tour_skipped",
+  "onboardingComplete",
+] as const
+
+function readAnyTourCompletionFlag(): boolean {
+  if (typeof window === "undefined") return false
+  for (const key of TOUR_COMPLETED_ALIASES) {
+    try {
+      const v = localStorage.getItem(key)
+      if (v === "true" || v === "1" || v === "yes") return true
+    } catch {
+      // Storage may throw in lockdown / private modes — fall through.
+    }
+  }
+  return false
+}
+
 export interface UseWelcomeTourReturn {
   isOpen: boolean
   currentStep: number
@@ -21,7 +48,10 @@ export function useWelcomeTour(autoOpenOnDashboard = false): UseWelcomeTourRetur
 
   // Read the flag on mount (client-only)
   useEffect(() => {
-    const completed = localStorage.getItem(TOUR_COMPLETED_KEY) === "true"
+    // W4-NAV: union check across all historical completion-flag keys so a
+    // stale localStorage state never re-pops the tour on top of normal
+    // navigation. Writes still go to the canonical TOUR_COMPLETED_KEY.
+    const completed = readAnyTourCompletionFlag()
     setHasCompleted(completed)
 
     if (!completed && autoOpenOnDashboard) {

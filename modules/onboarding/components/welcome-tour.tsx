@@ -14,8 +14,8 @@
  *   Welcome → Catalog (start here) → Upload → Dashboard KPIs → AI Augmentation → Jobs → Admin → Done
  */
 
-import React, { useCallback, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import React, { useCallback, useEffect, useRef } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { TourProvider, useTour, type StepType, type PopoverContentProps } from "@reactour/tour"
 import { X, ArrowRight, ArrowLeft, Sparkles, Upload } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
@@ -417,6 +417,27 @@ export function WelcomeTour({
     return () => document.removeEventListener("keydown", handleKey)
   }, [isOpen, onSkip, setCurrentStep])
 
+  // W4-NAV (2026-05-21): auto-skip on any route change. Reactour's spotlight
+  // mask is anchored to a DOM selector on the CURRENT page — if the user
+  // navigates (sidebar click, Cmd+K, back/forward) the selector becomes stale
+  // and the mask either disappears halfway or sticks around covering the new
+  // page, intercepting subsequent clicks. Treat any pathname change as
+  // "user moved on, dismiss the tour" rather than holding state across routes.
+  // Guards against the navigation-hijack class of bugs without any tour-step
+  // behaviour change for users who stay on /dashboard.
+  const pathname = usePathname()
+  const initialPathRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (initialPathRef.current === null) {
+      initialPathRef.current = pathname ?? ""
+      return
+    }
+    if (isOpen && pathname !== initialPathRef.current) {
+      initialPathRef.current = pathname ?? ""
+      onSkip()
+    }
+  }, [pathname, isOpen, onSkip])
+
   return (
     <TourProvider
       steps={TOUR_STEPS}
@@ -430,7 +451,14 @@ export function WelcomeTour({
       padding={10}
       scrollSmooth
       onClickMask={() => {
-        // Intentionally block accidental mask-click dismissal
+        // W4-NAV (2026-05-21): previously this blocked mask-clicks so the user
+        // could not accidentally dismiss the tour. Verify agents reported that
+        // when the spotlight selector failed to find its anchor element, the
+        // mask still rendered full-screen and captured every click — including
+        // sidebar / row clicks that should have navigated. Behaviour now: a
+        // mask click is treated as "skip" so the page stays responsive even if
+        // a tour anchor mid-flight goes missing (route change, DOM swap, etc.).
+        onSkip()
       }}
       ContentComponent={(props) => (
         <TourContent

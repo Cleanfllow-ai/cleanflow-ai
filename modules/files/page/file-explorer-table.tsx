@@ -247,17 +247,32 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
 
     // Apply chip filter on top of the hook output. When no chips are
     // active these collapse to the pass-through identity (no-op cost).
-    const chipFilteredVisible = useMemo(() => {
-        if (!chipsActive) return visibleFiles;
-        const matchers = STATUS_CHIPS.filter((c) => statusChips.has(c.key));
-        return visibleFiles.filter((f) => matchers.some((m) => m.match(f)));
-    }, [chipsActive, statusChips, visibleFiles]);
-
+    //
+    // W4-NAV (2026-05-21) — multi-status filter regression fix:
+    // The previous implementation filtered `visibleFiles` (which is already
+    // sliced to PAGE_SIZE=100). When the user picked, e.g., "quarantined" but
+    // the first 100 rows of the broader pool contained zero quarantined files,
+    // the chip filter looked completely broken — zero rows rendered even
+    // though dozens of matching rows existed further down the list. Fix:
+    // filter the FULL `filteredFiles` first, then derive the windowed slice
+    // from the chip-filtered result so the window always reflects the chip
+    // selection. `chipFilteredAll` is the source of truth; `chipFilteredVisible`
+    // is just the windowed view of it.
     const chipFilteredAll = useMemo(() => {
         if (!chipsActive) return filteredFiles;
         const matchers = STATUS_CHIPS.filter((c) => statusChips.has(c.key));
         return filteredFiles.filter((f) => matchers.some((m) => m.match(f)));
     }, [chipsActive, statusChips, filteredFiles]);
+
+    const chipFilteredVisible = useMemo(() => {
+        if (!chipsActive) return visibleFiles;
+        // Slice the chip-filtered set to the same window the hook would have
+        // produced. `visibleRowLimit` is the canonical window size from the
+        // hook (PAGE_SIZE * Load-More-clicks). Falling back to
+        // `chipFilteredAll.length` makes the safety check explicit.
+        const limit = Math.min(visibleRowLimit ?? chipFilteredAll.length, chipFilteredAll.length);
+        return chipFilteredAll.slice(0, limit);
+    }, [chipsActive, chipFilteredAll, visibleFiles, visibleRowLimit]);
 
     // Effective values the table body should read. Falls back to the hook
     // outputs when chips are inactive so we don't subtly change behaviour
@@ -343,6 +358,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search files..."
+                            aria-label="Search files"
                             className="h-9 w-full sm:w-52 pl-8 text-sm bg-background border-border/60 focus-visible:border-primary/40 focus-visible:ring-1 focus-visible:ring-primary/20"
                         />
                     </div>

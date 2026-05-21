@@ -38,11 +38,17 @@ import {
 } from "next/navigation";
 
 const STORAGE_KEY = "cleanflowai.files.viewState";
-const TRACKED_PARAMS = ["q", "status", "sort", "dir"] as const;
+// W4-NAV (2026-05-21): include `status_multi` (Wave 2C chip filter) so the
+// power-user "show me failed + quarantined" view also survives navigation
+// away from /files. Previously only the single-status `status` param was
+// tracked, which meant chip selections silently reset on Dashboard ↔ Catalog
+// hops even though the URL itself supported chip persistence within /files.
+const TRACKED_PARAMS = ["q", "status", "status_multi", "sort", "dir"] as const;
 
 interface PersistedState {
   q?: string;
   status?: string;
+  status_multi?: string;
   sort?: string;
   dir?: string;
 }
