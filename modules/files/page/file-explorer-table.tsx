@@ -61,9 +61,9 @@ import {
     getDqQualityLabel,
     getScoreBadgeColor,
     getStatusBadgeColor,
-    getStatusLabel,
     isActiveStatus,
 } from "@/modules/files/page/utils";
+import { getFriendlyStatusLabel } from "@/shared/lib/file-status-label";
 import { useUploadManager } from "@/modules/files/context/upload-manager";
 import type { FilesPageState } from "./use-files-page";
 
@@ -642,7 +642,7 @@ export function FileExplorerTable({ state }: FileExplorerTableProps) {
                                                                     <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-current" />
                                                                 </span>
                                                             )}
-                                                            {getStatusLabel(effectiveStatus)}
+                                                            {getFriendlyStatusLabel(effectiveStatus)}
                                                         </Badge>
                                                         {showPartialWarning && (
                                                             <Tooltip>

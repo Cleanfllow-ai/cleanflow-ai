@@ -240,7 +240,16 @@ function AppSidebarComponent() {
 								</div>
 							)}
 							<button
-								onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+								type="button"
+								onClick={(e) => {
+									// Defensive: ensure click never bubbles into a parent Link/anchor
+									// or triggers a form submit. Without this, the sidebar's Dark
+									// Mode button was observed to (a) navigate to /dashboard and
+									// (b) lose the toggle in some browsers (brand-pass 2026-05-21).
+									e.preventDefault()
+									e.stopPropagation()
+									setTheme(theme === 'dark' ? 'light' : 'dark')
+								}}
 								aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
 								className="flex items-center gap-2.5 px-3 py-[6px] text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg w-full transition-colors"
 							>
@@ -287,7 +296,12 @@ function AppSidebarComponent() {
 								</div>
 							)}
 							<button
-								onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+								type="button"
+								onClick={(e) => {
+									e.preventDefault()
+									e.stopPropagation()
+									setTheme(theme === 'dark' ? 'light' : 'dark')
+								}}
 								className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
 								title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
 							>

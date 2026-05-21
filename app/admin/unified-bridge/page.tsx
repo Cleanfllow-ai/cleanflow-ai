@@ -20,7 +20,7 @@ export default function UnifiedBridgePage() {
           <div className="mb-6">
             <h1 className="text-xl font-semibold">Unified Bridge</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Bring data into CleanFlowAI from any source — structured connectors
+              Bring data into RightRev from any source — structured connectors
               or unstructured document pipelines.
             </p>
           </div>

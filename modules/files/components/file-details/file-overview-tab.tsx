@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { formatBytes, formatToIST } from "@/shared/lib/utils"
+import { formatBytes, formatToIST, getUserTimezone } from "@/shared/lib/utils"
 import type { FileStatusResponse } from "@/modules/files"
 
 import { PartialCompletionBanner } from "../partial-completion-banner"
@@ -41,6 +41,13 @@ interface FileOverviewTabProps {
 
 export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
   const showDqStepper = IN_FLIGHT_DQ_STATUSES.has((file.status || "").toUpperCase())
+  const userTz = getUserTimezone()
+  // Brand-pass 2026-05-21: only render the raw-payload debug panel in non-prod
+  // builds, or when the URL contains ?debug=1 (engineer-only opt-in).
+  const showDebugPanel =
+    process.env.NODE_ENV !== "production" ||
+    (typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("debug") === "1")
 
   return (
     <ScrollArea className="h-full">
@@ -135,7 +142,7 @@ export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
         <div className="space-y-4">
           <h4 className="text-sm font-medium flex items-center gap-2">
             <Clock className="w-4 h-4" />
-            Timeline (IST)
+            Timeline ({userTz})
           </h4>
           <div className="grid gap-4 text-sm sm:grid-cols-3">
             <div className="bg-muted/30 rounded-lg p-4 border">
@@ -193,7 +200,7 @@ export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
             </div>
             <div className="bg-muted/30 p-3 rounded border">
               <span className="text-xs text-muted-foreground block mb-1">Engine</span>
-              <span className="text-sm font-medium">CleanAI 1.0</span>
+              <span className="text-sm font-medium">RightRev Data Quality Engine v1.0</span>
             </div>
             {versionInfo && (
               <div className="bg-muted/30 p-3 rounded border">
@@ -207,28 +214,32 @@ export function FileOverviewTab({ file, versionInfo }: FileOverviewTabProps) {
           </div>
         </div>
 
-        <Separator />
+        {showDebugPanel && (
+          <>
+            <Separator />
 
-        <div className="space-y-4">
-          <h4 className="text-sm font-medium flex items-center gap-2">
-            <Terminal className="w-4 h-4" />
-            API Response Debug
-          </h4>
-          <Collapsible>
-            <CollapsibleTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full justify-between">
-                Show Raw Data
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="bg-muted/30 p-4 rounded mt-2 overflow-auto max-h-60 border">
-                <div className="text-xs text-muted-foreground mb-2">Endpoint: /files/{file.upload_id}/status</div>
-                <pre className="text-xs font-mono whitespace-pre-wrap break-all">{JSON.stringify(file, null, 2)}</pre>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Terminal className="w-4 h-4" />
+                API Response Debug
+              </h4>
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full justify-between">
+                    Show Raw Data
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="bg-muted/30 p-4 rounded mt-2 overflow-auto max-h-60 border">
+                    <div className="text-xs text-muted-foreground mb-2">Endpoint: /files/{file.upload_id}/status</div>
+                    <pre className="text-xs font-mono whitespace-pre-wrap break-all">{JSON.stringify(file, null, 2)}</pre>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          </>
+        )}
       </div>
     </ScrollArea>
   )
