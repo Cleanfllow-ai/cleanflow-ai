@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock } from "lucide-react";
+import { Clock, Info } from "lucide-react";
 import { toast } from "sonner";
 import {
   Card,
@@ -81,10 +81,21 @@ export function TimezonePreferenceCard() {
         </CardTitle>
         <CardDescription>
           Choose the timezone used to render dates and times across the app.
-          This is a personal preference stored in your browser only.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div
+          role="note"
+          className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200"
+        >
+          <Info className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="leading-relaxed">
+            <strong>Browser-only setting.</strong> Your timezone is detected
+            from this device on each login and stored locally in this browser.
+            Changing it here only affects this browser — sign in from another
+            device and it&apos;ll use that device&apos;s timezone.
+          </p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="user-timezone">Timezone</Label>

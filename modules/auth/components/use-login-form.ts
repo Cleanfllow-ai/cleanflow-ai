@@ -6,6 +6,7 @@ import QRCode from 'qrcode'
 import { useAuth } from '@/modules/auth/providers/auth-provider'
 import { orgAPI } from '@/modules/auth/api/org-api'
 import { useToast } from '@/shared/hooks/use-toast'
+import { refreshTimezoneOnLogin } from '@/shared/lib/utils'
 
 // ─── Error sanitizer ──────────────────────────────────────────────────────────
 // Scrubs raw Cognito / APIG internal strings that must never reach the DOM.
@@ -84,6 +85,11 @@ export function useLoginForm() {
             sessionStorage.removeItem("pending_org_details")
             const role = me.membership?.role || "Super Admin"
             window.localStorage.setItem("cleanflowai.currentRole", role)
+            // Refresh timezone from the OS each login — covers the case where
+            // the user travels (India → US, etc.) so times re-render in their
+            // new local zone automatically. Skipped if the user previously
+            // picked a zone manually in Admin → Display Preferences.
+            refreshTimezoneOnLogin()
             window.location.href = "/dashboard"
         } catch (err: any) {
             const message = err?.message || ""

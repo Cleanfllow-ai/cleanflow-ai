@@ -23,8 +23,29 @@ export function formatBytes(bytes: number, decimals = 2) {
  */
 export const TIMEZONE_STORAGE_KEY = "cleanflowai.timezone";
 
+/**
+ * Flag indicating the user manually picked a timezone in the UI.
+ * When set, refreshTimezoneOnLogin() will NOT clobber it with the browser's
+ * detected zone — respects the user's explicit choice (e.g., they're
+ * physically in India but want to see NYC time for a US-team workflow).
+ */
+export const TIMEZONE_MANUAL_FLAG_KEY = "cleanflowai.timezone.manual";
+
 /** Default fallback when no preference is stored and the browser API is unavailable (SSR). */
 const DEFAULT_TIMEZONE = "Asia/Kolkata";
+
+/**
+ * Detect the browser's current IANA timezone from the OS via Intl.
+ * No permissions, no GPS, no network calls — just reads what the OS reports.
+ */
+export function detectBrowserTimezone(): string {
+  if (typeof window === "undefined") return DEFAULT_TIMEZONE;
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TIMEZONE;
+  } catch {
+    return DEFAULT_TIMEZONE;
+  }
+}
 
 /**
  * Read the user's preferred IANA timezone from localStorage. If nothing is
@@ -36,8 +57,7 @@ export function getUserTimezone(): string {
   try {
     const stored = window.localStorage.getItem(TIMEZONE_STORAGE_KEY);
     if (stored && stored.trim().length > 0) return stored;
-    const detected =
-      Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TIMEZONE;
+    const detected = detectBrowserTimezone();
     try {
       window.localStorage.setItem(TIMEZONE_STORAGE_KEY, detected);
     } catch {
@@ -50,14 +70,45 @@ export function getUserTimezone(): string {
 }
 
 /**
- * Persist the user's preferred IANA timezone. No-op on SSR.
+ * Persist the user's preferred IANA timezone AND mark it as manually chosen.
+ * Subsequent refreshTimezoneOnLogin() calls will respect this and not clobber.
+ * No-op on SSR.
  */
 export function setUserTimezone(tz: string): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(TIMEZONE_STORAGE_KEY, tz);
+    window.localStorage.setItem(TIMEZONE_MANUAL_FLAG_KEY, "true");
   } catch {
     /* ignore */
+  }
+}
+
+/**
+ * Re-detect the browser timezone and update the stored preference IF the user
+ * has not manually overridden it. Called from the post-login flow so a user
+ * who travels (e.g., India → US) sees times rendered in their new local zone
+ * on next login, without needing to visit the settings page.
+ *
+ * Returns the timezone now in effect after the refresh.
+ */
+export function refreshTimezoneOnLogin(): string {
+  if (typeof window === "undefined") return DEFAULT_TIMEZONE;
+  try {
+    const manual = window.localStorage.getItem(TIMEZONE_MANUAL_FLAG_KEY);
+    if (manual === "true") {
+      // User picked one explicitly — respect it.
+      return getUserTimezone();
+    }
+    const detected = detectBrowserTimezone();
+    try {
+      window.localStorage.setItem(TIMEZONE_STORAGE_KEY, detected);
+    } catch {
+      /* ignore */
+    }
+    return detected;
+  } catch {
+    return DEFAULT_TIMEZONE;
   }
 }
 
